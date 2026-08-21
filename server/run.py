@@ -210,8 +210,9 @@ def main() -> None:
 
     ip = local_ip()
     public = winnet.detect_public()   # WLAN oeffentlich? (Windows blockt dann eingehend)
+    fw = winnet.rule_active()
     diag.log(f"===== START v{APP_VERSION} - primaer={ip}:{port}, erkannt={all_lan_ips()}, "
-             f"wlan_oeffentlich={public} =====")
+             f"wlan_oeffentlich={public}, firewall_regel={fw} =====")
     print_banner(ip)
     if public:
         print("  ! Dein WLAN ist als OEFFENTLICH eingestuft - Windows blockt dann")

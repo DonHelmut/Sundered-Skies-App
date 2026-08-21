@@ -51,6 +51,21 @@ def is_public() -> bool | None:
     return _public
 
 
+def rule_active() -> bool | None:
+    """Existiert unsere Firewall-Regel wirklich? (Nur lesen, keine Aenderung.)
+    None = unbekannt/kein Windows."""
+    if not _is_windows():
+        return None
+    try:
+        r = subprocess.run(
+            ["netsh", "advfirewall", "firewall", "show", "rule",
+             f"name={FIREWALL_RULE_NAME}"],
+            capture_output=True, text=True, timeout=6, creationflags=_NO_WINDOW)
+        return r.returncode == 0 and FIREWALL_RULE_NAME in (r.stdout or "")
+    except Exception:
+        return None
+
+
 def allow_firewall() -> bool:
     """Legt die eingehende Firewall-Regel für Port 8000 an – per ERHÖHTEM Prozess
     (UAC-Abfrage beim SL). True, wenn die Elevation gestartet wurde."""

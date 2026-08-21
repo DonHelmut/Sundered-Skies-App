@@ -191,7 +191,11 @@ async def firewall_allow(request: Request):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
     ok = await asyncio.get_event_loop().run_in_executor(None, winnet.allow_firewall)
-    diag.log(f"Firewall-Freigabe angefordert -> Elevation gestartet: {ok}")
+    # Kurz warten und dann PRUEFEN, ob die Regel wirklich existiert - "Elevation
+    # gestartet" allein sagt noch nicht, ob sie auch angelegt wurde.
+    await asyncio.sleep(2.5)
+    aktiv = await asyncio.get_event_loop().run_in_executor(None, winnet.rule_active)
+    diag.log(f"Firewall-Freigabe: Elevation={ok}, Regel jetzt aktiv={aktiv}")
     return JSONResponse({"ok": bool(ok)})
 
 
@@ -269,6 +273,7 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             existing_player_id=msg.get("playerId"),
         )
         meta["playerId"] = player["id"]
+        diag.log(f"BEIGETRETEN  {player.get('name', '?')} (ip={meta.get('ip', '?')})")
         game.save_session()
         await ws.send_json({"type": "joined", "playerId": player["id"]})
         await hub.broadcast_state()
@@ -279,6 +284,7 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         pid = meta.get("playerId")
         own = next((c for c in game.combatants if c.get("playerId") == pid), None) if pid else None
         if own:
+            diag.log(f"VERLASSEN    {own.get('name', '?')} (ip={meta.get('ip', '?')})")
             game.apply({"type": "remove_combatant", "id": own["id"]})
         meta["playerId"] = None
         await hub.broadcast_state()
