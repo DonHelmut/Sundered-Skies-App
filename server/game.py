@@ -212,6 +212,7 @@ class Game:
             "bennyStart": self.benny_start,
             "autoIncap": self.auto_incap,
             "bennyToGm": self.benny_to_gm,
+            "conditionsEnabled": self.conditions_enabled,
         })
 
     def export_data(self) -> dict:
@@ -370,6 +371,7 @@ class Game:
             "slBennies": self.sl_bennies,
             "autoIncap": self.auto_incap,
             "bennyToGm": self.benny_to_gm,
+            "conditionsEnabled": self.conditions_enabled,
             "deckCount": len(self.deck),
             "hasSavedSession": self.resume_available,
             "canUndo": len(self._history) > 0,

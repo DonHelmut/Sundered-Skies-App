@@ -329,3 +329,26 @@ def test_hold_allowed_for_everyone(fresh_game):
     fresh_game.apply({"type": "intervene", "id": a["id"]})
     assert fresh_game._combatant(a["id"])["held"] is False
     assert fresh_game.active_id == a["id"]
+
+
+def test_conditions_toggle_is_reported_and_saved(fresh_game):
+    """Der Zustaende-Schalter muss im Snapshot stehen (sonst springt die Checkbox
+    in der Oberflaeche sofort zurueck) UND in den Einstellungen landen."""
+    from server import game as gmod
+    import json
+
+    snap = fresh_game.snapshot()
+    assert snap["conditionsEnabled"] is True
+    assert snap["conditions"]                      # Zustaende sichtbar
+
+    fresh_game.apply({"type": "set_conditions_enabled", "on": False})
+    snap = fresh_game.snapshot()
+    assert snap["conditionsEnabled"] is False      # <- das fehlte und war der Bug
+    assert snap["conditions"] == {}                # ueberall ausgeblendet
+
+    # Dauerhaft: steht in settings.json und ueberlebt einen Neustart
+    saved = json.loads(gmod.SETTINGS_FILE.read_text(encoding="utf-8"))
+    assert saved["conditionsEnabled"] is False
+
+    fresh_game.apply({"type": "set_conditions_enabled", "on": True})
+    assert fresh_game.snapshot()["conditionsEnabled"] is True
