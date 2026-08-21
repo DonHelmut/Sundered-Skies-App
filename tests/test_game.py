@@ -352,3 +352,34 @@ def test_conditions_toggle_is_reported_and_saved(fresh_game):
 
     fresh_game.apply({"type": "set_conditions_enabled", "on": True})
     assert fresh_game.snapshot()["conditionsEnabled"] is True
+
+
+def test_requests_can_be_switched_off(fresh_game):
+    """Der SL kann Anfragen ganz abschalten: Schalter wird gemeldet+gespeichert,
+    offene Anfragen verschwinden, und neue werden serverseitig abgewiesen."""
+    from server import game as gmod
+    import json
+
+    fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    fresh_game.apply({"type": "add_from_roster", "id": fresh_game.roster[-1]["id"]})
+    cid = fresh_game.combatants[-1]["id"]
+
+    assert fresh_game.snapshot()["requestsEnabled"] is True
+    fresh_game.apply({"type": "request", "combatantId": cid, "kind": "benny",
+                      "detail": {"delta": -1}, "label": "Benny"})
+    assert len(fresh_game.requests) == 1
+
+    fresh_game.apply({"type": "set_requests_enabled", "on": False})
+    assert fresh_game.snapshot()["requestsEnabled"] is False
+    assert fresh_game.requests == []                     # offene weggeraeumt
+    assert json.loads(gmod.SETTINGS_FILE.read_text(encoding="utf-8"))["requestsEnabled"] is False
+
+    # Ein veralteter Client darf nichts durchdruecken
+    fresh_game.apply({"type": "request", "combatantId": cid, "kind": "benny",
+                      "detail": {"delta": -1}, "label": "Benny"})
+    assert fresh_game.requests == []
+
+    fresh_game.apply({"type": "set_requests_enabled", "on": True})
+    fresh_game.apply({"type": "request", "combatantId": cid, "kind": "benny",
+                      "detail": {"delta": -1}, "label": "Benny"})
+    assert len(fresh_game.requests) == 1

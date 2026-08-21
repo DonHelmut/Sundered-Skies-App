@@ -29,7 +29,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "77";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "78";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -421,6 +421,8 @@ function pendingRequestLine(c) {
 // EIN Umschalter für ALLE Anfragen: aus = nichts sichtbar (ruhige Ansicht),
 // an = sämtliche Meldungen (Benny, Angeschlagen, Wunden, K.O., Zustände).
 function playerQuickControls(c) {
+  // Der SL kann Anfragen ganz abschalten -> dann gibt es hier gar nichts.
+  if (App.state && App.state.requestsEnabled === false) return "";
   const on = App.reqMode;
   const toggle = `<button class="${on ? "primary" : "ghost"} big" data-act="toggle-req-mode" style="width:100%">
       ${on ? "✕ Anfragen schließen" : "✋ Etwas beim Spielleiter anfragen"}
@@ -1072,6 +1074,10 @@ function renderControlBody() {
     <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer">
       <input type="checkbox" data-act="toggle-conditions" ${s.conditionsEnabled !== false ? "checked" : ""} style="width:auto">
       <span class="small">Zustände verwenden (Verwundbar, Abgelenkt, Am Boden, Betäubt)</span>
+    </label>
+    <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer">
+      <input type="checkbox" data-act="toggle-requests" ${s.requestsEnabled !== false ? "checked" : ""} style="width:auto">
+      <span class="small">Spieler dürfen anfragen (Benny, Angeschlagen, Wunden …)</span>
     </label>
     <div class="row" style="margin-top:12px; align-items:flex-end">
       <label class="field" style="width:150px">
@@ -1861,6 +1867,8 @@ document.addEventListener("change", (e) => {
     gmAction({ type: "set_auto_incap", on: t.checked });
   } else if (act === "toggle-conditions") {
     gmAction({ type: "set_conditions_enabled", on: t.checked });
+  } else if (act === "toggle-requests") {
+    gmAction({ type: "set_requests_enabled", on: t.checked });
   } else if (act === "toggle-benny-to-gm") {
     gmAction({ type: "set_benny_to_gm", on: t.checked });
   } else if (act === "toggle-notify") {

@@ -145,6 +145,7 @@ class Game:
         self.sl_bennies: int = 0           # Benny-Pool des Spielleiters
         self.auto_incap: bool = True       # bei der 4. Wunde automatisch K.O.
         self.conditions_enabled: bool = True   # Zusatz-Zustaende ueberhaupt verwenden?
+        self.requests_enabled: bool = True     # duerfen Spieler ueberhaupt anfragen?
         self.benny_to_gm: bool = True      # Hausregel: Spieler-Benny -> SL-Pool
 
         # Dauerhafte SL-Voreinstellungen (letzter Timer-/Benny-Startwert bleibt Default).
@@ -159,6 +160,7 @@ class Game:
             self.benny_start = 3
         self.auto_incap = bool(settings.get("autoIncap", True))
         self.conditions_enabled = bool(settings.get("conditionsEnabled", True))
+        self.requests_enabled = bool(settings.get("requestsEnabled", True))
         self.benny_to_gm = bool(settings.get("bennyToGm", True))
 
         # Gab es beim Start eine frühere Sitzung auf Platte? (für "Fortsetzen?")
@@ -213,6 +215,7 @@ class Game:
             "autoIncap": self.auto_incap,
             "bennyToGm": self.benny_to_gm,
             "conditionsEnabled": self.conditions_enabled,
+            "requestsEnabled": self.requests_enabled,
         })
 
     def export_data(self) -> dict:
@@ -372,6 +375,7 @@ class Game:
             "autoIncap": self.auto_incap,
             "bennyToGm": self.benny_to_gm,
             "conditionsEnabled": self.conditions_enabled,
+            "requestsEnabled": self.requests_enabled,
             "deckCount": len(self.deck),
             "hasSavedSession": self.resume_available,
             "canUndo": len(self._history) > 0,
@@ -1118,6 +1122,8 @@ class Game:
     # Spieler-Anfragen (Spieler ändern nichts selbst, sondern fragen an) -------
 
     def _do_request(self, a: dict) -> None:
+        if not self.requests_enabled:
+            return                      # Anfragen sind abgeschaltet
         cid = a.get("combatantId")
         c = self._combatant(cid)
         if not c:
@@ -1168,6 +1174,13 @@ class Game:
         except (TypeError, ValueError):
             pass
         self.save_settings()   # letzter Wert bleibt Default
+
+    def _do_set_requests_enabled(self, a: dict) -> None:
+        """Anfragen der Spieler ganz abschalten (dann sehen sie den Knopf nicht)."""
+        self.requests_enabled = bool(a.get("on", True))
+        if not self.requests_enabled:
+            self.requests = []          # offene Anfragen wegraeumen
+        self.save_settings()
 
     def _do_set_conditions_enabled(self, a: dict) -> None:
         """Zusatz-Zustaende (Verwundbar/Abgelenkt/Am Boden/Betaeubt) ein- oder
