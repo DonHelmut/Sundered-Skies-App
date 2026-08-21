@@ -1,0 +1,1055 @@
+/* Standard-Skin: Sand & Bronze (Sundered-Skies-Pergament). */
+:root, body.theme-sand {
+  --bg: #241a10;
+  --bg2: #34271a;
+  --panel: #3c2e1e;
+  --panel2: #4a3927;
+  --line: #6b5232;
+  --text: #f3e7cf;
+  --muted: #c6ac82;
+  --accent: #d6a24a;
+  --accent2: #b07d2a;
+  --good: #8bae4b;
+  --bad: #c05a3a;
+  --warn: #e0a838;
+  --gold: #eec24a;
+  --input-bg: rgba(0, 0, 0, 0.24);
+  --on-accent: #201400;   /* lesbare Textfarbe auf --accent2 (Buttons) */
+  --foe-name: #fca5a5;    /* Gegner-Name (dunkle Skins: helles Rot) */
+  --friend-name: #7fe0b0; /* Verbündeten-Name (dunkle Skins: helles Grün) */
+}
+
+/* Skin: Giftnebel – das grüne Sundering. */
+body.theme-skies {
+  --bg: #06130f;
+  --bg2: #0b2018;
+  --panel: #0f2a20;
+  --panel2: #143a2c;
+  --line: #1f5a41;
+  --text: #daf5e7;
+  --muted: #86c2a5;
+  --accent: #34d399;
+  --accent2: #12a074;
+  --good: #34d399;
+  --bad: #f2735a;
+  --warn: #e6c25a;
+  --gold: #ead98a;
+  --on-accent: #f6ecd2;
+}
+
+/* Skin: Blut & Leder – dunkles Oxblood. */
+body.theme-blood {
+  --bg: #1a0f0c;
+  --bg2: #2a1512;
+  --panel: #331916;
+  --panel2: #43211c;
+  --line: #6b322a;
+  --text: #f2ddd3;
+  --muted: #c99b8c;
+  --accent: #cf6a4a;
+  --accent2: #a83f2a;
+  --good: #a0a44b;
+  --bad: #e05a3a;
+  --warn: #d9a441;
+  --gold: #e0a85a;
+  --on-accent: #f6ecd2;
+}
+
+/* Skin: Dark Mode – neutral, fast schwarz, kühler Blau-Akzent. */
+body.theme-dark {
+  --bg: #0a0b0f;
+  --bg2: #121520;
+  --panel: #161a26;
+  --panel2: #1e2433;
+  --line: #333c52;
+  --text: #e7ebf3;
+  --muted: #98a2b8;
+  --accent: #7aa2f7;
+  --accent2: #5a7fd6;
+  --good: #5fbf8a;
+  --bad: #e5686b;
+  --warn: #e0b155;
+  --gold: #d9c46a;
+}
+
+/* Skin: Glutstein – Lava/Bernstein. */
+body.theme-glutstein {
+  --bg: #1a0d08;
+  --bg2: #2a130b;
+  --panel: #331810;
+  --panel2: #442015;
+  --line: #7a3a1e;
+  --text: #f6e3d2;
+  --muted: #c99f83;
+  --accent: #ff7a2f;
+  --accent2: #d1541a;
+  --good: #9fae4b;
+  --bad: #ff5a3a;
+  --warn: #f0a030;
+  --gold: #ffb347;
+}
+
+/* Skin: Nebelmeer – kühles Blaugrau. */
+body.theme-nebelmeer {
+  --bg: #0c1418;
+  --bg2: #12212a;
+  --panel: #162a34;
+  --panel2: #1e3a46;
+  --line: #2f5563;
+  --text: #dceaf0;
+  --muted: #8fb0bd;
+  --accent: #5fb8d6;
+  --accent2: #3d93b3;
+  --good: #4fbf9a;
+  --bad: #e5766b;
+  --warn: #e0c05a;
+  --gold: #cdb06a;
+  --on-accent: #f6ecd2;
+}
+
+/* Skin: Pergament – helles Sundered-Skies (Buchseiten-Optik). */
+body.theme-pergament {
+  --bg: #d3bd90;
+  --bg2: #e6d5b1;
+  --panel: #efe4c8;
+  --panel2: #e2d1ab;
+  --line: #b39a68;
+  --text: #322510;
+  --muted: #6c5836;
+  --accent: #8a5820;
+  --accent2: #6d4416;
+  --good: #5c7a2e;
+  --bad: #a5391f;
+  --warn: #a9741a;
+  --gold: #8a641c;
+  --input-bg: rgba(255, 255, 255, 0.5);
+  --on-accent: #f6ecd2;
+  --foe-name: #9e2f17;    /* helles Pergament: kräftiges Dunkelrot */
+  --friend-name: #2d5822; /* helles Pergament: kräftiges Dunkelgrün */
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: radial-gradient(1200px 800px at 50% -10%, var(--bg2), var(--bg));
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.player .wrap { max-width: 640px; }
+
+h1, h2, h3 { margin: 0 0 10px; }
+h1 { font-size: 1.35rem; }
+h2 { font-size: 1.1rem; color: var(--accent); }
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.center { text-align: center; }
+
+button {
+  font: inherit;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.05s, background 0.15s, border-color 0.15s;
+}
+button:hover { background: var(--panel); border-color: var(--accent); }
+button:active { transform: translateY(1px); }
+button.primary { background: var(--accent2); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+button.good { background: #10715a; border-color: var(--good); }
+button.bad { background: #7f2a2a; border-color: var(--bad); }
+button.ghost { background: transparent; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.big { padding: 16px 20px; font-size: 1.1rem; }
+
+input, select {
+  font: inherit;
+  background: var(--input-bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  width: 100%;
+}
+label.field { display: block; margin: 8px 0; }
+label.field span { display: block; color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
+
+.panel {
+  background: linear-gradient(180deg, var(--panel), var(--bg2));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.row.tight { gap: 6px; }
+.spread { justify-content: space-between; }
+.grow { flex: 1; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+  border: 1px solid var(--line); background: var(--panel2);
+}
+.pill.good { color: var(--good); border-color: var(--good); }
+.pill.bad { color: var(--bad); border-color: var(--bad); }
+.pill.warn { color: var(--warn); border-color: var(--warn); }
+.tag {
+  font-size: 0.72rem; padding: 2px 7px; border-radius: 6px;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--accent);
+}
+
+/* --- Karten & Flip-Animation --- */
+.flip { perspective: 2200px; width: 100%; }
+.flip-inner {
+  position: relative; width: 100%; padding-top: 140%;
+  transform-style: preserve-3d;
+  transform: rotateY(180deg);
+  transition: transform 0.85s cubic-bezier(0.2, 0.75, 0.2, 1);
+}
+.flip.revealed .flip-inner { transform: rotateY(0deg); }
+.flip-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.flip-front { transform: rotateY(0deg); }
+.flip-back { transform: rotateY(180deg); }
+/* WICHTIG (Performance): KEIN `filter` auf .card-svg! Ein Filter zwingt den
+   Browser, das komplette Karten-SVG bei JEDEM Frame der 3D-Drehung neu zu
+   rastern -> sichtbares Ruckeln genau beim Umdrehen. Der Schatten liegt darum
+   als billiger, komponierter box-shadow auf der Kartenfläche. */
+.card-svg { width: 100%; height: 100%; transition: filter 0.35s ease-out; }
+.flip-face { border-radius: 7.5% / 5.36%; }
+
+/* RUHEZUSTAND: satter, weicher Schatten als Filter – folgt der Kartensilhouette.
+   Statische Filter sind NICHT teuer: sie werden einmal berechnet und danach nur
+   noch angezeigt. Teuer wird ein Filter nur, wenn er animiert wird ODER das
+   Element gerade bewegt/gedreht wird (dann pro Frame neu). Darum darf es hier
+   ruhig „hochwertig" sein – kostet im Stillstand nichts. */
+.card-svg { filter: saturate(1.07) contrast(1.04) drop-shadow(0 12px 22px rgba(0, 0, 0, 0.6)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45)); }
+/* Wertigkeit auch am Licht erkennbar: höhere Stufen bekommen einen edlen Schein. */
+.card-svg.tier-silver {
+  filter: saturate(1.09) contrast(1.05) drop-shadow(0 12px 22px rgba(0,0,0,0.6)) drop-shadow(0 2px 3px rgba(0,0,0,0.45))
+          drop-shadow(0 0 7px rgba(228, 240, 248, 0.55));
+}
+.card-svg.tier-gold {
+  filter: saturate(1.09) contrast(1.05) drop-shadow(0 12px 22px rgba(0,0,0,0.6)) drop-shadow(0 2px 3px rgba(0,0,0,0.45))
+          drop-shadow(0 0 11px rgba(255, 205, 90, 0.7));
+}
+.card-svg.tier-platin {
+  filter: saturate(1.09) contrast(1.05) drop-shadow(0 13px 24px rgba(0,0,0,0.62)) drop-shadow(0 2px 3px rgba(0,0,0,0.45))
+          drop-shadow(0 0 15px rgba(216, 238, 255, 0.85));
+}
+/* Der Joker enthält animierte Flammen -> dort KEIN Filter (müsste pro Frame neu
+   berechnet werden); sein Glühen ist gemalt, der Schatten liegt auf der Fläche. */
+.card-svg.is-joker { filter: none; }
+
+/* WÄHREND JEDER BEWEGUNG (Drehen/Einfliegen/Pop): Filter aus, Ersatzschatten an. */
+.flip.flipping .card-svg, .flip.dealin .card-svg,
+.flip.reveal-big .card-svg, .flip.reveal-pop .card-svg { filter: none; }
+.flip.flipping .flip-face, .flip.dealin .flip-face,
+.flip.reveal-big .flip-face, .flip.reveal-pop .flip-face {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5), 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+/* Während der Drehung dem Browser eine eigene Ebene gönnen (ruckelfrei). */
+.flip-inner { will-change: transform; }
+
+/* Karten-Halter trägt Status-Overlays und den Joker-Glanz. */
+.card-holder { position: relative; width: 100%; }
+
+/* Joker: pulsierendes Glühen. Bewusst als box-shadow auf der Kartenfläche –
+   ein animierter `filter` auf dem SVG kostet pro Frame eine komplette
+   Neu-Rasterung und lässt das Umdrehen hängen. */
+.joker-slot .flip-face { animation: jokerGlow 1.8s ease-in-out infinite; }
+@keyframes jokerGlow {
+  0%, 100% { box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 16px rgba(238, 194, 74, 0.6); }
+  50% { box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 38px rgba(238, 194, 74, 1); }
+}
+/* Foil-Sheen auf allen Karten (dezent); Joker stärker und schneller.
+   WICHTIG: KEIN `position: relative` hier – das würde das `position:absolute`
+   der .flip-face aufheben, die Vorderseite käme in den normalen Fluss und ihre
+   Höhe würde ZUSÄTZLICH zum padding-top gezählt (Karte doppelt hoch, sitzt unten).
+   Als abgesolut positioniertes Element ist .flip-front trotzdem Bezugsrahmen fürs ::after. */
+.flip-front { overflow: hidden; border-radius: 7.5% / 5.36%; }
+/* Glanz-Sweep über `transform` animieren (NICHT über `left` – das löst pro
+   Frame ein Layout aus und ruckelt beim Umdrehen). */
+.card-holder .flip-front::after {
+  content: ""; position: absolute; top: -40%; left: 0;
+  width: 55%; height: 200%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.22), transparent);
+  pointer-events: none; will-change: transform;
+  animation: foil 8s ease-in-out infinite;
+}
+@keyframes foil {
+  0% { transform: translateX(-220%) rotate(16deg); }
+  60%, 100% { transform: translateX(345%) rotate(16deg); }
+}
+.joker-slot .flip-front::after {
+  background: linear-gradient(100deg,
+    transparent 0%, rgba(255,120,180,0.30) 22%, rgba(255,240,150,0.55) 38%,
+    rgba(255,255,255,0.75) 50%, rgba(150,255,220,0.55) 62%,
+    rgba(140,180,255,0.32) 78%, transparent 100%);
+  width: 70%;
+  animation: foil 2.6s ease-in-out infinite;
+}
+/* Platin schimmert ebenfalls leicht irisierend. */
+.tier-platin ~ *, .card-holder:has(.tier-platin) .flip-front::after {
+  background: linear-gradient(100deg, transparent, rgba(220,240,255,0.5),
+              rgba(255,255,255,0.7), rgba(210,230,255,0.4), transparent);
+}
+
+/* Deal-in: Karten fliegen (verdeckt) leicht herein. */
+.flip.dealin { animation: dealIn 0.62s cubic-bezier(0.22, 0.85, 0.3, 1) both; }
+@keyframes dealIn {
+  0%   { transform: translateY(-72px) rotate(-7deg) scale(0.78); opacity: 0; }
+  60%  { opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+
+/* Spannungsbogen: verdeckte Karte glimmt vorfreudig, bis sie umgedreht wird.
+   WICHTIG: Glühen NIE auf .flip-inner (hat preserve-3d) legen – ein filter dort
+   flacht das 3D ab und die Vorderseite scheint durch. Darum immer auf die gerade
+   sichtbare Rückseite (.flip-back). */
+/* WICHTIG: box-shadow statt filter – dieser Puls läuft DAUERHAFT auf jeder
+   verdeckten Karte; ein animierter Filter würde das SVG endlos neu rastern. */
+.flip.awaiting .flip-back { animation: awaitPulse 0.9s ease-in-out infinite; }
+@keyframes awaitPulse {
+  0%, 100% { box-shadow: 0 0 7px rgba(255, 220, 120, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(255, 220, 120, 0.75); }
+}
+/* „Pop" + Aufglühen im Moment des Umdrehens. */
+.flip.reveal-pop { z-index: 6; }
+.flip.reveal-pop .flip-front { animation: popRing 0.8s ease-out; }
+@keyframes popRing {
+  0%   { box-shadow: 0 0 0 rgba(255,220,120,0); }
+  30%  { box-shadow: 0 0 40px 6px rgba(255, 220, 120, 0.95); }
+  100% { box-shadow: 0 0 0 rgba(255,220,120,0); }
+}
+
+/* Spieler-Großkarte: langer, ruhiger Zieh-Bogen + weicher, langsamer Flip (AHA).
+   Bewusst KEINE Scale-Animation während der 3D-Drehung (das ruckelte); die
+   Dramatik kommt aus dem langsamen Flip + aufblühendem Glühen. Der Helligkeits-
+   wechsel wird sanft überblendet (filter-Transition), statt hart zu springen. */
+#bigcard .flip-inner { transition: transform 0.85s cubic-bezier(0.2, 0.75, 0.2, 1); }
+/* box-shadow statt filter: ein animierter Filter kostet pro Frame eine
+   Neu-Rasterung UND das mitwachsende Leuchten laesst die Karte „atmen". */
+#bigcard .flip.await-big .flip-back { animation: awaitBig 2.1s ease-in-out infinite; }
+@keyframes awaitBig {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 220, 120, 0.3); }
+  50% { box-shadow: 0 0 26px rgba(255, 220, 120, 0.85); }
+}
+#bigcard .flip.reveal-big .flip-inner { transition: transform 1.7s cubic-bezier(0.2, 0.9, 0.25, 1); }
+#bigcard .flip.reveal-big { z-index: 6; }
+#bigcard .flip.reveal-big .flip-front { animation: revealGlow 2s ease-out; }
+@keyframes revealGlow {
+  0% { box-shadow: 0 0 8px rgba(255, 220, 120, 0.3); }
+  35% { box-shadow: 0 0 30px rgba(255, 220, 120, 0.85); }
+  100% { box-shadow: 0 0 0 rgba(255, 220, 120, 0); }
+}
+
+/* Interaktiv: verdeckte eigene Großkarte lädt zum Antippen ein (Glühen auf der
+   Rückseite, nicht auf .flip-inner – sonst bricht das 3D). */
+#bigcard .flip.await-tap { cursor: pointer; }
+#bigcard .flip.await-tap .flip-back { animation: tapInvite 1.7s ease-in-out infinite; }
+@keyframes tapInvite {
+  0%, 100% { box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45); }
+  50% { box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45), 0 0 20px rgba(255, 220, 120, 0.65); }
+}
+.tap-hint {
+  text-align: center; margin-top: 10px; font-weight: 700; font-size: 0.98rem;
+  letter-spacing: 0.02em; color: var(--gold);
+  animation: hintPulse 1.7s ease-in-out infinite;
+}
+@keyframes hintPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+.tap-hint.gone { animation: none; opacity: 0; transition: opacity 0.35s ease; }
+
+/* Reihenfolge (Spieler): verdeckte Einträge neutral, ohne Position. */
+.order-divider { margin: 8px 2px 2px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--gold); opacity: 0.85; border-top: 1px dashed rgba(252,211,77,0.3); padding-top: 8px; }
+.combatant.facedown { opacity: 0.92; }
+.combatant.facedown .who .name { color: var(--muted); }
+.combatant .idx .idx-hidden { color: var(--muted); font-weight: 800; }
+
+/* --- Kampfzonen: senkrechte Konvergenz-Ansicht (Gegner oben, Spieler unten) --- */
+.zones-conv { display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 560px; margin: 8px auto 6px; }
+.zone-band {
+  display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 5px 8px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel2);
+}
+.zone-band.empty { opacity: 0.5; background: transparent; border-style: dashed; min-height: 32px; }
+.zone-band.band-npc { border-left: 3px solid var(--bad); }
+.zone-band.band-player { border-left: 3px solid var(--accent); }
+.zone-band.melee {
+  border: 1px solid var(--gold); min-height: 52px;
+  background: linear-gradient(90deg, rgba(238,194,74,0.16), rgba(238,194,74,0.05));
+  box-shadow: 0 0 0 1px rgba(238,194,74,0.25);
+}
+.zone-band .zb-label { flex: 0 0 106px; display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
+.zone-band .zb-emoji { font-size: 1.1rem; }
+.zone-band .zb-name { color: var(--muted); font-weight: 700; }
+.zone-band.melee .zb-name { color: var(--gold); }
+.zone-band .zb-hint { margin-left: auto; font-size: 0.68rem; color: var(--gold); white-space: nowrap; }
+.zone-band .zb-tokens { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.zone-band.reachable { cursor: pointer; border-color: var(--accent); background: rgba(126,162,247,0.12); }
+.zone-band.reachable.run { border-color: var(--gold); background: rgba(238,194,74,0.12); }
+.zone-band.reachable:hover { filter: brightness(1.12); }
+.zones-target[data-readonly] .zone-band.reachable { cursor: default; }
+
+/* Token-Chip (Pille: Avatar + Name) – groß und stabil, gut tippbar. */
+.zone-token {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  padding: 3px 10px 3px 3px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--panel); color: var(--text); cursor: pointer; transition: box-shadow 0.15s;
+}
+.zones-target[data-readonly] .zone-token { cursor: default; }
+.zone-token .tdisc {
+  width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  border: 2px solid var(--line); background: #2a3550; color: #f6ecd2; font-weight: 800; font-size: 0.72rem;
+}
+.zone-token .tdisc img { width: 100%; height: 100%; object-fit: cover; }
+.zone-token .tname { font-size: 0.8rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.zone-token.player { border-color: var(--accent); }
+.zone-token.player .tdisc { border-color: var(--accent); background: #2a3550; }
+.zone-token.enemy { border-color: var(--bad); }
+.zone-token.enemy .tdisc { border-color: var(--bad); background: #4b2620; color: #f6ecd2; }
+.zone-token.enemy .tname { color: var(--foe-name); }
+/* Verbündete NPCs: Spielerseite, aber eigene (grüne) Farbe. */
+.zone-token.ally { border-color: #35b57e; }
+.zone-token.ally .tdisc { border-color: #35b57e; background: #1d3b2e; color: #d6f7e6; }
+.zone-token.ally .tname { color: var(--friend-name); }
+.zone-token.wc .tdisc { box-shadow: 0 0 0 2px var(--gold); }
+.zone-token.active { box-shadow: 0 0 0 2px var(--gold), 0 0 10px rgba(238,194,74,0.5); }
+.zone-token.active .tdisc { animation: jokerRow 1.4s ease-in-out infinite; }
+.zone-token.out { opacity: 0.55; }
+.zone-token.out .tdisc { filter: grayscale(0.6); }
+.zone-token.ran .tname::after { content: " 🏃"; }
+
+/* Bewegungs-Buttons (eigene Figur). */
+.zone-move-btns { display: flex; gap: 8px; justify-content: center; margin-top: 6px; flex-wrap: wrap; }
+.zone-move-btns button { padding: 10px 14px; }
+.zone-hint { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+/* Bahn wartet auf Bestätigung (Missclick-Schutz). */
+.zone-band.reachable.confirming { border-color: var(--gold); background: rgba(238,194,74,0.22); box-shadow: 0 0 0 2px rgba(238,194,74,0.45); }
+.zone-band.reachable.confirming .zb-hint { color: var(--gold); font-weight: 800; }
+/* Popup-Abschnitt (Treffer / Aktionen). */
+.tp-sec { margin-top: 8px; }
+.tp-sec-title { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; text-align: center; }
+
+/* Token-Info-Popup. */
+.token-popup {
+  position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55); padding: 18px; animation: tpFade 0.15s ease;
+}
+@keyframes tpFade { from { opacity: 0; } to { opacity: 1; } }
+.tp-card {
+  background: linear-gradient(180deg, var(--panel), var(--bg2)); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px; width: 100%; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.tp-card .tp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.tp-card .tp-avatar {
+  width: 46px; height: 46px; flex: 0 0 46px; border-radius: 50%; overflow: hidden;
+  border: 2px solid var(--line); background: var(--panel2); display: flex; align-items: center; justify-content: center; font-weight: 800;
+}
+.tp-card .tp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.tp-rows { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 10px; }
+.tp-rows .tp-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.9rem; }
+.tp-rows .tp-row span:first-child { color: var(--muted); }
+
+/* Kleiner Avatar (Reihenfolge-Zeile / Spieler-Kopf). */
+.avatar {
+  width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; overflow: hidden;
+  border: 1px solid var(--line); background: var(--panel2); display: inline-flex;
+  align-items: center; justify-content: center; font-weight: 800; font-size: 0.75rem; vertical-align: middle;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar.big { width: 44px; height: 44px; flex-basis: 44px; }
+
+/* Kampfzonen auf dem TV/Beamer (read-only, zentriert). */
+.tv-zones { max-width: 520px; margin: 12px auto 4px; }
+.tv-zones-title { text-align: center; color: var(--accent); margin-bottom: 4px; }
+.tv-zones .zones-target { max-width: 480px; }
+
+/* Reorder-Slide (FLIP) – Transition wird per JS gesetzt/entfernt. */
+.combatant, .tv-tile { will-change: transform; }
+
+/* Status-Overlays auf der Karte. */
+.card-holder.is-out .card-svg { filter: grayscale(1) brightness(0.55) drop-shadow(0 4px 8px rgba(0,0,0,0.5)); }
+.st-cover {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 2.4rem; color: var(--bad); text-shadow: 0 2px 6px #000; pointer-events: none;
+}
+.st-corner {
+  position: absolute; top: 2px; right: 2px; display: flex; flex-direction: column; gap: 2px;
+  align-items: flex-end; pointer-events: none;
+}
+.st-wounds { display: flex; gap: 2px; }
+.st-wound { width: 11px; height: 11px; border-radius: 50%; background: var(--bad); border: 1px solid #2000; box-shadow: 0 1px 2px #000; }
+.st-shaken {
+  font-size: 0.9rem; line-height: 1; filter: drop-shadow(0 1px 2px #000);
+  animation: shakePulse 0.9s ease-in-out infinite;
+}
+@keyframes shakePulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+.card-holder.is-shaken .flip { animation: wobble 1.6s ease-in-out infinite; }
+@keyframes wobble { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-1.2deg); } 75% { transform: rotate(1.2deg); } }
+
+/* --- Kampf & Initiative in einer Box --- */
+.combat-sep { border: none; border-top: 1px dashed var(--line); margin: 14px 0 10px; }
+.order-heading { font-size: 0.95rem; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+
+/* --- Initiative-Liste --- */
+.order { display: flex; flex-direction: column; gap: 8px; }
+.combatant {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 8px 10px;
+}
+.combatant.active { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold);
+  background: linear-gradient(0deg, rgba(238,194,74,0.16), rgba(238,194,74,0.16)), var(--panel2); }
+.combatant.done { opacity: 0.5; }
+.combatant.held { border-color: var(--warn); }
+.combatant.joker-holder, .tv-tile.joker-holder {
+  border-color: var(--gold);
+  animation: jokerRow 1.6s ease-in-out infinite;
+}
+@keyframes jokerRow {
+  0%, 100% { box-shadow: 0 0 0 1px var(--gold), 0 0 6px rgba(238,194,74,0.35); }
+  50% { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(238,194,74,0.85); }
+}
+.joker-badge {
+  background: var(--gold) !important; color: #1a1206 !important;
+  border-color: var(--gold) !important; font-weight: 800 !important;
+  letter-spacing: 0.5px;
+}
+.combatant .mini { width: 52px; flex: 0 0 52px; }
+.combatant .who { flex: 1; min-width: 0; }
+.combatant .who .name { font-weight: 700; overflow-wrap: anywhere; }
+.combatant .badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+.combatant .idx { font-size: 1.4rem; font-weight: 800; color: var(--muted); width: 28px; text-align: center; }
+.combatant .actions { display: flex; gap: 6px; }
+/* Zustands-Leiste pro Zeile: standardmäßig eingeklappt, hält die Liste ruhig. */
+.combatant .row-status { margin-top: 4px; }
+.combatant .row-status > summary {
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.82rem; font-weight: 700; color: var(--muted);
+  padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
+}
+.combatant .row-status > summary::-webkit-details-marker { display: none; }
+.combatant .row-status > summary::before { content: "▸"; font-size: 0.7rem; }
+.combatant .row-status[open] > summary::before { content: "▾"; }
+.combatant .row-status > .panel-body { margin-top: 8px; }
+
+.combatant-note { font-size: 0.72rem; color: var(--warn); font-style: italic; margin-top: 2px; }
+.enemy .name { color: var(--foe-name); }
+.combatant.enemy { border-left: 3px solid var(--bad); }
+.ally .name { color: var(--friend-name); }
+.combatant.ally { border-left: 3px solid #35b57e; }
+/* Pausiert („Aus dem Kampf") – ausgegraut, deutlicher Indikator. */
+.combatant.benched { opacity: 0.6; border-style: dashed; }
+.combatant.benched .name::after { content: " ⏸"; }
+
+/* --- Spieler-Hauptkarte --- */
+.myturn-banner {
+  text-align: center; font-size: 1.5rem; font-weight: 800; color: #04121f;
+  background: linear-gradient(90deg, var(--gold), var(--warn));
+  border-radius: 12px; padding: 12px; margin-bottom: 12px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+.big-card { max-width: 240px; margin: 0 auto; }
+
+/* Große, deutliche Zustands-Anzeige (Spieler) */
+.big-status-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
+.big-status { font-size: 1rem; font-weight: 800; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--panel2); }
+.big-status.s-ok { color: var(--good); border-color: var(--good); }
+.big-status.s-shaken { color: #1a1206; background: var(--warn); border-color: var(--warn); }
+.big-status.s-wound { color: #fff; background: var(--bad); border-color: var(--bad); }
+.big-status.s-out { color: #fff; background: #7f1f1f; border-color: var(--bad); font-size: 1.15rem; padding: 10px 18px; }
+.big-status.s-cond { color: var(--accent); border-color: var(--accent); }
+
+/* Anfrage-Modus (Spieler): ein Umschalter blendet ALLE Meldungen ein. */
+.req-box {
+  margin-top: 10px; padding: 10px; border-radius: 12px;
+  border: 1px solid var(--accent); background: var(--panel2);
+}
+
+/* Aufklappbares Anfragen-Panel (Spieler) */
+.req-panel { background: linear-gradient(180deg, var(--panel), var(--bg2)); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; }
+.req-panel > summary { cursor: pointer; font-weight: 700; color: var(--accent); list-style: none; display: flex; align-items: center; gap: 8px; }
+.req-panel > summary::-webkit-details-marker { display: none; }
+.req-panel > summary::before { content: "▸ "; }
+.req-panel[open] > summary::before { content: "▾ "; }
+
+/* --- Einklappbare Panels/Überschriften (SL + Spieler) --- */
+details.section { }
+details.section > .sec-head {
+  cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
+  font-size: 1.05rem; font-weight: 800; color: var(--accent); margin: 0;
+}
+details.section > .sec-head::-webkit-details-marker { display: none; }
+details.section > .sec-head .sec-title { flex: 1; min-width: 0; }
+details.section > .sec-head .sec-caret { transition: transform 0.15s; color: var(--muted); }
+details.section[open] > .sec-head .sec-caret { transform: rotate(90deg); }
+details.section > .panel-body { margin-top: 10px; }
+
+/* Offene Spieler-Anfragen: Kasten fällt auf (SL soll nichts verpassen). */
+details.section[data-sec="requests"] {
+  border-color: var(--warn);
+  animation: reqpulse 1.6s ease-in-out infinite;
+}
+details.section[data-sec="requests"] > .sec-head .sec-title { color: var(--warn); }
+@keyframes reqpulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--warn), 0 0 8px rgba(224, 168, 56, 0.25); }
+  50% { box-shadow: 0 0 0 2px var(--warn), 0 0 18px rgba(224, 168, 56, 0.55); }
+}
+
+/* --- Timer --- */
+.timer {
+  font-variant-numeric: tabular-nums; font-weight: 800;
+  font-size: 2.2rem; text-align: center;
+}
+.timer.low { color: var(--bad); }
+.timerbar { height: 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.3); overflow: hidden; }
+.timerbar > i { display: block; height: 100%; background: var(--good); transition: width 0.25s linear; }
+.timerbar > i.low { background: var(--bad); }
+
+/* --- QR / Info --- */
+.qrbox { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.qrbox img { width: 180px; height: 180px; background: #fff; border-radius: 10px; padding: 6px; }
+code.url { background: rgba(0, 0, 0, 0.28); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); }
+
+/* --- Nachrichten --- */
+.msg { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+.msg img { max-width: 100%; border-radius: 8px; display: block; margin-top: 6px; }
+.msg .to { font-size: 0.75rem; color: var(--accent); }
+.overlay-img {
+  position: fixed; inset: 0; z-index: 100; background: rgba(3,8,18,0.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 16px; cursor: zoom-out;
+}
+.overlay-img img {
+  max-width: 100%; max-height: 82vh; border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.7); border: 2px solid var(--line);
+}
+
+/* Dismissbares SL-Nachrichten-Banner (Spieler) */
+.msg-overlay {
+  position: fixed; inset: 0; z-index: 110; background: rgba(3,8,18,0.9);
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.msg-card {
+  background: linear-gradient(180deg, var(--panel), var(--bg2));
+  border: 2px solid var(--gold); border-radius: 16px; padding: 20px;
+  max-width: 480px; width: 100%; text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.msg-card .msg-text { font-size: 1.3rem; font-weight: 600; margin: 10px 0; word-break: break-word; }
+.msg-card img { max-width: 100%; max-height: 60vh; border-radius: 10px; margin-top: 8px; }
+
+/* --- Talent-Checkliste --- */
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.checks label { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.checks input { width: auto; }
+
+.hidden { display: none !important; }
+.statusbar { position: fixed; top: 0; left: 0; right: 0; z-index: 60; display: flex; justify-content: center; padding: 6px; }
+
+/* --- TV-/Beamer-Modus --- */
+.tv-wrap { max-width: 1400px; }
+.tv-top { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 18px; }
+.tv-round { font-family: Georgia, serif; font-size: clamp(1.6rem, 4vw, 3rem); font-weight: 800; color: var(--accent); }
+.tv-timer { font-variant-numeric: tabular-nums; font-weight: 800; font-size: clamp(2rem, 7vw, 5rem); color: var(--good); }
+.tv-timer.low { color: var(--bad); animation: pulse 0.6s ease-in-out infinite; }
+.tv-phase { font-size: clamp(1rem, 2.5vw, 1.6rem); color: var(--muted); }
+.tv-spotlight {
+  display: flex; align-items: center; gap: clamp(16px, 4vw, 48px);
+  background: linear-gradient(180deg, var(--panel), var(--bg2));
+  border: 1px solid var(--gold); border-radius: 18px;
+  padding: clamp(14px, 3vw, 32px); margin-bottom: 22px;
+  box-shadow: 0 0 0 2px rgba(238,194,74,0.25);
+}
+.tv-bigcard { width: clamp(140px, 22vw, 260px); flex: 0 0 auto; }
+.tv-face { width: 100%; }
+.tv-actorlabel { color: var(--muted); font-size: clamp(0.9rem, 2vw, 1.3rem); }
+.tv-actorname { font-family: Georgia, serif; font-weight: 800; color: var(--gold); font-size: clamp(1.8rem, 6vw, 4.5rem); line-height: 1.05; margin: 4px 0 10px; }
+.tv-order { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.tv-tile {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.tv-tile.active { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(238,194,74,0.35); }
+.tv-tile.enemy .tv-tilename { color: #f0a58f; }
+.tv-tile .card-holder { width: 96px; }
+.tv-tilepos { font-size: 1.4rem; font-weight: 800; color: var(--muted); }
+.tv-tilename { font-weight: 700; font-size: 1.05rem; }
+.tv-tile .badges { justify-content: center; }
+
+/* --- Mimi die Katze (Seitenansicht, vier Pfoten) --- */
+.mimi { position: fixed; width: 96px; height: 85px; z-index: 58; cursor: pointer; user-select: none; transform-origin: 50% 92%; }
+.mimi svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.4)); }
+.mimi.mi-flip-x svg { transform: scaleX(-1); }
+.mimi .mi-eyes-closed { display: none; }
+.mimi.mi-sleep .mi-eyes { display: none; }
+.mimi.mi-sleep .mi-eyes-closed { display: inline; }
+.mimi.mi-sleep svg { transform: translateY(8px) scaleY(0.78); transition: transform 0.4s ease; }
+.mimi.mi-flip-x.mi-sleep svg { transform: translateY(8px) scaleY(0.78) scaleX(-1); }
+
+/* Schweif schwingt elegant oben. */
+.mi-tail { transform-box: fill-box; transform-origin: 88% 96%; animation: miTail 3.4s ease-in-out infinite; }
+@keyframes miTail { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(7deg); } }
+/* Roter Schal weht leicht. */
+.mi-scarf { transform-box: fill-box; transform-origin: 95% 5%; animation: miScarf 2.4s ease-in-out infinite; }
+@keyframes miScarf { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(9deg); } }
+/* Cape weht sanft. */
+.mi-cape { transform-box: fill-box; transform-origin: 92% 6%; animation: miCape 3s ease-in-out infinite; }
+@keyframes miCape { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-4deg); } }
+
+/* Beine: diagonaler Gang beim Laufen. */
+.mi-leg { transform-box: fill-box; transform-origin: 50% 8%; }
+.mimi.mi-walk { animation: miBob 0.42s ease-in-out infinite; }
+@keyframes miBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.mimi.mi-walk .mi-leg-f1, .mimi.mi-walk .mi-leg-b2 { animation: miLeg 0.42s ease-in-out infinite; }
+.mimi.mi-walk .mi-leg-f2, .mimi.mi-walk .mi-leg-b1 { animation: miLeg 0.42s ease-in-out infinite reverse; }
+@keyframes miLeg { 0%,100% { transform: rotate(-15deg); } 50% { transform: rotate(15deg); } }
+
+.mimi.mi-happy { animation: miHop 0.5s ease; }
+@keyframes miHop { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-11px); } }
+.mimi.mi-paw .mi-leg-f2 { animation: miSwipe 0.5s ease; }
+@keyframes miSwipe { 0%,100% { transform: rotate(0); } 45% { transform: rotate(-55deg); } }
+
+/* Sprung von A nach B: ducken -> Bogen -> Landung (Squash & Stretch). */
+.mimi.mi-jump { animation: miJump 0.55s cubic-bezier(.3,.1,.35,1); }
+@keyframes miJump {
+  0%   { transform: translateY(2px)   scaleX(1.14) scaleY(0.8); }
+  20%  { transform: translateY(-30px) scaleX(0.9)  scaleY(1.16); }
+  52%  { transform: translateY(-50px) scaleX(0.95) scaleY(1.08); }
+  84%  { transform: translateY(-4px)  scaleX(1.08) scaleY(0.9); }
+  100% { transform: translateY(0)     scaleX(1)    scaleY(1); }
+}
+
+.mimi-say { position: fixed; z-index: 59; font-size: 18px; font-weight: 700; color: var(--text);
+  transform: translateX(-50%); pointer-events: none; text-shadow: 0 1px 3px #000; animation: miSay 0.3s ease; }
+@keyframes miSay { from { transform: translate(-50%, 6px); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+
+/* Kurzer Dark<->Light-Streich von Mimi (stellt sich selbst zurück). */
+html.mimi-flip { filter: invert(1) hue-rotate(180deg); transition: filter 0.25s ease; }
+.mi-wiggle { animation: miWiggle 0.6s ease; }
+@keyframes miWiggle { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-4deg); } 60% { transform: rotate(3deg); } }
+
+/* Mimi schmeißt eine Karte runter (rein optisch, sie kommt zurück). */
+.mi-knockoff { animation: miKnock 1.3s ease forwards; }
+@keyframes miKnock {
+  0% { transform: none; opacity: 1; }
+  22% { transform: translateY(44px) rotate(15deg); }
+  45% { transform: translateY(120px) rotate(28deg); opacity: 0.15; }
+  58% { opacity: 0; }
+  60% { transform: translateY(-8px) rotate(-3deg); opacity: 0; }
+  82% { transform: none; opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+
+.roster-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.req-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.st-btn.good { background: var(--good); border-color: var(--good); color: #04121f; }
+
+/* Bild großflächig auf dem TV/Beamer */
+.tv-image-overlay {
+  position: fixed; inset: 0; z-index: 150; background: rgba(3,8,18,0.96);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+  animation: fadeIn 0.25s ease;
+}
+.tv-image-overlay img { max-width: 96vw; max-height: 86vh; border-radius: 12px; box-shadow: 0 10px 50px rgba(0,0,0,0.6); }
+.tv-image-caption { margin-top: 16px; font-family: Georgia, serif; font-size: clamp(1.2rem, 3vw, 2rem); color: var(--gold); text-align: center; }
+
+/* Mimis Cape nur beim dramatischen Auftritt (Sprung aus/ins Sichtfeld). */
+.mimi .mi-cape { display: inline; }   /* roter Umhang immer an (wie im Referenzbild) */
+
+/* Mimis Miau als kurzer Toast (nicht blockierend). */
+.mimi-toast {
+  position: fixed; top: 44px; left: 50%; transform: translateX(-50%); z-index: 120;
+  background: var(--panel); border: 2px solid var(--gold); color: var(--text);
+  border-radius: 999px; padding: 8px 16px; font-weight: 700;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4); animation: mimiToast 3.2s ease forwards;
+}
+@keyframes mimiToast {
+  0% { opacity: 0; transform: translate(-50%, -10px); }
+  10%, 80% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -10px); }
+}
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* Thematischer Feinschliff */
+h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3px; }
+.panel { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03), 0 6px 16px rgba(0,0,0,0.25); }
+
+/* Skin-Umschalter */
+#skinbar { position: fixed; top: 6px; right: 8px; z-index: 70; display: flex; flex-direction: row-reverse; align-items: center; gap: 6px; }
+#skin-gear {
+  width: 30px; height: 30px; padding: 0; border-radius: 9px; font-size: 16px; line-height: 1;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+  cursor: pointer; opacity: 0.72; transition: opacity 0.15s, transform 0.15s;
+}
+#skin-gear:hover { opacity: 1; }
+#skinbar.open #skin-gear { opacity: 1; transform: rotate(45deg); }
+.skins { display: flex; gap: 6px; align-items: center; }
+.skin-menu {
+  display: none; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 5px 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.45);
+}
+#skinbar.open .skin-menu { display: flex; flex-wrap: wrap; max-width: 210px; gap: 5px; animation: skinOpen 0.14s ease; }
+/* Aufdeck-Stil pro Gerät wählbar (wie die Skins). */
+.reveal-pick { flex-basis: 100%; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
+.reveal-pick select { padding: 6px 8px; font-size: 0.85rem; }
+@keyframes skinOpen { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
+.skin-dot {
+  width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; padding: 0;
+}
+.skin-dot.active { border-color: var(--text); }
+.skin-sand { background: linear-gradient(135deg, #d6a24a, #6b5232); }
+.skin-skies { background: linear-gradient(135deg, #34d399, #0f2a20); }
+.skin-blood { background: linear-gradient(135deg, #cf6a4a, #331916); }
+.skin-dark { background: linear-gradient(135deg, #7aa2f7, #0a0b0f); }
+.skin-glutstein { background: linear-gradient(135deg, #ff7a2f, #1a0d08); }
+.skin-nebelmeer { background: linear-gradient(135deg, #5fb8d6, #0c1418); }
+.skin-pergament { background: linear-gradient(135deg, #efe4c8, #8a5820); }
+
+/* Status-Steuerung (kleine Chips) */
+.status-ctrl { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.st-btn {
+  padding: 3px 8px; border-radius: 8px; font-size: 0.82rem; line-height: 1;
+  border: 1px solid var(--line); background: var(--panel2); cursor: pointer; color: var(--text);
+}
+.st-btn.on { background: var(--bad); border-color: var(--bad); color: #fff; }
+.st-btn.on-shaken { background: var(--warn); border-color: var(--warn); color: #1a1206; }
+.st-btn.on-out { background: #111; border-color: var(--bad); color: var(--bad); }
+.status-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+
+/* --- Nebel-Ambiente --- */
+.mist { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.mist span {
+  position: absolute; width: 90vmax; height: 90vmax; border-radius: 50%;
+  filter: blur(60px); opacity: 0.35;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent), transparent 60%);
+}
+.mist span:nth-child(1) { top: -20%; left: -15%; animation: drift1 46s ease-in-out infinite; }
+.mist span:nth-child(2) { bottom: -25%; right: -15%; animation: drift2 62s ease-in-out infinite;
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold) 24%, transparent), transparent 60%); }
+@keyframes drift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(18vw, 12vh) scale(1.15); } }
+@keyframes drift2 { 0%,100% { transform: translate(0,0) scale(1.1); } 50% { transform: translate(-16vw, -10vh) scale(1); } }
+.wrap { position: relative; z-index: 1; }
+
+/* --- Ring-Timer --- */
+.ring-wrap { position: relative; width: 110px; height: 110px; margin: 6px auto; }
+.ring { width: 110px; height: 110px; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: rgba(0,0,0,0.32); stroke-width: 8; }
+.ring-fg { fill: none; stroke: var(--good); stroke-width: 8; stroke-linecap: round;
+  stroke-dasharray: 276.46; stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.25s linear, stroke 0.3s; }
+.ring-fg.low { stroke: var(--bad); }
+.ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 1.7rem; font-variant-numeric: tabular-nums; }
+.ring-text.low { color: var(--bad); animation: pulse 0.6s ease-in-out infinite; }
+
+/* --- Joker-Vollbild-Moment --- */
+.joker-moment { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center;
+  justify-content: center; pointer-events: none; animation: jmFade 1.9s ease-out forwards; }
+.joker-moment .jm-flash { position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 46%, rgba(255,232,150,0.92), rgba(255,200,80,0.22) 30%, transparent 62%);
+  animation: jmFlash 1.9s ease-out forwards; }
+.joker-moment .jm-star { font-size: 22vmin; color: var(--gold); text-shadow: 0 0 40px var(--gold);
+  animation: jmStar 1.9s cubic-bezier(.2,.8,.2,1) forwards; }
+.joker-moment .jm-text { position: absolute; bottom: 28%; font-family: Georgia, serif; font-weight: 800;
+  letter-spacing: 8px; font-size: 9vmin; color: #fff; text-shadow: 0 0 24px var(--gold);
+  animation: jmStar 1.9s ease-out forwards; }
+@keyframes jmFade { 0%,78% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes jmFlash { 0% { opacity: 0; } 14% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes jmStar { 0% { transform: scale(0.2) rotate(-25deg); opacity: 0; }
+  25% { transform: scale(1.12) rotate(0); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+
+/* --- Handy-Neige (Gyro) 3D-Tilt für die Spieler-Großkarte --- */
+/* Kein Neigen mehr: die Karte liegt gerade. Eine zweite (aeussere) Perspektive
+   ueber der Flip-Perspektive liess die Karte beim Drehen zusaetzlich
+   zusammenschrumpfen - das war das gefuehlte „Rauszoomen". */
+.tilt3d { transform: none; }
+
+/* ===== Aufdeck-Stile ======================================================
+   Alternativen zum Umdrehen. Gemeinsames Prinzip: die Vorderseite liegt
+   bereits unten, die Rückseite deckt sie ab (kein 3D nötig) – beim Aufdecken
+   verschwindet die Rückseite mit dem jeweiligen Effekt.
+   Während der Animation (.revealing) sind die teuren Filter aus. */
+.flip.rv-slide .flip-inner, .flip.rv-wipe .flip-inner, .flip.rv-shatter .flip-inner,
+.flip.rv-mist .flip-inner, .flip.rv-iris .flip-inner { transform: none; }
+.flip.rv-slide .flip-face, .flip.rv-wipe .flip-face, .flip.rv-shatter .flip-face,
+.flip.rv-mist .flip-face, .flip.rv-iris .flip-face {
+  backface-visibility: visible; -webkit-backface-visibility: visible;
+}
+.flip.rv-slide .flip-front, .flip.rv-wipe .flip-front, .flip.rv-shatter .flip-front,
+.flip.rv-mist .flip-front, .flip.rv-iris .flip-front { z-index: 1; }
+.flip.rv-slide .flip-back, .flip.rv-wipe .flip-back, .flip.rv-shatter .flip-back,
+.flip.rv-mist .flip-back, .flip.rv-iris .flip-back { transform: none; z-index: 2; }
+/* Endzustand: aufgedeckt = Rückseite weg (ohne Animation, z. B. nach Reload). */
+.flip.rv-slide.revealed:not(.revealing) .flip-back,
+.flip.rv-wipe.revealed:not(.revealing) .flip-back,
+.flip.rv-shatter.revealed:not(.revealing) .flip-back,
+.flip.rv-mist.revealed:not(.revealing) .flip-back,
+.flip.rv-iris.revealed:not(.revealing) .flip-back { opacity: 0; }
+/* Nur die ANIMIERTE Rueckseite verliert ihren Filter – die Vorderseite (die man
+   ja gerade enthuellt) behaelt volle Qualitaet, weil sie still steht. */
+.flip.revealing .flip-back .card-svg { filter: none; }
+/* Ausnahme: Wird die Rueckseite nur VERSCHOBEN oder ausgeblendet (Abziehen,
+   Glutnebel), kann der Browser das gefilterte Bild zwischenspeichern und nur
+   noch bewegen -> Filter darf anbleiben. Nur bei FORM-Animationen (Wisch,
+   Blende, Splitter) muesste er pro Frame neu berechnet werden. */
+.flip.rv-slide.revealing .flip-back .card-svg,
+.flip.rv-mist.revealing .flip-back .card-svg {
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.6));
+}
+
+/* --- 💥 Zersplittern: Scherben driften auseinander (Splitter aus JS) --- */
+.flip.rv-shatter.revealing .flip-back { animation: crackShake 0.26s ease-in-out forwards; }
+@keyframes crackShake {
+  0% { transform: translate(0,0) rotate(0deg); opacity: 1; }
+  25% { transform: translate(-2px,1px) rotate(-0.5deg); opacity: 1; }
+  50% { transform: translate(2px,-1px) rotate(0.5deg); opacity: 1; }
+  75% { transform: translate(-1px,0) rotate(-0.2deg); opacity: 1; }
+  99% { opacity: 1; }
+  100% { transform: none; opacity: 0; }
+}
+/* Splitter sind Kopien der Rueckseite und fliegen -> hier KEINE Filter
+   (6 gefilterte Karten gleichzeitig in Bewegung waeren teuer). */
+.shard .card-svg { filter: none; }
+.shard { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 3; }
+.shard > * { width: 100%; height: 100%; }
+.shard.go { animation: shardOut 1s cubic-bezier(0.2, 0.6, 0.3, 1) forwards; }
+@keyframes shardOut {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.92); opacity: 0; }
+}
+
+/* --- 🌫️ Glutnebel: Karte materialisiert aus grünem Nebel --- */
+.flip.rv-mist.revealing .flip-back { animation: mistOut 1.35s ease-out forwards; }
+@keyframes mistOut {
+  0% { opacity: 1; transform: scale(1); }
+  45% { opacity: 0.65; transform: scale(1.03); }
+  100% { opacity: 0; transform: scale(1.1); }
+}
+/* Gruenes Aufleuchten der freigelegten Karte (Glow-Strahlung). */
+.flip.rv-mist.revealing .flip-front { animation: glowFlash 1.35s ease-out; }
+@keyframes glowFlash {
+  0% { box-shadow: 0 0 0 rgba(90,230,170,0); }
+  35% { box-shadow: 0 0 46px rgba(90, 230, 170, 0.95); }
+  100% { box-shadow: 0 0 0 rgba(90,230,170,0); }
+}
+/* Zwei Nebel-Lagen mit unterschiedlichem Tempo = wabernde Tiefe. */
+.mistfx {
+  position: absolute; inset: -18%; pointer-events: none; z-index: 4;
+  background:
+    radial-gradient(closest-side, rgba(120,245,190,0.6), transparent 72%) 16% 74%/58% 52% no-repeat,
+    radial-gradient(closest-side, rgba(90,230,170,0.5), transparent 72%) 80% 36%/60% 56% no-repeat,
+    radial-gradient(closest-side, rgba(60,200,150,0.55), transparent 72%) 46% 18%/68% 48% no-repeat,
+    radial-gradient(closest-side, rgba(150,255,215,0.4), transparent 72%) 62% 62%/52% 46% no-repeat;
+  animation: mistDrift 1.35s ease-out forwards;
+}
+.mistfx.b {
+  inset: -26%; animation: mistDrift2 1.35s ease-out forwards;
+  background:
+    radial-gradient(closest-side, rgba(70,215,160,0.45), transparent 74%) 30% 40%/72% 64% no-repeat,
+    radial-gradient(closest-side, rgba(140,250,205,0.4), transparent 74%) 70% 76%/64% 58% no-repeat;
+}
+@keyframes mistDrift {
+  0% { opacity: 0; transform: translate(0,0) scale(0.92) rotate(0deg); }
+  22% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-6%, -22%) scale(1.5) rotate(-8deg); }
+}
+@keyframes mistDrift2 {
+  0% { opacity: 0; transform: translate(0,0) scale(1) rotate(0deg); }
+  30% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate(9%, -16%) scale(1.6) rotate(10deg); }
+}
+
+/* --- 🧭 Kompass-Blende: Rückseite dreht sich zu und gibt die Karte frei --- */
+.flip.rv-iris.revealing .flip-back { animation: irisOut 0.95s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@keyframes irisOut {
+  0% { clip-path: circle(78% at 50% 50%); transform: rotate(0deg); opacity: 1; }
+  100% { clip-path: circle(0% at 50% 50%); transform: rotate(160deg); opacity: 1; }
+}
+
+/* Profilbilder: antippen zeigt das hochgeladene Bild groß. */
+.zoomable { cursor: zoom-in; }
+.zoomable:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+.overlay-name {
+  margin-top: 10px; font-size: 1.15rem; font-weight: 800; color: var(--text);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.8); text-align: center;
+}
+.overlay-hint { margin-top: 4px; font-size: 0.8rem; color: var(--muted); text-align: center; }
+
+/* WICHTIG: Karten liegen RUHIG. Kein Hover-Anheben, kein Nachwippen – das liess
+   die Karten „springen". Nur die noch verdeckte, antippbare Karte darf leicht
+   reagieren (Einladung zum Tippen), und zwar ohne die Hoehe zu veraendern. */
+.flip.await-tap { cursor: pointer; }
+.flip.await-tap .flip-back { transition: box-shadow 0.18s ease; }
+.flip.await-tap:hover .flip-back { box-shadow: 0 0 26px rgba(255, 220, 120, 0.8); }
+
+/* --- 🃏 Abziehen: die Rueckseite wird wie vom Stapel weggezogen --- */
+.flip.rv-slide.revealing .flip-back {
+  animation: slideOff 0.9s cubic-bezier(0.35, 0, 0.15, 1) forwards;
+  transform-origin: 65% 120%;
+}
+@keyframes slideOff {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  22%  { transform: translate(2%, -3%) rotate(1.5deg); opacity: 1; }
+  100% { transform: translate(-128%, 16%) rotate(-24deg); opacity: 0; }
+}
+
+/* --- ✨ Lichtwisch: eine helle Kante wischt die Rueckseite fort --- */
+.flip.rv-wipe.revealing .flip-back { animation: wipeOff 0.85s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@keyframes wipeOff {
+  0%   { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 0 0 100%); }
+}
+.flip.rv-wipe.revealing .flip-front::before {
+  content: ""; position: absolute; top: -10%; bottom: -10%; left: 0; width: 26%;
+  background: linear-gradient(90deg, rgba(255,236,190,0) 0%, rgba(255,240,200,0.95) 55%,
+              rgba(255,255,255,1) 70%, rgba(255,236,190,0) 100%);
+  pointer-events: none; z-index: 3; will-change: transform;
+  animation: wipeLight 0.85s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes wipeLight {
+  0%   { transform: translateX(-110%); opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { transform: translateX(400%); opacity: 0; }
+}
+
+/* Standort direkt in der Reihenfolge: man sieht sofort, wer wo steht. */
+.zone-chip { font-weight: 700; letter-spacing: 0.2px; }
+.zone-chip.z0 { color: var(--gold); border-color: var(--gold); }        /* Nahkampf */
+.zone-chip.z1 { color: var(--accent); border-color: var(--accent); }    /* Nahbereich */
+.zone-chip.z2, .zone-chip.z3 { color: var(--muted); border-color: var(--line); }
+.zone-chip.z4 { color: var(--muted); border-color: var(--line); opacity: 0.85; }
+
+/* Talent „Schnell" & Co: die gezeigte Karte wird gleich ERSETZT -> sie pulsiert
+   ruhig, damit man sieht, dass noch etwas passiert. Bewusst nur Licht, KEINE
+   Bewegung (die Karte soll auf ihrer Hoehe liegen bleiben). */
+.flip.redraw-wait .flip-front { animation: redrawWait 1.2s ease-in-out infinite; }
+@keyframes redrawWait {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 220, 120, 0.35); }
+  50%      { box-shadow: 0 0 30px rgba(255, 220, 120, 0.8); }
+}
+/* Niedrige Karte (2-5, wird bei „Schnell" abgeworfen): warnend warm-rot. */
+.flip.redraw-low .flip-front { animation-name: redrawLow; }
+@keyframes redrawLow {
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 130, 70, 0.4); }
+  50%      { box-shadow: 0 0 34px rgba(255, 110, 50, 0.9); }
+}

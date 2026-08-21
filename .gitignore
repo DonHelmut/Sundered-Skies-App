@@ -1,0 +1,19 @@
+# Python-Umgebung (wird auf jedem Geraet neu erzeugt: start.bat)
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Spielstand & persoenliche Daten (bleiben lokal, per Sicherung uebertragbar)
+data/
+web/static/info.json
+web/static/qr.png
+
+# Build-Ergebnisse (die .exe wird gebaut, nicht versioniert)
+build/
+dist/
+
+# Test- und Werkzeug-Reste
+.pytest_cache/
+*.bak
+*.tmp

@@ -1,0 +1,4 @@
+# Nur für die Entwicklung/Tests nötig (nicht fürs Spielen).
+# Installieren:  .venv\Scripts\python -m pip install -r requirements-dev.txt
+# Tests starten: .venv\Scripts\python -m pytest
+pytest>=8

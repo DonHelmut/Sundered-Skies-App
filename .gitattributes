@@ -1,0 +1,4 @@
+# Zeilenenden vereinheitlichen: im Repo LF, beim Auschecken Windows-tauglich.
+* text=auto
+# Batch-Dateien MUESSEN CRLF haben, sonst zickt die Windows-Eingabeaufforderung.
+*.bat text eol=crlf
