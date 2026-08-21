@@ -1,0 +1,13 @@
+Dieser Ordner enthaelt die Dateien, die NEBEN der .exe ausgeliefert werden
+(also alles, was im Zip "SunderedSkies-App.zip" landet ausser der .exe selbst).
+
+Paket bauen:
+  1. .venv\Scripts\python.exe -m PyInstaller SunderedSkiesInitiative.spec --noconfirm --clean
+  2. dist\SunderedSkiesInitiative.exe + diese Dateien in einen Ordner legen
+  3. Ordner zippen, als Release-Datei hochladen
+
+Vor jedem Release die Version an DREI Stellen hochzaehlen:
+  server/paths.py  APP_VERSION
+  web/static/app.js  ASSET_VERSION
+  web/index.html + web/tv.html   ?v=NN
+und in paket/START-HIER.txt die Versionszeile oben.
