@@ -1,5 +1,17 @@
 # Sundered Skies – Initiative (lokal)
 
+> ## ▶ ZUM SPIELEN HIER HERUNTERLADEN
+> ### **[» SunderedSkies-App.zip (fertiges Paket) «](https://github.com/DonHelmut/Sundered-Skies-App/releases/latest)**
+>
+> Entpacken → **`SunderedSkiesInitiative.exe`** starten → fertig.
+> Kein Python, kein Git, nichts zu installieren.
+>
+> ⚠️ **Nicht** den grünen **Code → Download ZIP**-Knopf nehmen – darin ist nur der
+> Quellcode **ohne** .exe. Das spielbare Paket gibt es **nur** über den Link oben
+> (rechts auf der Startseite unter **Releases**).
+
+---
+
 Digitaler Initiative-Kartenstapel für **Savage Worlds: Sundered Skies**, der
 komplett **lokal auf dem Spielleiter-Laptop** läuft. Die Spieler öffnen nur
 eine Webseite auf ihrem Handy – **nichts zu installieren, kein Internet nötig**
