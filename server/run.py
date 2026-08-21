@@ -122,19 +122,45 @@ def _pick_port() -> int | None:
     return None
 
 
-def _abort_port_taken(running_port: int = PORT) -> None:
-    print("\n" + "=" * 52)
-    print("  Sundered Skies laesst sich nicht starten.")
+def _already_running(running_port: int) -> str:
+    """Die App laeuft schon. Der Nutzer entscheidet: laufende oeffnen (Normalfall)
+    oder trotzdem eine zweite Kopie auf einem Ausweich-Port starten.
+    Rueckgabe: "zweite" oder "oeffnen"."""
+    url = f"http://localhost:{running_port}/"
+    print()
     print("=" * 52)
-    print(f"  Die App laeuft bereits (Port {running_port}) - vermutlich")
-    print("  in einem anderen Fenster.")
-    print("\n  -> Dieses Fenster schliessen und das BEREITS offene benutzen,")
-    print("     ODER alle Fenster schliessen und EINMAL neu starten.")
-    print("     (Notfalls den Laptop kurz neu starten.)\n")
+    print("  Sundered Skies laeuft bereits.")
+    print("=" * 52)
+    print()
+    print(f"  Sie ist schon gestartet und erreichbar unter:  {url}")
+    print()
+    print("  [Enter]     laufende App oeffnen  (das willst du meistens)")
+    print("  [z] Enter   trotzdem eine ZWEITE Kopie auf einem anderen Port")
+    print("              starten - Achtung: beide nutzen denselben data-Ordner,")
+    print("              und die Handys muessen die NEUE Adresse scannen.")
+    print()
+    print("  Kein Fenster zu finden? Dann haengt sie im Hintergrund:")
+    print("  Task-Manager (Strg+Shift+Esc) -> Details -> 'SunderedSkies-")
+    print("  Initiative.exe' bzw. 'python.exe' beenden.")
+    print()
+    try:
+        wahl = input("  Deine Wahl: ").strip().lower()
+    except Exception:
+        wahl = ""
+    if wahl.startswith("z"):
+        return "zweite"
+    if not os.environ.get("SWI_NO_BROWSER"):
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+    print()
+    print(f"  Geoeffnet: {url}  - dieses Fenster kann zu.")
     try:
         input("  Zum Schliessen die Eingabetaste druecken... ")
     except Exception:
-        time.sleep(12)
+        time.sleep(8)
+    return "oeffnen"
 
 
 def main() -> None:
@@ -149,13 +175,16 @@ def main() -> None:
     # ab (zwei Server wuerden den Spielstand aufteilen). Blockiert ein FREMDES
     # Programm, weichen wir auf einen anderen Port aus.
     port = PORT
+    zweite_kopie = False
     if _port_in_use(PORT):
         # Laeuft die App bereits - egal auf welchem Kandidaten-Port?
         running = next((p for p in PORT_CANDIDATES if _port_in_use(p) and _is_our_app(p)), None)
         if running:
-            diag.log(f"ABBRUCH beim Start: App laeuft bereits auf Port {running}.")
-            _abort_port_taken(running)
-            return
+            diag.log(f"App laeuft bereits auf Port {running} - Nutzer entscheidet.")
+            if _already_running(running) != "zweite":
+                return
+            diag.log("Nutzer startet bewusst eine zweite Kopie.")
+            zweite_kopie = True
         alt = _pick_port()
         if alt is None:
             diag.log("ABBRUCH: alle Kandidaten-Ports belegt.")
@@ -169,8 +198,12 @@ def main() -> None:
             return
         port = alt
         print()
-        print(f"  Hinweis: Port {PORT} ist von einem anderen Programm belegt -")
-        print(f"  die App laeuft deshalb auf Port {port}. Die Adressen unten stimmen.")
+        if zweite_kopie:
+            print(f"  ZWEITE Kopie: laeuft auf Port {port}. Die Handys muessen die")
+            print("  Adresse unten neu scannen - die erste App bleibt daneben offen.")
+        else:
+            print(f"  Hinweis: Port {PORT} ist von einem anderen Programm belegt -")
+            print(f"  die App laeuft deshalb auf Port {port}. Die Adressen unten stimmen.")
         print()
         diag.log(f"Port {PORT} fremd belegt -> Ausweich-Port {port}")
     set_active_port(port)
