@@ -1,0 +1,74 @@
+Sundered Skies – Initiative  (Version 79)
+==========================================
+
+Du brauchst NICHTS zu installieren. Kein Python, keine Zusatzpakete –
+alles steckt in der .exe.
+
+SO STARTEST DU
+--------------
+1. Diesen Ordner an einen festen Platz legen (z. B. Desktop) und dort LASSEN.
+2. Doppelklick auf  SunderedSkiesInitiative.exe
+3. Es öffnet sich automatisch der Browser mit der Spielleiter-Ansicht.
+4. Spieler tippen mit dem Handy die angezeigte Adresse ein
+   (z. B. http://192.168.178.22:8000  – Zahl kann bei dir anders sein),
+   oder scannen den QR-Code. Nichts zu installieren.
+
+>>> BLAUES FENSTER "DER COMPUTER WURDE GESCHÜTZT"? <<<
+------------------------------------------------------
+Das kommt bei JEDEM Programm ohne gekaufte Signatur – es ist kein Virus.
+   -> auf "Weitere Informationen" klicken
+   -> dann auf "Trotzdem ausführen"
+Meldet ein Virenscanner (nicht Windows-Defender) etwas: die .exe einmal als
+Ausnahme eintragen. Sonst wird sie stillschweigend gelöscht und der
+Doppelklick tut scheinbar gar nichts.
+
+>>> WENN SICH NIEMAND VERBINDEN KANN – DIESE 3 DINGE PRÜFEN <<<
+--------------------------------------------------------------
+1) ALLE IM SELBEN WLAN?
+   - Handys UND Laptop müssen im GLEICHEN WLAN sein.
+   - Achtung: ein Gäste-WLAN oder getrennte 2,4-/5-GHz-Netze (oft
+     unterschiedliche Namen!) zählen als VERSCHIEDENE Netze -> geht nicht.
+
+2) RICHTIGE ADRESSE?
+   - Das Terminal-Fenster und die Spielleiter-Ansicht zeigen jetzt ALLE
+     möglichen Adressen. Geht die erste nicht, die nächste probieren.
+   - Steht dort nur 127.0.0.1, ist der Laptop NICHT im WLAN -> WLAN prüfen.
+   - Notfalls am Laptop  cmd  öffnen,  ipconfig  eingeben und die IPv4 unter
+     "WLAN"/"Wi-Fi" nehmen, die mit 192.168... beginnt (NICHT 169.254...,
+     NICHT die VirtualBox-Adresse 192.168.56...).
+
+3) WINDOWS-FIREWALL?  (das war bisher die häufigste Ursache)
+   - Hinweis: Ist Port 8000 von einem anderen Programm belegt, weicht die App
+     automatisch aus - die angezeigte Adresse enthaelt dann den neuen Port.
+   - Beim ersten Start fragt Windows evtl. "Zugriff zulassen?" -> JA, und
+     dabei "Privat" UND "Öffentlich" anhaken.
+   - Am einfachsten: in der Spielleiter-Ansicht oben auf "Firewall freigeben"
+     klicken und die Windows-Nachfrage bestaetigen. Das gilt dauerhaft und
+     muss nur EINMAL pro Laptop gemacht werden.
+   - Alternativ: "Firewall-freigeben.bat" in diesem Ordner RECHTSKLICK ->
+     "Als Administrator ausführen".  (Rückgängig: "Firewall-sperren.bat".)
+
+WENN VERBINDUNGEN ZICKEN (z. B. WLAN flackert)
+----------------------------------------------
+- Die App schreibt leise ein Diagnose-Protokoll nach  data\log.txt  (neben der
+  .exe). Da stehen Start, Verbindungen, Abbrueche und "Handy war X s weg".
+- Ganz oben in der Datei steht  firewall_regel=True/False  - daran sieht man
+  sofort, ob die Freigabe auf DIESEM Laptop schon existiert.
+- Wenn etwas klemmt: einfach die Datei  data\log.txt  an Stefan schicken -
+  damit laesst sich das Problem viel leichter finden. (Enthaelt nur lokale
+  Geraete-Namen/Adressen, nichts Persoenliches.)
+
+WICHTIG – DAMIT NICHTS "ALTES" AUFTAUCHT
+----------------------------------------
+- Die .exe legt ihre Daten IMMER in den Unterordner "data" NEBEN der .exe.
+  Also die .exe in DIESEM Ordner lassen, nicht neben alte Versionen.
+- Auf den Handys bei Bedarf einmal die Seite hart neu laden (Tab schließen /
+  neu öffnen), falls dort noch eine ältere Ansicht im Cache hängt.
+
+WENN DU MAL KOMPLETT NEU STARTEN WILLST
+---------------------------------------
+- In der Spielleiter-Ansicht auf "Zurücksetzen" klicken, ODER
+- Die Datei  data\session.json  löschen (falls vorhanden). Deine Figuren in
+  data\roster.json bleiben erhalten.
+
+Viel Spaß in den Sundered Skies!
