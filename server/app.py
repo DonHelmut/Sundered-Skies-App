@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+from contextlib import asynccontextmanager
 import json
 import os
 import uuid
@@ -32,7 +33,16 @@ def join_url() -> str:
     """Beitritts-URL – immer frisch (IP UND Port koennen sich geaendert haben)."""
     return f"http://{LOCAL_IP}:{active_port()}/"
 
-app = FastAPI()
+@asynccontextmanager
+async def _lebenszyklus(_app: FastAPI):
+    """Beweist im Log, dass der Server wirklich lauscht - nicht nur gestartet
+    wurde. Fehlt diese Zeile, ist er unterwegs haengen geblieben."""
+    diag.log(f"SERVER BEREIT auf Port {active_port()} - wartet auf Verbindungen")
+    yield
+    diag.log("SERVER BEENDET")
+
+
+app = FastAPI(lifespan=_lebenszyklus)
 game = Game()
 
 

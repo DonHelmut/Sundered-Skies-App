@@ -24,6 +24,30 @@ from . import diag
 from . import winnet
 
 
+def konsole_entschaerfen() -> None:
+    """Windows-"QuickEdit" abschalten.
+
+    Sonst friert ein einziger Klick ins schwarze Fenster den GANZEN Server ein
+    (Windows wartet dann auf Enter) - fuer die Handys sieht das aus, als waere
+    die Verbindung tot. Passiert erfahrungsgemaess dauernd, wenn jemand
+    "mal kurz nachschauen" will.
+    """
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        h = k32.GetStdHandle(-10)          # STD_INPUT_HANDLE
+        modus = ctypes.c_uint()
+        if not k32.GetConsoleMode(h, ctypes.byref(modus)):
+            return
+        ENABLE_QUICK_EDIT, ENABLE_EXTENDED_FLAGS = 0x0040, 0x0080
+        neu = (modus.value & ~ENABLE_QUICK_EDIT) | ENABLE_EXTENDED_FLAGS
+        k32.SetConsoleMode(h, neu)
+    except Exception:
+        pass   # Komfort-Funktion - darf den Start nie verhindern
+
+
 def print_banner(ip: str) -> None:
     url = f"http://{ip}:{active_port()}/"
     others = [x for x in all_lan_ips() if x != ip]
@@ -107,11 +131,30 @@ def _is_our_app(port: int) -> bool:
     try:
         import json as _json
         import urllib.request
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/info", timeout=1.5) as r:
+        # Ausdruecklich OHNE Proxy: manche Firmen-/Virenscanner-Proxys leiten
+        # sonst auch 127.0.0.1 um, und wir halten unsere eigene App faelschlich
+        # fuer ein fremdes Programm.
+        oeffner = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with oeffner.open(f"http://127.0.0.1:{port}/api/info", timeout=1.5) as r:
             data = _json.loads(r.read().decode("utf-8"))
         return isinstance(data, dict) and "prettyUrl" in data and "version" in data
     except Exception:
         return False
+
+
+def _reservierte_bereiche() -> str:
+    """Windows kann Portbereiche fest reservieren (Hyper-V, WSL, Docker). Dann
+    ist 8000 'belegt', obwohl gar kein Programm laeuft - das gehoert ins Log."""
+    try:
+        import subprocess
+        r = subprocess.run(["netsh", "int", "ipv4", "show", "excludedportrange",
+                            "protocol=tcp"], capture_output=True, text=True, timeout=6,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        zeilen = [z.strip() for z in (r.stdout or "").splitlines()
+                  if z.strip() and z.strip()[0].isdigit()]
+        return "; ".join(zeilen) or "keine"
+    except Exception:
+        return "unbekannt"
 
 
 def _pick_port() -> int | None:
@@ -171,6 +214,8 @@ def main() -> None:
         except Exception:
             pass
 
+    konsole_entschaerfen()
+
     # Port waehlen: 8000 bevorzugt. Belegt? -> Laeuft dort UNSERE App, brechen wir
     # ab (zwei Server wuerden den Spielstand aufteilen). Blockiert ein FREMDES
     # Programm, weichen wir auf einen anderen Port aus.
@@ -205,7 +250,8 @@ def main() -> None:
             print(f"  Hinweis: Port {PORT} ist von einem anderen Programm belegt -")
             print(f"  die App laeuft deshalb auf Port {port}. Die Adressen unten stimmen.")
         print()
-        diag.log(f"Port {PORT} fremd belegt -> Ausweich-Port {port}")
+        diag.log(f"Port {PORT} fremd belegt -> Ausweich-Port {port} "
+                 f"(reservierte Windows-Portbereiche: {_reservierte_bereiche()})")
     set_active_port(port)
 
     ip = local_ip()
@@ -235,6 +281,21 @@ def main() -> None:
     try:
         uvicorn.run(app, host="0.0.0.0", port=active_port(), log_level="warning",
                     ws_ping_interval=10, ws_ping_timeout=10, timeout_keep_alive=10)
+    except OSError as exc:
+        # Typisch: die App wurde zweimal angeklickt und beide starten gleichzeitig,
+        # oder ein anderes Programm hat sich den Port in der Zwischenzeit geschnappt.
+        diag.log(f"SERVER-START FEHLGESCHLAGEN auf Port {active_port()}: {exc}")
+        print()
+        print(f"  Der Port {active_port()} liess sich nicht belegen:")
+        print(f"    {exc}")
+        print()
+        print("  Meistens: die App laeuft schon (zweimal angeklickt?). Dann das")
+        print("  andere Fenster benutzen. Sonst den Laptop neu starten.")
+        print()
+        try:
+            input("  Zum Schliessen die Eingabetaste druecken... ")
+        except Exception:
+            time.sleep(20)
     finally:
         if zc:
             try:
