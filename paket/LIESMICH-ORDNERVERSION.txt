@@ -1,0 +1,20 @@
+Sundered Skies - Initiative  (Ordnerversion)
+============================================
+
+Diese Version ist fuer FIRMEN-LAPTOPS und verwaltete Rechner gedacht.
+
+Unterschied zur normalen Einzeldatei:
+  Die normale .exe packt sich bei JEDEM Start selbst nach %TEMP% aus und
+  fuehrt sich von dort aus. AppLocker/WDAC-Richtlinien und viele
+  Endpoint-Schutz-Programme verbieten genau das - der Doppelklick tut dann
+  scheinbar gar nichts, ohne jede Meldung.
+  Diese Version laeuft komplett aus ihrem eigenen Ordner. Kein Temp-Umweg,
+  und sie startet spuerbar schneller.
+
+So startest du:
+  1. Den ganzen Ordner entpacken und an einen festen Platz legen (Desktop).
+  2. Doppelklick auf  SunderedSkiesInitiative.exe  (liegt IM Ordner).
+  3. Der Unterordner "_internal" gehoert dazu - nicht loeschen, nicht
+     verschieben, nichts daraus einzeln starten.
+
+Alles Weitere (Firewall, WLAN, Fehlersuche) steht in START-HIER.txt.

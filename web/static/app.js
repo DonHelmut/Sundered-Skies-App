@@ -29,7 +29,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "81";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "82";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -999,21 +999,36 @@ function connectedPlayersHtml() {
 }
 
 // Nur Windows-SL: Warnung bei „öffentlichem" WLAN + Ein-Klick-Firewall-Freigabe.
+// Sagt ehrlich, ob die Freigabe WIRKLICH steht – auf Firmen-Laptops scheitert
+// sie oft an fehlenden Adminrechten, und „gestartet" wäre dann eine Lüge.
 function firewallHtml() {
   const info = App._info;
   if (!info || !info.isWindows) return "";
-  if (App._firewallDone) {
-    return `<div class="pill good" style="margin-top:10px">🔒 Freigabe gestartet – bitte die Windows-Abfrage (UAC) bestätigen.</div>`;
-  }
   const pub = info.networkPublic === true;
+
+  if (info.firewallRuleActive === true) {
+    return `<div class="pill good" style="margin-top:10px">🔒 Firewall-Freigabe aktiv – gilt dauerhaft, auch in fremden WLANs.</div>`;
+  }
+  if (App._firewallFail) {
+    return `<div class="pill bad" style="margin-top:10px">🔒 Freigabe hat nicht geklappt – vermutlich fehlen Administratorrechte.</div>
+      <div class="muted small" style="margin-top:6px">Auf einem <b>Firmen-Laptop</b> ist das meist gesperrt. Dann läuft die App besser auf einem <b>anderen Laptop</b> – die Handys verbinden sich einfach dorthin. Sonst muss die IT Port 8000 eingehend freigeben.</div>
+      <div class="row" style="margin-top:8px"><button class="ghost" data-act="firewall-allow">Nochmal versuchen</button></div>`;
+  }
+  if (App._firewallDone) {
+    return `<div class="pill" style="margin-top:10px">🔒 Freigabe gestartet – bitte die Windows-Abfrage (UAC) bestätigen …</div>`;
+  }
+
   const warn = pub
     ? `<div class="pill bad" style="margin-top:10px">⚠ Dein WLAN ist „Öffentlich" – Windows blockt evtl. eingehende Verbindungen der Handys.</div>`
+    : "";
+  const adminHinweis = info.isAdmin === false
+    ? `<div class="muted small" style="margin-top:6px">Windows fragt dabei nach <b>Administratorrechten</b>. Auf einem Firmen-Laptop ist das oft gesperrt – dann startet die App besser jemand anderes.</div>`
     : "";
   return `${warn}
     <div class="row" style="margin-top:8px; align-items:center; gap:8px">
       <button class="${pub ? "primary" : "ghost"}" data-act="firewall-allow">🔒 Firewall für die App freigeben</button>
       <span class="muted small">Einmalig; gibt Port 8000 + Ausweich-Ports frei (Windows fragt per UAC).</span>
-    </div>`;
+    </div>${adminHinweis}`;
 }
 
 function renderConnectPanel() {
@@ -1883,14 +1898,21 @@ document.addEventListener("change", (e) => {
 // Firewall für die App freigeben (alle Kandidaten-Ports). Löst beim SL eine UAC-Abfrage aus.
 async function allowFirewall() {
   App._firewallDone = true;
+  App._firewallFail = false;
   render();
   try {
     await fetch("/api/firewall-allow", { method: "POST" });
   } catch { /* egal – UAC läuft ggf. trotzdem */ }
-  // Nach kurzer Zeit den Netzwerk-Status neu holen (Warnung ggf. entfernen).
+  // Nachsehen, ob die Regel jetzt TATSÄCHLICH existiert. Nur „gestartet" zu
+  // melden hilft niemandem – auf Firmen-Laptops scheitert die Elevation still.
   setTimeout(() => {
-    fetch("/api/info").then((r) => r.json()).then((info) => { App._info = info; render(); }).catch(() => {});
-  }, 4000);
+    fetch("/api/info").then((r) => r.json()).then((info) => {
+      App._info = info;
+      App._firewallDone = false;
+      App._firewallFail = info.firewallRuleActive === false;
+      render();
+    }).catch(() => {});
+  }, 5000);
 }
 
 // Sicherung wiederherstellen: ersetzt Charaktere + Bibliotheken + Begegnungen.

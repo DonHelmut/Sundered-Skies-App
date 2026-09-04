@@ -1,4 +1,4 @@
-Sundered Skies – Initiative  (Version 81)
+Sundered Skies – Initiative  (Version 82)
 ==========================================
 
 Du brauchst NICHTS zu installieren. Kein Python, keine Zusatzpakete –
@@ -21,6 +21,49 @@ Das kommt bei JEDEM Programm ohne gekaufte Signatur – es ist kein Virus.
 Meldet ein Virenscanner (nicht Windows-Defender) etwas: die .exe einmal als
 Ausnahme eintragen. Sonst wird sie stillschweigend gelöscht und der
 Doppelklick tut scheinbar gar nichts.
+
+
+>>> FIRMEN-LAPTOP / VERWALTETER RECHNER <<<
+--------------------------------------------
+Auf Dienst-Laptops sperrt die IT oft genau das, was diese App braucht.
+Der Reihe nach ausprobieren:
+
+1) ORDNERVERSION STATT EINZELDATEI
+   Im Release liegt zusaetzlich "SunderedSkies-App-Ordnerversion.zip".
+   Die normale .exe entpackt sich bei jedem Start heimlich nach %TEMP% und
+   startet von dort - genau das verbieten AppLocker und viele
+   Endpoint-Schutz-Programme, und der Doppelklick tut dann scheinbar NICHTS.
+   Die Ordnerversion laeuft komplett aus ihrem eigenen Ordner. Sie startet
+   auch schneller. Einfach entpacken und die .exe darin starten.
+
+2) KEINE ADMINRECHTE -> KEINE FIREWALL-FREIGABE
+   Die Windows-Firewall laesst sich nur mit Adminrechten oeffnen. Fragt
+   Windows nach einem Passwort, das du nicht hast: Dann kann dieser Laptop
+   nicht der Gastgeber sein.
+   -> Loesung: ein ANDERER Laptop startet die App. Die Handys verbinden sich
+      einfach dorthin. Der Firmen-Laptop kann problemlos MITSPIELEN - als
+      Spieler braucht er gar keine Freigabe, nur der Gastgeber.
+
+3) FIRMEN-VPN AUS
+   Ein immer-an-VPN (GlobalProtect, AnyConnect, Zscaler, Netskope ...) leitet
+   den ganzen Verkehr um. Die Handys im WLAN erreichen den Laptop dann nicht.
+   Waehrend des Spielabends das VPN trennen.
+
+4) EIGENER VIRENSCANNER STATT WINDOWS-FIREWALL
+   Sophos, CrowdStrike, SentinelOne & Co. blocken eingehende Verbindungen
+   selbst - die Windows-Freigabe hilft dann NICHT. Steht so ein Programm in
+   data\log.txt unter "FIREWALL-PRODUKT", muss die Ausnahme dort eingetragen
+   werden (oder Punkt 2 nutzen: anderer Gastgeber).
+
+5) NOTFALL, DER FAST IMMER GEHT: HANDY-HOTSPOT
+   Ein Handy macht einen Hotspot auf, Laptop UND alle anderen Handys gehen
+   dort hinein. Das ist ein privates Netz ohne Firmen-Richtlinien und ohne
+   Gaeste-WLAN-Trennung. Adresse danach neu ablesen (sie aendert sich!).
+
+Was auf dem Rechner los ist, steht uebrigens in data\log.txt gleich unter
+"UMGEBUNG" - Netzwerkprofil, Firewall-Produkt, Virenscanner, VPN und ob
+Adminrechte da sind. Diese Zeilen an Stefan schicken, dann ist die Ursache
+meist in einer Minute klar.
 
 >>> WENN SICH NIEMAND VERBINDEN KANN – DIESE 3 DINGE PRÜFEN <<<
 --------------------------------------------------------------

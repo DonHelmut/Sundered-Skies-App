@@ -85,3 +85,48 @@ def allow_firewall() -> bool:
         return ok
     except Exception:
         return False
+
+
+def ist_admin() -> bool | None:
+    """Hat der Nutzer Administratorrechte? Ohne die laesst sich KEINE
+    Firewall-Regel anlegen - auf Firmen-Laptops der Normalfall."""
+    if not _is_windows():
+        return None
+    try:
+        import ctypes
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return None
+
+
+# Eine einzige PowerShell-Abfrage fuer alles, was auf einem verwalteten Laptop
+# den Zugriff blockieren kann. Jede Teilabfrage einzeln abgesichert - fehlende
+# Rechte oder abgeschaltete Dienste duerfen den Rest nicht mitreissen.
+_BERICHT_PS = r"""
+try { Write-Output ('NETZWERKPROFIL: ' + (((Get-NetConnectionProfile) | ForEach-Object { $_.Name + ' = ' + $_.NetworkCategory }) -join ' | ')) } catch { Write-Output 'NETZWERKPROFIL: unbekannt' }
+try { $f = (Get-CimInstance -Namespace root/SecurityCenter2 -ClassName FirewallProduct -ErrorAction Stop | ForEach-Object { $_.displayName }) -join ', '; if (-not $f) { $f = 'nur Windows-Firewall' }; Write-Output ('FIREWALL-PRODUKT: ' + $f) } catch { Write-Output 'FIREWALL-PRODUKT: nicht abfragbar' }
+try { $a = (Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop | ForEach-Object { $_.displayName }) -join ', '; Write-Output ('VIRENSCANNER: ' + $a) } catch { Write-Output 'VIRENSCANNER: nicht abfragbar' }
+try { Write-Output ('FIRMEN-DOMAENE: ' + (Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).PartOfDomain) } catch { Write-Output 'FIRMEN-DOMAENE: unbekannt' }
+try { $v = (Get-NetAdapter -ErrorAction Stop | Where-Object { $_.Status -eq 'Up' -and ($_.InterfaceDescription -match 'VPN|TAP|WireGuard|AnyConnect|GlobalProtect|Zscaler|Netskope|Pulse|Forti') } | ForEach-Object { $_.InterfaceDescription }) -join ', '; if (-not $v) { $v = 'keiner aktiv' }; Write-Output ('VPN-ADAPTER: ' + $v) } catch { Write-Output 'VPN-ADAPTER: unbekannt' }
+"""
+
+
+def umgebungsbericht() -> list[str]:
+    """Was auf DIESEM Rechner ueber den Netzzugriff bestimmt. Rein lesend.
+
+    Dauert ein paar Sekunden (mehrere WMI-Abfragen) - deshalb im Hintergrund
+    aufrufen, nie im Startpfad."""
+    zeilen: list[str] = []
+    admin = ist_admin()
+    zeilen.append(f"ADMINRECHTE: {admin}")
+    if not _is_windows():
+        return zeilen
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive",
+                            "-ExecutionPolicy", "Bypass", "-Command", _BERICHT_PS],
+                           capture_output=True, text=True, timeout=30,
+                           creationflags=_NO_WINDOW)
+        zeilen += [z.strip() for z in (r.stdout or "").splitlines() if z.strip()]
+    except Exception as exc:
+        zeilen.append(f"UMGEBUNGSBERICHT nicht moeglich: {exc}")
+    return zeilen

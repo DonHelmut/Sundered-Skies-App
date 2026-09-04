@@ -78,6 +78,8 @@ async def api_info():
         "version": APP_VERSION,
         "networkPublic": winnet.is_public(),   # True = WLAN „öffentlich" (Firewall blockt)
         "isWindows": os.name == "nt",
+        "isAdmin": winnet.ist_admin(),          # ohne Adminrechte keine Firewall-Regel
+        "firewallRuleActive": winnet.rule_active(),
     })
 
 

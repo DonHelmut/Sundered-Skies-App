@@ -24,6 +24,19 @@ from . import diag
 from . import winnet
 
 
+def umgebung_protokollieren() -> None:
+    """Im HINTERGRUND notieren, wer auf diesem Rechner ueber den Netzzugriff
+    bestimmt (Firmen-Laptop: Fremd-Firewall, VPN, Domaenen-Richtlinien). Die
+    WMI-Abfragen dauern ein paar Sekunden - der Start darf darauf nicht warten."""
+    def _lauf():
+        try:
+            for zeile in winnet.umgebungsbericht():
+                diag.log("UMGEBUNG  " + zeile)
+        except Exception:
+            pass
+    threading.Thread(target=_lauf, daemon=True).start()
+
+
 def konsole_entschaerfen() -> None:
     """Windows-"QuickEdit" abschalten.
 
@@ -276,6 +289,7 @@ def main() -> None:
         print("    in der Spielleiter-Ansicht auf 'Firewall freigeben' klicken")
         print("    (oder WLAN auf Privat stellen).")
         print()
+    umgebung_protokollieren()
     zc = register_mdns(ip)
     open_browser_later()
     try:
