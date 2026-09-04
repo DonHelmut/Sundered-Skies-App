@@ -13,8 +13,14 @@ Unterschied zur normalen Einzeldatei:
 
 So startest du:
   1. Den ganzen Ordner entpacken und an einen festen Platz legen (Desktop).
-  2. Doppelklick auf  SunderedSkiesInitiative.exe  (liegt IM Ordner).
+  2. Doppelklick auf  START.bat  (oder direkt auf SunderedSkiesInitiative.exe).
+     START.bat sagt Bescheid, falls etwas am Ordner fehlt - die .exe allein
+     wuerde in dem Fall nur kurz aufblitzen und wieder verschwinden.
   3. Der Unterordner "_internal" gehoert dazu - nicht loeschen, nicht
      verschieben, nichts daraus einzeln starten.
+
+  Willst du ein Desktop-Symbol? Rechtsklick auf die .exe ->
+  "Verknuepfung erstellen" und DIESE auf den Desktop ziehen. Die .exe selbst
+  darf den Ordner nicht verlassen.
 
 Alles Weitere (Firewall, WLAN, Fehlersuche) steht in START-HIER.txt.
