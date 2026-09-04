@@ -1,0 +1,9 @@
+Diesen Ordner bitte IMMER komplett lassen.
+
+Die Datei SunderedSkiesInitiative.exe funktioniert NUR zusammen mit dem
+Unterordner _internal. Wer nur die .exe auf den Desktop kopiert, bekommt
+beim Doppelklick ein kurz aufblitzendes Fenster und sonst nichts.
+
+Richtig: den GANZEN Ordner verschieben - oder eine Verknuepfung zur .exe
+anlegen (Rechtsklick auf die .exe -> "Verknuepfung erstellen", diese dann
+auf den Desktop ziehen).
