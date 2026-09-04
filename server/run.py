@@ -211,9 +211,19 @@ def main() -> None:
     ip = local_ip()
     public = winnet.detect_public()   # WLAN oeffentlich? (Windows blockt dann eingehend)
     fw = winnet.rule_active()
+    from .game import DATA_DIR, DATA_DIR_AUSGEWICHEN_VON
     diag.log(f"===== START v{APP_VERSION} - primaer={ip}:{port}, erkannt={all_lan_ips()}, "
-             f"wlan_oeffentlich={public}, firewall_regel={fw} =====")
+             f"wlan_oeffentlich={public}, firewall_regel={fw}, daten={DATA_DIR} =====")
+    if DATA_DIR_AUSGEWICHEN_VON:
+        diag.log(f"ACHTUNG: '{DATA_DIR_AUSGEWICHEN_VON}' nicht beschreibbar -> "
+                 f"Daten liegen jetzt in {DATA_DIR}")
     print_banner(ip)
+    if DATA_DIR_AUSGEWICHEN_VON:
+        print("  ! Der Ordner neben der App ist schreibgeschuetzt. Spielstand und")
+        print(f"    Log liegen deshalb hier:  {DATA_DIR}")
+        print("    Besser: den App-Ordner auf den Desktop legen (nicht in")
+        print("    'Programme' und nicht direkt aus dem Zip starten).")
+        print()
     if public:
         print("  ! Dein WLAN ist als OEFFENTLICH eingestuft - Windows blockt dann")
         print("    eingehende Verbindungen. Wenn sich niemand verbinden kann:")

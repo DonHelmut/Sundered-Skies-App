@@ -19,9 +19,39 @@ from typing import Any, Optional
 from . import engine
 from .paths import BASE_DIR
 
-# Standard: data/ neben der .exe. Über SWI_DATA_DIR umlegbar (z. B. für Tests
-# oder um die Daten woanders zu halten).
-DATA_DIR = Path(os.environ["SWI_DATA_DIR"]) if os.environ.get("SWI_DATA_DIR") else BASE_DIR / "data"
+# Standard: data/ neben der .exe. Über SWI_DATA_DIR umlegbar (z. B. für Tests).
+# Ist der Ort nicht beschreibbar (App liegt in C:\Programme, wird direkt AUS dem
+# Zip gestartet, gesperrter Ordner), weichen wir aus statt abzustuerzen - sonst
+# blitzt das Fenster nur kurz auf und es gibt nicht mal ein Log zum Nachsehen.
+def _dir_beschreibbar(p: Path) -> bool:
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+        probe = p / ".schreibtest"
+        probe.write_text("x", encoding="utf-8")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
+def _waehle_data_dir() -> tuple[Path, Optional[str]]:
+    """(Datenordner, ausgewichen_von). Reihenfolge: SWI_DATA_DIR -> neben der
+    .exe -> AppData. Zweiter Rueckgabewert ist gesetzt, wenn ausgewichen wurde."""
+    kandidaten = []
+    env = os.environ.get("SWI_DATA_DIR")
+    if env:
+        kandidaten.append(Path(env))
+    kandidaten.append(BASE_DIR / "data")
+    heim = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+    kandidaten.append((Path(heim) if heim else Path.home()) / "SunderedSkies" / "data")
+    for nr, k in enumerate(kandidaten):
+        if _dir_beschreibbar(k):
+            return k, (str(kandidaten[0]) if nr > 0 else None)
+    # Nichts beschreibbar: trotzdem weiterlaufen (nur im Speicher, ohne Sichern).
+    return kandidaten[0], str(kandidaten[0])
+
+
+DATA_DIR, DATA_DIR_AUSGEWICHEN_VON = _waehle_data_dir()
 ROSTER_FILE = DATA_DIR / "roster.json"
 BESTIARY_FILE = DATA_DIR / "bestiary.json"   # dauerhafte Gegner-Vorlagen (mit Bild)
 ALLIES_FILE = DATA_DIR / "allies.json"        # dauerhafte Verbündeten-Vorlagen (mit Bild)
@@ -118,8 +148,13 @@ def _write_json(path: Path, data: Any, backup: bool = False) -> None:
 
 class Game:
     def __init__(self) -> None:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        # Darf NIE den Start verhindern - ohne Schreibrechte laeuft die Runde
+        # eben nur im Speicher (Sichern schlaegt still fehl, siehe _write_json).
+        try:
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
 
         self.roster: list[dict] = _read_json(ROSTER_FILE) or []
         self.bestiary: list[dict] = _read_json(BESTIARY_FILE) or []

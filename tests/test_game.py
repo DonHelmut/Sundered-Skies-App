@@ -383,3 +383,27 @@ def test_requests_can_be_switched_off(fresh_game):
     fresh_game.apply({"type": "request", "combatantId": cid, "kind": "benny",
                       "detail": {"delta": -1}, "label": "Benny"})
     assert len(fresh_game.requests) == 1
+
+
+def test_datenordner_weicht_aus_statt_abzustuerzen(tmp_path, monkeypatch):
+    r"""Nicht beschreibbarer Ort (App in C:\Programme / direkt aus dem Zip):
+    die App muss ausweichen, nicht abstuerzen - sonst gibt es nicht mal ein Log."""
+    from server import game
+    gesperrt = tmp_path / "gesperrt"
+    monkeypatch.setattr(game, "_dir_beschreibbar",
+                        lambda p: "gesperrt" not in str(p))
+    monkeypatch.setenv("SWI_DATA_DIR", str(gesperrt))
+    ordner, ausgewichen = game._waehle_data_dir()
+
+    assert "gesperrt" not in str(ordner)          # nicht der gesperrte Ort
+    assert ausgewichen == str(gesperrt)           # und der Grund ist vermerkt
+
+
+def test_datenordner_normal_ohne_hinweis(tmp_path, monkeypatch):
+    """Beschreibbarer Ort: genau der wird genommen, ohne Ausweich-Hinweis."""
+    from server import game
+    monkeypatch.setenv("SWI_DATA_DIR", str(tmp_path / "daten"))
+    ordner, ausgewichen = game._waehle_data_dir()
+
+    assert ordner == tmp_path / "daten"
+    assert ausgewichen is None
