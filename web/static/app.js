@@ -45,8 +45,15 @@ const el = (html) => { const t = document.createElement("template"); t.innerHTML
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 // Einklappbares Panel (merkt sich den Zustand pro id in localStorage, Default offen).
+// Panels, die der SL nur zur VORBEREITUNG braucht. Sie starten eingeklappt,
+// damit im Spiel alles Wichtige auf einen Bildschirm passt. Wer eines aufklappt,
+// dessen Wahl wird gemerkt (App.collapsed) und gewinnt ab dann.
+const VORBEREITUNGS_PANELS = new Set([
+  "connect", "stabil", "roster", "bestiary", "allies", "encounters", "message",
+]);
+
 function section(id, title, body, defaultOpen) {
-  if (defaultOpen === undefined) defaultOpen = true;
+  if (defaultOpen === undefined) defaultOpen = !VORBEREITUNGS_PANELS.has(id);
   const saved = App.collapsed[id];
   const open = saved === undefined ? defaultOpen : saved !== true;
   return `<details class="panel section" data-sec="${id}"${open ? " open" : ""}>` +
@@ -215,6 +222,19 @@ function checkTurnNotify() {
   if (myTurn && !App._prevMyTurn && App._turnInit && localStorage.getItem("notifyTurn") !== "off") {
     try { if (navigator.vibrate) navigator.vibrate([130, 70, 130]); } catch { /* ignore */ }
     playBeep(660, 150); setTimeout(() => playBeep(990, 170), 170);
+  }
+  // Wer dran ist, soll es auch SEHEN: nach oben springen, egal wo im Handy
+  // gerade gescrollt wurde. Läuft unabhängig vom Ton/Vibration - die kann man
+  // abschalten, verpassen darf man seinen Zug trotzdem nicht.
+  if (myTurn && !App._prevMyTurn && App._turnInit) {
+    // Erst nach dem Neuzeichnen springen, sonst zielt es auf die alte Seite.
+    setTimeout(() => {
+      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* s. u. */ }
+      // Nachfassen: manche Browser ignorieren "smooth" KOMMENTARLOS - kein
+      // Fehler, es passiert nur nichts. Deshalb kurz darauf nachsehen und
+      // notfalls hart springen. Lieber ruckartig oben als gar nicht.
+      setTimeout(() => { if (window.scrollY > 0) window.scrollTo(0, 0); }, 450);
+    }, 60);
   }
   App._prevMyTurn = myTurn;
   App._turnInit = true;
@@ -1027,7 +1047,11 @@ function renderGM() {
     : "";
 
   return `
-    <h1>Spielleiter · Sundered Skies Initiative</h1>
+    <div class="row spread" style="align-items:center; margin-bottom:10px">
+      <h1 style="margin:0">Spielleiter · Sundered Skies Initiative</h1>
+      <button class="ghost" data-act="fokus" title="Alles ausser Kampf, Zonen und Reihenfolge zuklappen">
+        ${App.fokus ? "▤ Alles zeigen" : "▣ Fokus auf den Kampf"}</button>
+    </div>
     ${resume}
     <div class="grid2">
       <div>
@@ -1035,6 +1059,7 @@ function renderGM() {
         ${renderZonesPanel()}
         ${renderOrderPanel(true)}
         ${renderConnectPanel()}
+        ${renderStabilitaetPanel()}
         ${renderBennyPanel()}
       </div>
       <div>
@@ -1111,6 +1136,24 @@ function firewallHtml() {
     </div>${adminHinweis}`;
 }
 
+// Ein Klick räumt den Bildschirm frei: alles zu, was gerade nicht am Tisch
+// gebraucht wird. Nochmal klicken stellt den vorherigen Stand wieder her.
+const FOKUS_BEHALTEN = new Set(["combat", "zones", "order", "requests"]);
+function fokusUmschalten() {
+  if (App.fokus) {
+    App.collapsed = App.fokusVorher || {};
+    App.fokus = false;
+  } else {
+    App.fokusVorher = { ...App.collapsed };
+    document.querySelectorAll("details.section[data-sec]").forEach((d) => {
+      if (!FOKUS_BEHALTEN.has(d.dataset.sec)) App.collapsed[d.dataset.sec] = true;
+    });
+    App.fokus = true;
+  }
+  try { localStorage.setItem("collapsed", JSON.stringify(App.collapsed)); } catch { /* egal */ }
+  render();
+}
+
 // Kurze Rückmeldung, die von selbst verschwindet - für Kleinigkeiten wie
 // "kopiert" ist ein alert() zu aufdringlich (muss weggeklickt werden).
 let toastTimer = null;
@@ -1177,6 +1220,34 @@ function adresswechselHtml() {
     ⚠ Die Netzwerk-Adresse dieses Laptops hat sich geändert (WLAN-Aussetzer oder
     Router-Neustart). Handys, die noch die alte Adresse offen haben, kommen nicht
     mehr durch – <b>QR-Code unten neu scannen lassen</b>.</div>`;
+}
+
+// Checkliste gegen Verbindungsabbrüche. Steht eingeklappt in der SL-Ansicht,
+// damit man sie vor dem Spielabend einmal durchgeht statt mittendrin zu suchen.
+function renderStabilitaetPanel() {
+  return section("stabil", "Damit die Verbindung hält", `
+    <div class="muted small" style="margin-bottom:10px">Einmal vor dem Spielabend durchgehen – das meiste ist in zwei Minuten erledigt.</div>
+    <ol class="stabil-liste">
+      <li><b>Feste Adresse im Router vergeben.</b> In der Router-Oberfläche diesem Laptop
+        eine feste IP zuweisen (Fritzbox: Netzwerk → Gerät → „Immer die gleiche IP-Adresse zuweisen").
+        Das ist die wirksamste Einzelmaßnahme: Ohne sie kann der Laptop nach einem
+        WLAN-Aussetzer eine andere Adresse bekommen, und die Handys finden ihn nicht mehr.</li>
+      <li><b>WLAN-Stromsparen abschalten.</b> Im App-Ordner
+        <code>WLAN-Stromsparen-aus.bat</code> per Rechtsklick als Administrator ausführen.
+        Sonst schaltet Windows die WLAN-Karte im Akkubetrieb ab.</li>
+      <li><b>Auf den Handys: mobile Daten aus.</b> Wenn das WLAN kein Internet hat
+        (Router lebt, Leitung tot), schalten Handys still auf Mobilfunk um – dann ist
+        dieser Laptop für sie unerreichbar, obwohl „WLAN verbunden" dasteht.
+        Das erklärt die meisten Fälle von „geht plötzlich nicht mehr".</li>
+      <li><b>Bei Verbindungsverlust nicht neu laden.</b> Die App kommt von selbst zurück.
+        Ein Neuladen holt die Seite vom Laptop – und genau der ist gerade nicht
+        erreichbar. Dann bleibt das Handy auf einer leeren Fehlerseite hängen.</li>
+      <li><b>Handy-Display anlassen</b> oder die Bildschirmsperre hochsetzen.
+        Sperrt sich das Handy lange, wirft der Browser den Tab irgendwann raus.</li>
+      <li><b>Die App nicht aus OneDrive starten</b> und während des Spiels nicht neu starten.</li>
+    </ol>
+    <div class="muted small">Läuft trotzdem etwas schief: <code>data\\log.txt</code> neben der App
+      verrät, ob die Anfragen der Handys überhaupt ankommen.</div>`);
 }
 
 function renderConnectPanel() {
@@ -1943,6 +2014,7 @@ document.addEventListener("click", (e) => {
     },
     // Firewall in einem Klick freigeben (Windows-SL) -> löst UAC-Abfrage aus
     "firewall-allow": () => allowFirewall(),
+    "fokus": () => fokusUmschalten(),
     "einladung-whatsapp": () => einladungWhatsApp(),
     "einladung-teilen": () => einladungTeilen(),
     "einladung-kopieren": () => einladungKopieren(),

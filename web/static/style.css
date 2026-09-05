@@ -131,14 +131,23 @@ body.theme-pergament {
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body {
-  background: radial-gradient(1200px 800px at 50% -10%, var(--bg2), var(--bg));
+  /* WICHTIG: erst die Farbe, dann der Verlauf. Der Verlauf ist nur 1200x800 px
+     gross - die Kurzschrift "background:" hatte die Hintergrundfarbe auf
+     durchsichtig gesetzt, wodurch auf laengeren Seiten (also praktisch jedem
+     Handy) alles unterhalb von 800 px SCHWARZ blieb. */
+  background-color: var(--bg);
+  background-image: radial-gradient(1200px 800px at 50% -10%, var(--bg2), var(--bg));
+  background-repeat: no-repeat;
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100dvh;
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Der SL sitzt am Laptop mit breitem Bildschirm - den auch nutzen, damit
+   moeglichst alles ohne Scrollen im Blick bleibt. */
 .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+body:not(.player) .wrap { max-width: min(1800px, 100%); }
 .player .wrap { max-width: 640px; }
 
 h1, h2, h3 { margin: 0 0 10px; }
@@ -785,8 +794,16 @@ html.mimi-flip { filter: invert(1) hue-rotate(180deg); transition: filter 0.25s 
   10%, 80% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -10px); }
 }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+/* Spalten-Layout statt festem Raster: die Panels fliessen selbst in die
+   verfuegbaren Spalten. So passt sich die Zahl der Spalten der Bildschirmbreite
+   an, ohne dass der Aufbau der Seite dafuer umgebaut werden muss.
+   "display: contents" loest die beiden Gruppierungs-Divs auf, damit die Panels
+   direkt fliessen koennen. */
+.grid2 { column-count: 2; column-gap: 14px; }
+.grid2 > div { display: contents; }
+.grid2 .panel { break-inside: avoid; margin-bottom: 14px; }
+@media (max-width: 760px) { .grid2 { column-count: 1; } }
+@media (min-width: 1500px) { .grid2 { column-count: 3; } }
 
 /* Thematischer Feinschliff */
 h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3px; }
@@ -1091,3 +1108,11 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
   transition: opacity 180ms ease, transform 180ms ease;
 }
 .toast.sichtbar { opacity: 1; transform: translate(-50%, 0); }
+
+/* Checkliste „Damit die Verbindung hält" */
+.stabil-liste { margin: 0 0 12px 0; padding-left: 22px; line-height: 1.55; }
+.stabil-liste li { margin-bottom: 10px; }
+.stabil-liste code {
+  background: rgba(127,127,127,0.16); border-radius: 5px;
+  padding: 1px 5px; font-size: 0.92em;
+}
