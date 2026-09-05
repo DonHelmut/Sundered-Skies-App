@@ -25,24 +25,71 @@ from . import diag
 from . import winnet
 
 
-def ip_waechter_starten() -> None:
-    """Merkt, wenn der Laptop im laufenden Betrieb eine ANDERE LAN-Adresse
-    bekommt (WLAN-Aussetzer, Router-Neustart). Dann zeigt der QR-Code zwar die
-    neue Adresse - die Handys haben aber die alte und kommen nicht mehr durch.
-    Wird protokolliert und der SL-Ansicht gemeldet."""
+NETZ_INTERVALL = 20   # Sekunden zwischen zwei Kontrollen
+
+
+def netz_pruefen(zustand: dict, ips: set[str], pause: float) -> list[str]:
+    """Entscheidet aus zwei Messungen, was ins Protokoll gehoert. Rein
+    rechnend und ohne Seiteneffekte ausser ``zustand`` - so ist der Fall
+    ``WLAN weg`` pruefbar, ohne wirklich das WLAN abzuschalten.
+
+    ``zustand`` haelt ``bekannt`` (zuletzt gesehene Adressen) und ``weg_seit``.
+    """
+    zeilen: list[str] = []
+
+    # 1) Stand der Rechner still? (Standby, eingefrorenes Fenster, Ueberlast)
+    if pause > NETZ_INTERVALL * 3:
+        zeilen.append(f"ZEITSPRUNG: der Rechner stand {pause / 60:.1f} min still "
+                      f"(Standby, eingefrorenes Fenster oder Ueberlast). "
+                      f"Fuer die Handys war die App in dieser Zeit WEG.")
+
+    # 2) WLAN-Karte noch da?
+    if not ips:
+        if zustand.get("weg_seit") is None:
+            zustand["weg_seit"] = 0.0
+            zeilen.append("NETZ WEG: keine LAN-Adresse mehr - WLAN abgerissen. "
+                          "Die Handys erreichen den Laptop JETZT nicht.")
+        else:
+            zustand["weg_seit"] = zustand["weg_seit"] + pause
+        return zeilen
+
+    if zustand.get("weg_seit") is not None:
+        zeilen.append(f"NETZ ZURUECK nach {zustand['weg_seit'] + pause:.0f} s "
+                      f"- Adressen: {sorted(ips)}")
+        zustand["weg_seit"] = None
+
+    # 3) Andere Adresse als vorher?
+    bekannt = zustand.get("bekannt") or set()
+    if bekannt and ips != bekannt:
+        zeilen.append(f"ADRESSWECHSEL: vorher {sorted(bekannt)} -> jetzt {sorted(ips)} "
+                      f"- Handys mit der alten Adresse kommen nicht mehr durch!")
+        zustand["adresswechsel"] = sorted(ips)
+    zustand["bekannt"] = ips
+    return zeilen
+
+
+def netz_waechter_starten() -> None:
+    """Ueberwacht die Netzwerkseite DIESES Laptops - der blinde Fleck des Logs.
+
+    Reisst hier das WLAN ab, kommen die Anfragen der Handys gar nicht erst an;
+    im Protokoll steht dann NICHTS, obwohl fuer alle am Tisch die App weg ist.
+    """
     def _lauf():
-        bekannt = set(all_lan_ips())
+        zustand = {"bekannt": set(all_lan_ips()), "weg_seit": None}
+        letzter = time.time()
         while True:
-            time.sleep(30)
+            time.sleep(NETZ_INTERVALL)
             try:
-                jetzt = set(all_lan_ips())
-                if jetzt and jetzt != bekannt:
-                    diag.log(f"ADRESSWECHSEL: vorher {sorted(bekannt)} -> jetzt {sorted(jetzt)} "
-                             f"- Handys mit der alten Adresse kommen nicht mehr durch!")
-                    app_modul.adresse_gewechselt(sorted(jetzt))
-                    bekannt = jetzt
+                jetzt = time.time()
+                pause, letzter = jetzt - letzter, jetzt
+                zustand.pop("adresswechsel", None)
+                for zeile in netz_pruefen(zustand, set(all_lan_ips()), pause):
+                    diag.log(zeile)
+                if zustand.get("adresswechsel"):
+                    app_modul.adresse_gewechselt(zustand["adresswechsel"])
             except Exception:
                 pass
+
     threading.Thread(target=_lauf, daemon=True).start()
 
 
@@ -325,7 +372,7 @@ def main() -> None:
         print("    (oder WLAN auf Privat stellen).")
         print()
     umgebung_protokollieren()
-    ip_waechter_starten()
+    netz_waechter_starten()
     zc = register_mdns(ip)
     open_browser_later()
     try:

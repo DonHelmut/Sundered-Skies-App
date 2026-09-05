@@ -32,3 +32,47 @@ def test_local_ip_never_returns_apipa_or_linklocal():
     # Erlaubt sind private LAN-Adressen; 127.0.0.1 nur als Notnagel (kein Netz).
     assert not a.is_link_local
     assert a.is_private or ip == "127.0.0.1"
+
+
+# --- Netz-Waechter: der blinde Fleck des Protokolls -------------------------
+# Reisst das WLAN am Laptop ab, kommt bei den Handys nichts mehr an - und im
+# Log stand bisher gar nichts, weil dort nur ankommende Anfragen auftauchen.
+
+from server import run as run_modul
+
+
+def test_netz_weg_wird_gemeldet():
+    z = {"bekannt": {"192.168.0.5"}, "weg_seit": None}
+    zeilen = run_modul.netz_pruefen(z, set(), pause=20)
+    assert any("NETZ WEG" in x for x in zeilen)
+    assert z["weg_seit"] is not None
+
+
+def test_netz_weg_meldet_nur_einmal_und_zaehlt_die_dauer():
+    z = {"bekannt": {"192.168.0.5"}, "weg_seit": None}
+    run_modul.netz_pruefen(z, set(), pause=20)
+    weitere = run_modul.netz_pruefen(z, set(), pause=20)
+    assert weitere == []                      # kein Log-Spam im Sekundentakt
+
+    zurueck = run_modul.netz_pruefen(z, {"192.168.0.5"}, pause=20)
+    assert any("NETZ ZURUECK nach 40 s" in x for x in zurueck)
+    assert z["weg_seit"] is None
+
+
+def test_adresswechsel_wird_gemeldet():
+    z = {"bekannt": {"192.168.0.5"}, "weg_seit": None}
+    zeilen = run_modul.netz_pruefen(z, {"192.168.0.99"}, pause=20)
+    assert any("ADRESSWECHSEL" in x for x in zeilen)
+    assert z["adresswechsel"] == ["192.168.0.99"]
+
+
+def test_gleiche_adresse_meldet_nichts():
+    z = {"bekannt": {"192.168.0.5"}, "weg_seit": None}
+    assert run_modul.netz_pruefen(z, {"192.168.0.5"}, pause=20) == []
+
+
+def test_zeitsprung_wird_gemeldet():
+    """Standby oder eingefrorenes Fenster: fuer die Handys war die App weg."""
+    z = {"bekannt": {"192.168.0.5"}, "weg_seit": None}
+    zeilen = run_modul.netz_pruefen(z, {"192.168.0.5"}, pause=600)
+    assert any("ZEITSPRUNG" in x and "10.0 min" in x for x in zeilen)

@@ -29,7 +29,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "83";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "84";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -1469,6 +1469,9 @@ function combatantRow(c, num, isGM, isOpen) {
       <button class="small primary" data-act="apply-hit" data-id="${c.id}" ${st0.out ? "disabled" : ""} title="Treffer: nicht angeschlagen → Angeschlagen; sonst +1 Wunde">💥</button>
       <button class="small good" data-act="apply-heal" data-id="${c.id}" title="Heilung: wieder wach / −1 Wunde / Angeschlagen weg">🩹</button>
       <button class="ghost small" data-act="set-active" data-id="${c.id}" title="Als aktiv setzen">▶</button>
+      ${c.kind === "npc" && !c.ally
+        ? `<button class="ghost small${c.anon ? " on" : ""}" data-act="set-anon" data-id="${c.id}" data-on="${c.anon ? 0 : 1}" title="${c.anon ? "Aufdecken: Spieler sehen den echten Namen" : "Verdecken: Spieler sehen nur einen unlesbaren Namen"}">${c.anon ? "🫥" : "👁"}</button>`
+        : ""}
       <button class="ghost small" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}" title="${c.benched ? "Wieder in den Kampf" : "Aus dem Kampf (pausieren)"}">${c.benched ? "▶️" : "⏸"}</button>
       <button class="ghost small bad" data-act="remove-combatant" data-id="${c.id}" title="${c.playerId ? "Spieler entfernen (Kick)" : "Entfernen"}">✕</button>
     </div>` : "";
@@ -1476,13 +1479,13 @@ function combatantRow(c, num, isGM, isOpen) {
   const avImg = c.image ? `<img src="${esc(c.image)}" alt="">` : esc(zoneInitials(c.name));
   const avatarEl = isGM
     ? `<label class="avatar" title="Bild wählen/ändern" style="cursor:pointer">${avImg}<input type="file" accept="image/*" data-act="pick-char-image" data-id="${c.id}" style="display:none"></label>`
-    : (c.image ? `<span class="avatar zoomable" data-act="open-image" data-url="${esc(c.image)}" title="Bild groß anzeigen"><img src="${esc(c.image)}" alt=""></span>` : "");
+    : (c.image ? `<span class="avatar${c.anon ? " verdeckt" : " zoomable"}"${c.anon ? "" : ` data-act="open-image" data-url="${esc(c.image)}" title="Bild groß anzeigen"`}><img src="${esc(c.image)}" alt=""></span>` : "");
   return `<div class="${cls}" data-cid="${c.id}">
     <div class="idx">${idxLabel}</div>
     <div class="mini">${cardSlot(c.id, c.card, c.status, "", { open: showCard, tappable: false })}</div>
     ${avatarEl}
     <div class="who">
-      <div class="name">${esc(c.name)} ${heldPill}</div>
+      <div class="name">${c.anon && !isGM ? `<span class="verdeckt" title="Der Spielleiter hält verborgen, wer das ist">${esc(c.name)}</span>` : esc(c.name)}${c.anon && isGM ? ` <span class="tag" style="color:var(--muted);border-color:var(--muted)" title="Die Spieler sehen statt des Namens nur Unlesbares">🫥 verdeckt</span>` : ""} ${heldPill}</div>
       ${c.playerName && c.playerName !== c.name ? `<div class="muted" style="font-size:0.72rem">🎲 ${esc(c.playerName)}</div>` : ""}
       ${isGM && c.note ? `<div class="combatant-note" title="SL-Notiz">📝 ${esc(c.note)}</div>` : ""}
       <div class="badges">
@@ -1587,8 +1590,14 @@ function renderBestiaryPanel() {
       <button data-act="bestiary-new">+ Neuer Gegner-Typ</button>
       <label class="field" style="max-width:200px; margin:0"><span>Startzone für „+ Kampf"</span>
         <select id="bestzone" data-act="remember-zone">${zoneOptions(lastNpcZone())}</select></label>
+      <label class="field" style="max-width:90px; margin:0"><span>Anzahl</span>
+        <input id="bestcount" type="number" min="1" max="20" value="1"></label>
+      <label class="feld-kasten" title="Spieler sehen dann nur einen unlesbaren Namen – du weiterhin den echten">
+        <input type="checkbox" id="bestanon"> 🫥 verdeckt
+      </label>
     </div>
-    <div class="muted small">Standard-Gegner (mit Bild) – bleiben gespeichert, per „+ Kampf" in der gewählten Zone rein.</div>
+    <div class="muted small">Standard-Gegner (mit Bild) – bleiben gespeichert, per „+ Kampf" in der gewählten Zone rein.
+      Mehrere gleiche werden automatisch durchnummeriert (Ork 1, Ork 2 …).</div>
     <div style="margin-top:8px">${items}</div>
     <div id="bestiaryform"></div>`);
 }
@@ -1930,8 +1939,15 @@ document.addEventListener("click", (e) => {
     "bestiary-delete": () => { if (confirm("Gegner-Typ löschen?")) gmAction({ type: "bestiary_delete", id }); },
     "bestiary-to-combat": () => {
       const z = parseInt(($("bestzone") || {}).value, 10);
-      gmAction({ type: "add_npc_from_bestiary", id, zone: isNaN(z) ? undefined : z });
+      const anzahl = parseInt(($("bestcount") || {}).value, 10);
+      gmAction({
+        type: "add_npc_from_bestiary", id,
+        zone: isNaN(z) ? undefined : z,
+        count: isNaN(anzahl) ? 1 : anzahl,
+        anon: !!($("bestanon") || {}).checked,
+      });
     },
+    "set-anon": () => gmAction({ type: "set_anon", id, on: target.getAttribute("data-on") === "1" }),
     // SL – Verbündeten-Bibliothek
     "ally-new": () => renderAllyForm(null),
     "ally-edit": () => renderAllyForm((S.allies || []).find((r) => r.id === id)),

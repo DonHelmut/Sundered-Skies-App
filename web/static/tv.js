@@ -64,7 +64,9 @@ let tvHeartbeat = null;
 function connect() {
   if (TV.ws && (TV.ws.readyState === WebSocket.CONNECTING || TV.ws.readyState === WebSocket.OPEN)) return;
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${proto}://${location.host}/ws`);
+  // ?tv=1: Der Beamer laeuft meist auf dem SL-Laptop und waere sonst "der SL" -
+  // dann stuenden verdeckte Gegner mit Klarnamen fuer den ganzen Tisch da.
+  const ws = new WebSocket(`${proto}://${location.host}/ws?tv=1`);
   TV.ws = ws;
   ws.onopen = () => { TV.lastRecv = Date.now(); setStatus("online");
     clearInterval(tvHeartbeat);

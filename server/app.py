@@ -139,12 +139,16 @@ class Hub:
             self.sockets.pop(ws, None)
 
     async def broadcast_state(self) -> None:
-        snap = game.snapshot()
-        payload = {"type": "state", "state": snap}
+        # ZWEI Fassungen: der SL sieht alles, die Spieler bekommen verdeckte
+        # Gegner nur als Tarnnamen. Beide einmal bauen statt pro Verbindung.
+        fassung = {
+            "gm": {"type": "state", "state": game.snapshot()},
+            "player": {"type": "state", "state": game.snapshot(fuer_spieler=True)},
+        }
         dead = []
-        for ws in list(self.sockets):
+        for ws, meta in list(self.sockets.items()):
             try:
-                await ws.send_json(payload)
+                await ws.send_json(fassung.get(meta.get("role"), fassung["player"]))
             except Exception:
                 dead.append(ws)
         for ws in dead:
@@ -240,14 +244,20 @@ async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     is_gm = _is_loopback(ws)
     client_ip = getattr(getattr(ws, "client", None), "host", "?")
-    meta = {"role": "gm" if is_gm else "player", "playerId": None, "ip": client_ip,
+    # Die TV-/Beamer-Ansicht meldet sich mit ?tv=1. Sie laeuft meist auf dem
+    # SL-Laptop, gilt aber als ZUSCHAUER: sie darf nichts steuern und sieht
+    # verdeckte Gegner nur mit Tarnnamen - sonst waere das Verdecken sinnlos.
+    ist_tv = ws.query_params.get("tv") == "1"
+    rolle = "tv" if ist_tv else ("gm" if is_gm else "player")
+    meta = {"role": rolle, "playerId": None, "ip": client_ip,
             "seit": time.monotonic(), "letzte": time.monotonic()}
     await hub.add(ws, meta)
     diag.log(f"VERBUNDEN  {meta['role']:6s} ip={client_ip}")
 
     # Initialen Zustand senden.
     await ws.send_json({"type": "hello", "role": meta["role"]})
-    await ws.send_json({"type": "state", "state": game.snapshot()})
+    await ws.send_json({"type": "state",
+                        "state": game.snapshot(fuer_spieler=meta["role"] != "gm")})
 
     reason = "Abbruch"
     try:

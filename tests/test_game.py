@@ -1,5 +1,7 @@
 """Kern-Spielregeln über Game.apply – mit isoliertem Datenverzeichnis."""
 
+import json
+
 
 def _add_npc(g, name="Gegner", zone=None, wildcard=False):
     a = {"type": "add_npc", "name": name, "isWildCard": wildcard}
@@ -453,3 +455,101 @@ def test_gast_beitritt_unveraendert(fresh_game):
     g.register_player("Gast A", character_id=None, existing_player_id=None)
     g.register_player("Gast B", character_id=None, existing_player_id=None)
     assert len(g.combatants) == 2
+
+
+def test_gleiche_gegner_werden_durchnummeriert(fresh_game):
+    """Drei Orks sollen 'Ork 1', 'Ork 2', 'Ork 3' heissen - auch der erste."""
+    g = fresh_game
+    _add_npc(g, "Ork")
+    assert g.combatants[-1]["name"] == "Ork"          # allein: keine Nummer
+    _add_npc(g, "Ork")
+    _add_npc(g, "Ork")
+    namen = [c["name"] for c in g.combatants]
+    assert namen == ["Ork 1", "Ork 2", "Ork 3"]       # der erste zieht nach
+
+
+def test_nummerierung_stoert_andere_namen_nicht(fresh_game):
+    g = fresh_game
+    _add_npc(g, "Ork"); _add_npc(g, "Skree"); _add_npc(g, "Ork")
+    assert [c["name"] for c in g.combatants] == ["Ork 1", "Skree", "Ork 2"]
+
+
+def test_nummerierung_zaehlt_nach_dem_entfernen_weiter(fresh_game):
+    """Ork 2 stirbt, der naechste wird Ork 3 - keine doppelten Nummern."""
+    g = fresh_game
+    for _ in range(3):
+        _add_npc(g, "Ork")
+    zweiter = next(c for c in g.combatants if c["name"] == "Ork 2")
+    g.apply({"type": "remove_combatant", "id": zweiter["id"]})
+    _add_npc(g, "Ork")
+    namen = sorted(c["name"] for c in g.combatants)
+    assert namen == ["Ork 1", "Ork 3", "Ork 4"]
+
+
+def test_mehrere_gegner_auf_einmal(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "count": 3})
+    assert [c["name"] for c in g.combatants] == ["Ork 1", "Ork 2", "Ork 3"]
+
+
+def test_verdeckter_gegner_versteckt_den_namen_vor_spielern(fresh_game):
+    """Der SL markiert einen Gegner als verdeckt - Spieler sehen einen
+    Tarnnamen, und der echte Name verlaesst den Laptop gar nicht erst."""
+    g = fresh_game
+    _add_npc(g, "Schreckenswurm")
+    g.apply({"type": "set_anon", "id": g.combatants[0]["id"], "on": True})
+
+    sl = g.snapshot()
+    spieler = g.snapshot(fuer_spieler=True)
+
+    assert sl["combatants"][0]["name"] == "Schreckenswurm"
+    getarnt = spieler["combatants"][0]
+    assert getarnt["name"] != "Schreckenswurm"
+    assert getarnt["anon"] is True
+    assert "Schreckenswurm" not in json.dumps(spieler)
+
+
+def test_verdeckt_gilt_nur_fuer_den_markierten_gegner(fresh_game):
+    g = fresh_game
+    _add_npc(g, "Ork")
+    _add_npc(g, "Schattenkralle")
+    g.apply({"type": "set_anon", "id": g.combatants[1]["id"], "on": True})
+
+    namen = [c["name"] for c in g.snapshot(fuer_spieler=True)["combatants"]]
+    assert namen[0] == "Ork"                    # bleibt sichtbar
+    assert namen[1] != "Schattenkralle"         # ist verdeckt
+
+
+def test_verdeckt_beim_anlegen_waehlbar(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Etwas Grosses", "anon": True})
+    assert g.combatants[0]["anon"] is True
+    assert "Etwas Grosses" not in json.dumps(g.snapshot(fuer_spieler=True))
+
+
+def test_wieder_aufdecken(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "anon": True})
+    g.apply({"type": "set_anon", "id": g.combatants[0]["id"], "on": False})
+    assert g.snapshot(fuer_spieler=True)["combatants"][0]["name"] == "Ork"
+
+
+def test_tarnname_bleibt_gleich(fresh_game):
+    """Sonst flackert die Zeile bei jeder Aktualisierung."""
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "anon": True})
+    assert g.snapshot(fuer_spieler=True)["combatants"][0]["name"] ==            g.snapshot(fuer_spieler=True)["combatants"][0]["name"]
+
+
+def test_spieler_bekommen_das_bestiarium_nie(fresh_game):
+    """Sonst stuenden die echten Namen dort weiterhin drin."""
+    g = fresh_game
+    g.apply({"type": "bestiary_upsert", "name": "Schreckenswurm"})
+    assert g.snapshot(fuer_spieler=True)["bestiary"] == []
+    assert g.snapshot()["bestiary"][0]["name"] == "Schreckenswurm"
+
+
+def test_ohne_markierung_bleiben_namen_sichtbar(fresh_game):
+    g = fresh_game
+    _add_npc(g, "Ork")
+    assert g.snapshot(fuer_spieler=True)["combatants"][0]["name"] == "Ork"

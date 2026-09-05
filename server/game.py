@@ -9,6 +9,8 @@ gespeichert, damit nach einem Neustart fortgesetzt werden kann.
 from __future__ import annotations
 
 import copy
+import hashlib
+import re
 import json
 import os
 import time
@@ -394,7 +396,37 @@ class Game:
 
     # --- Serialisierung für Clients -----------------------------------------
 
-    def snapshot(self) -> dict:
+    def _tarnname(self, c: dict) -> str:
+        """Unleserlicher Platzhalter statt des echten Gegnernamens.
+
+        Der echte Name verlaesst den Laptop damit gar nicht erst - blosses
+        Weichzeichnen im Browser waere nur Kosmetik. Aus der Figuren-ID
+        abgeleitet, damit er bei jeder Aktualisierung gleich bleibt (sonst
+        flackert die Zeile bei jedem Zustands-Update)."""
+        roh = hashlib.md5(c["id"].encode("utf-8")).hexdigest()
+        laenge = max(4, min(11, len(c.get("name") or "")))
+        ab = "abcdefghijklmnopqrstuvwxyz"
+        return "".join(ab[int(roh[i * 2:i * 2 + 2], 16) % 26] for i in range(laenge)).capitalize()
+
+    def _fuer_spieler(self, combatants: list[dict]) -> list[dict]:
+        """Gegner unkenntlich machen: Tarnname statt echtem Namen, Bild als
+        'verdeckt' markiert. Verbuendete und Spielerfiguren bleiben normal -
+        die eigene Seite soll man ja erkennen."""
+        raus = []
+        for c in combatants:
+            if c.get("anon") and c.get("kind") == "npc" and not c.get("ally"):
+                kopie = dict(c)
+                kopie["name"] = self._tarnname(c)
+                kopie["anon"] = True             # Client zeichnet das weich
+                raus.append(kopie)
+            else:
+                raus.append(c)
+        return raus
+
+    def snapshot(self, fuer_spieler: bool = False) -> dict:
+        # Verdeckte Gegner: der SL markiert sie einzeln, die Spieler bekommen
+        # dann Tarnnamen statt der echten.
+        anon = fuer_spieler and any(c.get("anon") for c in self.combatants)
         return {
             "serverNow": now_ms(),   # zum Ausgleich von Uhren-Versatz der Clients
             "round": self.round,
@@ -415,11 +447,11 @@ class Game:
             "hasSavedSession": self.resume_available,
             "canUndo": len(self._history) > 0,
             "roster": self.roster,
-            "bestiary": self.bestiary,
+            "bestiary": [] if fuer_spieler else self.bestiary,
             "allies": self.allies,
             "encounters": self.encounters,
             "players": self.players,
-            "combatants": self.combatants,
+            "combatants": self._fuer_spieler(self.combatants) if anon else self.combatants,
             "messages": self.messages[-MAX_MESSAGES:],
             "requests": self.requests,
             "tvImage": self.tv_image,
@@ -544,6 +576,8 @@ class Game:
             "gluck": tmpl.get("gluck", False),
             "grosses_gluck": tmpl.get("grosses_gluck", False),
             "zone": a.get("zone"),
+            "anon": a.get("anon", tmpl.get("anon", False)),
+            "count": a.get("count", 1),
         })
         if tmpl.get("image") and self.combatants:
             self.combatants[-1]["image"] = tmpl["image"]
@@ -716,7 +750,48 @@ class Game:
         self.combatants.append(c)
         return c
 
+    _NUMMER_AM_ENDE = re.compile(r"^(.*?)\s+(\d+)$")
+
+    def _grundname(self, name: str) -> str:
+        """'Ork 3' -> 'Ork'. Damit zaehlt der naechste Ork richtig weiter,
+        egal ob schon nummeriert wurde."""
+        treffer = self._NUMMER_AM_ENDE.match(name.strip())
+        return treffer.group(1) if treffer else name.strip()
+
+    def _nummeriere(self, name: str) -> str:
+        """Mehrere gleiche Gegner auseinanderhalten: der erste heisst weiter
+        'Ork', sobald der zweite dazukommt werden daraus 'Ork 1' und 'Ork 2'."""
+        grund = self._grundname(name)
+        gleiche = [c for c in self.combatants
+                   if c.get("kind") == "npc" and self._grundname(c.get("name", "")) == grund]
+        if not gleiche:
+            return grund
+
+        # Den ersten rueckwirkend mitnummerieren - sonst stuenden "Ork" und
+        # "Ork 2" nebeneinander, was niemand versteht.
+        hoechste = 0
+        for c in gleiche:
+            treffer = self._NUMMER_AM_ENDE.match(c.get("name", "").strip())
+            if treffer:
+                hoechste = max(hoechste, int(treffer.group(2)))
+            else:
+                c["name"] = f"{grund} 1"
+                hoechste = max(hoechste, 1)
+        return f"{grund} {hoechste + 1}"
+
     def _do_add_npc(self, a: dict) -> None:
+        # Mehrere auf einmal ("3 Orks") - jeder bekommt seine eigene Nummer.
+        try:
+            anzahl = max(1, min(20, int(a.get("count", 1))))
+        except (TypeError, ValueError):
+            anzahl = 1
+        if anzahl > 1:
+            einzeln = dict(a)
+            einzeln.pop("count", None)
+            for _ in range(anzahl):
+                self._do_add_npc(einzeln)
+            return
+
         is_wc = bool(a.get("isWildCard", False))
         edges = {"gluck": bool(a.get("gluck", False)), "grosses_gluck": bool(a.get("grosses_gluck", False))}
         # Gegner starten „Außer Reichweite", sofern der SL keine Zone vorgibt.
@@ -727,7 +802,7 @@ class Game:
         npc_zone = max(ZONE_MIN, min(ZONE_MAX, npc_zone))
         c = {
             "id": _new_id("cbt"),
-            "name": (a.get("name") or "Gegner").strip() or "Gegner",
+            "name": self._nummeriere((a.get("name") or "Gegner").strip() or "Gegner"),
             "kind": "npc",
             "isWildCard": is_wc,
             "talents": [t for t in a.get("talents", []) if t in TALENTS],
@@ -736,6 +811,7 @@ class Game:
             "bennies": self._starting_bennies(edges) if is_wc else 0,
             "characterId": None,
             "playerId": None,
+            "anon": bool(a.get("anon", False)),   # verdeckt? (Spieler sehen Tarnnamen)
             "card": None,
             "held": False,
             "done": False,
@@ -1216,6 +1292,12 @@ class Game:
         if not self.requests_enabled:
             self.requests = []          # offene Anfragen wegraeumen
         self.save_settings()
+
+    def _do_set_anon(self, a: dict) -> None:
+        """SL deckt einen einzelnen Gegner auf oder verdeckt ihn wieder."""
+        c = self._combatant(a.get("id"))
+        if c and c.get("kind") == "npc" and not c.get("ally"):
+            c["anon"] = bool(a.get("on", False))
 
     def _do_set_conditions_enabled(self, a: dict) -> None:
         """Zusatz-Zustaende (Verwundbar/Abgelenkt/Am Boden/Betaeubt) ein- oder

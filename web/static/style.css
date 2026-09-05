@@ -1116,3 +1116,20 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
   background: rgba(127,127,127,0.16); border-radius: 5px;
   padding: 1px 5px; font-size: 0.92em;
 }
+
+/* Verdeckte Gegner: Der Spieler soll sehen, DASS da wer steht - nur nicht wer.
+   Der echte Name wird gar nicht erst gesendet (siehe _tarnname im Server);
+   das Weichzeichnen macht daraus optisch ein "unlesbar" statt eines
+   Fantasienamens, den jemand fuer echt halten koennte. */
+.verdeckt { filter: blur(4.5px); user-select: none; }
+.name .verdeckt { display: inline-block; opacity: 0.85; letter-spacing: 1px; }
+.avatar.verdeckt img { filter: blur(7px); }
+/* Der Knopf des SL zeigt den aktuellen Zustand */
+button.ghost.small.on { border-color: var(--accent2); color: var(--accent2); }
+
+/* Ankreuzfeld, das neben den Eingabefeldern nicht verrutscht */
+.feld-kasten {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px;
+  white-space: nowrap;
+}
