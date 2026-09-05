@@ -1286,9 +1286,26 @@ class Game:
         self.players.append(player)
 
         if character_id:
-            char = next((r for r in self.roster if r["id"] == character_id), None)
-            if char:
-                self.add_combatant_from_character(char, player_id, player_name=name)
+            # Steht die Figur schon im Kampf? Dann UEBERNEHMEN statt ein zweites
+            # Mal anlegen. Passiert, wenn jemand rausgeflogen ist oder die
+            # gespeicherte Spieler-ID verloren hat (neuer Tab, Speicher geleert)
+            # und denselben Charakter erneut waehlt.
+            vorhanden = next((c for c in self.combatants
+                              if c.get("characterId") == character_id), None)
+            if vorhanden:
+                alte_id = vorhanden.get("playerId")
+                vorhanden["playerId"] = player_id
+                vorhanden["playerName"] = name
+                # Verwaisten Spielereintrag der alten Sitzung aufraeumen - aber
+                # nur, wenn dort niemand mehr dranhaengt (sonst haette man die
+                # Figur jemandem weggenommen, der noch verbunden ist).
+                if alte_id and alte_id != player_id:
+                    self.players = [pl for pl in self.players
+                                    if pl["id"] != alte_id or pl.get("connected")]
+            else:
+                char = next((r for r in self.roster if r["id"] == character_id), None)
+                if char:
+                    self.add_combatant_from_character(char, player_id, player_name=name)
         else:
             self.add_guest_combatant(name, player_id)
         return player

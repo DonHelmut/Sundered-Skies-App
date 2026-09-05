@@ -407,3 +407,49 @@ def test_datenordner_normal_ohne_hinweis(tmp_path, monkeypatch):
 
     assert ordner == tmp_path / "daten"
     assert ausgewichen is None
+
+
+def _korgio(g):
+    g.apply({"type": "roster_upsert", "name": "Korgio", "isWildCard": True})
+    return g.roster[-1]["id"]
+
+
+def test_wiederbeitritt_uebernimmt_figur_statt_zu_verdoppeln(fresh_game):
+    """Kalle fliegt raus und waehlt Korgio erneut: Korgio darf NICHT zweimal
+    auf dem Feld stehen - die vorhandene Figur wird uebernommen."""
+    g = fresh_game
+    cid = _korgio(g)
+    erster = g.register_player("Kalle", character_id=cid, existing_player_id=None)
+    figur = next(c for c in g.combatants if c.get("characterId") == cid)
+    figur["wounds"] = 2                      # im Kampf schon Schaden kassiert
+    g.set_player_connected(erster["id"], False)
+
+    # Neuer Beitritt OHNE bekannte Spieler-ID (Speicher weg / rausgeflogen)
+    zweiter = g.register_player("Kalle", character_id=cid, existing_player_id=None)
+
+    figuren = [c for c in g.combatants if c.get("characterId") == cid]
+    assert len(figuren) == 1                 # nicht verdoppelt
+    assert figuren[0]["id"] == figur["id"]   # dieselbe Figur ...
+    assert figuren[0]["wounds"] == 2         # ... mitsamt ihrem Zustand
+    assert figuren[0]["playerId"] == zweiter["id"]
+    assert erster["id"] not in [p["id"] for p in g.players]   # Karteileiche weg
+
+
+def test_wiederbeitritt_nimmt_niemandem_die_figur_weg(fresh_game):
+    """Ist der alte Spieler noch verbunden, bleibt sein Eintrag bestehen."""
+    g = fresh_game
+    cid = _korgio(g)
+    erster = g.register_player("Kalle", character_id=cid, existing_player_id=None)
+
+    g.register_player("Kalle (Zweitgeraet)", character_id=cid, existing_player_id=None)
+
+    assert erster["id"] in [p["id"] for p in g.players]
+    assert len([c for c in g.combatants if c.get("characterId") == cid]) == 1
+
+
+def test_gast_beitritt_unveraendert(fresh_game):
+    """Gaeste (ohne Charakter) bekommen weiterhin jeweils eine eigene Figur."""
+    g = fresh_game
+    g.register_player("Gast A", character_id=None, existing_player_id=None)
+    g.register_player("Gast B", character_id=None, existing_player_id=None)
+    assert len(g.combatants) == 2

@@ -12,6 +12,7 @@ import io
 from contextlib import asynccontextmanager
 import json
 import os
+import time
 import uuid
 from pathlib import Path
 
@@ -27,6 +28,15 @@ from . import winnet
 
 WEB_DIR = RESOURCE_DIR / "web"
 LOCAL_IP = local_ip()
+
+
+# Vom IP-Waechter gesetzt: Adressen haben sich im laufenden Betrieb geaendert.
+ADRESSWECHSEL: dict = {"passiert": False, "ips": []}
+
+
+def adresse_gewechselt(neue_ips: list[str]) -> None:
+    ADRESSWECHSEL["passiert"] = True
+    ADRESSWECHSEL["ips"] = list(neue_ips)
 
 
 def join_url() -> str:
@@ -80,6 +90,12 @@ async def api_info():
         "isWindows": os.name == "nt",
         "isAdmin": winnet.ist_admin(),          # ohne Adminrechte keine Firewall-Regel
         "firewallRuleActive": winnet.rule_active(),
+        "addressChanged": ADRESSWECHSEL["passiert"],
+    }, headers={
+        # Handys pruefen bei Verbindungsverlust ALLE bekannten Adressen des
+        # Servers durch (siehe adressFallback in app.js). Dieser Test laeuft
+        # ueber eine andere Herkunft - ohne diesen Kopf blockt der Browser ihn.
+        "Access-Control-Allow-Origin": "*",
     })
 
 
@@ -224,7 +240,8 @@ async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     is_gm = _is_loopback(ws)
     client_ip = getattr(getattr(ws, "client", None), "host", "?")
-    meta = {"role": "gm" if is_gm else "player", "playerId": None, "ip": client_ip}
+    meta = {"role": "gm" if is_gm else "player", "playerId": None, "ip": client_ip,
+            "seit": time.monotonic(), "letzte": time.monotonic()}
     await hub.add(ws, meta)
     diag.log(f"VERBUNDEN  {meta['role']:6s} ip={client_ip}")
 
@@ -250,7 +267,15 @@ async def websocket_endpoint(ws: WebSocket):
         reason = f"Fehler {type(exc).__name__}"
     finally:
         who = _player_name(meta.get("playerId")) or meta["role"]
-        diag.log(f"GETRENNT   {meta['role']:6s} ip={client_ip} ({who}) — {reason}")
+        # Wichtig fuers Nachvollziehen: War es ein sauberes Ende (Tab zu) oder ist
+        # die Leitung gestorben? Das Handy sendet alle 5 s einen Ping - kam laenger
+        # nichts, war das WLAN weg und nicht der Finger auf dem Schliessen-Knopf.
+        dauer = time.monotonic() - meta.get("seit", 0)
+        stille = time.monotonic() - meta.get("letzte", 0)
+        art = "Leitung tot (WLAN?)" if stille > 12 else "sauberes Ende"
+        diag.log(f"GETRENNT   {meta['role']:6s} ip={client_ip} ({who}) — {reason} "
+                 f"nach {dauer / 60:.1f} min, zuletzt gehoert vor {stille:.0f} s "
+                 f"[{art}]")
         if meta.get("playerId"):
             game.set_player_connected(meta["playerId"], False)
             game.save_session()
@@ -259,6 +284,7 @@ async def websocket_endpoint(ws: WebSocket):
 
 
 async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
+    meta["letzte"] = time.monotonic()   # fuer die Diagnose beim Trennen
     mtype = msg.get("type")
 
     if mtype == "ping":

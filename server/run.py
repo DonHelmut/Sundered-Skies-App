@@ -20,8 +20,30 @@ import uvicorn
 
 from .paths import PORT, PORT_CANDIDATES, HOSTNAME, APP_VERSION, local_ip, all_lan_ips, active_port, set_active_port
 from .app import app
+from . import app as app_modul
 from . import diag
 from . import winnet
+
+
+def ip_waechter_starten() -> None:
+    """Merkt, wenn der Laptop im laufenden Betrieb eine ANDERE LAN-Adresse
+    bekommt (WLAN-Aussetzer, Router-Neustart). Dann zeigt der QR-Code zwar die
+    neue Adresse - die Handys haben aber die alte und kommen nicht mehr durch.
+    Wird protokolliert und der SL-Ansicht gemeldet."""
+    def _lauf():
+        bekannt = set(all_lan_ips())
+        while True:
+            time.sleep(30)
+            try:
+                jetzt = set(all_lan_ips())
+                if jetzt and jetzt != bekannt:
+                    diag.log(f"ADRESSWECHSEL: vorher {sorted(bekannt)} -> jetzt {sorted(jetzt)} "
+                             f"- Handys mit der alten Adresse kommen nicht mehr durch!")
+                    app_modul.adresse_gewechselt(sorted(jetzt))
+                    bekannt = jetzt
+            except Exception:
+                pass
+    threading.Thread(target=_lauf, daemon=True).start()
 
 
 def umgebung_protokollieren() -> None:
@@ -277,6 +299,19 @@ def main() -> None:
         diag.log(f"ACHTUNG: '{DATA_DIR_AUSGEWICHEN_VON}' nicht beschreibbar -> "
                  f"Daten liegen jetzt in {DATA_DIR}")
     print_banner(ip)
+    if "onedrive" in str(DATA_DIR).lower():
+        # OneDrive synchronisiert den data-Ordner mit: es kann die JSON-Dateien
+        # mitten im Speichern sperren, und "Dateien bei Bedarf" macht sie unter
+        # Umstaenden zu Platzhaltern. Beides kostet im schlimmsten Fall den
+        # Spielstand.
+        diag.log(f"WARNUNG: Daten liegen in OneDrive ({DATA_DIR}) - Sync kann "
+                 f"Speichern stoeren. Besser einen Ordner ausserhalb waehlen.")
+        print("  ! Diese App liegt in OneDrive. Der Ordner wird dann staendig")
+        print("    synchronisiert - das kann das Speichern stoeren und im")
+        print("    schlimmsten Fall den Spielstand kosten.")
+        print(r"    Besser: den ganzen Ordner nach C:\SunderedSkies\ verschieben.")
+        print()
+
     if DATA_DIR_AUSGEWICHEN_VON:
         print("  ! Der Ordner neben der App ist schreibgeschuetzt. Spielstand und")
         print(f"    Log liegen deshalb hier:  {DATA_DIR}")
@@ -290,6 +325,7 @@ def main() -> None:
         print("    (oder WLAN auf Privat stellen).")
         print()
     umgebung_protokollieren()
+    ip_waechter_starten()
     zc = register_mdns(ip)
     open_browser_later()
     try:

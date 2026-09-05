@@ -29,7 +29,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "82";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "83";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -249,7 +249,9 @@ function connect() {
 
   ws.onopen = () => {
     App.lastRecv = Date.now();
+    App.reconnectTries = 0;
     setStatus("online");
+    versteckeOfflineHinweis();
     startHeartbeat();
     // War die Leitung vorher weg? Dauer an den Server melden (fürs Diagnose-Log).
     if (App.wentOfflineAt) {
@@ -261,7 +263,13 @@ function connect() {
   ws.onclose = () => {
     stopHeartbeat();
     if (!App.wentOfflineAt) App.wentOfflineAt = Date.now();
+    App.reconnectTries = (App.reconnectTries || 0) + 1;
     setStatus("offline");
+    zeigeOfflineHinweis();
+    // Kommt die Leitung 20 s nicht zurück, könnte der Laptop eine ANDERE
+    // Adresse haben (WLAN-Aussetzer, Router-Neustart). Dann die übrigen
+    // bekannten Adressen durchprobieren und dorthin umleiten.
+    if (Date.now() - App.wentOfflineAt > 20000) adressFallback();
     setTimeout(connect, 1500);
   };
   ws.onerror = () => setStatus("reconnect");
@@ -293,6 +301,70 @@ function connect() {
   };
 }
 
+// Verbindung weg: großer, ruhiger Hinweis statt nur der kleinen Pille oben.
+// Wichtig ist die Bitte, NICHT neu zu laden - ein Neuladen holt die Seite vom
+// Server, und genau der ist ja gerade nicht erreichbar. Dann bliebe das Handy
+// auf einer leeren Fehlerseite sitzen, während die App sich von selbst wieder
+// gefangen hätte.
+let offlineTimer = null;
+function zeigeOfflineHinweis() {
+  const seit = App.wentOfflineAt ? Math.round((Date.now() - App.wentOfflineAt) / 1000) : 0;
+  let el = $("offline-hinweis");
+  if (!el) {
+    // Erst nach 4 s einblenden - kurze Aussetzer soll niemand mitbekommen.
+    if (seit < 4) {
+      if (!offlineTimer) offlineTimer = setTimeout(() => { offlineTimer = null; zeigeOfflineHinweis(); }, 4000);
+      return;
+    }
+    el = document.createElement("div");
+    el.id = "offline-hinweis";
+    el.className = "offline-hinweis";
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="offline-box">
+      <div class="offline-titel">📡 Verbindung unterbrochen</div>
+      <div class="offline-text">Die App versucht es von selbst weiter – <b>Versuch ${App.reconnectTries || 1}</b>, seit ${seit} s.</div>
+      <div class="offline-warn">Bitte die Seite <b>NICHT neu laden</b> und den Tab offen lassen.<br>Sobald das WLAN zurück ist, geht es automatisch weiter.</div>
+      <div class="offline-text small">Adresse: ${esc(location.host)}</div>
+      <button class="primary" data-act="jetzt-verbinden">Jetzt erneut versuchen</button>
+    </div>`;
+}
+
+function versteckeOfflineHinweis() {
+  if (offlineTimer) { clearTimeout(offlineTimer); offlineTimer = null; }
+  const el = $("offline-hinweis");
+  if (el) el.remove();
+}
+
+// Der Laptop kann nach einem WLAN-Aussetzer eine andere IP haben. Wir kennen
+// aus /api/info alle seine Adressen - die der Reihe nach anklopfen und bei der
+// ersten, die antwortet, weitermachen. Läuft höchstens einmal pro Minute.
+async function adressFallback() {
+  if (App._fallbackLaeuft) return;
+  const zuletzt = Number(localStorage.getItem("fallbackZeit") || 0);
+  if (Date.now() - zuletzt < 60000) return;
+  App._fallbackLaeuft = true;
+  localStorage.setItem("fallbackZeit", String(Date.now()));
+  try {
+    let adressen = [];
+    try { adressen = JSON.parse(localStorage.getItem("serverAdressen") || "[]"); } catch { /* egal */ }
+    for (const url of adressen) {
+      if (url.includes(location.host)) continue;          // die aktuelle bringt nichts
+      try {
+        const r = await fetch(url + "api/info", { cache: "no-store", signal: AbortSignal.timeout(3000) });
+        if (!r.ok) continue;
+        const info = await r.json();
+        if (!info || !info.prettyUrl) continue;           // fremder Dienst, nicht unsere App
+        location.replace(url);                            // dort geht es weiter
+        return;
+      } catch { /* nächste Adresse */ }
+    }
+  } finally {
+    App._fallbackLaeuft = false;
+  }
+}
+
 // Handys pausieren beim Sperren die Reconnect-Schleife. Beim Wieder-Aufwecken
 // (Tab sichtbar / Fokus / Netz zurück) SOFORT neu verbinden statt zu warten.
 function ensureConnected() {
@@ -301,6 +373,14 @@ function ensureConnected() {
 document.addEventListener("visibilitychange", () => { if (!document.hidden) ensureConnected(); });
 window.addEventListener("focus", ensureConnected);
 window.addEventListener("online", ensureConnected);
+
+// Alle Adressen des Servers merken - Grundlage für adressFallback().
+function merkeServerAdressen(info) {
+  try {
+    const urls = (info && info.urls) || [];
+    if (urls.length) localStorage.setItem("serverAdressen", JSON.stringify(urls));
+  } catch { /* Speicher voll/gesperrt - dann eben ohne */ }
+}
 
 function setStatus(kind) {
   const map = {
@@ -1031,14 +1111,88 @@ function firewallHtml() {
     </div>${adminHinweis}`;
 }
 
+// Kurze Rückmeldung, die von selbst verschwindet - für Kleinigkeiten wie
+// "kopiert" ist ein alert() zu aufdringlich (muss weggeklickt werden).
+let toastTimer = null;
+function toast(text) {
+  let el = $("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.classList.add("sichtbar");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("sichtbar"), 2600);
+}
+
+// Adresse per WhatsApp/Teilen-Dialog verschicken. Der Text nennt bewusst das
+// WLAN mit - ein Link auf 192.168.x.x nützt nichts, wenn das Handy woanders ist.
+function einladungstext() {
+  const url = (App._info && App._info.url) || location.origin + "/";
+  return `Sundered Skies – Initiative
+
+Geh mit dem Handy ins gleiche WLAN und öffne:
+${url}
+
+(Funktioniert nur im selben WLAN wie mein Laptop.)`;
+}
+
+async function einladungTeilen() {
+  const text = einladungstext();
+  // Windows-Teilen-Dialog, wenn der Browser ihn kann (Edge/Chrome) - dort ist
+  // WhatsApp neben allem anderen direkt dabei.
+  if (navigator.share) {
+    try { await navigator.share({ title: "Sundered Skies – Initiative", text }); return; }
+    catch { /* abgebrochen oder nicht erlaubt -> WhatsApp-Weg */ }
+  }
+  einladungWhatsApp();
+}
+
+function einladungWhatsApp() {
+  window.open("https://wa.me/?text=" + encodeURIComponent(einladungstext()), "_blank", "noopener");
+}
+
+async function einladungKopieren() {
+  const text = einladungstext();
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Einladung kopiert – jetzt irgendwo einfügen.");
+  } catch {
+    // Ältere Browser / kein sicherer Kontext: Auswahl-Umweg.
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast("Einladung kopiert."); }
+    catch { toast("Kopieren ging nicht – Adresse bitte abtippen."); }
+    ta.remove();
+  }
+}
+
+// Warnung, wenn der Laptop im laufenden Betrieb eine neue Adresse bekommen hat.
+function adresswechselHtml() {
+  if (!App._info || !App._info.addressChanged) return "";
+  return `<div class="pill bad" style="margin-top:10px; display:block; line-height:1.5">
+    ⚠ Die Netzwerk-Adresse dieses Laptops hat sich geändert (WLAN-Aussetzer oder
+    Router-Neustart). Handys, die noch die alte Adresse offen haben, kommen nicht
+    mehr durch – <b>QR-Code unten neu scannen lassen</b>.</div>`;
+}
+
 function renderConnectPanel() {
   return section("connect", "Beitritt für Spieler", `
+    ${adresswechselHtml()}
     <div class="qrbox">
       <img src="/qr.png" alt="QR-Code" onerror="this.style.display='none'">
       <div>
         <div class="muted small">Handy-Kamera auf den QR-Code halten, oder im Browser öffnen:</div>
         <div class="small" style="margin-top:6px">${joinUrlHtml()}</div>
         <div class="muted small" style="margin-top:6px">Der Laptop hier ist automatisch Spielleiter.</div>
+        <div class="row" style="margin-top:10px; flex-wrap:wrap; gap:6px">
+          <button class="ghost" data-act="einladung-whatsapp">💬 Per WhatsApp</button>
+          <button class="ghost" data-act="einladung-teilen">📤 Teilen…</button>
+          <button class="ghost" data-act="einladung-kopieren">🔗 Kopieren</button>
+        </div>
       </div>
     </div>
     ${connectedPlayersHtml()}
@@ -1789,6 +1943,10 @@ document.addEventListener("click", (e) => {
     },
     // Firewall in einem Klick freigeben (Windows-SL) -> löst UAC-Abfrage aus
     "firewall-allow": () => allowFirewall(),
+    "einladung-whatsapp": () => einladungWhatsApp(),
+    "einladung-teilen": () => einladungTeilen(),
+    "einladung-kopieren": () => einladungKopieren(),
+    "jetzt-verbinden": () => { App.wentOfflineAt = App.wentOfflineAt || Date.now(); ensureConnected(); adressFallback(); },
     // Rückgängig (SL)
     "undo": () => gmAction({ type: "undo" }),
     // Bennies
@@ -1908,6 +2066,7 @@ async function allowFirewall() {
   setTimeout(() => {
     fetch("/api/info").then((r) => r.json()).then((info) => {
       App._info = info;
+      merkeServerAdressen(info);
       App._firewallDone = false;
       App._firewallFail = info.firewallRuleActive === false;
       render();
@@ -2144,7 +2303,17 @@ applySkin(localStorage.getItem("skin") || "pergament");
 
 fetch("/api/info").then((r) => r.json()).then((info) => {
   App._info = info;
+  merkeServerAdressen(info);
   if (App.state) render();
 }).catch(() => {});
+
+// Die Adressliste alle 2 Minuten auffrischen: wechselt der Laptop das WLAN,
+// kennen die Handys sonst nur die alte Adresse und finden ihn nie wieder.
+setInterval(() => {
+  fetch("/api/info", { cache: "no-store" }).then((r) => r.json()).then((info) => {
+    App._info = info;
+    merkeServerAdressen(info);
+  }).catch(() => { /* offline - der Reconnect kuemmert sich */ });
+}, 120000);
 
 connect();

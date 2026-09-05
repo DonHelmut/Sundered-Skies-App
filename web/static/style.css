@@ -1053,3 +1053,41 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
   0%, 100% { box-shadow: 0 0 12px rgba(255, 130, 70, 0.4); }
   50%      { box-shadow: 0 0 34px rgba(255, 110, 50, 0.9); }
 }
+
+/* Verbindung weg: ruhiger Vollbild-Hinweis. Der letzte Spielstand bleibt
+   dahinter sichtbar - das beruhigt mehr als eine leere Seite und macht
+   deutlich, dass nur die Leitung fehlt, nicht die Runde. */
+.offline-hinweis {
+  position: fixed; inset: 0; z-index: 120;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(3, 8, 18, 0.86);
+  padding: 20px;
+  animation: offlineRein 220ms ease-out;
+}
+@keyframes offlineRein { from { opacity: 0; } to { opacity: 1; } }
+.offline-box {
+  max-width: 420px; width: 100%;
+  background: var(--panel); border: 1px solid var(--bad); border-radius: 14px;
+  padding: 20px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.offline-titel { font-size: 20px; font-weight: 700; color: var(--bad); margin-bottom: 10px; }
+.offline-text { color: var(--text); margin-bottom: 10px; line-height: 1.45; }
+.offline-text.small { font-size: 12px; color: var(--muted); }
+.offline-warn {
+  background: rgba(255, 180, 60, 0.12); border: 1px solid var(--warn);
+  border-radius: 10px; padding: 10px; margin-bottom: 12px;
+  color: var(--text); line-height: 1.45;
+}
+.offline-box button { width: 100%; }
+
+/* Kurze Rückmeldung („kopiert"), verschwindet von selbst. */
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 12px);
+  z-index: 130; max-width: min(90vw, 420px);
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--accent2); border-radius: 10px;
+  padding: 10px 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+  opacity: 0; pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.toast.sichtbar { opacity: 1; transform: translate(-50%, 0); }
