@@ -5,6 +5,7 @@ const App = {
   ws: null,
   lastRecv: 0,       // Zeitpunkt der letzten Server-Nachricht (für den Heartbeat)
   wentOfflineAt: 0,  // wann die Verbindung abriss (für die Ausfall-Meldung)
+  warteschlange: [], // Aktionen aus einem Aussetzer, die nachgereicht werden
   role: null,
   state: null,
   myPlayerId: localStorage.getItem("playerId") || null,
@@ -29,7 +30,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "85";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "86";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -243,8 +244,10 @@ function checkTurnNotify() {
 // --- Verbindung -------------------------------------------------------------
 
 // App-Heartbeat: erkennt eine tote Leitung (WLAN-Aussetzer) in Sekunden, statt
-// zu warten bis TCP von selbst zusammenbricht. Alle 5 s ein Ping; kommt >15 s
+// zu warten bis TCP von selbst zusammenbricht. Alle 4 s ein Ping; kommt >9 s
 // nichts mehr vom Server (auch kein Pong), Verbindung hart schließen -> Reconnect.
+// Bei flackerndem WLAN zählt jede Sekunde: je früher wir den Abriss bemerken,
+// desto früher läuft der Wiederaufbau - und desto kürzer steht das Spiel.
 let heartbeatTimer = null;
 function stopHeartbeat() { if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; } }
 function startHeartbeat() {
@@ -252,12 +255,12 @@ function startHeartbeat() {
   heartbeatTimer = setInterval(() => {
     const ws = App.ws;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    if (Date.now() - (App.lastRecv || 0) > 15000) {
+    if (Date.now() - (App.lastRecv || 0) > 9000) {
       try { ws.close(); } catch { /* onclose übernimmt den Reconnect */ }
       return;
     }
     try { ws.send(JSON.stringify({ type: "ping" })); } catch { /* nächster Tick */ }
-  }, 5000);
+  }, 4000);
 }
 
 function connect() {
@@ -302,6 +305,9 @@ function connect() {
       App.role = msg.role;
       document.body.classList.toggle("player", App.role === "player");
       maybeAutoRejoin();
+      // ERST nach dem Wieder-Beitritt nachreichen: vorher weiß der Server
+      // nicht, wer da sendet, und würde Spieler-Aktionen verwerfen.
+      warteschlangeSenden();
     } else if (msg.type === "state") {
       if (msg.state.serverNow) App.clockOffset = msg.state.serverNow - Date.now();
       App.state = msg.state;
@@ -346,6 +352,9 @@ function zeigeOfflineHinweis() {
       <div class="offline-titel">📡 Verbindung unterbrochen</div>
       <div class="offline-text">Die App versucht es von selbst weiter – <b>Versuch ${App.reconnectTries || 1}</b>, seit ${seit} s.</div>
       <div class="offline-warn">Bitte die Seite <b>NICHT neu laden</b> und den Tab offen lassen.<br>Sobald das WLAN zurück ist, geht es automatisch weiter.</div>
+      ${App.warteschlange.length
+        ? `<div class="offline-warteschlange">✋ ${App.warteschlange.length} Eingabe${App.warteschlange.length === 1 ? "" : "n"} gemerkt – wird nachgereicht, sobald die Verbindung steht.</div>`
+        : `<div class="offline-text small">Was du jetzt tippst, wird gemerkt und nachgereicht.</div>`}
       <div class="offline-text small">Adresse: ${esc(location.host)}</div>
       <button class="primary" data-act="jetzt-verbinden">Jetzt erneut versuchen</button>
     </div>`;
@@ -413,11 +422,46 @@ function setStatus(kind) {
   if (s) { s.className = "pill " + cls; s.textContent = txt; }
 }
 
-function gmAction(action) {
-  if (App.ws && App.ws.readyState === 1) App.ws.send(JSON.stringify({ type: "gm_action", action }));
+// --- Aussetzer überbrücken ---------------------------------------------------
+// Bisher verschwand jede Aktion, die während eines WLAN-Aussetzers getippt
+// wurde, ersatzlos: der Spieler tippt „Zug bestätigen", nichts passiert, und
+// niemand merkt warum. Jetzt warten solche Aktionen und werden beim
+// Wiederverbinden nachgereicht.
+const WARTE_MAX_ALTER = 25000;   // älter als das wäre keine gültige Absicht mehr
+const WARTE_MAX_ANZAHL = 20;
+
+function merkeFuerSpaeter(obj) {
+  // Herzschlag und Protokollmeldungen nachzureichen wäre sinnlos.
+  if (obj.type === "ping" || obj.type === "clientlog") return;
+  const text = JSON.stringify(obj);
+  // Wer aus Ungeduld fünfmal tippt, soll nicht fünf Aktionen auslösen.
+  if (App.warteschlange.some((e) => e.text === text)) return;
+  App.warteschlange.push({ text, zeit: Date.now() });
+  if (App.warteschlange.length > WARTE_MAX_ANZAHL) App.warteschlange.shift();
+  zeigeOfflineHinweis();      // Zähler im Hinweis mitführen
 }
+
+function warteschlangeSenden() {
+  if (!App.warteschlange.length) return;
+  const jetzt = Date.now();
+  const frisch = App.warteschlange.filter((e) => jetzt - e.zeit < WARTE_MAX_ALTER);
+  const verworfen = App.warteschlange.length - frisch.length;
+  App.warteschlange = [];
+  let ok = 0;
+  frisch.forEach((e) => { try { App.ws.send(e.text); ok++; } catch { /* Leitung doch wieder weg */ } });
+  if (ok) toast(`${ok} Aktion${ok === 1 ? "" : "en"} nachgereicht.`);
+  if (verworfen) toast(`${verworfen} zu alte Aktion${verworfen === 1 ? "" : "en"} verworfen.`);
+}
+
+function gmAction(action) { wsSend({ type: "gm_action", action }); }
+
 function wsSend(obj) {
-  if (App.ws && App.ws.readyState === 1) App.ws.send(JSON.stringify(obj));
+  if (App.ws && App.ws.readyState === 1) {
+    try { App.ws.send(JSON.stringify(obj)); return true; }
+    catch { /* Socket kippte genau jetzt -> unten einreihen */ }
+  }
+  merkeFuerSpaeter(obj);
+  return false;
 }
 
 function maybeAutoRejoin() {

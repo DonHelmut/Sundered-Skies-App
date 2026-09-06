@@ -1164,3 +1164,10 @@ button.ghost.small.on { border-color: var(--accent2); color: var(--accent2); }
 .grp4 { border-left-color: #c46bd4; } .zone-token.grp4 .tdisc { box-shadow: 0 0 0 3px #c46bd4; }
 .grp5 { border-left-color: #d9b23c; } .zone-token.grp5 .tdisc { box-shadow: 0 0 0 3px #d9b23c; }
 .grp6 { border-left-color: #56c8bd; } .zone-token.grp6 .tdisc { box-shadow: 0 0 0 3px #56c8bd; }
+
+/* Gemerkte Eingaben während eines Aussetzers */
+.offline-warteschlange {
+  background: rgba(120, 245, 190, 0.12); border: 1px solid var(--good);
+  border-radius: 10px; padding: 9px; margin-bottom: 12px;
+  color: var(--text); font-size: 0.9rem; line-height: 1.4;
+}
