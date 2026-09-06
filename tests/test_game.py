@@ -553,3 +553,101 @@ def test_ohne_markierung_bleiben_namen_sichtbar(fresh_game):
     g = fresh_game
     _add_npc(g, "Ork")
     assert g.snapshot(fuer_spieler=True)["combatants"][0]["name"] == "Ork"
+
+
+# --- Gruppen: mehrere Figuren gemeinsam bewegen ----------------------------
+
+def _drei_orks(g):
+    g.apply({"type": "add_npc", "name": "Ork", "count": 3, "zone": 4})
+    return [c["id"] for c in g.combatants]
+
+
+def test_gruppe_anlegen_und_gemeinsam_bewegen(fresh_game):
+    g = fresh_game
+    ids = _drei_orks(g)
+    g.apply({"type": "group_create", "name": "Ork-Trupp", "ids": ids})
+    gid = g.groups[0]["id"]
+
+    g.apply({"type": "group_move", "group": gid, "zone": 2})
+
+    assert [c["zone"] for c in g.combatants] == [2, 2, 2]
+    assert g.groups[0]["name"] == "Ork-Trupp"
+
+
+def test_gruppe_bewegt_nur_ihre_mitglieder(fresh_game):
+    g = fresh_game
+    ids = _drei_orks(g)
+    _add_npc(g, "Einzelgaenger", zone=4)
+    g.apply({"type": "group_create", "ids": ids[:2]})
+    gid = g.groups[0]["id"]
+
+    g.apply({"type": "group_move", "group": gid, "zone": 1})
+
+    zonen = [c["zone"] for c in g.combatants]
+    assert zonen == [1, 1, 4, 4]          # dritter Ork und Einzelgaenger bleiben
+
+
+def test_pausierte_bleiben_beim_gruppenzug_stehen(fresh_game):
+    g = fresh_game
+    ids = _drei_orks(g)
+    g.apply({"type": "group_create", "ids": ids})
+    gid = g.groups[0]["id"]
+    g.apply({"type": "bench", "id": ids[1], "on": True})
+
+    g.apply({"type": "group_move", "group": gid, "zone": 0})
+
+    assert [c["zone"] for c in g.combatants] == [0, 4, 0]
+
+
+def test_figur_ist_immer_nur_in_EINER_gruppe(fresh_game):
+    g = fresh_game
+    ids = _drei_orks(g)
+    g.apply({"type": "group_create", "name": "A", "ids": [ids[0]]})
+    g.apply({"type": "group_create", "name": "B"})
+    a, b = g.groups[0]["id"], g.groups[1]["id"]
+
+    g.apply({"type": "group_assign", "id": ids[0], "group": b})
+
+    assert g._mitglieder(a) == []
+    assert [c["id"] for c in g._mitglieder(b)] == [ids[0]]
+
+
+def test_gruppe_aufloesen_laesst_die_figuren_im_kampf(fresh_game):
+    g = fresh_game
+    ids = _drei_orks(g)
+    g.apply({"type": "group_create", "ids": ids})
+    gid = g.groups[0]["id"]
+
+    g.apply({"type": "group_delete", "group": gid})
+
+    assert g.groups == []
+    assert len(g.combatants) == 3
+    assert all(c.get("groupId") is None for c in g.combatants)
+
+
+def test_gruppen_ueberleben_neustart_und_undo(fresh_game):
+    g = fresh_game
+    ids = _drei_orks(g)
+    g.apply({"type": "group_create", "name": "Ork-Trupp", "ids": ids})
+    g.save_session()
+
+    g.groups = []                      # so, als waere die App neu gestartet
+    g.combatants = []
+    assert g.resume_session()
+    assert g.groups[0]["name"] == "Ork-Trupp"
+    assert len(g._mitglieder(g.groups[0]["id"])) == 3
+
+    g.apply({"type": "group_delete", "group": g.groups[0]["id"]})
+    g.apply({"type": "undo"})
+    assert g.groups and g.groups[0]["name"] == "Ork-Trupp"
+
+
+def test_verwaiste_zuordnung_wird_beim_laden_geloest(fresh_game):
+    """Alte Sitzung mit geloeschter Gruppe darf keine Karteileiche hinterlassen."""
+    g = fresh_game
+    _drei_orks(g)
+    for c in g.combatants:
+        c["groupId"] = "grp-gibtsnichtmehr"
+    g.save_session()
+    g.resume_session()
+    assert all(c["groupId"] is None for c in g.combatants)

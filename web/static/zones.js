@@ -32,18 +32,29 @@
   // Feind = gegnerischer NPC. Verbündete NPCs (ally) zählen zur Spielerseite.
   function isEnemy(c) { return c.kind === "npc" && !c.ally; }
 
-  function tokenChip(c, activeId) {
+  function tokenChip(c, activeId, opts) {
+    opts = opts || {};
+    // Gruppen bekommen eine feste Farbe, damit man auf einen Blick sieht,
+    // wer zusammengehoert (Reihenfolge in der Gruppenliste = Farbnummer).
+    const gruppenNr = opts.groupIndex && c.groupId ? opts.groupIndex[c.groupId] : null;
     const cls = ["zone-token",
       isEnemy(c) ? "enemy" : "player",
       c.ally ? "ally" : "",
       c.isWildCard ? "wc" : "",
       c.id === activeId ? "active" : "",
       (c.status && c.status.out) ? "out" : "",
+      gruppenNr ? "grp grp" + gruppenNr : "",
       c.ran ? "ran" : ""].filter(Boolean).join(" ");
     const inner = c.image
       ? `<img src="${esc(c.image)}" alt="">`
       : `<span class="tinit">${esc(initials(c.name))}</span>`;
-    return `<button type="button" class="${cls}" data-act="token-info" data-id="${esc(c.id)}" title="${esc(c.name)}">` +
+    // Nur der SL zieht Figuren herum. Beim Spieler bleibt alles wie gehabt,
+    // sonst koennte er per Ziehen die Bewegungsregeln umgehen.
+    const zieh = opts.draggable ? ` draggable="true" data-drag-id="${esc(c.id)}"` : "";
+    const titel = c.groupId && opts.groupNames && opts.groupNames[c.groupId]
+      ? `${c.name} · Gruppe ${opts.groupNames[c.groupId]}`
+      : c.name;
+    return `<button type="button" class="${cls}"${zieh} data-act="token-info" data-id="${esc(c.id)}" title="${esc(titel)}">` +
       `<span class="tdisc">${inner}</span><span class="tname">${esc(c.name)}</span></button>`;
   }
 
@@ -64,7 +75,7 @@
       else members = list.filter((c) => !isEnemy(c) && zoneOf(c) === b.z);
 
       const z = zones[b.z];
-      const chips = members.map((c) => tokenChip(c, activeId)).join("");
+      const chips = members.map((c) => tokenChip(c, activeId, opts)).join("");
 
       // Erreichbar per Tipp? Spieler bewegt sich auf seiner Seite / in die Mitte,
       // 1 Schritt gratis, 2 Schritte = Rennen. Nur wenn Budget frei.
@@ -82,7 +93,9 @@
       }
       const empty = members.length ? "" : " empty";
       const cls = "zone-band band-" + b.side + empty + reachCls;
-      return `<div class="${cls}"${goAttr}>` +
+      // data-zone macht das Band zum Ablageziel fuers Ziehen (nur SL).
+      const ziel = opts.draggable ? ` data-zone="${b.z}"` : "";
+      return `<div class="${cls}"${ziel}${goAttr}>` +
         `<div class="zb-label"><span class="zb-emoji">${z.emoji}</span>` +
         `<span class="zb-name">${esc(z.label)}</span>${hint}</div>` +
         `<div class="zb-tokens">${chips}</div></div>`;

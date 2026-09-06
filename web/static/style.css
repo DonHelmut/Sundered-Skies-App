@@ -1133,3 +1133,34 @@ button.ghost.small.on { border-color: var(--accent2); color: var(--accent2); }
   border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px;
   white-space: nowrap;
 }
+
+/* --- Gruppen -------------------------------------------------------------
+   Farben pro Gruppe, damit im Zonen-Board auf einen Blick sichtbar ist, wer
+   zusammengehoert. Sechs reichen - mehr Gruppen gleichzeitig behaelt niemand
+   im Kopf. */
+.grp-box {
+  border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px;
+  padding: 10px; margin-bottom: 8px; background: rgba(127,127,127,0.05);
+}
+.grp-box.grp-frei { border-left-color: var(--line); border-style: dashed; }
+.grp-name { cursor: pointer; }
+.grp-name:hover { text-decoration: underline; }
+.grp-mitglieder { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; align-items: center; }
+.grp-chip {
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px;
+  background: var(--panel); color: var(--text); cursor: grab; font-size: 0.85rem;
+}
+.grp-chip:active { cursor: grabbing; }
+
+/* Ablageziel unter dem Mauszeiger hervorheben */
+.ablage-aktiv { outline: 2px dashed var(--accent2); outline-offset: 2px; }
+.zone-band.ablage-aktiv { background: color-mix(in srgb, var(--accent2) 14%, transparent); }
+.wird-gezogen { opacity: 0.45; }
+
+/* Gruppenfarben: Rahmen am Kasten, Ring am Marker im Zonen-Board */
+.grp1 { border-left-color: #e2703a; } .zone-token.grp1 .tdisc { box-shadow: 0 0 0 3px #e2703a; }
+.grp2 { border-left-color: #4aa3df; } .zone-token.grp2 .tdisc { box-shadow: 0 0 0 3px #4aa3df; }
+.grp3 { border-left-color: #7cbf5a; } .zone-token.grp3 .tdisc { box-shadow: 0 0 0 3px #7cbf5a; }
+.grp4 { border-left-color: #c46bd4; } .zone-token.grp4 .tdisc { box-shadow: 0 0 0 3px #c46bd4; }
+.grp5 { border-left-color: #d9b23c; } .zone-token.grp5 .tdisc { box-shadow: 0 0 0 3px #d9b23c; }
+.grp6 { border-left-color: #56c8bd; } .zone-token.grp6 .tdisc { box-shadow: 0 0 0 3px #56c8bd; }

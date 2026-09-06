@@ -29,7 +29,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "84";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "85";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -808,6 +808,65 @@ function zoneOptions(sel) {
   const zs = (App.state && App.state.zones) || (window.Zones && Zones.LABELS) || [];
   return zs.map((z, i) => `<option value="${i}"${i === sel ? " selected" : ""}>${z.emoji} ${esc(z.label)}</option>`).join("");
 }
+// --- Gruppen ----------------------------------------------------------------
+// "Die drei Orks" als eine Einheit: einmal ziehen, alle rücken nach.
+
+// Gruppe -> Farbnummer (1..6), damit zusammengehörige Figuren im Zonen-Board
+// dieselbe Umrandung tragen. Reihenfolge der Gruppenliste bestimmt die Farbe.
+function gruppenFarben() {
+  const m = {};
+  ((App.state && App.state.groups) || []).forEach((g, i) => { m[g.id] = (i % 6) + 1; });
+  return m;
+}
+function gruppenNamen() {
+  const m = {};
+  ((App.state && App.state.groups) || []).forEach((g) => { m[g.id] = g.name; });
+  return m;
+}
+
+function renderGroupPanel() {
+  const s = App.state;
+  if (App.role !== "gm") return "";
+  const gruppen = s.groups || [];
+  const farben = gruppenFarben();
+  const kaempfer = (s.combatants || []).filter((c) => !c.out);
+
+  const chip = (c) => `<button type="button" class="grp-chip" draggable="true"
+      data-drag-id="${c.id}" data-act="token-info" data-id="${c.id}"
+      title="In eine Gruppe ziehen">${esc(c.name)}</button>`;
+
+  const kaesten = gruppen.map((g) => {
+    const mitglieder = kaempfer.filter((c) => c.groupId === g.id);
+    return `<div class="grp-box grp${farben[g.id]}" data-group="${g.id}">
+      <div class="row spread" style="align-items:center; margin-bottom:6px">
+        <strong class="grp-name" data-act="group-rename" data-group="${g.id}" title="Umbenennen">${esc(g.name)}</strong>
+        <div class="row tight">
+          <select data-act="group-move" data-group="${g.id}" title="Ganze Gruppe hierhin setzen">
+            <option value="">bewegen nach …</option>${zoneOptions(null)}
+          </select>
+          <button class="ghost small bad" data-act="group-delete" data-group="${g.id}" title="Gruppe auflösen (Figuren bleiben)">✕</button>
+        </div>
+      </div>
+      <div class="grp-mitglieder">${
+        mitglieder.map(chip).join("") ||
+        `<span class="muted small">Figuren hierher ziehen</span>`}</div>
+    </div>`;
+  }).join("");
+
+  const ohne = kaempfer.filter((c) => !c.groupId);
+  return section("groups", `Gruppen${gruppen.length ? ` (${gruppen.length})` : ""}`, `
+    <div class="row" style="margin-bottom:8px; gap:8px">
+      <button data-act="group-new">+ Neue Gruppe</button>
+      <span class="muted small">Figuren in einen Kasten ziehen. Danach im Zonen-Board
+        eine davon auf eine Bahn ziehen – die ganze Gruppe rückt mit.</span>
+    </div>
+    ${kaesten}
+    <div class="grp-box grp-frei" data-group="">
+      <div class="muted small" style="margin-bottom:6px">Ohne Gruppe (hierher ziehen zum Herauslösen)</div>
+      <div class="grp-mitglieder">${ohne.map(chip).join("") || `<span class="muted small">–</span>`}</div>
+    </div>`);
+}
+
 // Zielscheibe. Bewegung läuft AUSSCHLIESSLICH über das Antippen einer erreichbaren
 // Bahn + Bestätigung (zweiter Tipp) – keine Sofort-Knöpfe mehr (Missclick-Schutz).
 function renderZonesPanel() {
@@ -815,14 +874,20 @@ function renderZonesPanel() {
   if (!s.combatants.length) return "";
   const mine = myCombatant();
   const mover = mine ? { id: mine.id, zone: Zones.zoneOf(mine), canMove: !mine.moved } : null;
-  const target = Zones.renderTarget(s.combatants, { zones: s.zones, activeId: s.activeId, interactive: true, mover, pending: App.pendingMove });
+  const isGM = App.role === "gm";
+  const target = Zones.renderTarget(s.combatants, {
+    zones: s.zones, activeId: s.activeId, interactive: true, mover, pending: App.pendingMove,
+    draggable: isGM, groupIndex: gruppenFarben(), groupNames: gruppenNamen(),
+  });
   const controls = mine
     ? `<div class="zone-hint">${mine.moved
         ? "Diesen Zug schon bewegt – warte auf die nächste Runde."
         : (App.pendingMove
             ? "Zum Bestätigen die markierte Bahn nochmal tippen (oder daneben zum Abbrechen)."
             : "Erreichbare Bahn tippen (1 = gratis · 2 = 🏃 Rennen) – dann nochmal tippen zum Bestätigen.")}</div>`
-    : `<div class="zone-hint">Tippe ein Token für Infos.</div>`;
+    : (isGM
+        ? `<div class="zone-hint">Figur auf eine Bahn <b>ziehen</b> zum Umsetzen. Gehört sie zu einer Gruppe, zieht die ganze Gruppe mit.</div>`
+        : `<div class="zone-hint">Tippe ein Token für Infos.</div>`);
   return section("zones", "Kampfzonen", `${target}${controls}`);
 }
 
@@ -1057,6 +1122,7 @@ function renderGM() {
       <div>
         ${renderRequestsPanel()}
         ${renderZonesPanel()}
+        ${renderGroupPanel()}
         ${renderOrderPanel(true)}
         ${renderConnectPanel()}
         ${renderStabilitaetPanel()}
@@ -1153,6 +1219,63 @@ function fokusUmschalten() {
   try { localStorage.setItem("collapsed", JSON.stringify(App.collapsed)); } catch { /* egal */ }
   render();
 }
+
+// Ziehen & Ablegen (nur SL, nur Maus – auf dem Handy bleibt alles beim Tippen).
+// Zwei Ziele: ein Kasten im Gruppen-Panel (Figur zuordnen) und eine Bahn im
+// Zonen-Board (Figur bzw. ihre GANZE Gruppe umsetzen).
+let gezogeneId = null;
+
+document.addEventListener("dragstart", (e) => {
+  const el = e.target.closest && e.target.closest("[data-drag-id]");
+  if (!el) return;
+  gezogeneId = el.dataset.dragId;
+  el.classList.add("wird-gezogen");
+  try { e.dataTransfer.setData("text/plain", gezogeneId); e.dataTransfer.effectAllowed = "move"; } catch { /* egal */ }
+});
+
+document.addEventListener("dragend", () => {
+  gezogeneId = null;
+  document.querySelectorAll(".wird-gezogen").forEach((x) => x.classList.remove("wird-gezogen"));
+  document.querySelectorAll(".ablage-aktiv").forEach((x) => x.classList.remove("ablage-aktiv"));
+});
+
+function ablageZiel(e) {
+  const t = e.target.closest && e.target.closest("[data-group], [data-zone]");
+  return t || null;
+}
+
+document.addEventListener("dragover", (e) => {
+  if (!gezogeneId) return;
+  const ziel = ablageZiel(e);
+  if (!ziel) return;
+  e.preventDefault();                       // ohne das lehnt der Browser ab
+  try { e.dataTransfer.dropEffect = "move"; } catch { /* egal */ }
+  if (!ziel.classList.contains("ablage-aktiv")) {
+    document.querySelectorAll(".ablage-aktiv").forEach((x) => x.classList.remove("ablage-aktiv"));
+    ziel.classList.add("ablage-aktiv");
+  }
+});
+
+document.addEventListener("drop", (e) => {
+  const id = gezogeneId || (e.dataTransfer && e.dataTransfer.getData("text/plain"));
+  const ziel = ablageZiel(e);
+  if (!id || !ziel) return;
+  e.preventDefault();
+
+  if (ziel.hasAttribute("data-zone")) {
+    // Im Zonen-Board abgelegt: gehört die Figur zu einer Gruppe, zieht die
+    // ganze Gruppe mit - genau dafür sind Gruppen da.
+    const zone = parseInt(ziel.dataset.zone, 10);
+    const c = (App.state.combatants || []).find((x) => x.id === id);
+    if (!c || isNaN(zone)) return;
+    if (c.groupId) gmAction({ type: "group_move", group: c.groupId, zone });
+    else gmAction({ type: "set_zone", id, zone });
+  } else {
+    // In einem Gruppenkasten abgelegt (leerer Wert = herauslösen).
+    gmAction({ type: "group_assign", id, group: ziel.dataset.group || null });
+  }
+  gezogeneId = null;
+});
 
 // Kurze Rückmeldung, die von selbst verschwindet - für Kleinigkeiten wie
 // "kopiert" ist ein alert() zu aufdringlich (muss weggeklickt werden).
@@ -1948,6 +2071,21 @@ document.addEventListener("click", (e) => {
       });
     },
     "set-anon": () => gmAction({ type: "set_anon", id, on: target.getAttribute("data-on") === "1" }),
+    // SL – Gruppen
+    "group-new": () => {
+      const name = prompt("Name der Gruppe? (z. B. Ork-Trupp)");
+      if (name && name.trim()) gmAction({ type: "group_create", name: name.trim() });
+    },
+    "group-rename": () => {
+      const g = (App.state.groups || []).find((x) => x.id === target.dataset.group);
+      const name = prompt("Gruppe umbenennen:", g ? g.name : "");
+      if (name && name.trim()) gmAction({ type: "group_rename", group: target.dataset.group, name: name.trim() });
+    },
+    "group-delete": () => {
+      if (confirm("Gruppe auflösen? Die Figuren bleiben im Kampf.")) {
+        gmAction({ type: "group_delete", group: target.dataset.group });
+      }
+    },
     // SL – Verbündeten-Bibliothek
     "ally-new": () => renderAllyForm(null),
     "ally-edit": () => renderAllyForm((S.allies || []).find((r) => r.id === id)),
@@ -2115,6 +2253,11 @@ document.addEventListener("change", (e) => {
     uploadBestiaryImage(t.files[0]);
   } else if (act === "pick-ally-image") {
     uploadAllyImage(t.files[0]);
+  } else if (act === "group-move") {
+    // Verlässlicher Weg neben dem Ziehen – und der einzige auf dem Handy.
+    const z = parseInt(t.value, 10);
+    if (!isNaN(z)) gmAction({ type: "group_move", group: t.dataset.group, zone: z });
+    t.value = "";
   } else if (act === "remember-zone") {
     const v = parseInt(t.value, 10);
     if (!isNaN(v)) { try { localStorage.setItem("lastZone", String(v)); } catch {} }

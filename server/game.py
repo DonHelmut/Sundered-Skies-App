@@ -184,6 +184,10 @@ class Game:
         self.conditions_enabled: bool = True   # Zusatz-Zustaende ueberhaupt verwenden?
         self.requests_enabled: bool = True     # duerfen Spieler ueberhaupt anfragen?
         self.benny_to_gm: bool = True      # Hausregel: Spieler-Benny -> SL-Pool
+        # Gruppen: mehrere Figuren zusammenfassen und gemeinsam bewegen
+        # ("die drei Orks ruecken vor"). Jede Figur traegt hoechstens eine
+        # Gruppe (c["groupId"]); die Namen liegen hier.
+        self.groups: list[dict] = []
 
         # Dauerhafte SL-Voreinstellungen (letzter Timer-/Benny-Startwert bleibt Default).
         settings = _read_json(SETTINGS_FILE) or {}
@@ -212,7 +216,7 @@ class Game:
     # Felder, die eine Aktion verändern kann und die für Undo gesichert werden.
     _SNAPSHOT_FIELDS = (
         "combatants", "players", "messages", "round", "deck", "discard",
-        "roster", "bestiary", "allies", "encounters",
+        "roster", "bestiary", "allies", "encounters", "groups",
         "phase", "active_id", "timer_seconds", "timer_ends_at", "joker_active",
         "sound_enabled", "benny_start", "sl_bennies", "reshuffle_next",
         "requests", "tv_image",
@@ -311,6 +315,7 @@ class Game:
             "soundEnabled": self.sound_enabled,
             "bennyStart": self.benny_start,
             "slBennies": self.sl_bennies,
+            "groups": self.groups,
         })
 
     def resume_session(self) -> bool:
@@ -331,6 +336,14 @@ class Game:
             c.setdefault("benched", False)
             c.setdefault("ally", False)
             c.setdefault("note", "")
+            c.setdefault("anon", False)
+            c.setdefault("groupId", None)
+        self.groups = data.get("groups", [])
+        # Verwaiste Zuordnungen loesen (Gruppe geloescht, Figur blieb).
+        gueltig = {g["id"] for g in self.groups}
+        for c in self.combatants:
+            if c.get("groupId") not in gueltig:
+                c["groupId"] = None
         self.players = data.get("players", [])
         self.requests = data.get("requests", [])
         self.tv_image = data.get("tvImage")
@@ -451,6 +464,7 @@ class Game:
             "allies": self.allies,
             "encounters": self.encounters,
             "players": self.players,
+            "groups": self.groups,
             "combatants": self._fuer_spieler(self.combatants) if anon else self.combatants,
             "messages": self.messages[-MAX_MESSAGES:],
             "requests": self.requests,
@@ -879,6 +893,58 @@ class Game:
             c["ran"] = True
         if by_player:
             c["moved"] = True   # Bewegungs-Budget dieser Runde verbraucht
+
+    # --- Gruppen -------------------------------------------------------------
+    # "Die drei Orks" als eine Einheit: einmal ziehen, alle ruecken nach.
+
+    def _gruppe(self, gid) -> Optional[dict]:
+        return next((g for g in self.groups if g["id"] == gid), None)
+
+    def _mitglieder(self, gid) -> list[dict]:
+        return [c for c in self.combatants if c.get("groupId") == gid]
+
+    def _do_group_create(self, a: dict) -> None:
+        """Neue Gruppe, optional gleich mit Mitgliedern."""
+        gid = _new_id("grp")
+        self.groups.append({
+            "id": gid,
+            "name": (a.get("name") or f"Gruppe {len(self.groups) + 1}").strip()[:40],
+        })
+        for cid in a.get("ids") or []:
+            c = self._combatant(cid)
+            if c:
+                c["groupId"] = gid
+
+    def _do_group_assign(self, a: dict) -> None:
+        """Figur in eine Gruppe stecken (oder mit group=None herausnehmen)."""
+        c = self._combatant(a.get("id"))
+        if not c:
+            return
+        gid = a.get("group")
+        c["groupId"] = gid if gid and self._gruppe(gid) else None
+
+    def _do_group_rename(self, a: dict) -> None:
+        g = self._gruppe(a.get("group"))
+        if g and (a.get("name") or "").strip():
+            g["name"] = a["name"].strip()[:40]
+
+    def _do_group_delete(self, a: dict) -> None:
+        """Gruppe aufloesen - die Figuren selbst bleiben im Kampf."""
+        gid = a.get("group")
+        self.groups = [g for g in self.groups if g["id"] != gid]
+        for c in self._mitglieder(gid):
+            c["groupId"] = None
+
+    def _do_group_move(self, a: dict) -> None:
+        """Ganze Gruppe in eine Zone setzen (absolut, wie _do_set_zone).
+        Pausierte und ausgeschiedene Figuren bleiben, wo sie sind."""
+        try:
+            z = max(ZONE_MIN, min(ZONE_MAX, int(a.get("zone"))))
+        except (TypeError, ValueError):
+            return
+        for c in self._mitglieder(a.get("group")):
+            if not c.get("out") and not c.get("benched"):
+                c["zone"] = z
 
     def _do_set_zone(self, a: dict) -> None:
         """SL setzt den Standort einer Figur direkt (absolut, ohne Budget) –
