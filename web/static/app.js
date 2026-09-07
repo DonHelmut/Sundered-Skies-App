@@ -30,7 +30,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "88";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "89";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -1093,6 +1093,15 @@ setInterval(() => {
       fg.classList.toggle("low", low);
     }
   }
+  // Countdown in der SL-Leiste - dort steht jetzt die Zugsteuerung.
+  const u = $("al-uhr");
+  if (u) {
+    if (rem == null) { u.textContent = ""; }
+    else {
+      u.textContent = Math.ceil(rem / 1000) + "s";
+      u.classList.toggle("low", rem <= (s.timerSeconds * 1000) / 8);
+    }
+  }
   // Nur der SL-Client ist Timer-Autorität: bei Ablauf EINMAL Timeout melden
   // (Sperre pro timerEndsAt, sonst würde alle 250 ms weiter gefeuert und
   // mehrere Akteure auf einmal übersprungen).
@@ -1168,20 +1177,22 @@ function renderGM() {
     </div>
     ${resume}
     <div class="grid2">
-      <div>
+      <div class="sp sp1">
         ${renderRequestsPanel()}
         ${renderZonesPanel()}
         ${renderGroupPanel()}
-        ${renderOrderPanel(true)}
-        ${renderConnectPanel()}
-        ${renderStabilitaetPanel()}
         ${renderBennyPanel()}
       </div>
-      <div>
+      <div class="sp sp2">
+        ${renderOrderPanel(true)}
+      </div>
+      <div class="sp sp3">
         ${renderRosterPanel()}
         ${renderBestiaryPanel()}
         ${renderAllyPanel()}
         ${renderEncounterPanel()}
+        ${renderConnectPanel()}
+        ${renderStabilitaetPanel()}
         ${renderMessagePanel()}
       </div>
     </div>
@@ -1484,67 +1495,25 @@ function renderControlBody() {
       <button class="ghost bad" data-act="reset" title="Alles zurücksetzen">Zurücksetzen</button>
     </div>
     <div class="muted small">Teilt allen Teilnehmern (Spieler & Gegner) gleichzeitig eine neue Karte aus. Einzeln nachziehen geht mit 🔄 in der Liste.</div>
-    <label class="row tight" style="align-items:center; margin-top:10px; cursor:pointer">
-      <input type="checkbox" data-act="toggle-auto-incap" ${s.autoIncap ? "checked" : ""} style="width:auto">
-      <span class="small">Bei der 4. Wunde automatisch „Ausgeschaltet"</span>
-    </label>
-    <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer"
-           title="Spart bei vielen Gegnern einen Klick pro Figur">
-      <input type="checkbox" data-act="toggle-auto-release" ${s.autoRelease ? "checked" : ""} style="width:auto">
-      <span class="small">Nächsten Zug automatisch freigeben (ohne „Freigeben"-Klick)</span>
-    </label>
-    <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer">
-      <input type="checkbox" data-act="toggle-conditions" ${s.conditionsEnabled !== false ? "checked" : ""} style="width:auto">
-      <span class="small">Zustände verwenden (Verwundbar, Abgelenkt, Am Boden, Betäubt)</span>
-    </label>
-    <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer">
-      <input type="checkbox" data-act="toggle-requests" ${s.requestsEnabled !== false ? "checked" : ""} style="width:auto">
-      <span class="small">Spieler dürfen anfragen (Benny, Angeschlagen, Wunden …)</span>
-    </label>
-    <div class="row" style="margin-top:12px; align-items:flex-end">
-      <label class="field" style="width:150px">
-        <span>Zeit pro Zug (Sek.)</span>
-        <input type="number" id="timerinput" min="1" max="600" value="${s.timerSeconds}" data-act="set-timer">
-      </label>
-      ${renderTurnControls()}
-    </div>`;
+    ${renderRundenHinweis()}`;
+  // Aktueller Akteur, Freigeben/Weiter, Timer und die Schalter sind BEWUSST
+  // nicht mehr hier: sie saßen mitten im Panel und wanderten bei jeder
+  // Zustandsänderung auf und ab. Jetzt stehen sie in der fixierten Leiste
+  // unten - immer an derselben Stelle.
 }
 
-function renderTurnControls() {
+// Nur noch der Sonderfall „Runde vorbei" bzw. „noch nichts ausgeteilt".
+function renderRundenHinweis() {
   const s = App.state;
   const active = s.combatants.find((c) => c.id === s.activeId);
   const anyCards = s.combatants.some((c) => c.card);
-
-  // Runde zu Ende (alle dran gewesen): klarer Hinweis statt toter Taste.
-  if (!active && anyCards && s.round > 0) {
-    return `<div class="grow">
-      <div class="pill good" style="margin-bottom:8px">✓ Runde ${s.round} beendet – alle waren dran</div>
-      <button class="primary big" data-act="new-round">🃏 Nächste Runde austeilen</button>
-    </div>`;
-  }
-  // Noch nichts ausgeteilt.
   if (!anyCards) {
-    return `<div class="grow muted small">Oben „Karten an ALLE austeilen", dann hier freigeben.</div>`;
+    return `<div class="muted small" style="margin-top:10px">Oben austeilen – danach steuerst du den Kampf über die Leiste am unteren Rand.</div>`;
   }
-
-  const timer = s.phase === "running" ? timerRing() : "";
-  // NSC-Seite (Gegner + Verbündete) braucht keinen Countdown -> „Weiter" ist Standard.
-  const isNpcSide = !!(active && active.kind === "npc");
-  let controls;
-  if (s.phase === "running") {
-    controls = `<button class="good big" data-act="confirm-turn">Zug bestätigen ✓</button>`;
-  } else {
-    const dis = active ? "" : "disabled";
-    const releaseBtn = `<button class="${isNpcSide ? "ghost" : "primary big"}" data-act="release" ${dis}>Freigeben ▶</button>`;
-    const weiterBtn = `<button class="${isNpcSide ? "primary big" : "ghost"}" data-act="skip-turn" ${dis} title="Ohne Timer sofort zum nächsten">Weiter ⏭</button>`;
-    controls = isNpcSide ? weiterBtn + releaseBtn : releaseBtn + weiterBtn;
+  if (!active && s.round > 0) {
+    return `<div class="pill good" style="margin-top:10px; display:inline-block">✓ Runde ${s.round} beendet – alle waren dran</div>`;
   }
-  return `<div class="grow">
-    <div class="muted small">Aktueller Akteur${isNpcSide ? " (NSC)" : ""}</div>
-    <div style="font-size:1.3rem; font-weight:800; color:var(--gold)">${esc(active ? active.name : "—")}</div>
-    ${timer}
-    <div class="row tight" style="margin-top:8px; gap:8px">${controls}</div>
-  </div>`;
+  return "";
 }
 
 // Mitlaufende Steuerleiste für den SL.
@@ -1572,21 +1541,68 @@ function renderAktionsleiste() {
         : `<button class="primary big" data-act="release">Freigeben ▶</button>
            <button class="ghost" data-act="skip-turn" title="Ohne Timer sofort zum nächsten">Weiter ⏭</button>`);
 
+  // Countdown kompakt in der Leiste - er saß vorher im Panel, das jetzt schlank ist.
+  const uhr = s.phase === "running" && s.timerEndsAt
+    ? `<span class="al-uhr" id="al-uhr">–</span>`
+    : "";
+
   return `<div class="aktionsleiste">
+    ${App.leisteEinstellungen ? leisteEinstellungenHtml() : ""}
     <div class="al-wer">
       <span class="al-platz">${platz}</span>
       <button class="al-name" data-act="zur-aktiven-zeile" title="Zur Zeile springen">${esc(active.name)}</button>
+      ${istNsc ? `<span class="muted small">(NSC)</span>` : ""}
       ${st.shaken ? `<span class="tag" style="color:var(--warn);border-color:var(--warn)">😵</span>` : ""}
       ${st.wounds ? `<span class="tag" style="color:var(--bad);border-color:var(--bad)">${st.wounds} 🩸</span>` : ""}
+      ${uhr}
     </div>
     <div class="al-knoepfe">
-      <button class="st-btn" data-act="apply-hit" data-id="${active.id}" title="Treffer: angeschlagen bzw. +1 Wunde">💥</button>
-      <button class="st-btn" data-act="apply-heal" data-id="${active.id}" title="Heilung">🩹</button>
+      <button class="st-btn" data-act="apply-hit" data-id="${active.id}" title="Treffer: angeschlagen bzw. +1 Wunde (Taste T)">💥</button>
+      <button class="st-btn" data-act="apply-heal" data-id="${active.id}" title="Heilung (Taste H)">🩹</button>
       <button class="st-btn ${st.shaken ? "on-shaken" : ""}" data-act="st-shaken" data-id="${active.id}" title="Angeschlagen">😵</button>
       <button class="st-btn ${st.out ? "on-out" : ""}" data-act="st-out" data-id="${active.id}" title="K.O.">☠</button>
       <button class="st-btn" data-act="redraw" data-id="${active.id}" title="Neue Karte">🔄</button>
+      <button class="st-btn ${App.leisteEinstellungen ? "on" : ""}" data-act="leiste-einstellungen" title="Kampf-Einstellungen">⚙</button>
     </div>
     <div class="al-haupt">${haupt}</div>
+  </div>`;
+}
+
+// Die Schalter saßen mitten im Kampf-Panel und haben dort bei jeder Änderung
+// alles darunter verschoben. Hier stören sie nicht und sind trotzdem in Reichweite.
+function leisteEinstellungenHtml() {
+  const s = App.state;
+  return `<div class="al-einstellungen">
+    <div class="row spread" style="align-items:center; margin-bottom:8px">
+      <strong>Kampf-Einstellungen</strong>
+      <button class="ghost small" data-act="leiste-einstellungen">Schließen</button>
+    </div>
+    <label class="field" style="width:170px; margin-bottom:10px">
+      <span>Zeit pro Zug (Sek.)</span>
+      <input type="number" min="1" max="600" value="${s.timerSeconds}" data-act="set-timer">
+    </label>
+    <label class="row tight" style="align-items:center; cursor:pointer">
+      <input type="checkbox" data-act="toggle-auto-incap" ${s.autoIncap ? "checked" : ""} style="width:auto">
+      <span class="small">Bei der 4. Wunde automatisch „Ausgeschaltet"</span>
+    </label>
+    <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer"
+           title="Spart bei vielen Gegnern einen Klick pro Figur">
+      <input type="checkbox" data-act="toggle-auto-release" ${s.autoRelease ? "checked" : ""} style="width:auto">
+      <span class="small">Nächsten Zug automatisch freigeben</span>
+    </label>
+    <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer">
+      <input type="checkbox" data-act="toggle-conditions" ${s.conditionsEnabled !== false ? "checked" : ""} style="width:auto">
+      <span class="small">Zustände verwenden (Verwundbar, Abgelenkt, Am Boden, Betäubt)</span>
+    </label>
+    <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer">
+      <input type="checkbox" data-act="toggle-requests" ${s.requestsEnabled !== false ? "checked" : ""} style="width:auto">
+      <span class="small">Spieler dürfen anfragen (Benny, Angeschlagen, Wunden …)</span>
+    </label>
+    <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer">
+      <input type="checkbox" data-act="toggle-benny-to-gm" ${s.bennyToGm !== false ? "checked" : ""} style="width:auto">
+      <span class="small">Ausgegebener Spieler-Benny wandert in den SL-Pool</span>
+    </label>
+    <div class="muted small" style="margin-top:10px">Tastatur: <b>Leertaste</b> freigeben/bestätigen · <b>W</b> weiter · <b>T</b> Treffer · <b>H</b> Heilung</div>
   </div>`;
 }
 
@@ -2284,6 +2300,7 @@ document.addEventListener("click", (e) => {
     },
     "close-token-popup": () => { App.tokenPopupId = null; render(); },
     "zur-aktiven-zeile": () => zurAktivenZeile(true),
+    "leiste-einstellungen": () => { App.leisteEinstellungen = !App.leisteEinstellungen; render(); },
     // Nur für die ziehbaren Marker/Chips des SL: bei denen darf pointerdown
     // nichts abfangen (sonst kein Ziehen), also öffnet der Klick das Fenster.
     // Ein echtes Ziehen löst gar keinen Klick aus - beides kommt sich nicht ins Gehege.

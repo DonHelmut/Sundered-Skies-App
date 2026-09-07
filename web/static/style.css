@@ -794,16 +794,15 @@ html.mimi-flip { filter: invert(1) hue-rotate(180deg); transition: filter 0.25s 
   10%, 80% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -10px); }
 }
-/* Spalten-Layout statt festem Raster: die Panels fliessen selbst in die
-   verfuegbaren Spalten. So passt sich die Zahl der Spalten der Bildschirmbreite
-   an, ohne dass der Aufbau der Seite dafuer umgebaut werden muss.
-   "display: contents" loest die beiden Gruppierungs-Divs auf, damit die Panels
-   direkt fliessen koennen. */
-.grid2 { column-count: 2; column-gap: 14px; }
-.grid2 > div { display: contents; }
-.grid2 .panel { break-inside: avoid; margin-bottom: 14px; }
-@media (max-width: 760px) { .grid2 { column-count: 1; } }
-@media (min-width: 1500px) { .grid2 { column-count: 3; } }
+/* FESTE Spalten statt Fliesstext.
+   Vorher floss alles frei in Spalten - kam ein Gegner dazu, wurden ALLE Panels
+   neu verteilt und der gerade benutzte Knopf sprang woanders hin. Jetzt hat
+   jedes Panel seine feste Spalte: waechst die Reihenfolge, bleibt die
+   Gegner-Bibliothek daneben genau da, wo sie war. */
+.grid2 { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
+.grid2 .sp { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (min-width: 900px)  { .grid2 { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1450px) { .grid2 { grid-template-columns: 1fr 1fr 1fr; } }
 
 /* Thematischer Feinschliff */
 h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3px; }
@@ -1228,3 +1227,17 @@ body.hat-leiste .wrap { padding-bottom: 96px; }
   .al-haupt { margin-left: 0; width: 100%; }
   .al-haupt button { flex: 1; }
 }
+
+/* Countdown und Einstellungen in der SL-Leiste */
+.al-uhr {
+  font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.05rem;
+  color: var(--accent2); min-width: 44px; text-align: right;
+}
+.al-uhr.low { color: var(--bad); }
+.al-einstellungen {
+  position: absolute; bottom: 100%; right: 12px; width: min(420px, 94vw);
+  background: var(--panel); border: 1px solid var(--accent2);
+  border-radius: 12px 12px 0 0; border-bottom: none;
+  padding: 12px 14px; box-shadow: 0 -8px 26px rgba(0,0,0,0.4);
+}
+.aktionsleiste { position: fixed; }   /* Bezugspunkt fuer das Einstellungsfeld */
