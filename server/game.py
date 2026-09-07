@@ -978,7 +978,23 @@ class Game:
         except (TypeError, ValueError):
             return
         for c in self._mitglieder(a.get("group")):
-            if not c.get("out") and not c.get("benched"):
+            # "out" steckt im Status-Objekt, nicht direkt an der Figur - stand
+            # hier falsch, ausgeschaltete Gegner sind mitgewandert.
+            if not (c.get("status") or {}).get("out") and not c.get("benched"):
+                c["zone"] = z
+
+    def _do_set_zone_many(self, a: dict) -> None:
+        """Mehrere ausgewaehlte Figuren auf einmal umsetzen (Strg-Auswahl im
+        Zonen-Board). Als EINE Aktion, damit ein Rueckgaengig auch alles
+        zurueckholt - und nicht Figur fuer Figur."""
+        try:
+            z = max(ZONE_MIN, min(ZONE_MAX, int(a.get("zone"))))
+        except (TypeError, ValueError):
+            return
+        for cid in a.get("ids") or []:
+            c = self._combatant(cid)
+            # "out" steckt im Status-Objekt, nicht direkt an der Figur.
+            if c and not (c.get("status") or {}).get("out") and not c.get("benched"):
                 c["zone"] = z
 
     def _do_set_zone(self, a: dict) -> None:

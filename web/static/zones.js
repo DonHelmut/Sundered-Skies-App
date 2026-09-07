@@ -44,6 +44,7 @@
       c.id === activeId ? "active" : "",
       (c.status && c.status.out) ? "out" : "",
       gruppenNr ? "grp grp" + gruppenNr : "",
+      (opts.auswahl && opts.auswahl.has(c.id)) ? "ausgewaehlt" : "",
       c.ran ? "ran" : ""].filter(Boolean).join(" ");
     const inner = c.image
       ? `<img src="${esc(c.image)}" alt="">`

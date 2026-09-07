@@ -756,3 +756,62 @@ def test_auto_freigabe_stoppt_am_rundenende(fresh_game):
     g.apply({"type": "confirm_turn"})
     assert g.active_id is None
     assert g.phase == "gate"
+
+
+# --- Mehrfachauswahl: mehrere Figuren auf einmal umsetzen -------------------
+
+def test_mehrere_auf_einmal_umsetzen(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "count": 4, "zone": 4})
+    ids = [c["id"] for c in g.combatants[:3]]
+
+    g.apply({"type": "set_zone_many", "ids": ids, "zone": 1})
+
+    assert [c["zone"] for c in g.combatants] == [1, 1, 1, 4]
+
+
+def test_umsetzen_ist_EIN_schritt_fuers_rueckgaengig(fresh_game):
+    """Sonst muesste der SL viermal auf Rueckgaengig klicken."""
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "count": 3, "zone": 4})
+    ids = [c["id"] for c in g.combatants]
+
+    g.apply({"type": "set_zone_many", "ids": ids, "zone": 0})
+    assert [c["zone"] for c in g.combatants] == [0, 0, 0]
+
+    g.apply({"type": "undo"})
+    assert [c["zone"] for c in g.combatants] == [4, 4, 4]
+
+
+def test_pausierte_und_ausgeschaltete_bleiben_stehen(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "count": 3, "zone": 4})
+    ids = [c["id"] for c in g.combatants]
+    g.apply({"type": "bench", "id": ids[1], "on": True})
+    g.apply({"type": "set_status", "id": ids[2], "out": True})
+
+    g.apply({"type": "set_zone_many", "ids": ids, "zone": 0})
+
+    assert [c["zone"] for c in g.combatants] == [0, 4, 4]
+
+
+def test_unbekannte_ids_stoeren_nicht(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "zone": 4})
+    echte = g.combatants[0]["id"]
+    g.apply({"type": "set_zone_many", "ids": [echte, "gibtsnicht"], "zone": 2})
+    assert g.combatants[0]["zone"] == 2
+
+
+def test_gruppenzug_laesst_ausgeschaltete_stehen(fresh_game):
+    """Deckt den Fehler ab, dass 'out' im Status-Objekt liegt: ausgeschaltete
+    Gegner sind beim Gruppenzug mitgewandert."""
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "count": 3, "zone": 4})
+    ids = [c["id"] for c in g.combatants]
+    g.apply({"type": "group_create", "ids": ids})
+    g.apply({"type": "set_status", "id": ids[2], "out": True})
+
+    g.apply({"type": "group_move", "group": g.groups[0]["id"], "zone": 0})
+
+    assert [c["zone"] for c in g.combatants] == [0, 0, 4]

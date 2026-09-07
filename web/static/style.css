@@ -1241,3 +1241,15 @@ body.hat-leiste .wrap { padding-bottom: 96px; }
   padding: 12px 14px; box-shadow: 0 -8px 26px rgba(0,0,0,0.4);
 }
 .aktionsleiste { position: fixed; }   /* Bezugspunkt fuer das Einstellungsfeld */
+
+/* Strg-Auswahl im Zonen-Board */
+.zone-token.ausgewaehlt .tdisc {
+  box-shadow: 0 0 0 3px var(--accent2), 0 0 10px color-mix(in srgb, var(--accent2) 60%, transparent);
+}
+.zone-token.ausgewaehlt .tname { color: var(--accent2); }
+.auswahl-leiste {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 8px 0; padding: 8px 10px;
+  border: 1px solid var(--accent2); border-radius: 10px;
+  background: color-mix(in srgb, var(--accent2) 10%, transparent);
+}

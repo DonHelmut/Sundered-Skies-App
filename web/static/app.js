@@ -6,6 +6,7 @@ const App = {
   lastRecv: 0,       // Zeitpunkt der letzten Server-Nachricht (für den Heartbeat)
   wentOfflineAt: 0,  // wann die Verbindung abriss (für die Ausfall-Meldung)
   warteschlange: [], // Aktionen aus einem Aussetzer, die nachgereicht werden
+  auswahl: new Set(), // SL: per Strg-Klick gesammelte Figuren (gemeinsam ziehen)
   role: null,
   state: null,
   myPlayerId: localStorage.getItem("playerId") || null,
@@ -30,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "89";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "90";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -924,7 +925,17 @@ function renderZonesPanel() {
     zones: s.zones, activeId: s.activeId, interactive: true, mover, pending: App.pendingMove,
     draggable: isGM, groupIndex: gruppenFarben(), groupNames: gruppenNamen(),
     blurAnon: !isGM,        // der SL soll seine verdeckten Gegner lesen können
+    auswahl: isGM ? App.auswahl : null,
   });
+  // Rückmeldung zur Strg-Auswahl - sonst sammelt man blind.
+  const auswahlHinweis = (isGM && App.auswahl.size)
+    ? `<div class="auswahl-leiste">
+         <b>${App.auswahl.size} ausgewählt</b>
+         <span class="muted small">– einen davon auf eine Bahn ziehen, dann rücken alle</span>
+         <button class="ghost small" data-act="auswahl-gruppe">Gruppe daraus machen</button>
+         <button class="ghost small" data-act="auswahl-leeren">Auswahl aufheben</button>
+       </div>`
+    : "";
   const controls = mine
     ? `<div class="zone-hint">${mine.moved
         ? "Diesen Zug schon bewegt – warte auf die nächste Runde."
@@ -932,9 +943,10 @@ function renderZonesPanel() {
             ? "Zum Bestätigen die markierte Bahn nochmal tippen (oder daneben zum Abbrechen)."
             : "Erreichbare Bahn tippen (1 = gratis · 2 = 🏃 Rennen) – dann nochmal tippen zum Bestätigen.")}</div>`
     : (isGM
-        ? `<div class="zone-hint">Figur auf eine Bahn <b>ziehen</b> zum Umsetzen. Gehört sie zu einer Gruppe, zieht die ganze Gruppe mit.</div>`
+        ? `<div class="zone-hint">Figur auf eine Bahn <b>ziehen</b> zum Umsetzen – gehört sie zu einer Gruppe, rückt die ganze Gruppe mit.
+             Mit <b>Strg-Klick</b> mehrere sammeln und gemeinsam ziehen.</div>`
         : `<div class="zone-hint">Tippe ein Token für Infos.</div>`);
-  return section("zones", "Kampfzonen", `${target}${controls}`);
+  return section("zones", "Kampfzonen", `${target}${auswahlHinweis}${controls}`);
 }
 
 // Info-Fenster beim Antippen eines Tokens (im #app, damit es pro Render frisch ist).
@@ -1134,6 +1146,11 @@ function render() {
 
   const prevRects = captureRects();
   const prevTokens = captureTokens();
+  // Auswahl aufräumen: Figuren, die es nicht mehr gibt, still verwerfen.
+  if (App.auswahl.size && App.state.combatants) {
+    const da = new Set(App.state.combatants.map((c) => c.id));
+    App.auswahl.forEach((id) => { if (!da.has(id)) App.auswahl.delete(id); });
+  }
   root.innerHTML = (App.role === "gm" ? renderGM() : renderPlayer()) + renderTokenPopupOverlay();
   // Platz für die fixierte Steuerleiste schaffen - über eine Klasse statt über
   // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
@@ -1324,13 +1341,19 @@ document.addEventListener("drop", (e) => {
   e.preventDefault();
 
   if (ziel.hasAttribute("data-zone")) {
-    // Im Zonen-Board abgelegt: gehört die Figur zu einer Gruppe, zieht die
-    // ganze Gruppe mit - genau dafür sind Gruppen da.
     const zone = parseInt(ziel.dataset.zone, 10);
     const c = (App.state.combatants || []).find((x) => x.id === id);
     if (!c || isNaN(zone)) return;
-    if (c.groupId) gmAction({ type: "group_move", group: c.groupId, zone });
-    else gmAction({ type: "set_zone", id, zone });
+    // Reihenfolge der Regeln: eine per Strg gesammelte Auswahl schlägt alles
+    // andere - der SL hat sie ja gerade bewusst zusammengestellt.
+    if (App.auswahl.size && App.auswahl.has(id)) {
+      gmAction({ type: "set_zone_many", ids: [...App.auswahl], zone });
+      App.auswahl.clear();
+    } else if (c.groupId) {
+      gmAction({ type: "group_move", group: c.groupId, zone });
+    } else {
+      gmAction({ type: "set_zone", id, zone });
+    }
   } else {
     // In einem Gruppenkasten abgelegt (leerer Wert = herauslösen).
     gmAction({ type: "group_assign", id, group: ziel.dataset.group || null });
@@ -2301,6 +2324,13 @@ document.addEventListener("click", (e) => {
     "close-token-popup": () => { App.tokenPopupId = null; render(); },
     "zur-aktiven-zeile": () => zurAktivenZeile(true),
     "leiste-einstellungen": () => { App.leisteEinstellungen = !App.leisteEinstellungen; render(); },
+    "auswahl-leeren": () => { App.auswahl.clear(); render(); },
+    "auswahl-gruppe": () => {
+      const name = prompt("Name der Gruppe?", "Trupp");
+      if (!name || !name.trim()) return;
+      gmAction({ type: "group_create", name: name.trim(), ids: [...App.auswahl] });
+      App.auswahl.clear();
+    },
     // Nur für die ziehbaren Marker/Chips des SL: bei denen darf pointerdown
     // nichts abfangen (sonst kein Ziehen), also öffnet der Klick das Fenster.
     // Ein echtes Ziehen löst gar keinen Klick aus - beides kommt sich nicht ins Gehege.
@@ -2357,6 +2387,7 @@ document.addEventListener("click", (e) => {
 // Läuft NICHT, während in ein Feld getippt wird - sonst schluckt es Buchstaben.
 document.addEventListener("keydown", (e) => {
   if (App.role !== "gm" || !App.state) return;
+  if (e.key === "Escape" && App.auswahl.size) { App.auswahl.clear(); render(); return; }
   if (e.ctrlKey || e.altKey || e.metaKey) return;
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
@@ -2397,6 +2428,15 @@ document.addEventListener("pointerdown", (e) => {
   // (Auf ein "click"-Ereignis ist kein Verlass: der Browser wertet schon eine
   // winzige Mausbewegung als Ziehversuch und unterdrückt es dann.)
   if (t.getAttribute("draggable") === "true") {
+    // Strg/Cmd-Klick sammelt Figuren, statt das Info-Fenster zu öffnen.
+    // Danach zieht EIN Marker die ganze Auswahl mit.
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const id = t.getAttribute("data-id");
+      if (App.auswahl.has(id)) App.auswahl.delete(id); else App.auswahl.add(id);
+      render();
+      return;
+    }
     tippStart = { x: e.clientX, y: e.clientY, el: t };
     return;
   }
