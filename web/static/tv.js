@@ -170,7 +170,9 @@ function render() {
     return `<div class="tv-tile ${isActive ? "active" : ""} ${c.kind === "npc" ? "enemy" : ""} ${hasJoker ? "joker-holder" : ""}" data-cid="${c.id}">
       <div class="tv-tilepos">${i + 1}</div>
       ${cardFace(c.id, c.card, c.status, hasJoker)}
-      <div class="tv-tilename">${esc(c.name)} ${heldPill}</div>
+      <div class="tv-tilename">${c.anon
+        ? `<span class="verdeckt">${esc(c.name)}</span>`
+        : esc(c.name)} ${heldPill}</div>
       <div class="badges">${jokerBadge} ${statusBadges(c)}</div>
     </div>`;
   }).join("");

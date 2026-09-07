@@ -175,9 +175,37 @@ def test_export_import_roundtrip(fresh_game):
     data = fresh_game.export_data()
     fresh_game.roster = []
     fresh_game.bestiary = []
-    assert fresh_game.import_data(data) is True
+    bericht = fresh_game.import_data(data)
+    assert bericht["ok"] is True
+    assert bericht["verworfen"] == 0
     assert [r["name"] for r in fresh_game.roster] == ["Held"]
     assert [b["name"] for b in fresh_game.bestiary] == ["Goblin"]
+
+
+def test_import_sortiert_muell_aus(fresh_game):
+    """Eine kaputte Datei darf die Charakterliste nicht mit Muell fuellen -
+    Importieren ERSETZT sie ja."""
+    bericht = fresh_game.import_data({
+        "roster": [{"name": "Held"}, {"kein": "name"}, "Text statt Objekt", None],
+    })
+    assert bericht["ok"] is True
+    assert bericht["uebernommen"]["Charaktere"] == 1
+    assert bericht["verworfen"] == 3
+    assert [r["name"] for r in fresh_game.roster] == ["Held"]
+
+
+def test_import_lehnt_fremde_datei_ab(fresh_game):
+    fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    bericht = fresh_game.import_data({"irgendwas": 123})
+    assert bericht["ok"] is False
+    assert bericht["fehler"]
+    assert [r["name"] for r in fresh_game.roster] == ["Held"]   # nichts angefasst
+
+
+def test_import_lehnt_nicht_json_objekt_ab(fresh_game):
+    bericht = fresh_game.import_data(["Liste statt Objekt"])
+    assert bericht["ok"] is False
+    assert "keine Sicherungsdatei" in bericht["fehler"]
 
 
 def test_set_zone_clamped(fresh_game):
@@ -651,3 +679,80 @@ def test_verwaiste_zuordnung_wird_beim_laden_geloest(fresh_game):
     g.save_session()
     g.resume_session()
     assert all(c["groupId"] is None for c in g.combatants)
+
+
+# --- Bilder aufraeumen -----------------------------------------------------
+
+def test_verwaiste_bilder_erkennen(fresh_game, tmp_path, monkeypatch):
+    """Nur Bilder loeschen, auf die WIRKLICH nichts mehr zeigt."""
+    from server import game as gm
+    ordner = tmp_path / "uploads"
+    ordner.mkdir()
+    monkeypatch.setattr(gm, "UPLOAD_DIR", ordner)
+    for name in ["benutzt.png", "im_bestiarium.png", "in_begegnung.png", "verwaist.png"]:
+        (ordner / name).write_bytes(b"x" * 10)
+
+    g = fresh_game
+    _add_npc(g, "Ork")
+    g.combatants[0]["image"] = "/uploads/benutzt.png"
+    g.bestiary.append({"id": "b1", "name": "Skree", "image": "/uploads/im_bestiarium.png"})
+    g.encounters.append({"id": "e1", "name": "Hinterhalt",
+                         "members": [{"name": "Wache", "image": "/uploads/in_begegnung.png"}]})
+
+    verwaist = [p.name for p in g.verwaiste_bilder()]
+    assert verwaist == ["verwaist.png"]
+
+
+def test_aufraeumen_loescht_nur_verwaiste(fresh_game, tmp_path, monkeypatch):
+    from server import game as gm
+    ordner = tmp_path / "uploads"
+    ordner.mkdir()
+    monkeypatch.setattr(gm, "UPLOAD_DIR", ordner)
+    (ordner / "behalten.png").write_bytes(b"x" * 100)
+    (ordner / "weg.png").write_bytes(b"x" * 250)
+
+    g = fresh_game
+    _add_npc(g, "Ork")
+    g.combatants[0]["image"] = "/uploads/behalten.png"
+
+    ergebnis = g.bilder_aufraeumen()
+
+    assert ergebnis["geloescht"] == 1
+    assert ergebnis["bytes"] == 250
+    assert (ordner / "behalten.png").exists()
+    assert not (ordner / "weg.png").exists()
+
+
+# --- Zuege automatisch freigeben -------------------------------------------
+
+def test_ohne_auto_freigabe_wartet_die_runde(fresh_game):
+    g = fresh_game
+    _add_npc(g, "Ork"); _add_npc(g, "Skree")
+    g.apply({"type": "deal"})
+    g.apply({"type": "release"})
+    g.apply({"type": "confirm_turn"})
+    assert g.phase == "gate"          # SL muss freigeben
+    assert g.timer_ends_at is None
+
+
+def test_mit_auto_freigabe_laeuft_der_naechste_zug_sofort(fresh_game):
+    g = fresh_game
+    _add_npc(g, "Ork"); _add_npc(g, "Skree")
+    g.apply({"type": "set_auto_release", "on": True})
+    g.apply({"type": "deal"})
+    g.apply({"type": "release"})
+    g.apply({"type": "confirm_turn"})
+    assert g.phase == "running"       # kein Klick noetig
+    assert g.timer_ends_at is not None
+
+
+def test_auto_freigabe_stoppt_am_rundenende(fresh_game):
+    """Ist niemand mehr dran, darf nicht ins Leere weitergeschaltet werden."""
+    g = fresh_game
+    _add_npc(g, "Ork")
+    g.apply({"type": "set_auto_release", "on": True})
+    g.apply({"type": "deal"})
+    g.apply({"type": "release"})
+    g.apply({"type": "confirm_turn"})
+    assert g.active_id is None
+    assert g.phase == "gate"

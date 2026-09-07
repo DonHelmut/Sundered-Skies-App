@@ -210,9 +210,34 @@ async def import_backup(request: Request, file: UploadFile):
         data = json.loads(raw.decode("utf-8"))
     except Exception:
         return JSONResponse({"error": "bad_json"}, status_code=400)
-    ok = game.import_data(data)
-    await hub.broadcast_state()
-    return JSONResponse({"ok": bool(ok)})
+    bericht = game.import_data(data)
+    if bericht.get("ok"):
+        await hub.broadcast_state()
+    return JSONResponse(bericht)
+
+
+@app.post("/api/bilder-aufraeumen")
+async def bilder_aufraeumen(request: Request):
+    """Loescht hochgeladene Bilder, auf die nichts mehr zeigt (nur SL/Laptop).
+    Jedes ersetzte Portraet bleibt sonst fuer immer liegen."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    ergebnis = game.bilder_aufraeumen()
+    diag.log(f"Bilder aufgeraeumt: {ergebnis['geloescht']} Datei(en), "
+             f"{ergebnis['bytes'] / 1024:.0f} KB frei")
+    return JSONResponse(ergebnis)
+
+
+@app.get("/api/bilder-verwaist")
+async def bilder_verwaist(request: Request):
+    """Wie viele Bilder waeren aufraeumbar? (nur lesen)"""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    verwaist = game.verwaiste_bilder()
+    return JSONResponse({
+        "anzahl": len(verwaist),
+        "bytes": sum(p.stat().st_size for p in verwaist if p.exists()),
+    })
 
 
 @app.post("/api/firewall-allow")

@@ -30,7 +30,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "86";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "87";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -1447,6 +1447,10 @@ function renderConnectPanel() {
         <input type="file" accept="application/json,.json" data-act="pick-import" style="display:none">
       </label>
       <span class="muted small">Charaktere + Bibliotheken + Begegnungen.</span>
+    </div>
+    <div class="row" style="margin-top:10px; align-items:center; gap:8px">
+      <button class="ghost" data-act="bilder-aufraeumen">🧹 Alte Bilder aufräumen</button>
+      <span class="muted small">Löscht hochgeladene Bilder, die von keiner Figur mehr benutzt werden.</span>
     </div>`);
 }
 
@@ -1477,6 +1481,11 @@ function renderControlBody() {
     <label class="row tight" style="align-items:center; margin-top:10px; cursor:pointer">
       <input type="checkbox" data-act="toggle-auto-incap" ${s.autoIncap ? "checked" : ""} style="width:auto">
       <span class="small">Bei der 4. Wunde automatisch „Ausgeschaltet"</span>
+    </label>
+    <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer"
+           title="Spart bei vielen Gegnern einen Klick pro Figur">
+      <input type="checkbox" data-act="toggle-auto-release" ${s.autoRelease ? "checked" : ""} style="width:auto">
+      <span class="small">Nächsten Zug automatisch freigeben (ohne „Freigeben"-Klick)</span>
     </label>
     <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer">
       <input type="checkbox" data-act="toggle-conditions" ${s.conditionsEnabled !== false ? "checked" : ""} style="width:auto">
@@ -1695,6 +1704,10 @@ function combatantEditor(c) {
     <div class="row" style="margin-top:8px">
       <button class="primary" data-act="save-combatant" data-id="${c.id}">Speichern</button>
       <button class="ghost" data-act="cancel-edit-combatant">Abbrechen</button>
+      ${c.image
+        ? `<button class="ghost bad" data-act="bild-entfernen" data-id="${c.id}"
+             title="Porträt löschen – das Bild ließ sich bisher nur ersetzen">🖼 Bild entfernen</button>`
+        : ""}
     </div>
   </div>`;
 }
@@ -2080,6 +2093,9 @@ document.addEventListener("click", (e) => {
     "edit-combatant": () => { App.editCombatantId = App.editCombatantId === id ? null : id; render(); },
     "save-combatant": () => saveCombatant(id),
     "cancel-edit-combatant": () => { App.editCombatantId = null; render(); },
+    "bild-entfernen": () => {
+      if (confirm("Porträt dieser Figur entfernen?")) gmAction({ type: "set_image", id, url: null });
+    },
     "bench": () => gmAction({ type: "bench", id, on: target.getAttribute("data-on") === "1" }),
     "remove-combatant": () => {
       const c = findCombatant(id);
@@ -2115,6 +2131,7 @@ document.addEventListener("click", (e) => {
       });
     },
     "set-anon": () => gmAction({ type: "set_anon", id, on: target.getAttribute("data-on") === "1" }),
+    "bilder-aufraeumen": () => bilderAufraeumen(),
     // SL – Gruppen
     "group-new": () => {
       const name = prompt("Name der Gruppe? (z. B. Ork-Trupp)");
@@ -2184,6 +2201,10 @@ document.addEventListener("click", (e) => {
       App.tokenPopupId = null; render();
     },
     "close-token-popup": () => { App.tokenPopupId = null; render(); },
+    // Nur für die ziehbaren Marker/Chips des SL: bei denen darf pointerdown
+    // nichts abfangen (sonst kein Ziehen), also öffnet der Klick das Fenster.
+    // Ein echtes Ziehen löst gar keinen Klick aus - beides kommt sich nicht ins Gehege.
+    "token-info": () => { App.tokenPopupId = id; render(); },
     "open-image": () => {
       App.overlayImage = target.getAttribute("data-url");
       const holder = target.closest("[data-cid]");
@@ -2232,11 +2253,21 @@ document.addEventListener("click", (e) => {
 // Kampfzonen-Auswahl per pointerdown statt click: die Aktion schließt sofort ab,
 // unabhängig von einem gleich eintreffenden Broadcast-Render (behebt das „nur auf
 // dem Icon loslassen"-Problem). Token = Info-Popup; freie Bahn = dorthin bewegen.
+let tippStart = null;   // Startpunkt eines Tipps auf einen ziehbaren Marker
 document.addEventListener("pointerdown", (e) => {
   const t = e.target.closest('[data-act="token-info"], [data-act="zone-goto"]');
   if (!t) {
     // Tipp daneben bricht eine schwebende Bewegungs-Bestätigung ab.
     if (App.pendingMove) { App.pendingMove = null; render(); }
+    return;
+  }
+  // ZIEHBARE Elemente (nur SL) hier NICHT abfangen: preventDefault() unterbindet
+  // das native Ziehen, und Drag & Drop wäre damit tot. Stattdessen merken wir
+  // uns den Startpunkt und entscheiden beim Loslassen, ob es ein Tipp war.
+  // (Auf ein "click"-Ereignis ist kein Verlass: der Browser wertet schon eine
+  // winzige Mausbewegung als Ziehversuch und unterdrückt es dann.)
+  if (t.getAttribute("draggable") === "true") {
+    tippStart = { x: e.clientX, y: e.clientY, el: t };
     return;
   }
   e.preventDefault();
@@ -2245,6 +2276,19 @@ document.addEventListener("pointerdown", (e) => {
     render();
   } else {
     zoneGoto(t.getAttribute("data-id"), Number(t.getAttribute("data-tz")));
+  }
+});
+
+// Loslassen auf einem ziehbaren Marker: kaum bewegt = es war ein Tipp, also
+// Info-Fenster öffnen. Wurde wirklich gezogen, hat das Ablegen schon gehandelt.
+document.addEventListener("pointerup", (e) => {
+  const s = tippStart;
+  tippStart = null;
+  if (!s || gezogeneId) return;
+  if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 5) return;   // war eine Zieh-Geste
+  if (s.el.getAttribute("data-act") === "token-info") {
+    App.tokenPopupId = s.el.getAttribute("data-id");
+    render();
   }
 });
 
@@ -2313,6 +2357,8 @@ document.addEventListener("change", (e) => {
     if (!isNaN(v)) { try { localStorage.setItem("lastZonePlayer", String(v)); } catch {} }
   } else if (act === "toggle-auto-incap") {
     gmAction({ type: "set_auto_incap", on: t.checked });
+  } else if (act === "toggle-auto-release") {
+    gmAction({ type: "set_auto_release", on: t.checked });
   } else if (act === "toggle-conditions") {
     gmAction({ type: "set_conditions_enabled", on: t.checked });
   } else if (act === "toggle-requests") {
@@ -2357,11 +2403,31 @@ async function importBackup(file) {
   fd.append("file", file);
   try {
     const res = await fetch("/api/import", { method: "POST", body: fd });
-    if (res.ok) alert("Sicherung eingespielt.");
-    else if (res.status === 400) alert("Das war keine gültige Sicherungsdatei.");
-    else if (res.status === 403) alert("Import geht nur am Spielleiter-Laptop.");
-    else alert("Import fehlgeschlagen.");
+    if (res.status === 400) { alert("Das war keine gültige Sicherungsdatei."); return; }
+    if (res.status === 403) { alert("Import geht nur am Spielleiter-Laptop."); return; }
+    if (!res.ok) { alert("Import fehlgeschlagen."); return; }
+
+    // Genau berichten, was übernommen wurde – Importieren ERSETZT die Listen,
+    // da will man nicht raten, ob die Datei wirklich gepasst hat.
+    const b = await res.json();
+    if (!b.ok) { alert("Nicht eingespielt.\n\n" + (b.fehler || "Unbekannter Grund.")); return; }
+    const zeilen = Object.entries(b.uebernommen || {}).map(([was, n]) => `• ${n} ${was}`);
+    alert("Sicherung eingespielt.\n\n" + (zeilen.join("\n") || "(nichts)") +
+      (b.verworfen ? `\n\n${b.verworfen} unbrauchbare Einträge wurden übersprungen.` : ""));
   } catch { alert("Import fehlgeschlagen."); }
+}
+
+// Hochgeladene Bilder, auf die nichts mehr zeigt, wegräumen. Jedes ersetzte
+// Porträt bleibt sonst für immer im data-Ordner liegen.
+async function bilderAufraeumen() {
+  try {
+    const info = await (await fetch("/api/bilder-verwaist")).json();
+    if (!info.anzahl) { toast("Keine überflüssigen Bilder gefunden."); return; }
+    const kb = Math.round(info.bytes / 1024);
+    if (!confirm(`${info.anzahl} Bild(er) werden von nichts mehr verwendet (${kb} KB).\n\nJetzt löschen?`)) return;
+    const erg = await (await fetch("/api/bilder-aufraeumen", { method: "POST" })).json();
+    toast(`${erg.geloescht} Bild(er) gelöscht, ${Math.round(erg.bytes / 1024)} KB frei.`);
+  } catch { alert("Aufräumen fehlgeschlagen."); }
 }
 
 // --- Aktionen ---------------------------------------------------------------

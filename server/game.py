@@ -184,6 +184,7 @@ class Game:
         self.conditions_enabled: bool = True   # Zusatz-Zustaende ueberhaupt verwenden?
         self.requests_enabled: bool = True     # duerfen Spieler ueberhaupt anfragen?
         self.benny_to_gm: bool = True      # Hausregel: Spieler-Benny -> SL-Pool
+        self.auto_release: bool = False    # naechsten Zug ohne Klick freigeben
         # Gruppen: mehrere Figuren zusammenfassen und gemeinsam bewegen
         # ("die drei Orks ruecken vor"). Jede Figur traegt hoechstens eine
         # Gruppe (c["groupId"]); die Namen liegen hier.
@@ -201,6 +202,7 @@ class Game:
             self.benny_start = 3
         self.auto_incap = bool(settings.get("autoIncap", True))
         self.conditions_enabled = bool(settings.get("conditionsEnabled", True))
+        self.auto_release = bool(settings.get("autoRelease", False))
         self.requests_enabled = bool(settings.get("requestsEnabled", True))
         self.benny_to_gm = bool(settings.get("bennyToGm", True))
 
@@ -257,6 +259,7 @@ class Game:
             "bennyToGm": self.benny_to_gm,
             "conditionsEnabled": self.conditions_enabled,
             "requestsEnabled": self.requests_enabled,
+            "autoRelease": self.auto_release,
         })
 
     def export_data(self) -> dict:
@@ -271,20 +274,45 @@ class Game:
                          "timerSeconds": self.timer_seconds},
         }
 
-    def import_data(self, data: dict) -> bool:
+    @staticmethod
+    def _gepruefte_liste(roh) -> tuple[list, int]:
+        """Nur Eintraege mit brauchbarem Namen uebernehmen. Eine kaputte oder
+        fremde Datei soll die Charakterliste nicht mit Muell fuellen -
+        Importieren ERSETZT sie schliesslich."""
+        gut, verworfen = [], 0
+        for e in roh:
+            if isinstance(e, dict) and isinstance(e.get("name"), str) and e["name"].strip():
+                gut.append(e)
+            else:
+                verworfen += 1
+        return gut, verworfen
+
+    def import_data(self, data: dict) -> dict:
         """Stellt eine Sicherung wieder her (ersetzt Charaktere + Bibliotheken +
-        Begegnungen). Laufender Kampf bleibt unberührt."""
+        Begegnungen). Laufender Kampf bleibt unberührt.
+
+        Rueckgabe: Bericht, was uebernommen und was verworfen wurde - damit der
+        SL nicht raten muss, ob die Datei wirklich gepasst hat."""
+        bericht: dict = {"ok": False, "uebernommen": {}, "verworfen": 0, "fehler": None}
         if not isinstance(data, dict):
-            return False
+            bericht["fehler"] = "Das ist keine Sicherungsdatei."
+            return bericht
+
         touched = False
-        if isinstance(data.get("roster"), list):
-            self.roster = data["roster"]; self.save_roster(); touched = True
-        if isinstance(data.get("bestiary"), list):
-            self.bestiary = data["bestiary"]; self.save_bestiary(); touched = True
-        if isinstance(data.get("allies"), list):
-            self.allies = data["allies"]; self.save_allies(); touched = True
-        if isinstance(data.get("encounters"), list):
-            self.encounters = data["encounters"]; self.save_encounters(); touched = True
+        felder = (("roster", "Charaktere", self.save_roster),
+                  ("bestiary", "Gegner-Vorlagen", self.save_bestiary),
+                  ("allies", "Verbündeten-Vorlagen", self.save_allies),
+                  ("encounters", "Begegnungen", self.save_encounters))
+        for schluessel, anzeige, sichern in felder:
+            roh = data.get(schluessel)
+            if not isinstance(roh, list):
+                continue
+            gut, schlecht = self._gepruefte_liste(roh)
+            setattr(self, schluessel, gut)
+            sichern()
+            bericht["uebernommen"][anzeige] = len(gut)
+            bericht["verworfen"] += schlecht
+            touched = True
         s = data.get("settings")
         if isinstance(s, dict):
             try:
@@ -295,7 +323,13 @@ class Game:
             self.auto_incap = bool(s.get("autoIncap", self.auto_incap))
             self.save_settings()
             touched = True
-        return touched
+
+        if not touched:
+            bericht["fehler"] = ("In der Datei stand nichts Verwertbares "
+                                 "(weder Charaktere noch Bibliotheken).")
+            return bericht
+        bericht["ok"] = True
+        return bericht
 
     def save_session(self) -> None:
         _write_json(SESSION_FILE, {
@@ -456,6 +490,7 @@ class Game:
             "bennyToGm": self.benny_to_gm,
             "conditionsEnabled": self.conditions_enabled,
             "requestsEnabled": self.requests_enabled,
+            "autoRelease": self.auto_release,
             "deckCount": len(self.deck),
             "hasSavedSession": self.resume_available,
             "canUndo": len(self._history) > 0,
@@ -1210,23 +1245,78 @@ class Game:
         self.phase = "running"
         self.timer_ends_at = now_ms() + self.timer_seconds * 1000
 
+    def _weiter_nach_zug(self) -> None:
+        """Nach einem beendeten Zug: normal wartet die Runde auf die Freigabe
+        durch den SL. Ist die Auto-Freigabe an, laeuft der naechste Zug sofort
+        los - spart bei vielen Gegnern einen Klick pro Figur."""
+        self._advance_active()
+        if self.auto_release and self.active_id:
+            self.phase = "running"
+            self.timer_ends_at = now_ms() + self.timer_seconds * 1000
+        else:
+            self.phase = "gate"
+            self.timer_ends_at = None
+
     def _do_confirm_turn(self, a: dict) -> None:
         """Aktueller Akteur (oder SL) bestätigt den Zug -> Freigabe-Gate."""
         cur = self._combatant(self.active_id) if self.active_id else None
         if cur:
             cur["done"] = True
-        self._advance_active()
-        self.phase = "gate"
-        self.timer_ends_at = None
+        self._weiter_nach_zug()
 
     def _do_timeout(self, a: dict) -> None:
-        """Timer ausgelaufen: Zug endet, aber es geht nicht automatisch weiter."""
+        """Timer ausgelaufen: Zug endet."""
         cur = self._combatant(self.active_id) if self.active_id else None
         if cur:
             cur["done"] = True
-        self._advance_active()
-        self.phase = "gate"
-        self.timer_ends_at = None
+        self._weiter_nach_zug()
+
+    def benutzte_bilder(self) -> set[str]:
+        """Alle Bild-Dateinamen, die irgendwo noch gebraucht werden."""
+        benutzt: set[str] = set()
+        quellen = (self.roster, self.bestiary, self.allies, self.combatants)
+        for liste in quellen:
+            for eintrag in liste:
+                url = eintrag.get("image")
+                if isinstance(url, str) and url.startswith("/uploads/"):
+                    benutzt.add(url.rsplit("/", 1)[-1])
+        for begegnung in self.encounters:
+            for g in begegnung.get("members") or []:
+                url = g.get("image")
+                if isinstance(url, str) and url.startswith("/uploads/"):
+                    benutzt.add(url.rsplit("/", 1)[-1])
+        if isinstance(self.tv_image, dict):
+            url = self.tv_image.get("url")
+            if isinstance(url, str) and url.startswith("/uploads/"):
+                benutzt.add(url.rsplit("/", 1)[-1])
+        return benutzt
+
+    def verwaiste_bilder(self) -> list:
+        """Hochgeladene Bilder, auf die nichts mehr zeigt. Sie sammeln sich
+        sonst endlos an - jedes ersetzte Portraet bleibt liegen."""
+        if not UPLOAD_DIR.is_dir():
+            return []
+        benutzt = self.benutzte_bilder()
+        return sorted(p for p in UPLOAD_DIR.iterdir()
+                      if p.is_file() and p.name not in benutzt)
+
+    def bilder_aufraeumen(self) -> dict:
+        """Verwaiste Bilder loeschen. Gibt Anzahl und freigewordenen Platz zurueck."""
+        weg, bytes_frei = 0, 0
+        for p in self.verwaiste_bilder():
+            try:
+                groesse = p.stat().st_size
+                p.unlink()
+                weg += 1
+                bytes_frei += groesse
+            except OSError:
+                pass          # gesperrt/in Benutzung - beim naechsten Mal
+        return {"geloescht": weg, "bytes": bytes_frei}
+
+    def _do_set_auto_release(self, a: dict) -> None:
+        """SL: naechsten Zug automatisch freigeben statt jedes Mal zu klicken."""
+        self.auto_release = bool(a.get("on", False))
+        self.save_settings()
 
     def _advance_active(self) -> None:
         order = [c["id"] for c in self.combatants]

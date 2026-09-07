@@ -1171,3 +1171,23 @@ button.ghost.small.on { border-color: var(--accent2); color: var(--accent2); }
   border-radius: 10px; padding: 9px; margin-bottom: 12px;
   color: var(--text); font-size: 0.9rem; line-height: 1.4;
 }
+
+/* --- Kompaktere Initiative-Zeilen ---------------------------------------
+   Die Liste war der letzte Grund zum Scrollen: jede Zeile 130-210 px hoch.
+   Gestrafft wird AUSSCHLIESSLICH ueber Abstaende und Groessen - kein Knopf
+   und keine Angabe faellt weg, damit im Spiel nichts fehlt. */
+.combatant { gap: 8px; padding: 6px 8px; }
+.combatant .mini { width: 42px; flex: 0 0 42px; }      /* Kartenvorschau kleiner */
+.combatant .idx { font-size: 1.15rem; width: 22px; }
+.combatant .avatar { width: 26px; height: 26px; flex-basis: 26px; }
+.combatant .badges { gap: 4px; margin-top: 2px; }
+.combatant .status-badges { gap: 3px; margin-top: 2px; }
+.combatant .actions { gap: 4px; }
+.combatant .tag { font-size: 0.68rem; padding: 1px 6px; }
+.combatant .st-btn { padding: 2px 7px; font-size: 0.78rem; }
+.combatant .row-status { margin-top: 3px; }
+.combatant .row-status > summary { padding: 2px 9px; font-size: 0.78rem; }
+.combatant .who .name { line-height: 1.25; }
+.combatant-note { margin-top: 1px; }
+/* Die SL-Knopfleiste rutscht sonst in eine eigene Zeile und kostet Hoehe. */
+.combatant .actions button { padding: 4px 8px; }
