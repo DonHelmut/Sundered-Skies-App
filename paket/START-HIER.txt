@@ -1,4 +1,4 @@
-Sundered Skies – Initiative  (Version 90)
+Sundered Skies – Initiative  (Version 91)
 ==========================================
 
 Du brauchst NICHTS zu installieren. Kein Python, keine Zusatzpakete –
@@ -64,6 +64,28 @@ Was auf dem Rechner los ist, steht uebrigens in data\log.txt gleich unter
 "UMGEBUNG" - Netzwerkprofil, Firewall-Produkt, Virenscanner, VPN und ob
 Adminrechte da sind. Diese Zeilen an Stefan schicken, dann ist die Ursache
 meist in einer Minute klar.
+
+>>> HANDYS: AUTOMATISCHEN WECHSEL AUF MOBILFUNK ABSCHALTEN <<<
+--------------------------------------------------------------
+Das ist die haeufigste Ursache, wenn mitten im Spiel "ploetzlich nichts mehr
+geht", obwohl auf dem Handy "WLAN verbunden" steht:
+
+Hat das WLAN gerade kein Internet (Router lebt, Leitung tot), stufen Android
+und iOS es als schlecht ein und leiten den Verkehr still auf MOBILFUNK um.
+Ueber Mobilfunk ist der Laptop im WLAN aber nicht erreichbar - die App ist weg,
+obwohl scheinbar alles verbunden ist.
+
+Einmal pro Handy einstellen (dann bleibt WhatsApp nutzbar):
+  Android: Einstellungen -> Netzwerk & Internet -> beim WLAN aufs Zahnrad ->
+           "Automatisch zu mobilen Daten wechseln" AUS.
+           Fragt Android "WLAN hat kein Internet - trotzdem verbunden bleiben?"
+           -> JA antworten.
+  iPhone:  Einstellungen -> Mobilfunk -> ganz unten "WLAN-Assist" AUS.
+
+Notfalls tut es auch: mobile Daten fuer den Spielabend komplett ausschalten.
+
+Das behebt NUR diesen Fall - nicht einen Router-Neustart, eine schlafende
+WLAN-Karte im Laptop oder eine geaenderte Adresse. Dafuer siehe unten.
 
 >>> WENN SICH NIEMAND VERBINDEN KANN – DIESE 3 DINGE PRÜFEN <<<
 --------------------------------------------------------------

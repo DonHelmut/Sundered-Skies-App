@@ -43,12 +43,43 @@ def join_url() -> str:
     """Beitritts-URL – immer frisch (IP UND Port koennen sich geaendert haben)."""
     return f"http://{LOCAL_IP}:{active_port()}/"
 
+async def _stille_verbindungen_pruefen() -> None:
+    """Markiert Spieler als offline, von deren Geraet seit 15 s nichts kam.
+
+    Ein gekapptes Handy merkt die Gegenseite sonst erst nach 30-40 s (TCP/Ping).
+    So lange galt der Charakter als 'wird gerade gespielt' - wer das Geraet
+    wechselt oder den Speicher geleert hat, kam nicht wieder rein. Das Handy
+    schickt alle 4 s ein Lebenszeichen, 15 s Stille sind also eindeutig."""
+    while True:
+        await asyncio.sleep(5)
+        try:
+            jetzt = time.monotonic()
+            geaendert = False
+            for meta in list(hub.sockets.values()):
+                pid = meta.get("playerId")
+                if not pid or jetzt - meta.get("letzte", jetzt) <= 15:
+                    continue
+                p = next((x for x in game.players if x["id"] == pid), None)
+                if p and p.get("connected"):
+                    p["connected"] = False
+                    geaendert = True
+                    diag.log(f"STILL: {p.get('name', '?')} seit "
+                             f"{jetzt - meta.get('letzte', jetzt):.0f} s ohne Lebenszeichen "
+                             f"-> gilt als offline")
+            if geaendert:
+                await hub.broadcast_state()
+        except Exception:
+            pass
+
+
 @asynccontextmanager
 async def _lebenszyklus(_app: FastAPI):
     """Beweist im Log, dass der Server wirklich lauscht - nicht nur gestartet
     wurde. Fehlt diese Zeile, ist er unterwegs haengen geblieben."""
     diag.log(f"SERVER BEREIT auf Port {active_port()} - wartet auf Verbindungen")
+    wache = asyncio.create_task(_stille_verbindungen_pruefen())
     yield
+    wache.cancel()
     diag.log("SERVER BEENDET")
 
 
@@ -339,6 +370,25 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         return
 
     if mtype == "join":
+        # Spielt jemand anderes diesen Charakter GERADE? Dann nicht wegnehmen.
+        belegt = game.charakter_aktiv_belegt(msg.get("characterId"),
+                                             ausser_player_id=msg.get("playerId"))
+        if belegt:
+            diag.log(f"BEITRITT ABGELEHNT: '{belegt}' wird gerade gespielt "
+                     f"(ip={meta.get('ip', '?')})")
+            await ws.send_json({
+                "type": "joinError",
+                # Wichtig: der Server merkt einen Abbruch erst nach ein paar
+                # Sekunden (Ping-Zeitfenster). Wer gerade das Gerät gewechselt
+                # hat, muss also kurz warten - das gehoert in die Meldung.
+                "message": f"„{belegt}“ wird gerade auf einem anderen Gerät gespielt. "
+                           f"Warst du das selbst (Gerät gewechselt, Akku leer)? "
+                           f"Dann in ein paar Sekunden nochmal versuchen. "
+                           f"Sonst anderen Charakter wählen – oder der Spielleiter "
+                           f"entfernt das alte Gerät aus dem Kampf.",
+            })
+            return
+
         # Spieler tritt bei (aus Charakterliste oder als Gast).
         player = game.register_player(
             name=(msg.get("name") or "Spieler").strip() or "Spieler",

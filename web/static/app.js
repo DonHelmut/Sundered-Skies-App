@@ -31,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "90";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "91";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -320,6 +320,11 @@ function connect() {
       // Neuesten Zustand nur merken und direkt nach der Animation einmal anwenden.
       if (App.revealLockUntil && Date.now() < App.revealLockUntil) { App.pendingRender = true; return; }
       render();
+    } else if (msg.type === "joinError") {
+      // Charakter wird gerade woanders gespielt -> zurück auf die Beitrittsseite.
+      App.joined = false;
+      App.joinFehler = msg.message;
+      render();
     } else if (msg.type === "joined") {
       App.myPlayerId = msg.playerId;
       App.joined = true;
@@ -357,6 +362,11 @@ function zeigeOfflineHinweis() {
       ${App.warteschlange.length
         ? `<div class="offline-warteschlange">✋ ${App.warteschlange.length} Eingabe${App.warteschlange.length === 1 ? "" : "n"} gemerkt – wird nachgereicht, sobald die Verbindung steht.</div>`
         : `<div class="offline-text small">Was du jetzt tippst, wird gemerkt und nachgereicht.</div>`}
+      ${seit > 25 ? `<div class="offline-text small" style="text-align:left; line-height:1.5">
+        <b>Dauert es länger?</b> Hat das WLAN gerade kein Internet, schalten viele
+        Handys still auf <b>Mobilfunk</b> um – dann ist der Laptop unerreichbar,
+        obwohl „WLAN verbunden“ dasteht.<br>Abhilfe: mobile Daten kurz ausschalten.
+      </div>` : ""}
       <div class="offline-text small">Adresse: ${esc(location.host)}</div>
       <button class="primary" data-act="jetzt-verbinden">Jetzt erneut versuchen</button>
     </div>`;
@@ -2176,9 +2186,13 @@ function c_bennyChip(c) {
 function renderJoin() {
   const s = App.state;
   const chars = s.roster.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
+  const fehler = App.joinFehler
+    ? `<div class="pill bad" style="display:block; line-height:1.5; margin-bottom:10px">${esc(App.joinFehler)}</div>`
+    : "";
   return `
     <h1 class="center">Sundered Skies · Beitreten</h1>
     <div class="panel">
+      ${fehler}
       ${s.roster.length ? `<label class="field"><span>Charakter wählen</span>
         <select id="joinchar"><option value="">– Gast (ohne Charakter) –</option>${chars}</select></label>` : ""}
       <label class="field"><span>Dein Name (Spieler)${s.roster.length ? " – optional bei Charakterwahl" : ""}</span>
@@ -2713,6 +2727,7 @@ function doJoin() {
     name = c ? c.name : name;
   }
   if (!name) { alert("Bitte einen Charakter wählen oder deinen Namen eingeben."); return; }
+  App.joinFehler = null;              // alte Meldung verwerfen
   App.myName = name; App.myCharacterId = characterId;
   localStorage.setItem("playerName", name);
   if (characterId) localStorage.setItem("characterId", characterId); else localStorage.removeItem("characterId");

@@ -1520,6 +1520,19 @@ class Game:
             if p["id"] == player_id:
                 p["connected"] = connected
 
+    def charakter_aktiv_belegt(self, character_id, ausser_player_id=None) -> Optional[str]:
+        """Wird dieser Charakter gerade von einem VERBUNDENEN Geraet gespielt?
+
+        Uebernehmen ist genau dann richtig, wenn der alte Spieler weg ist
+        (Verbindung verloren, Speicher geleert, rausgeflogen). Sitzt er noch
+        aktiv dran, waere es ein Diebstahl - er faende sich ohne Vorwarnung
+        wieder auf der Beitrittsseite. Rueckgabe: Name der Figur oder None."""
+        c = next((x for x in self.combatants if x.get("characterId") == character_id), None)
+        if not c or not c.get("playerId") or c["playerId"] == ausser_player_id:
+            return None
+        p = next((p for p in self.players if p["id"] == c["playerId"]), None)
+        return c.get("name") if (p and p.get("connected")) else None
+
     def register_player(self, name: str, character_id: Optional[str],
                         existing_player_id: Optional[str]) -> dict:
         # Rejoin: bekannte Spieler-ID wiederverwenden.

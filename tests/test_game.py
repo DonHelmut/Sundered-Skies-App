@@ -815,3 +815,40 @@ def test_gruppenzug_laesst_ausgeschaltete_stehen(fresh_game):
     g.apply({"type": "group_move", "group": g.groups[0]["id"], "zone": 0})
 
     assert [c["zone"] for c in g.combatants] == [0, 0, 4]
+
+
+# --- Charakter darf niemandem weggenommen werden ---------------------------
+
+def test_aktiv_gespielter_charakter_gilt_als_belegt(fresh_game):
+    g = fresh_game
+    g.apply({"type": "roster_upsert", "name": "Korgio", "isWildCard": True})
+    cid = g.roster[-1]["id"]
+    g.register_player("Kalle", character_id=cid, existing_player_id=None)
+
+    assert g.charakter_aktiv_belegt(cid) == "Korgio"
+
+
+def test_getrennter_spieler_blockiert_nicht(fresh_game):
+    """Genau dafuer ist die Uebernahme da: Verbindung weg oder Speicher leer."""
+    g = fresh_game
+    g.apply({"type": "roster_upsert", "name": "Korgio", "isWildCard": True})
+    cid = g.roster[-1]["id"]
+    p = g.register_player("Kalle", character_id=cid, existing_player_id=None)
+    g.set_player_connected(p["id"], False)
+
+    assert g.charakter_aktiv_belegt(cid) is None
+
+
+def test_eigener_wiederbeitritt_blockiert_sich_nicht_selbst(fresh_game):
+    g = fresh_game
+    g.apply({"type": "roster_upsert", "name": "Korgio", "isWildCard": True})
+    cid = g.roster[-1]["id"]
+    p = g.register_player("Kalle", character_id=cid, existing_player_id=None)
+
+    assert g.charakter_aktiv_belegt(cid, ausser_player_id=p["id"]) is None
+
+
+def test_freier_charakter_ist_nicht_belegt(fresh_game):
+    g = fresh_game
+    g.apply({"type": "roster_upsert", "name": "Korgio", "isWildCard": True})
+    assert g.charakter_aktiv_belegt(g.roster[-1]["id"]) is None
