@@ -54,8 +54,16 @@
     const titel = c.groupId && opts.groupNames && opts.groupNames[c.groupId]
       ? `${c.name} · Gruppe ${opts.groupNames[c.groupId]}`
       : c.name;
-    return `<button type="button" class="${cls}"${zieh} data-act="token-info" data-id="${esc(c.id)}" title="${esc(titel)}">` +
-      `<span class="tdisc">${inner}</span><span class="tname">${esc(c.name)}</span></button>`;
+    // Verdeckter Gegner: Name (und Bild) auch hier unkenntlich - sonst waere er
+    // in der Reihenfolge verwischt, im Zonen-Board aber klar lesbar. Der SL
+    // bekommt "blurAnon: false" und sieht alles scharf.
+    const tarnen = !!(c.anon && opts.blurAnon);
+    const nameHtml = tarnen
+      ? `<span class="tname verdeckt">${esc(c.name)}</span>`
+      : `<span class="tname">${esc(c.name)}</span>`;
+    return `<button type="button" class="${cls}"${zieh} data-act="token-info" data-id="${esc(c.id)}" ` +
+      `title="${tarnen ? "Unbekannt" : esc(titel)}">` +
+      `<span class="tdisc${tarnen ? " verdeckt" : ""}">${inner}</span>${nameHtml}</button>`;
   }
 
   // combatants: Array; opts: { zones, activeId, interactive, mover:{id,zone,canMove} }

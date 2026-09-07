@@ -30,7 +30,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "87";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "88";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -227,7 +227,7 @@ function checkTurnNotify() {
   // Wer dran ist, soll es auch SEHEN: nach oben springen, egal wo im Handy
   // gerade gescrollt wurde. Läuft unabhängig vom Ton/Vibration - die kann man
   // abschalten, verpassen darf man seinen Zug trotzdem nicht.
-  if (myTurn && !App._prevMyTurn && App._turnInit) {
+  if (myTurn && !App._prevMyTurn && App._turnInit) {   // (Spieler-Ansicht)
     // Erst nach dem Neuzeichnen springen, sonst zielt es auf die alte Seite.
     setTimeout(() => {
       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* s. u. */ }
@@ -313,6 +313,7 @@ function connect() {
       App.state = msg.state;
       checkRequestAlert();   // SL: neue Anfrage -> Signal
       checkTurnNotify();     // Spieler: dran -> Vibration/Ton
+      pruefeAktivenWechsel();  // SL: aktive Zeile ins Bild holen
       // Während einer laufenden Karten-Aufdeckung NICHT sofort neu rendern – sonst
       // baut render() die Karte neu und sie schnappt aufgedeckt (das „Hakeln").
       // Neuesten Zustand nur merken und direkt nach der Animation einmal anwenden.
@@ -922,6 +923,7 @@ function renderZonesPanel() {
   const target = Zones.renderTarget(s.combatants, {
     zones: s.zones, activeId: s.activeId, interactive: true, mover, pending: App.pendingMove,
     draggable: isGM, groupIndex: gruppenFarben(), groupNames: gruppenNamen(),
+    blurAnon: !isGM,        // der SL soll seine verdeckten Gegner lesen können
   });
   const controls = mine
     ? `<div class="zone-hint">${mine.moved
@@ -1124,6 +1126,9 @@ function render() {
   const prevRects = captureRects();
   const prevTokens = captureTokens();
   root.innerHTML = (App.role === "gm" ? renderGM() : renderPlayer()) + renderTokenPopupOverlay();
+  // Platz für die fixierte Steuerleiste schaffen - über eine Klasse statt über
+  // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
+  document.body.classList.toggle("hat-leiste", !!root.querySelector(".aktionsleiste"));
   runReveals();
   playFlip(prevRects);
   playTokens(prevTokens);
@@ -1179,7 +1184,8 @@ function renderGM() {
         ${renderEncounterPanel()}
         ${renderMessagePanel()}
       </div>
-    </div>`;
+    </div>
+    ${renderAktionsleiste()}`;
 }
 
 function joinUrlHtml() {
@@ -1539,6 +1545,82 @@ function renderTurnControls() {
     ${timer}
     <div class="row tight" style="margin-top:8px; gap:8px">${controls}</div>
   </div>`;
+}
+
+// Mitlaufende Steuerleiste für den SL.
+// Bei 20 Gegnern und 5 Spielern ist die Reihenfolge mehrere Bildschirme lang.
+// Ohne diese Leiste müsste der SL für JEDE Figur runterscrollen (Treffer setzen)
+// und wieder hoch (freigeben). Deshalb klebt hier alles, was pro Zug gebraucht
+// wird, am unteren Rand - der aktuelle Akteur und seine Knöpfe.
+function renderAktionsleiste() {
+  const s = App.state;
+  if (App.role !== "gm" || !s || !s.combatants.length) return "";
+  const anyCards = s.combatants.some((c) => c.card);
+  if (!anyCards) return "";                     // vor dem Austeilen nur Ballast
+
+  const active = s.combatants.find((c) => c.id === s.activeId);
+  if (!active) return "";
+  const platz = s.combatants.findIndex((c) => c.id === active.id) + 1;
+  const st = active.status || {};
+  const istNsc = active.kind === "npc";
+
+  const haupt = s.phase === "running"
+    ? `<button class="good big" data-act="confirm-turn">Zug bestätigen ✓</button>`
+    : (istNsc
+        ? `<button class="primary big" data-act="skip-turn" title="Ohne Timer sofort zum nächsten">Weiter ⏭</button>
+           <button class="ghost" data-act="release">Freigeben ▶</button>`
+        : `<button class="primary big" data-act="release">Freigeben ▶</button>
+           <button class="ghost" data-act="skip-turn" title="Ohne Timer sofort zum nächsten">Weiter ⏭</button>`);
+
+  return `<div class="aktionsleiste">
+    <div class="al-wer">
+      <span class="al-platz">${platz}</span>
+      <button class="al-name" data-act="zur-aktiven-zeile" title="Zur Zeile springen">${esc(active.name)}</button>
+      ${st.shaken ? `<span class="tag" style="color:var(--warn);border-color:var(--warn)">😵</span>` : ""}
+      ${st.wounds ? `<span class="tag" style="color:var(--bad);border-color:var(--bad)">${st.wounds} 🩸</span>` : ""}
+    </div>
+    <div class="al-knoepfe">
+      <button class="st-btn" data-act="apply-hit" data-id="${active.id}" title="Treffer: angeschlagen bzw. +1 Wunde">💥</button>
+      <button class="st-btn" data-act="apply-heal" data-id="${active.id}" title="Heilung">🩹</button>
+      <button class="st-btn ${st.shaken ? "on-shaken" : ""}" data-act="st-shaken" data-id="${active.id}" title="Angeschlagen">😵</button>
+      <button class="st-btn ${st.out ? "on-out" : ""}" data-act="st-out" data-id="${active.id}" title="K.O.">☠</button>
+      <button class="st-btn" data-act="redraw" data-id="${active.id}" title="Neue Karte">🔄</button>
+    </div>
+    <div class="al-haupt">${haupt}</div>
+  </div>`;
+}
+
+// Wechselt der aktive Akteur, die passende Zeile ins Bild holen - sonst sucht
+// der SL sie bei 25 Figuren jedes Mal von Hand. Erst NACH dem Neuzeichnen.
+function pruefeAktivenWechsel() {
+  if (App.role !== "gm" || !App.state) return;
+  const jetzt = App.state.activeId;
+  if (jetzt === App._letzterAktiver) return;
+  App._letzterAktiver = jetzt;
+  if (!jetzt) return;
+  setTimeout(() => zurAktivenZeile(true), 80);
+}
+
+// Die aktive Zeile von selbst ins Bild holen - sonst sucht der SL sie bei
+// 25 Figuren jedes Mal von Hand.
+function zurAktivenZeile(sanft) {
+  const id = App.state && App.state.activeId;
+  if (!id) return;
+  const zeile = document.querySelector(`.order .combatant[data-cid="${id}"]`);
+  if (!zeile) return;
+  const vorher = window.scrollY;
+  try { zeile.scrollIntoView({ block: "center", behavior: sanft ? "smooth" : "auto" }); }
+  catch { zeile.scrollIntoView(); }
+  // Nachfassen: manche Browser ignorieren "smooth" KOMMENTARLOS - kein Fehler,
+  // es passiert nur nichts. Hat sich nichts bewegt, obwohl die Zeile außerhalb
+  // liegt, dann hart springen. Lieber ruckartig als gar nicht.
+  setTimeout(() => {
+    const r = zeile.getBoundingClientRect();
+    const drin = r.top > 0 && r.bottom < window.innerHeight;
+    if (!drin && Math.abs(window.scrollY - vorher) < 4) {
+      try { zeile.scrollIntoView({ block: "center" }); } catch { zeile.scrollIntoView(); }
+    }
+  }, 500);
 }
 
 function renderRequestsPanel() {
@@ -2201,6 +2283,7 @@ document.addEventListener("click", (e) => {
       App.tokenPopupId = null; render();
     },
     "close-token-popup": () => { App.tokenPopupId = null; render(); },
+    "zur-aktiven-zeile": () => zurAktivenZeile(true),
     // Nur für die ziehbaren Marker/Chips des SL: bei denen darf pointerdown
     // nichts abfangen (sonst kein Ziehen), also öffnet der Klick das Fenster.
     // Ein echtes Ziehen löst gar keinen Klick aus - beides kommt sich nicht ins Gehege.
@@ -2248,6 +2331,36 @@ document.addEventListener("click", (e) => {
     "sl-benny-minus": () => gmAction({ type: "sl_benny_adjust", delta: -1 }),
   };
   if (handlers[act]) { e.preventDefault(); handlers[act](); }
+});
+
+// Tastatur für den SL: bei 25 Figuren ist jeder gesparte Mausweg spürbar.
+//   Leertaste / Enter → freigeben bzw. Zug bestätigen (der jeweils passende Schritt)
+//   W                 → weiter (ohne Timer)
+//   T / H             → Treffer / Heilung beim aktuellen Akteur
+// Läuft NICHT, während in ein Feld getippt wird - sonst schluckt es Buchstaben.
+document.addEventListener("keydown", (e) => {
+  if (App.role !== "gm" || !App.state) return;
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+  const s = App.state;
+  const aktiv = s.combatants.find((c) => c.id === s.activeId);
+  if (!aktiv) return;
+
+  const taste = e.key.toLowerCase();
+  if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    gmAction(s.phase === "running" ? { type: "confirm_turn" } : { type: "release" });
+  } else if (taste === "w") {
+    e.preventDefault();
+    gmAction({ type: "confirm_turn" });     // „Weiter" = Zug beenden ohne Timer
+  } else if (taste === "t") {
+    e.preventDefault();
+    gmAction({ type: "apply_hit", id: aktiv.id });
+  } else if (taste === "h") {
+    e.preventDefault();
+    gmAction({ type: "apply_heal", id: aktiv.id });
+  }
 });
 
 // Kampfzonen-Auswahl per pointerdown statt click: die Aktion schließt sofort ab,

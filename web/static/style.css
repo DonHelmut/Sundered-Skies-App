@@ -1191,3 +1191,40 @@ button.ghost.small.on { border-color: var(--accent2); color: var(--accent2); }
 .combatant-note { margin-top: 1px; }
 /* Die SL-Knopfleiste rutscht sonst in eine eigene Zeile und kostet Hoehe. */
 .combatant .actions button { padding: 4px 8px; }
+
+/* --- Mitlaufende SL-Steuerleiste ----------------------------------------
+   Bei 20 Gegnern + 5 Spielern ist die Reihenfolge mehrere Bildschirme lang.
+   Ohne diese Leiste muesste der SL fuer jede Figur runter- und zum Freigeben
+   wieder hochscrollen. Alles, was pro Zug gebraucht wird, klebt deshalb unten. */
+.aktionsleiste {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: var(--panel);
+  border-top: 2px solid var(--gold);
+  box-shadow: 0 -6px 22px rgba(0, 0, 0, 0.35);
+}
+/* Damit die Leiste nichts verdeckt, bekommt die Seite unten Luft.
+   Die Klasse setzt render() - :has() waere eleganter, aber nicht ueberall da. */
+body.hat-leiste .wrap { padding-bottom: 96px; }
+
+.al-wer { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.al-platz {
+  font-size: 1.25rem; font-weight: 800; color: var(--muted);
+  min-width: 26px; text-align: center;
+}
+.al-name {
+  font-size: 1.15rem; font-weight: 800; color: var(--gold);
+  background: none; border: none; padding: 0; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw;
+}
+.al-name:hover { text-decoration: underline; }
+.al-knoepfe { display: flex; gap: 5px; }
+.al-knoepfe .st-btn { font-size: 1rem; padding: 5px 10px; }
+.al-haupt { display: flex; gap: 8px; margin-left: auto; }
+
+@media (max-width: 700px) {
+  .aktionsleiste { gap: 8px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); }
+  .al-haupt { margin-left: 0; width: 100%; }
+  .al-haupt button { flex: 1; }
+}

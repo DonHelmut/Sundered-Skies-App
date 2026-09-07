@@ -144,7 +144,7 @@ function render() {
   const prevTokens = captureTokens();
 
   const zonesBlock = (s.combatants.length && window.Zones)
-    ? `<div class="tv-zones"><h2 class="tv-zones-title">Kampfzonen</h2>${Zones.renderTarget(s.combatants, { zones: s.zones, activeId: s.activeId, interactive: false })}</div>`
+    ? `<div class="tv-zones"><h2 class="tv-zones-title">Kampfzonen</h2>${Zones.renderTarget(s.combatants, { zones: s.zones, activeId: s.activeId, interactive: false, blurAnon: true })}</div>`
     : "";
 
   const timerBlock = s.phase === "running"
