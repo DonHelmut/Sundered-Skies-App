@@ -17,3 +17,6 @@ dist/
 .pytest_cache/
 *.bak
 *.tmp
+
+# Lokale Werkzeug-Einstellungen (enthalten absolute Pfade des jeweiligen PCs)
+.claude/

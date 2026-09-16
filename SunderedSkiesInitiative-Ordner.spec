@@ -31,6 +31,10 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+# Entwickler-Werkzeuge aus web/static (Musterseite, Testbilder: _lab*) nicht
+# ausliefern - sie liegen nur fuer die Entwicklung im Repo.
+import os
+a.datas = [d for d in a.datas if not os.path.basename(d[0]).startswith('_lab')]
 pyz = PYZ(a.pure)
 
 exe = EXE(

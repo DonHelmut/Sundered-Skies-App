@@ -1,0 +1,138 @@
+<!doctype html>
+<!-- ENTWICKLER-MUSTERSEITE – nicht Teil des Spiels.
+     Aufruf bei laufendem Server: http://localhost:8000/static/_lab.html
+     Zeigt alle Joker-Stile (im Spiel + geparkt aus joker-archiv.js), die
+     Wertigkeits-Stufen, die Rueckseite und eine Demo der Talent-Wechsel – zum
+     Iterieren, ohne durchs Spiel zu klicken. Testbilder: _lab_hell.jpg /
+     _lab_dunkel.jpg. Alles mit _lab* wird beim Paketbau aus der .exe gefiltert. -->
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Karten-Muster</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { margin: 0; padding: 18px; }
+    h2 { font-size: 0.9rem; letter-spacing: .08em; text-transform: uppercase; opacity: .7; margin: 18px 0 8px; }
+    .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+    .cell { width: 168px; }
+    .cell .cap { text-align: center; font-size: .75rem; opacity: .65; margin-top: 4px; }
+    .card-svg { width: 100%; height: auto; display: block; }
+    #demoBtns { display: flex; flex-direction: column; gap: 8px; }
+    #demoBtns button { padding: 8px 14px; font-size: 0.95rem; cursor: pointer; }
+    #demoStatus { font-size: .8rem; opacity: .7; min-height: 1.2em; }
+  </style>
+</head>
+<body class="theme-pergament">
+  <style>
+    #joker { padding: 10px 0 30px; border-radius: 14px; transition: background .3s; }
+    #joker.dunkel { background: #0d0f12; color: #ddd; }
+    .jrow { display: flex; flex-wrap: wrap; gap: 84px; padding: 70px 56px 40px; align-items: flex-start; }
+    .jcell { width: 190px; }
+    .jcell .cap { text-align: center; font-size: .75rem; opacity: .7; margin-top: 44px; }
+    .jtitel { font-weight: 800; letter-spacing: .06em; padding: 0 20px; }
+    .jminis { display: flex; gap: 18px; padding: 10px 20px; align-items: center; }
+  </style>
+  <h2>Joker-Varianten</h2>
+  <button type="button" id="jHell">Hintergrund hell/dunkel</button>
+  <div id="joker" class="dunkel"></div>
+
+  <h2>Talent-Wechsel (Spieler-Gro&szlig;karte)</h2>
+  <div class="row" style="align-items:center; gap:28px">
+    <div style="width:250px"><div class="card-holder" id="demoHolder"></div></div>
+    <div>
+      <div id="demoBtns"></div>
+      <div id="demoStatus"></div>
+    </div>
+  </div>
+
+  <h2>Wertigkeits-Stufen</h2>
+  <div class="row" id="tiers"></div>
+  <h2>Joker &amp; R&uuml;ckseite</h2>
+  <div class="row" id="special"></div>
+
+  <script src="/static/cards.js"></script>
+  <script src="/static/joker-archiv.js"></script>
+  <script>
+    function cell(html, cap) {
+      return '<div class="cell"><div class="card-holder">' + html + '</div><div class="cap">' + cap + '</div></div>';
+    }
+    const tiers = [
+      [{ id: "s-2", suit: "spades", rank: "2" }, "2 Pik &middot; Glut"],
+      [{ id: "h-5", suit: "hearts", rank: "5" }, "5 Herz &middot; Glut"],
+      [{ id: "c-7", suit: "clubs", rank: "7" }, "7 Kreuz &middot; Asche"],
+      [{ id: "d-9", suit: "diamonds", rank: "9" }, "9 Karo &middot; Asche"],
+      [{ id: "s-10", suit: "spades", rank: "10" }, "10 Pik &middot; Glanz"],
+      [{ id: "h-Q", suit: "hearts", rank: "Q" }, "Dame Herz &middot; Glanz"],
+      [{ id: "c-K", suit: "clubs", rank: "K" }, "K&ouml;nig Kreuz &middot; Glanz"],
+      [{ id: "s-A", suit: "spades", rank: "A" }, "Ass Pik &middot; Leere"],
+    ];
+    document.getElementById("tiers").innerHTML =
+      tiers.map(([c, cap]) => cell(Cards.renderCardSVG(c), cap)).join("");
+
+    const special = [
+      [{ id: "j-b", suit: "joker", rank: "JOKER", jokerColor: "black" }, "Schwarzer Joker"],
+      [{ id: "j-r", suit: "joker", rank: "JOKER", jokerColor: "red" }, "Roter Joker"],
+    ];
+    document.getElementById("special").innerHTML =
+      special.map(([c, cap]) => cell(Cards.renderCardSVG(c), cap)).join("") +
+      cell(Cards.renderBackSVG(), "R&uuml;ckseite");
+
+    // --- Talent-Wechsel-Demo: dieselben Funktionen wie app.js (revealBigCard) ---
+    const K = (suit, rank) => ({ id: suit + "-" + rank, suit, rank, jokerColor: null });
+    const szenarien = {
+      "Schnell (zwei Nieten)": { talents: ["schnell"],
+        draw: [K("clubs", "3"), K("hearts", "5"), K("spades", "Q")], kept: "spades-Q" },
+      "Kühler Kopf": { talents: ["kuehler_kopf"],
+        draw: [K("spades", "10"), K("diamonds", "A")], kept: "diamonds-A" },
+      "Sehr Kühler Kopf": { talents: ["sehr_kuehler_kopf"],
+        draw: [K("clubs", "4"), K("hearts", "9"), K("spades", "K")], kept: "spades-K" },
+      "Zögerlich": { talents: ["zoegerlich"],
+        draw: [K("spades", "K"), K("hearts", "8")], kept: "hearts-8" },
+    };
+    const holder = document.getElementById("demoHolder");
+    const status = document.getElementById("demoStatus");
+    function play(name) {
+      const s = szenarien[name];
+      const kept = s.draw.find((c) => c.id === s.kept);
+      const seq = s.draw.filter((c) => c.id !== kept.id).concat([kept]);   // wie app.js
+      holder.innerHTML = '<div class="flip revealed"><div class="flip-inner">'
+        + '<div class="flip-face flip-front">' + Cards.renderCardSVG(seq[0]) + '</div>'
+        + '<div class="flip-face flip-back">' + Cards.renderBackSVG() + '</div></div></div>';
+      const flip = holder.querySelector(".flip");
+      const reasons = Cards.discardReasons(s.draw, kept, s.talents);
+      const dauer = Cards.playDrawSequence(flip, seq, reasons, null, 400);
+      status.textContent = name + " – " + (dauer / 1000).toFixed(1) + " s";
+    }
+    document.getElementById("demoBtns").innerHTML = Object.keys(szenarien)
+      .map((n) => '<button type="button" data-n="' + n + '">▶ ' + n + '</button>').join("");
+    document.getElementById("demoBtns").addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (b) play(b.dataset.n);
+    });
+    play("Schnell (zwei Nieten)");
+
+    // --- Joker-Varianten ------------------------------------------------------
+    const KORGO = "/static/_lab_hell.jpg";   // helles Testbild (liegt im Repo, nicht in data/)
+    const JR = { id: "joker-red", suit: "joker", rank: "JOKER", jokerColor: "red" };
+    const JS = { id: "joker-black", suit: "joker", rank: "JOKER", jokerColor: "black" };
+    const NAMEN = Cards.JOKER_NAMEN;
+    // Wie in der App: Karte liegt offen in .card-holder > .flip > .flip-front.
+    const offen = (svg) => '<div class="card-holder"><div class="flip revealed"><div class="flip-inner">'
+      + '<div class="flip-face flip-front">' + svg + '</div><div class="flip-face flip-back"></div></div></div></div>';
+    const ALLE = Cards.JOKER_STILE.concat(window.JOKER_ARCHIV || []);
+    document.getElementById("joker").innerHTML = ALLE.map((stil) => {
+      Cards.setJokerStil(stil);
+      const DUNKEL = "/static/_lab_dunkel.jpg";   // Stellvertreter fuer duestere Charakterbilder
+      const karten = [[JR, KORGO, "Rot · Korgo (hell)"], [JS, DUNKEL, "Schwarz · dunkles Bild"], [JR, DUNKEL, "Rot · dunkles Bild"], [JS, null, "Schwarz · ohne Bild"]]
+        .map(([c, img, cap]) => '<div class="jcell">' + offen(Cards.renderCardSVG(c, img)) + '<div class="cap">' + cap + '</div></div>').join("");
+      const minis = [[JR, KORGO], [JS, null]]
+        .map(([c, img]) => '<div class="combatant" style="padding:0;border:0;background:none"><div class="mini">' + offen(Cards.renderCardSVG(c, img)) + '</div></div>').join("");
+      const geparkt = !Cards.JOKER_STILE.includes(stil);
+      return '<div class="jtitel">' + (geparkt ? 'GEPARKT · ' : 'IM SPIEL · ') + NAMEN[stil] + '</div><div class="jrow">' + karten + '</div>'
+        + '<div class="jminis"><span style="font-size:.75rem;opacity:.7">als Listenkarte:</span>' + minis + '</div>';
+    }).join("");
+    Cards.setJokerStil(null);   // wieder normale Auswahl
+    document.getElementById("jHell").addEventListener("click", () => document.getElementById("joker").classList.toggle("dunkel"));
+  </script>
+</body>
+</html>
