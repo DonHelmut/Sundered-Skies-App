@@ -31,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "91";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "92";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -2208,10 +2208,6 @@ function renderPlayer() {
     </label>
     ${msgs ? `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs}</div>` : ""}
   `;
-}
-
-function c_bennyChip(c) {
-  return c.isWildCard ? `<span class="pill" style="border-color:var(--gold);color:var(--gold)">🪙 ${c.bennies || 0}</span>` : "";
 }
 
 function renderJoin() {

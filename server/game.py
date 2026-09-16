@@ -627,9 +627,8 @@ class Game:
             "zone": a.get("zone"),
             "anon": a.get("anon", tmpl.get("anon", False)),
             "count": a.get("count", 1),
+            "image": tmpl.get("image"),
         })
-        if tmpl.get("image") and self.combatants:
-            self.combatants[-1]["image"] = tmpl["image"]
 
     # Verbündeten-Bibliothek – wie das Bestiarium, aber auf Spielerseite --------
 
@@ -669,11 +668,10 @@ class Game:
             "gluck": tmpl.get("gluck", False),
             "grosses_gluck": tmpl.get("grosses_gluck", False),
             "zone": a.get("zone", DEFAULT_ZONE_PLAYER),   # Verbündete starten wie Spieler
+            "image": tmpl.get("image"),
+            "ally": True,
+            "count": a.get("count", 1),
         })
-        if self.combatants:
-            self.combatants[-1]["ally"] = True
-            if tmpl.get("image"):
-                self.combatants[-1]["image"] = tmpl["image"]
 
     # Begegnungen (gespeicherte Gegner-/Verbündeten-Gruppen) ------------------
 
@@ -869,9 +867,12 @@ class Game:
             "ran": False,
             "moved": False,
             "benched": False,
-            "ally": False,
+            "ally": bool(a.get("ally", False)),
             "note": "",
-            "image": None,
+            # Bild gleich beim Anlegen: wurde es erst NACH dem Aufruf auf
+            # combatants[-1] gesetzt, bekam bei "Anzahl 3" nur der letzte
+            # Gegner ein Portraet.
+            "image": a.get("image") or None,
             "status": default_status(),
             "createdAt": now_ms(),
         }

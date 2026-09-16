@@ -852,3 +852,29 @@ def test_freier_charakter_ist_nicht_belegt(fresh_game):
     g = fresh_game
     g.apply({"type": "roster_upsert", "name": "Korgio", "isWildCard": True})
     assert g.charakter_aktiv_belegt(g.roster[-1]["id"]) is None
+
+
+def test_alle_aus_der_bibliothek_bekommen_das_bild(fresh_game):
+    """Das Bild wurde frueher NACH dem Anlegen auf combatants[-1] gesetzt -
+    bei 'Anzahl 3' bekam damit nur der letzte Gegner ein Portraet."""
+    g = fresh_game
+    g.apply({"type": "bestiary_upsert", "name": "Ork"})
+    g.bestiary[-1]["image"] = "/uploads/ork.png"
+
+    g.apply({"type": "add_npc_from_bestiary", "id": g.bestiary[-1]["id"], "count": 3})
+
+    assert [c["image"] for c in g.combatants] == ["/uploads/ork.png"] * 3
+    assert [c["name"] for c in g.combatants] == ["Ork 1", "Ork 2", "Ork 3"]
+
+
+def test_verbuendeter_behaelt_bild_und_seite(fresh_game):
+    g = fresh_game
+    g.apply({"type": "ally_upsert", "name": "Wache"})
+    g.allies[-1]["image"] = "/uploads/wache.png"
+
+    g.apply({"type": "add_ally_from_library", "id": g.allies[-1]["id"]})
+
+    c = g.combatants[-1]
+    assert c["ally"] is True
+    assert c["image"] == "/uploads/wache.png"
+    assert c["zone"] == 1          # DEFAULT_ZONE_PLAYER

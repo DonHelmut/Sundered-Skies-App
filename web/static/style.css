@@ -1387,7 +1387,8 @@ body.hat-leiste .wrap { padding-bottom: 96px; }
   border-radius: 12px 12px 0 0; border-bottom: none;
   padding: 12px 14px; box-shadow: 0 -8px 26px rgba(0,0,0,0.4);
 }
-.aktionsleiste { position: fixed; }   /* Bezugspunkt fuer das Einstellungsfeld */
+/* (Die Leiste ist weiter oben bereits "position: fixed" - das ist zugleich der
+   Bezugspunkt fuer das Einstellungsfeld darueber.) */
 
 /* Strg-Auswahl im Zonen-Board */
 .zone-token.ausgewaehlt .tdisc {

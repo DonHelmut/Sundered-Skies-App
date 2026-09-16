@@ -44,12 +44,18 @@ def join_url() -> str:
     return f"http://{LOCAL_IP}:{active_port()}/"
 
 async def _stille_verbindungen_pruefen() -> None:
-    """Markiert Spieler als offline, von deren Geraet seit 15 s nichts kam.
+    """Haelt den Online-Status an den TATSAECHLICHEN Lebenszeichen fest.
 
     Ein gekapptes Handy merkt die Gegenseite sonst erst nach 30-40 s (TCP/Ping).
     So lange galt der Charakter als 'wird gerade gespielt' - wer das Geraet
     wechselt oder den Speicher geleert hat, kam nicht wieder rein. Das Handy
-    schickt alle 4 s ein Lebenszeichen, 15 s Stille sind also eindeutig."""
+    schickt alle 4 s ein Lebenszeichen, 15 s Stille sind also eindeutig.
+
+    WICHTIG in beide Richtungen: ein Handy mit dunklem Bildschirm drosselt
+    seine Zeitgeber und faellt kurz unter die Grenze. Meldet es sich danach
+    auf DERSELBEN Verbindung zurueck, muss es auch wieder als online gelten -
+    sonst bliebe es fuer den Rest des Abends faelschlich 'offline' und jemand
+    anderes koennte sich seinen Charakter nehmen."""
     while True:
         await asyncio.sleep(5)
         try:
@@ -57,15 +63,18 @@ async def _stille_verbindungen_pruefen() -> None:
             geaendert = False
             for meta in list(hub.sockets.values()):
                 pid = meta.get("playerId")
-                if not pid or jetzt - meta.get("letzte", jetzt) <= 15:
+                if not pid:
                     continue
+                stille = jetzt - meta.get("letzte", jetzt)
+                lebt = stille <= 15
                 p = next((x for x in game.players if x["id"] == pid), None)
-                if p and p.get("connected"):
-                    p["connected"] = False
-                    geaendert = True
-                    diag.log(f"STILL: {p.get('name', '?')} seit "
-                             f"{jetzt - meta.get('letzte', jetzt):.0f} s ohne Lebenszeichen "
-                             f"-> gilt als offline")
+                if not p or bool(p.get("connected")) == lebt:
+                    continue
+                p["connected"] = lebt
+                geaendert = True
+                diag.log(f"{'ZURUECK' if lebt else 'STILL'}: {p.get('name', '?')} "
+                         f"(seit {stille:.0f} s ohne Lebenszeichen) -> "
+                         f"{'wieder online' if lebt else 'gilt als offline'}")
             if geaendert:
                 await hub.broadcast_state()
         except Exception:
