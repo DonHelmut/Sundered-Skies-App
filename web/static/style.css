@@ -214,6 +214,24 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
   background: var(--panel2); border: 1px solid var(--line); color: var(--accent);
 }
 
+/* Talent-Spur: verworfene Karten durchgestrichen, behaltene hervorgehoben.
+   Zeigt auf einen Blick, DASS „Schnell“/„Kühler Kopf“ gewirkt hat. */
+.talent-spur {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 0.72rem; padding: 2px 7px; border-radius: 6px;
+  background: var(--panel2); border: 1px dashed var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.talent-spur .tt-weg {
+  color: var(--muted); text-decoration: line-through;
+  text-decoration-thickness: 1.5px; opacity: 0.85;
+}
+.talent-spur .tt-bleibt { color: var(--gold); font-weight: 800; }
+/* Rote Farben bleiben rot erkennbar – auch durchgestrichen. */
+.talent-spur .tt-weg.rot { color: var(--bad); opacity: 0.6; }
+.talent-spur .tt-bleibt.rot { color: var(--bad); }
+.talent-spur .tt-pfeil { color: var(--muted); opacity: 0.7; margin: 0 1px; }
+
 /* --- Karten & Flip-Animation --- */
 .flip { perspective: 2200px; width: 100%; }
 .flip-inner {
@@ -243,22 +261,41 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
    Element gerade bewegt/gedreht wird (dann pro Frame neu). Darum darf es hier
    ruhig „hochwertig" sein – kostet im Stillstand nichts. */
 .card-svg { filter: saturate(1.07) contrast(1.04) drop-shadow(0 12px 22px rgba(0, 0, 0, 0.6)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45)); }
-/* Wertigkeit auch am Licht erkennbar: höhere Stufen bekommen einen edlen Schein. */
+/* Wertigkeit auch am Licht erkennbar: je höher die Stufe, desto mehr Glow liegt
+   auf der Karte – von Ascheschimmer über das Giftgrün des Glows bis zum kalten
+   Leuchten der Leere. */
 .card-svg.tier-silver {
   filter: saturate(1.09) contrast(1.05) drop-shadow(0 12px 22px rgba(0,0,0,0.6)) drop-shadow(0 2px 3px rgba(0,0,0,0.45))
-          drop-shadow(0 0 7px rgba(228, 240, 248, 0.55));
+          drop-shadow(0 0 7px rgba(226, 238, 230, 0.55));
 }
 .card-svg.tier-gold {
   filter: saturate(1.09) contrast(1.05) drop-shadow(0 12px 22px rgba(0,0,0,0.6)) drop-shadow(0 2px 3px rgba(0,0,0,0.45))
-          drop-shadow(0 0 11px rgba(255, 205, 90, 0.7));
+          drop-shadow(0 0 12px rgba(198, 232, 96, 0.72));
 }
 .card-svg.tier-platin {
   filter: saturate(1.09) contrast(1.05) drop-shadow(0 13px 24px rgba(0,0,0,0.62)) drop-shadow(0 2px 3px rgba(0,0,0,0.45))
-          drop-shadow(0 0 15px rgba(216, 238, 255, 0.85));
+          drop-shadow(0 0 16px rgba(206, 246, 255, 0.88));
 }
-/* Der Joker enthält animierte Flammen -> dort KEIN Filter (müsste pro Frame neu
+/* Der Joker ist durchgehend animiert -> dort KEIN Filter (müsste pro Frame neu
    berechnet werden); sein Glühen ist gemalt, der Schatten liegt auf der Fläche. */
 .card-svg.is-joker { filter: none; }
+
+/* Joker darf aus der Karte AUSBRECHEN (Splitter, Aura, Banner – alles in
+   .joker-aussen). Dafuer die Kartenflaeche nicht abschneiden. Das Foil-Band
+   (::after) wuerde dann ausserhalb als heller Streifen sichtbar -> beim Joker
+   aus; er hat eigenen Glanz. Die Rueckseite bleibt beim Umdrehen trotzdem
+   sauber verborgen: der Ueberstand gehoert zur Vorderseite. */
+.card-svg.is-joker { overflow: visible; }
+.flip-front:has(> .card-svg.is-joker) { overflow: visible; }
+.card-holder:has(.card-svg.is-joker) .flip-front::after { display: none; }
+/* Kleine Karten (Listen, TV-Kacheln): alles bleibt in der Karte, sonst ragt es
+   in die Nachbarzeilen. */
+.combatant .mini .joker-aussen,
+.tv-tile .joker-aussen { display: none; }
+/* Ueberstand ist reine Deko: Klicks gehen hindurch (z. B. auf „Verlassen"
+   ueber der Grosskarte, wohin der Ueberstand reicht). */
+.joker-aussen { pointer-events: none; }
+.combatant .mini .flip-front { overflow: hidden !important; }
 
 /* WÄHREND JEDER BEWEGUNG (Drehen/Einfliegen/Pop): Filter aus, Ersatzschatten an. */
 .flip.flipping .card-svg, .flip.dealin .card-svg,
@@ -382,6 +419,12 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
 /* Reihenfolge (Spieler): verdeckte Einträge neutral, ohne Position. */
 .order-divider { margin: 8px 2px 2px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em;
   text-transform: uppercase; color: var(--gold); opacity: 0.85; border-top: 1px dashed rgba(252,211,77,0.3); padding-top: 8px; }
+/* Spieler hat die eigene Karte noch nicht aufgedeckt -> Reihenfolge gesperrt. */
+.order-locked {
+  text-align: center; padding: 18px 10px; line-height: 1.45;
+  color: var(--muted); font-weight: 600;
+  border: 1px dashed var(--line); border-radius: 10px;
+}
 .combatant.facedown { opacity: 0.92; }
 .combatant.facedown .who .name { color: var(--muted); }
 .combatant .idx .idx-hidden { color: var(--muted); font-weight: 800; }
@@ -826,6 +869,12 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
 /* Aufdeck-Stil pro Gerät wählbar (wie die Skins). */
 .reveal-pick { flex-basis: 100%; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
 .reveal-pick select { padding: 6px 8px; font-size: 0.85rem; }
+/* Joker-Stile: aufklappbar, mit Haekchen (pro Geraet). */
+.joker-pick { flex-basis: 100%; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
+.joker-pick summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; list-style: revert; }
+.joker-checks { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.joker-checks label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; }
+.joker-checks input { width: auto; margin: 0; }
 @keyframes skinOpen { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
 .skin-dot {
   width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
@@ -1055,19 +1104,105 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
 .zone-chip.z2, .zone-chip.z3 { color: var(--muted); border-color: var(--line); }
 .zone-chip.z4 { color: var(--muted); border-color: var(--line); opacity: 0.85; }
 
-/* Talent „Schnell" & Co: die gezeigte Karte wird gleich ERSETZT -> sie pulsiert
-   ruhig, damit man sieht, dass noch etwas passiert. Bewusst nur Licht, KEINE
-   Bewegung (die Karte soll auf ihrer Hoehe liegen bleiben). */
-.flip.redraw-wait .flip-front { animation: redrawWait 1.2s ease-in-out infinite; }
-@keyframes redrawWait {
-  0%, 100% { box-shadow: 0 0 10px rgba(255, 220, 120, 0.35); }
-  50%      { box-shadow: 0 0 30px rgba(255, 220, 120, 0.8); }
+/* --- Talent verwirft eine Karte (Cards.playDiscard) ---------------------------
+   Drei Takte statt hartem Austausch: markieren -> verwerfen -> nachziehen.
+   Der Puls skaliert nur per transform: das verschiebt kein Layout, die Karte
+   bleibt auf ihrer Hoehe liegen. Waehrend jeder Bewegung sind die SVG-Filter aus
+   (sonst Neu-Rastern pro Frame), das Gluehen ist ein billiger box-shadow. */
+
+/* Takt 1: zweimal glutrot pulsieren. Der Schein AUSSEN allein geht auf hellem
+   Hintergrund unter – darum heizt sich zusaetzlich die Karte selbst auf
+   (Glutrand ueber dem Kartenbild, ::before). */
+.flip.discard-mark { animation: discardPulse var(--puls, 0.55s) ease-in-out 2; }
+@keyframes discardPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
 }
-/* Niedrige Karte (2-5, wird bei „Schnell" abgeworfen): warnend warm-rot. */
-.flip.redraw-low .flip-front { animation-name: redrawLow; }
-@keyframes redrawLow {
-  0%, 100% { box-shadow: 0 0 12px rgba(255, 130, 70, 0.4); }
-  50%      { box-shadow: 0 0 34px rgba(255, 110, 50, 0.9); }
+.flip.discard-mark .flip-front { animation: discardGlow var(--puls, 0.55s) ease-in-out 2; }
+@keyframes discardGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 120, 50, 0.35); }
+  50%      { box-shadow: 0 0 44px 8px rgba(255, 90, 30, 0.95); }
+}
+.flip.discard-mark:not(.revealing) .flip-front::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%,
+    transparent 45%, rgba(255, 110, 40, 0.45) 80%, rgba(200, 50, 10, 0.75) 100%);
+  animation: discardHeat var(--puls, 0.55s) ease-in-out 2;
+}
+@keyframes discardHeat {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 1; }
+}
+.flip.discard-mark .card-svg,
+.discard-ghost .card-svg,
+.flip-front.draw-in .card-svg { filter: none; }
+
+/* Schild: WARUM die Karte fliegt. Haengt am Halter, pulsiert also nicht mit. */
+.discard-tag {
+  position: absolute; left: 50%; bottom: 3%; z-index: 7;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 6px 14px; border-radius: 999px;
+  background: rgba(38, 12, 4, 0.9); color: #ffdcb8;
+  border: 1px solid rgba(255, 130, 60, 0.85);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  font-size: 0.8rem; line-height: 1.2; text-align: center; white-space: nowrap;
+  pointer-events: none;
+  animation: discardTagIn 0.22s ease-out both;
+}
+.discard-tag b { color: #ffab66; font-size: 0.86rem; letter-spacing: 0.02em; }
+.discard-tag.gone { animation: discardTagOut 0.28s ease-in forwards; }
+@keyframes discardTagIn {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes discardTagOut {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to   { opacity: 0; transform: translate(-50%, -6px); }
+}
+
+/* Takt 2: Kopie der alten Karte verglueht (Glut steigt von unten auf) und kippt
+   weg. translateZ(1px) haelt sie im 3D-Kontext sicher VOR der neuen Karte. */
+.discard-ghost {
+  position: absolute; inset: 0; z-index: 5; overflow: hidden; pointer-events: none;
+  border-radius: 7.5% / 5.36%;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5);
+  animation: discardToss 0.7s cubic-bezier(0.45, 0, 0.7, 0.4) forwards;
+}
+.discard-ghost > * { width: 100%; height: 100%; }
+/* Brandfront: ein doppelt hohes Overlay, dessen OBERER Teil die gewoelbte,
+   gluehende Kante traegt und dessen unterer Teil verkohlt ist. Es wird von
+   unterhalb der Karte nach oben geschoben – die Karte brennt von unten weg.
+   (Ein unten verankerter Verlauf laege beim Verschieben groesstenteils
+   unterhalb der Karte und wuerde weggeschnitten.) */
+.discard-ghost::after {
+  content: ""; position: absolute; left: -20%; right: -20%; top: 0; height: 200%;
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 100% at 50% 100%,
+    rgba(30, 8, 2, 0.96) 0%, rgba(42, 12, 3, 0.94) 52%,
+    rgba(120, 28, 6, 0.9) 66%, rgba(255, 120, 36, 0.92) 78%,
+    rgba(255, 226, 150, 0.95) 85%, transparent 92%);
+  transform: translateY(40%); opacity: 0;
+  animation: discardBurn 0.7s ease-in forwards;
+}
+@keyframes discardToss {
+  0%   { transform: translateZ(1px); opacity: 1; }
+  28%  { transform: translateZ(1px) translateY(-3%) rotate(-2deg) scale(1.03); opacity: 1; }
+  100% { transform: translateZ(1px) translate(-30%, -26%) rotate(-22deg) scale(0.62); opacity: 0; }
+}
+@keyframes discardBurn {
+  0%   { transform: translateY(40%); opacity: 0; }
+  18%  { opacity: 1; }
+  100% { transform: translateY(-30%); opacity: 1; }
+}
+
+/* Takt 3: neue Karte steigt auf, mit kurzem Goldring als „neu gezogen". */
+.flip-front.draw-in { animation: discardDrawIn 0.58s cubic-bezier(0.2, 0.8, 0.25, 1) 0.14s both; }
+@keyframes discardDrawIn {
+  0%   { transform: translateY(8%) scale(0.9); opacity: 0; box-shadow: 0 0 0 rgba(255, 220, 120, 0); }
+  55%  { opacity: 1; box-shadow: 0 0 36px 5px rgba(255, 220, 120, 0.9); }
+  100% { transform: none; opacity: 1; box-shadow: 0 0 0 rgba(255, 220, 120, 0); }
 }
 
 /* Verbindung weg: ruhiger Vollbild-Hinweis. Der letzte Spielstand bleibt

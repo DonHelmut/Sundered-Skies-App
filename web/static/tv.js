@@ -10,6 +10,8 @@ function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({
   const skin = localStorage.getItem("skin") || "pergament";
   const skins = ["sand", "skies", "blood", "dark", "glutstein", "nebelmeer", "pergament"];
   document.body.classList.add("theme-" + (skins.includes(skin) ? skin : "pergament"));
+  // Joker-Stile wie am selben Geraet im Menue angehakt (Beamer am SL-Laptop).
+  try { Cards.setJokerAuswahl(JSON.parse(localStorage.getItem("jokerStile") || "null")); } catch { /* ignore */ }
   const m = document.createElement("div");
   m.className = "mist";
   m.innerHTML = "<span></span><span></span>";
@@ -133,6 +135,7 @@ function cardFace(cid, card, status, isJoker) {
 function render() {
   const s = TV.state;
   if (!s) return;
+  Cards.setJokerRunde(s.round);             // gleicher Joker-Stil wie auf den Handys
   const root = $("tv");
   const active = s.combatants.find((c) => c.id === s.activeId);
 
@@ -173,7 +176,7 @@ function render() {
       <div class="tv-tilename">${c.anon
         ? `<span class="verdeckt">${esc(c.name)}</span>`
         : esc(c.name)} ${heldPill}</div>
-      <div class="badges">${jokerBadge} ${statusBadges(c)}</div>
+      <div class="badges">${jokerBadge} ${statusBadges(c)} ${Cards.trail(c)}</div>
     </div>`;
   }).join("");
 

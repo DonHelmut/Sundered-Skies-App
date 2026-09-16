@@ -697,8 +697,14 @@ function revealBigCard(node) {
   let seq = (mine && Array.isArray(mine.draw) && mine.draw.length > 1) ? mine.draw.slice() : null;
   if (seq && kept) { seq = seq.filter((c) => c.id !== kept.id); seq.push(kept); }
 
-  const CHARGE = 600, FLIP = 1700, STEP = 950;
-  const extra = seq ? (seq.length - 1) * STEP : 0;
+  // Begruendung je verworfener Karte – aus der ORIGINAL-Ziehreihenfolge,
+  // bevor `seq` oben umsortiert wurde.
+  const reasons = seq ? Cards.discardReasons(mine.draw, kept, mine.talents) : null;
+
+  const CHARGE = 600, FLIP = 1700;
+  // Jede verworfene Karte bekommt ihren eigenen Wechsel (zeigen, markieren,
+  // wegwerfen) – siehe Cards.playDrawSequence. „Schnell" ist dabei knapper.
+  const extra = seq ? Cards.drawSequenceDuration(seq, reasons) : 0;
   const DONE = CHARGE + FLIP + extra + 500;
   App.revealLockUntil = Date.now() + DONE;
   clearTimeout(App._revealFlush);
@@ -707,22 +713,7 @@ function revealBigCard(node) {
     render();
   }, DONE);
 
-  // Wird die gerade gezeigte Karte noch ersetzt (Talent zieht nach)? Dann
-  // pulsiert sie ruhig weiter – bei „Schnell" ist das genau die 2-5, die
-  // abgeworfen wird. Kein Bewegen, nur Licht (Karte bleibt auf ihrer Höhe).
-  const markWait = (idx) => {
-    if (!node.isConnected || !seq) return;
-    const more = idx < seq.length - 1;
-    const c = seq[idx];
-    const low = !!c && c.rank !== "JOKER" && Number(c.rank) >= 2 && Number(c.rank) <= 5;
-    node.classList.toggle("redraw-wait", more);
-    node.classList.toggle("redraw-low", more && low);
-  };
-
-  if (seq && front) {
-    front.innerHTML = Cards.renderCardSVG(seq[0], img);   // erste gezogene zeigen
-    markWait(0);
-  }
+  if (seq && front) front.innerHTML = Cards.renderCardSVG(seq[0], img);   // erste gezogene zeigen
 
   setTimeout(() => {
     if (!node.isConnected) return;
@@ -732,20 +723,7 @@ function revealBigCard(node) {
     node.classList.add("revealed", "reveal-big", "flipping");
     playReveal(node);
     setTimeout(() => node.classList.remove("reveal-big", "flipping"), FLIP + 400);
-    if (seq && seq.length > 1) {
-      let i = 1;
-      const nextCard = () => {
-        if (!node.isConnected || i >= seq.length) return;
-        if (front) front.innerHTML = Cards.renderCardSVG(seq[i], img);
-        markWait(i);
-        node.classList.remove("reveal-pop"); void node.offsetWidth;
-        node.classList.add("reveal-pop");                 // „neu gezogen"-Pop
-        setTimeout(() => node.classList.remove("reveal-pop"), 650);
-        i += 1;
-        if (i < seq.length) setTimeout(nextCard, STEP);
-      };
-      setTimeout(nextCard, FLIP + 200);
-    }
+    if (seq) Cards.playDrawSequence(node, seq, reasons, img, FLIP);
   }, CHARGE);
 }
 
@@ -1067,6 +1045,10 @@ function talentBadges(talents) {
   return (talents || []).map((t) => `<span class="tag">${esc(meta[t] ? meta[t].label : t)}</span>`).join("");
 }
 
+// Die Talent-Spur selbst steckt in cards.js – SL-Ansicht (hier) und TV-Ansicht
+// (tv.js) rendern sie identisch.
+const talentTrail = (c) => Cards.trail(c);
+
 function activeHints(combatant) {
   const out = [];
   // Angeschlagen-Erholung: nur für die Figur, die gerade dran ist (SW: Willenskraft-Probe).
@@ -1138,6 +1120,7 @@ setInterval(() => {
 function render() {
   if (!App.state || !App.role) return;
   const root = $("app");
+  Cards.setJokerRunde(App.state.round);      // Joker-Stil bleibt je Runde fest
 
   // Joker-Moment auslösen, wenn ein neuer Joker gezogen wurde.
   if (App.prevJokerFlash === null) App.prevJokerFlash = App.state.jokerFlash;
@@ -1802,7 +1785,7 @@ function combatantRow(c, num, isGM, isOpen) {
         ${c.ally ? `<span class="tag" style="color:var(--good);border-color:var(--good)">🤝 Verbündet</span>` : ""}
         ${jokerBadge}
         ${c.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)">Wild Card</span>' : ""}
-        ${showCard ? talentBadges(c.talents) : ""} ${hints}
+        ${showCard ? talentBadges(c.talents) : ""}${showCard ? talentTrail(c) : ""} ${hints}
       </div>
       <div class="status-badges">${bennyBadge(c)} ${statusBadges(c)}${
         (isGM && isActive && (c.status || {}).shaken && !(c.status || {}).out)
@@ -2154,6 +2137,18 @@ function renderPlayer() {
       ${playerQuickControls(mine)}
     </div>`;
 
+  // Die Initiative-Reihenfolge erst zeigen, wenn die EIGENE Karte offen ist.
+  // Sonst sieht man vor dem Antippen schon die Plaetze der Gegner (deren Karten
+  // gelten beim Austeilen sofort als aufgedeckt) und der eigene Aufdeck-Moment
+  // verpufft. Ohne Karte (vor dem Austeilen) oder pausiert gibt es nichts zu
+  // verraten -> normal anzeigen. Waehrend der Aufdeck-Animation ist das Rendern
+  // gesperrt; die Liste erscheint also erst, wenn die Karte fertig liegt.
+  const reihenfolgeGesperrt = !mine.benched && !!mine.card && !mine.revealed;
+  const orderPanel = reihenfolgeGesperrt
+    ? section("order", "Initiative-Reihenfolge",
+      `<div class="order-locked">🂠 Deck erst deine Karte auf –<br>dann siehst du die Reihenfolge.</div>`)
+    : renderOrderPanel(false);
+
   // Reihenfolge: Eigene Karte → Reihenfolge → Kampfzonen → Aktionen → Zustände.
   return `
     ${msgBanner}
@@ -2169,7 +2164,7 @@ function renderPlayer() {
     </div>
     ${banner}
     ${cardPanel}
-    ${renderOrderPanel(false)}
+    ${orderPanel}
     ${mine.benched ? "" : renderZonesPanel()}
     <label class="row tight" style="align-items:center; justify-content:center; margin-top:10px; cursor:pointer">
       <input type="checkbox" data-act="toggle-notify" ${localStorage.getItem("notifyTurn") !== "off" ? "checked" : ""} style="width:auto">
@@ -2774,6 +2769,24 @@ function applySkin(skin) {
   const box = $("skins");
   if (box) box.querySelectorAll(".skin-dot").forEach((d) => d.classList.toggle("active", d.dataset.skin === skin));
 }
+// Joker-Stile pro Geraet (wie Skin & Aufdeck-Stil). Standard: alle an, der Stil
+// wird je Joker zufaellig aus den angehakten gewaehlt.
+function jokerAuswahlLaden() {
+  try {
+    const liste = JSON.parse(localStorage.getItem("jokerStile") || "null");
+    if (Array.isArray(liste)) {
+      const gut = liste.filter((s) => Cards.JOKER_STILE.includes(s));
+      if (gut.length) return gut;
+    }
+  } catch { /* ignore */ }
+  return Cards.JOKER_STILE.slice();
+}
+function jokerZahlText() {
+  const n = jokerAuswahlLaden().length, alle = Cards.JOKER_STILE.length;
+  return n === 1 ? "(fest)" : n === alle ? "(Zufall aus allen)" : `(Zufall aus ${n})`;
+}
+Cards.setJokerAuswahl(jokerAuswahlLaden());
+
 function mountSkins() {
   // Aufgeräumt: Skins + Mimi liegen hinter einem ⚙-Knopf (eingeklappt).
   const bar = document.createElement("div");
@@ -2792,12 +2805,28 @@ function mountSkins() {
        <div class="muted small" style="margin-bottom:4px">Karten aufdecken</div>
        <select id="revealsel">${REVEALS.map((r) =>
          `<option value="${r}"${r === revealSetting() ? " selected" : ""}>${REVEAL_NAMES[r]}</option>`).join("")}</select>
-     </div>`;
+     </div>
+     <details class="joker-pick">
+       <summary>🃏 Joker-Stile <span class="muted small" id="jokerzahl">${jokerZahlText()}</span></summary>
+       <div class="joker-checks">${Cards.JOKER_STILE.map((s) =>
+         `<label><input type="checkbox" data-joker="${s}"${jokerAuswahlLaden().includes(s) ? " checked" : ""}> ${Cards.JOKER_NAMEN[s]}</label>`).join("")}</div>
+     </details>`;
   box.addEventListener("click", (e) => {
     const b = e.target.closest(".skin-dot");
     if (b) applySkin(b.dataset.skin);
   });
   box.addEventListener("change", (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.joker) {
+      const liste = [...box.querySelectorAll("input[data-joker]:checked")].map((i) => i.dataset.joker);
+      // Mindestens einer bleibt an – sonst gaebe es keinen Joker-Stil mehr.
+      if (!liste.length) { e.target.checked = true; return; }
+      try { localStorage.setItem("jokerStile", JSON.stringify(liste)); } catch { /* ignore */ }
+      Cards.setJokerAuswahl(liste);
+      const zahl = $("jokerzahl");
+      if (zahl) zahl.textContent = jokerZahlText();
+      if (App.state) render();
+      return;
+    }
     if (e.target && e.target.id === "revealsel") {
       try { localStorage.setItem("reveal", e.target.value); } catch { /* ignore */ }
       _revealPick.clear();
