@@ -216,6 +216,12 @@ Eingebaute Hilfen:
   statt einer Sackgasse.
 - **Netz-Wächter:** WLAN-Aussetzer und Adresswechsel werden erkannt; angefangene
   Eingaben gehen beim Wiederverbinden nicht verloren.
+- **Internet weg, WLAN noch da?** Dann schalten viele Handys still auf
+  **Mobilfunk** um und finden den Laptop nicht mehr, obwohl „WLAN verbunden"
+  dasteht. Android-Handys (Chrome) erkennen das: Die App zeigt sofort
+  „Dein Handy ist auf Mobilfunk umgesprungen" samt Lösung, verbindet sich neu,
+  sobald wieder WLAN aktiv ist, und vermerkt es im Log. Vorbeugend – der Tipp steht
+  auch auf der Beitrittsseite: **Flugmodus an, danach nur WLAN wieder an.**
 - `data/log.txt` protokolliert Firewall-Status, Adressen und Spielernamen –
   das ist die Datei, die bei Problemen weiterhilft.
 - Notfalls die Skripte in `paket/`: `Firewall-freigeben.bat`,

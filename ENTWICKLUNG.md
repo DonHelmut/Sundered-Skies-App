@@ -84,6 +84,21 @@ sich über **Export/Import** in der App umziehen.
 - Funktioniert mit dunklen Charakterbildern (Glow leuchtet die Figur an) und
   ohne Bild (schwebende Felsinseln).
 
+### Verbindung: Handys springen auf Mobilfunk
+- Anlass: Beim Gastgeber fiel das Internet aus (WLAN blieb) – die Handys flogen
+  raus. Ursache: Handys schicken bei „WLAN ohne Internet" alles über Mobilfunk
+  und finden den Laptop nicht mehr. Der Server selbst braucht kein Internet.
+- **Erkennung** (`aufMobilfunk()` in `app.js`, über `navigator.connection` –
+  nur Chrome/Android; iPhone kennt das nicht): Der Verbindungs-Hinweis zeigt
+  dann sofort „Dein Handy ist auf Mobilfunk umgesprungen" mit Lösung. Wechselt
+  das Netz zurück aufs WLAN, wird sofort neu verbunden. Im Log steht danach
+  „wieder verbunden (war auf Mobilfunk)".
+- **Vorbeugender Tipp** auf der Beitrittsseite (nur Touch-Geräte):
+  Flugmodus an, danach nur WLAN wieder an.
+- Getestet mit vorgetäuschtem Netztyp und gestopptem Server; auf einem echten
+  Handy mit ausfallendem Internet noch nicht (zu Hause nachstellbar: am Router
+  das Internetkabel ziehen, WLAN anlassen).
+
 ### Sonstiges
 - README um fehlende Funktionen ergänzt; Fehler korrigiert (Statisten vertragen
   **2** Wunden, nicht 1).

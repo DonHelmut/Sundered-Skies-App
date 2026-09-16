@@ -264,6 +264,27 @@ function startHeartbeat() {
   }, 4000);
 }
 
+// Hat das Handy still auf Mobilfunk umgeschaltet? Passiert, wenn das WLAN kein
+// Internet hat (Router lebt, Anbieter-Leitung tot): das Handy schickt dann alles
+// ueber mobile Daten und findet den Laptop im WLAN nicht mehr – obwohl „WLAN
+// verbunden" dasteht. Chrome auf Android verraet das ueber navigator.connection;
+// iPhone/Safari kennt die Schnittstelle nicht, dort bleibt es beim allgemeinen
+// Hinweis nach 25 s.
+function aufMobilfunk() {
+  try { return !!navigator.connection && navigator.connection.type === "cellular"; } catch { return false; }
+}
+try {
+  // Mobile Daten aus -> Netz wechselt zurueck aufs WLAN -> sofort neu verbinden
+  // statt auf den naechsten 1,5-s-Versuch zu warten; Hinweis aktualisieren.
+  if (navigator.connection && navigator.connection.addEventListener) {
+    navigator.connection.addEventListener("change", () => {
+      if (aufMobilfunk()) App.warMobilfunk = true;
+      if ($("offline-hinweis") || offlineTimer) zeigeOfflineHinweis();
+      ensureConnected();
+    });
+  }
+} catch { /* ohne Schnittstelle eben nicht */ }
+
 function connect() {
   // Keine Doppel-Sockets: läuft schon einer (verbindend/offen), nichts tun.
   if (App.ws && (App.ws.readyState === WebSocket.CONNECTING || App.ws.readyState === WebSocket.OPEN)) return;
@@ -281,11 +302,15 @@ function connect() {
     if (App.wentOfflineAt) {
       const gapMs = Date.now() - App.wentOfflineAt;
       App.wentOfflineAt = 0;
-      try { ws.send(JSON.stringify({ type: "clientlog", event: "wieder verbunden", gapMs })); } catch { /* egal */ }
+      // Stand das Handy zwischendurch auf Mobilfunk, steht die Ursache im Log.
+      const event = App.warMobilfunk ? "wieder verbunden (war auf Mobilfunk)" : "wieder verbunden";
+      App.warMobilfunk = false;
+      try { ws.send(JSON.stringify({ type: "clientlog", event, gapMs })); } catch { /* egal */ }
     }
   };
   ws.onclose = () => {
     stopHeartbeat();
+    if (aufMobilfunk()) App.warMobilfunk = true;
     if (!App.wentOfflineAt) App.wentOfflineAt = Date.now();
     App.reconnectTries = (App.reconnectTries || 0) + 1;
     setStatus("offline");
@@ -342,10 +367,13 @@ function connect() {
 let offlineTimer = null;
 function zeigeOfflineHinweis() {
   const seit = App.wentOfflineAt ? Math.round((Date.now() - App.wentOfflineAt) / 1000) : 0;
+  const mobil = aufMobilfunk();
+  if (mobil) App.warMobilfunk = true;
   let el = $("offline-hinweis");
   if (!el) {
     // Erst nach 4 s einblenden - kurze Aussetzer soll niemand mitbekommen.
-    if (seit < 4) {
+    // Ausnahme Mobilfunk: das geht NICHT von selbst weg, also sofort zeigen.
+    if (seit < 4 && !mobil) {
       if (!offlineTimer) offlineTimer = setTimeout(() => { offlineTimer = null; zeigeOfflineHinweis(); }, 4000);
       return;
     }
@@ -357,12 +385,19 @@ function zeigeOfflineHinweis() {
   el.innerHTML = `
     <div class="offline-box">
       <div class="offline-titel">📡 Verbindung unterbrochen</div>
+      ${mobil ? `<div class="offline-mobilfunk">
+        <div class="offline-mobilfunk-titel">📱 Dein Handy ist auf Mobilfunk umgesprungen</div>
+        Das WLAN hat gerade kein Internet – deshalb nutzt dein Handy mobile Daten und
+        findet den Spieltisch nicht mehr.<br>
+        <b>Mobile Daten ausschalten</b> (oder Flugmodus an und WLAN wieder an) –
+        dann geht es sofort weiter.
+      </div>` : ""}
       <div class="offline-text">Die App versucht es von selbst weiter – <b>Versuch ${App.reconnectTries || 1}</b>, seit ${seit} s.</div>
       <div class="offline-warn">Bitte die Seite <b>NICHT neu laden</b> und den Tab offen lassen.<br>Sobald das WLAN zurück ist, geht es automatisch weiter.</div>
       ${App.warteschlange.length
         ? `<div class="offline-warteschlange">✋ ${App.warteschlange.length} Eingabe${App.warteschlange.length === 1 ? "" : "n"} gemerkt – wird nachgereicht, sobald die Verbindung steht.</div>`
         : `<div class="offline-text small">Was du jetzt tippst, wird gemerkt und nachgereicht.</div>`}
-      ${seit > 25 ? `<div class="offline-text small" style="text-align:left; line-height:1.5">
+      ${seit > 25 && !mobil ? `<div class="offline-text small" style="text-align:left; line-height:1.5">
         <b>Dauert es länger?</b> Hat das WLAN gerade kein Internet, schalten viele
         Handys still auf <b>Mobilfunk</b> um – dann ist der Laptop unerreichbar,
         obwohl „WLAN verbunden“ dasteht.<br>Abhilfe: mobile Daten kurz ausschalten.
@@ -1435,7 +1470,8 @@ function renderStabilitaetPanel() {
       <li><b>WLAN-Stromsparen abschalten.</b> Im App-Ordner
         <code>WLAN-Stromsparen-aus.bat</code> per Rechtsklick als Administrator ausführen.
         Sonst schaltet Windows die WLAN-Karte im Akkubetrieb ab.</li>
-      <li><b>Auf den Handys: mobile Daten aus.</b> Wenn das WLAN kein Internet hat
+      <li><b>Auf den Handys: mobile Daten aus</b> – am sichersten Flugmodus an und
+        danach nur WLAN wieder an. Wenn das WLAN kein Internet hat
         (Router lebt, Leitung tot), schalten Handys still auf Mobilfunk um – dann ist
         dieser Laptop für sie unerreichbar, obwohl „WLAN verbunden" dasteht.
         Das erklärt die meisten Fälle von „geht plötzlich nicht mehr".</li>
@@ -2194,8 +2230,25 @@ function renderJoin() {
         <input id="joinname" value="${esc(App.myName)}" placeholder="z. B. Stefan"></label>
       <button class="primary big" data-act="join" style="width:100%">Beitreten</button>
     </div>
+    ${handyTipp()}
     <div class="center muted small">Nichts zu installieren – läuft direkt im Browser.</div>
   `;
+}
+
+// Vorbeugen statt mitten im Kampf suchen: faellt beim Gastgeber das Internet
+// aus, springen Handys still auf Mobilfunk und verlieren den Spieltisch. Nur auf
+// Touch-Geraeten zeigen – am Laptop waere „Flugmodus" verwirrend.
+function handyTipp() {
+  let touch = false;
+  try { touch = window.matchMedia("(pointer: coarse)").matches; } catch { /* egal */ }
+  if (!touch) return "";
+  return `<div class="panel verbindungs-tipp">
+      <div class="verbindungs-tipp-titel">📶 Tipp für ein stabiles Spiel</div>
+      <div><b>Flugmodus an</b> und danach nur <b>WLAN</b> wieder einschalten – oder
+      mobile Daten aus.</div>
+      <div class="muted small">Sonst springt das Handy bei Internet-Aussetzern im WLAN
+      still auf Mobilfunk und verliert den Spieltisch.</div>
+    </div>`;
 }
 
 // --- Ereignisse (Delegation) ------------------------------------------------

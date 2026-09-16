@@ -1230,6 +1230,18 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
   color: var(--text); line-height: 1.45;
 }
 .offline-box button { width: 100%; }
+/* Handy ist erkennbar auf Mobilfunk umgesprungen: das ist die Ursache, also
+   ganz oben und deutlich – nicht als Kleingedrucktes. */
+.offline-mobilfunk {
+  background: rgba(255, 90, 60, 0.14); border: 2px solid var(--bad);
+  border-radius: 10px; padding: 12px; margin-bottom: 12px;
+  color: var(--text); line-height: 1.5; text-align: left;
+}
+.offline-mobilfunk-titel { font-weight: 800; color: var(--bad); margin-bottom: 6px; text-align: center; }
+/* Vorbeugender Tipp auf der Beitrittsseite. */
+.verbindungs-tipp { line-height: 1.5; }
+.verbindungs-tipp-titel { font-weight: 700; margin-bottom: 4px; }
+.verbindungs-tipp .small { margin-top: 6px; }
 
 /* Kurze Rückmeldung („kopiert"), verschwindet von selbst. */
 .toast {
