@@ -146,7 +146,10 @@ body {
 
 /* Der SL sitzt am Laptop mit breitem Bildschirm - den auch nutzen, damit
    moeglichst alles ohne Scrollen im Blick bleibt. */
-.wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+/* Oben Platz fuer die fixierte Statusleiste (37 px hoch): ohne den legt sich
+   die "Verbunden"-Pille ueber die erste Ueberschrift - auf der Beitrittsseite
+   mitten ins Wort, in der SL-Ansicht ueber den Panel-Titel. */
+.wrap { max-width: 1100px; margin: 0 auto; padding: 44px 16px 16px; }
 body:not(.player) .wrap { max-width: min(1800px, 100%); }
 .player .wrap { max-width: 640px; }
 
@@ -845,7 +848,20 @@ html.mimi-flip { filter: invert(1) hue-rotate(180deg); transition: filter 0.25s 
 .grid2 { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; }
 .grid2 .sp { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 @media (min-width: 900px)  { .grid2 { grid-template-columns: 1fr 1fr; } }
-@media (min-width: 1450px) { .grid2 { grid-template-columns: 1fr 1fr 1fr; } }
+/* Breiter Schirm: die Reihenfolge bekommt ZWEI Drittel und laeuft selbst
+   zweispaltig. Vorher stand rechts eine Spalte mit lauter eingeklappten
+   Bibliotheken und viel leerem Pergament, waehrend man in der Mitte scrollen
+   musste. Gelesen wird wie eine Liste: links von oben nach unten, dann rechts. */
+@media (min-width: 1450px) {
+  .grid2 { grid-template-columns: 1fr 2fr; }
+  /* ZEILENWEISE (1 2 / 3 4 / ...): so stehen die als Naechstes Dranen alle
+     oben. Spaltenweise (erst links 1-8, dann rechts) lagen genau die naechsten
+     - 6, 7, 8 - unter dem Bildschirmrand, waehrend 9-13 zu sehen waren. */
+  .grid2 .sp2 .order { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+  /* Trenner und Pausierte ueber die volle Breite, sonst stehen sie verloren
+     in einer Haelfte. */
+  .grid2 .sp2 .order > :not(.combatant) { grid-column: 1 / -1; }
+}
 
 /* Thematischer Feinschliff */
 h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3px; }
@@ -1401,3 +1417,35 @@ body.hat-leiste .wrap { padding-bottom: 96px; }
   border: 1px solid var(--accent2); border-radius: 10px;
   background: color-mix(in srgb, var(--accent2) 10%, transparent);
 }
+
+/* "danach:" in der SL-Leiste - wer als Naechstes dran ist */
+.al-naechster { color: var(--muted); font-size: 0.9rem; white-space: nowrap; margin-left: 6px; }
+.al-naechster b { color: var(--text); }
+
+/* Eingeklappte Panels flacher: in der linken Spalte stapeln sich bis zu neun
+   davon, jedes mit voller Panel-Polsterung (54 px) - zusammen fast ein halber
+   Bildschirm nur fuer Ueberschriften. Aufgeklappt bleibt alles wie gehabt. */
+details.section:not([open]) { padding-top: 8px; padding-bottom: 8px; }
+.grid2 .sp1 { gap: 10px; }
+
+/* Noch dichtere Zeilen (Wunsch: "pro Gegner/Spieler nicht so hoch").
+   Die Minikarte bestimmt die Hoehe der Hauptzeile - 36 statt 42 px breit
+   reicht zum Erkennen voellig. Name und Abzeichen ruecken zusammen. */
+.combatant { padding: 4px 8px; gap: 8px; align-items: center; }
+.combatant .mini { width: 36px; flex: 0 0 36px; }
+.combatant .who .name { line-height: 1.2; }
+.combatant .badges { margin-top: 1px; }
+.combatant .status-badges:empty { display: none; }
+.combatant .row-status { margin-top: 2px; }
+/* Abzeichen nie in sich umbrechen: "Außer | Reichweite" in zwei Zeilen machte
+   jede betroffene Zeile hoeher. Lieber rutscht das ganze Abzeichen weiter. */
+.combatant .tag { white-space: nowrap; }
+/* Namen an Silbengrenzen trennen statt an beliebiger Stelle ("Schreckenswu|rm").
+   Funktioniert, weil die Seite lang="de" hat. */
+.combatant .who .name { overflow-wrap: break-word; hyphens: auto; }
+/* Sicherheitsnetz: ein Abzeichen darf nie ueber seine Spalte hinaus in die
+   Knoepfe laufen - notfalls wird es mit "..." gekuerzt (voller Text im Tooltip). */
+.combatant .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* Dreistellige Kuerzel ("O11") passen sonst nur randvoll in den Kreis. */
+.tinit.eng, .av-init.eng { font-size: 0.8em; letter-spacing: -0.4px; }

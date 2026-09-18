@@ -1535,23 +1535,37 @@ class Game:
         return c.get("name") if (p and p.get("connected")) else None
 
     def register_player(self, name: str, character_id: Optional[str],
-                        existing_player_id: Optional[str]) -> dict:
-        # Rejoin: bekannte Spieler-ID wiederverwenden.
-        if existing_player_id:
-            for p in self.players:
-                if p["id"] == existing_player_id:
-                    p["connected"] = True
-                    p["name"] = name or p["name"]
-                    # Spielernamen auch am Teilnehmer aktualisieren.
-                    for c in self.combatants:
-                        if c.get("playerId") == p["id"]:
-                            c["playerName"] = name or c.get("playerName", "")
-                    return p
+                        existing_player_id: Optional[str]) -> Optional[dict]:
+        """Spieler anmelden. Rueckgabe None = Charakter unbekannt (der Aufrufer
+        meldet das dem Handy, statt einen Spieler ohne Figur anzulegen)."""
+        # Unbekannter Charakter: typischerweise eine ID aus einer FRUEHEREN Runde,
+        # die noch im Handy-Speicher lag. Frueher entstand daraus still ein
+        # Spieler OHNE Figur - das Handy sah keine eigene Figur, zeigte wieder
+        # die Beitrittsseite, und jeder weitere Versuch lief ins Leere.
+        if character_id and not any(r.get("id") == character_id for r in self.roster) \
+                and not any(c.get("characterId") == character_id for c in self.combatants):
+            return None
 
-        player_id = _new_id("plr")
-        player = {"id": player_id, "name": name, "connected": True,
-                  "characterId": character_id}
-        self.players.append(player)
+        # Rejoin: bekannte Spieler-ID wiederverwenden.
+        player = next((p for p in self.players if p["id"] == existing_player_id), None) \
+            if existing_player_id else None
+        if player:
+            player["connected"] = True
+            player["name"] = name or player["name"]
+            eigene = [c for c in self.combatants if c.get("playerId") == player["id"]]
+            for c in eigene:                       # Spielernamen auch am Teilnehmer
+                c["playerName"] = name or c.get("playerName", "")
+            if eigene:
+                return player
+            # Bekannter Spieler OHNE Figur: jetzt eine zuordnen. Frueher kam hier
+            # direkt ein "return" - die frisch gewaehlte Figur wurde ignoriert.
+            player["characterId"] = character_id
+            player_id = player["id"]
+        else:
+            player_id = _new_id("plr")
+            player = {"id": player_id, "name": name, "connected": True,
+                      "characterId": character_id}
+            self.players.append(player)
 
         if character_id:
             # Steht die Figur schon im Kampf? Dann UEBERNEHMEN statt ein zweites

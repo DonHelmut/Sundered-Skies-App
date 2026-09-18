@@ -31,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "92";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "93";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -52,6 +52,10 @@ function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({
 // dessen Wahl wird gemerkt (App.collapsed) und gewinnt ab dann.
 const VORBEREITUNGS_PANELS = new Set([
   "connect", "stabil", "roster", "bestiary", "allies", "encounters", "message",
+  // Gruppen und Bennies braucht man nicht in jedem Zug. Offen machten sie die
+  // linke Spalte über 600 px länger - das Gruppen-Panel listet jede Figur als
+  // Chip und wächst mit dem Kampf. Ein Klick klappt sie auf, die Wahl bleibt.
+  "groups", "bennies",
 ]);
 
 function section(id, title, body, defaultOpen) {
@@ -69,11 +73,9 @@ document.addEventListener("toggle", (e) => {
   if (d.matches("details.section[data-sec]")) {
     App.collapsed[d.dataset.sec] = !d.open;   // true = eingeklappt
     try { localStorage.setItem("collapsed", JSON.stringify(App.collapsed)); } catch { /* ignore */ }
-  } else if (d.matches("details.row-status[data-rowstatus]")) {
-    // Aufgeklappte Zustands-Leisten merken, damit ein Broadcast-Render sie nicht zuklappt.
-    if (d.open) App.rowStatusOpen.add(d.dataset.rowstatus);
-    else App.rowStatusOpen.delete(d.dataset.rowstatus);
   }
+  // (Die Zustands-Leiste einer Figur ist kein <details> mehr, sondern wird per
+  // "⋯"-Knopf umgeschaltet - siehe "zustand-umschalten".)
 }, true);
 
 // --- Aufdeck-Stile ----------------------------------------------------------
@@ -346,9 +348,16 @@ function connect() {
       if (App.revealLockUntil && Date.now() < App.revealLockUntil) { App.pendingRender = true; return; }
       render();
     } else if (msg.type === "joinError") {
-      // Charakter wird gerade woanders gespielt -> zurück auf die Beitrittsseite.
+      // Charakter wird gerade woanders gespielt oder ist unbekannt -> zurück
+      // auf die Beitrittsseite, mit Erklärung.
       App.joined = false;
       App.joinFehler = msg.message;
+      if (msg.grund === "charakter-unbekannt") {
+        // Veraltete ID aus einer früheren Runde vergessen - sonst meldet sich
+        // das Handy beim nächsten Laden automatisch wieder damit an.
+        App.myCharacterId = null;
+        try { localStorage.removeItem("characterId"); } catch { /* egal */ }
+      }
       render();
     } else if (msg.type === "joined") {
       App.myPlayerId = msg.playerId;
@@ -867,7 +876,13 @@ function myCombatant() {
 }
 function zoneInitials(name) {
   const p = String(name || "?").trim().split(/\s+/);
-  return ((p[0] || "?").charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : "")).toUpperCase();
+  const erst = (p[0] || "?").charAt(0).toUpperCase();
+  const letzt = p.length > 1 ? p[p.length - 1] : "";
+  // Durchnummerierte Gegner behalten ihre GANZE Nummer ("Ork 11" -> "O11").
+  // Vorher zaehlte nur die erste Ziffer: Ork 1, 10, 11, 12 und 13 trugen
+  // alle "O1" - ab zehn gleichen Gegnern waren sie nicht zu unterscheiden.
+  if (/^\d+$/.test(letzt)) return erst + letzt;
+  return (erst + letzt.charAt(0)).toUpperCase();
 }
 function zoneLabel(z) {
   const zs = App.state && App.state.zones;
@@ -1227,11 +1242,6 @@ function renderGM() {
         ${renderZonesPanel()}
         ${renderGroupPanel()}
         ${renderBennyPanel()}
-      </div>
-      <div class="sp sp2">
-        ${renderOrderPanel(true)}
-      </div>
-      <div class="sp sp3">
         ${renderRosterPanel()}
         ${renderBestiaryPanel()}
         ${renderAllyPanel()}
@@ -1239,6 +1249,9 @@ function renderGM() {
         ${renderConnectPanel()}
         ${renderStabilitaetPanel()}
         ${renderMessagePanel()}
+      </div>
+      <div class="sp sp2">
+        ${renderOrderPanel(true)}
       </div>
     </div>
     ${renderAktionsleiste()}`;
@@ -1580,10 +1593,27 @@ function renderAktionsleiste() {
   if (!anyCards) return "";                     // vor dem Austeilen nur Ballast
 
   const active = s.combatants.find((c) => c.id === s.activeId);
-  if (!active) return "";
+
+  // Runde durch: hier gehört der Austeilen-Knopf hin. Sonst müsste der SL nach
+  // der letzten Figur wieder ganz nach oben scrollen, nur um weiterzumachen.
+  if (!active) {
+    if (!s.round) return "";
+    return `<div class="aktionsleiste">
+      <div class="al-wer"><span class="pill good">✓ Runde ${s.round} beendet – alle waren dran</span></div>
+      <div class="al-haupt">
+        <button class="primary big" data-act="new-round">🃏 Neue Runde – an ALLE austeilen</button>
+      </div>
+    </div>`;
+  }
+
   const platz = s.combatants.findIndex((c) => c.id === active.id) + 1;
   const st = active.status || {};
   const istNsc = active.kind === "npc";
+  // Wer kommt danach? Der SL soll nicht suchen müssen, wen er als Nächstes
+  // ansagen muss - pausierte und ausgeschiedene Figuren überspringen wir.
+  const naechster = s.combatants
+    .slice(platz)
+    .find((c) => !c.benched && !(c.status || {}).out && !c.done);
 
   const haupt = s.phase === "running"
     ? `<button class="good big" data-act="confirm-turn">Zug bestätigen ✓</button>`
@@ -1607,6 +1637,9 @@ function renderAktionsleiste() {
       ${st.shaken ? `<span class="tag" style="color:var(--warn);border-color:var(--warn)">😵</span>` : ""}
       ${st.wounds ? `<span class="tag" style="color:var(--bad);border-color:var(--bad)">${st.wounds} 🩸</span>` : ""}
       ${uhr}
+      ${naechster
+        ? `<span class="al-naechster" title="Kommt als Nächstes dran">danach: <b>${esc(naechster.name)}</b></span>`
+        : `<span class="al-naechster">danach: <b>Rundenende</b></span>`}
     </div>
     <div class="al-knoepfe">
       <button class="st-btn" data-act="apply-hit" data-id="${active.id}" title="Treffer: angeschlagen bzw. +1 Wunde (Taste T)">💥</button>
@@ -1746,7 +1779,7 @@ function renderOrderPanel(isGM) {
     // SL: Kampf-Steuerung trotzdem zeigen (Austeilen etc.), Initiative noch leer.
     if (isGM) {
       return section("combat", `Kampf & Initiative · Runde ${s.round}`,
-        `${renderControlBody()}<hr class="combat-sep"><div class="muted">Noch keine Teilnehmer. Spieler treten per QR-Code bei, Gegner/Verbündete rechts hinzufügen.</div>`);
+        `${renderControlBody()}<hr class="combat-sep"><div class="muted">Noch keine Teilnehmer. Spieler treten per QR-Code bei (links unter „Beitritt für Spieler"), Gegner und Verbündete kommen links aus den Bibliotheken.</div>`);
     }
     return section("order", "Reihenfolge", `<div class="muted">Noch keine Teilnehmer. Spieler treten per QR-Code bei.</div>`);
   }
@@ -1786,23 +1819,36 @@ function combatantRow(c, num, isGM, isOpen) {
     c.kind === "npc" ? (c.ally ? "ally" : "enemy") : "", isActive ? "active" : "",
     c.done ? "done" : "", (showCard && c.held) ? "held" : "", hasJoker ? "joker-holder" : "",
     c.benched ? "benched" : "", showCard ? "" : "facedown"].filter(Boolean).join(" ");
-  const hints = showCard ? activeHints(c).map((h) => `<span class="tag" style="color:var(--gold);border-color:var(--gold)">${esc(h)}</span>`).join("") : "";
+  // In der Zeile knapp: "★ JOKER" steht schon daneben, der ausgeschriebene Satz
+  // brach um und machte die Zeile doppelt so hoch. Voller Text im Tooltip.
+  const hints = showCard ? activeHints(c).map((h) =>
+    `<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="${esc(h)}">${esc(h.replace(/^Joker: \+2 auf alle /, "+2 "))}</span>`).join("") : "";
   const jokerBadge = hasJoker ? `<span class="tag joker-badge">★ JOKER</span>` : "";
   const heldPill = (showCard && c.held) ? `<span class="pill warn">hält</span>` : "";
   // Nur das, was mitten im Kampf zählt – Treffer/Heilung mit EINEM Klick.
   const st0 = c.status || {};
+  // In der Zeile nur, was man JEDEN Zug braucht: Treffer, Heilung, und "⋯"
+  // für den Rest. Mit sieben Knöpfen blieb dem Namen in einer halben Spalte zu
+  // wenig Platz - Namen brachen mitten im Wort um und Abzeichen rutschten
+  // unter die Knöpfe.
   const gmActions = isGM ? `<div class="actions">
       <button class="small primary" data-act="apply-hit" data-id="${c.id}" ${st0.out ? "disabled" : ""} title="Treffer: nicht angeschlagen → Angeschlagen; sonst +1 Wunde">💥</button>
       <button class="small good" data-act="apply-heal" data-id="${c.id}" title="Heilung: wieder wach / −1 Wunde / Angeschlagen weg">🩹</button>
-      <button class="ghost small" data-act="set-active" data-id="${c.id}" title="Als aktiv setzen">▶</button>
+      <button class="ghost small${App.rowStatusOpen.has(c.id) ? " on" : ""}" data-act="zustand-umschalten" data-id="${c.id}" title="Mehr: Zustände, Bennies, aktiv setzen, verdecken, pausieren, entfernen">⋯</button>
+    </div>` : "";
+  // Die seltenen Knöpfe - jetzt im "⋯"-Feld statt dauerhaft in der Zeile.
+  const selteneKnoepfe = isGM ? `<div class="row tight" style="margin-bottom:8px; gap:6px">
+      <button class="ghost small" data-act="set-active" data-id="${c.id}" title="Als aktiv setzen">▶ Aktiv setzen</button>
       ${c.kind === "npc" && !c.ally
-        ? `<button class="ghost small${c.anon ? " on" : ""}" data-act="set-anon" data-id="${c.id}" data-on="${c.anon ? 0 : 1}" title="${c.anon ? "Aufdecken: Spieler sehen den echten Namen" : "Verdecken: Spieler sehen nur einen unlesbaren Namen"}">${c.anon ? "🫥" : "👁"}</button>`
+        ? `<button class="ghost small${c.anon ? " on" : ""}" data-act="set-anon" data-id="${c.id}" data-on="${c.anon ? 0 : 1}" title="${c.anon ? "Aufdecken: Spieler sehen den echten Namen" : "Verdecken: Spieler sehen nur einen unlesbaren Namen"}">${c.anon ? "🫥 Aufdecken" : "👁 Verdecken"}</button>`
         : ""}
-      <button class="ghost small" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}" title="${c.benched ? "Wieder in den Kampf" : "Aus dem Kampf (pausieren)"}">${c.benched ? "▶️" : "⏸"}</button>
-      <button class="ghost small bad" data-act="remove-combatant" data-id="${c.id}" title="${c.playerId ? "Spieler entfernen (Kick)" : "Entfernen"}">✕</button>
+      <button class="ghost small" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}" title="${c.benched ? "Wieder in den Kampf" : "Aus dem Kampf (pausieren)"}">${c.benched ? "▶️ Wieder rein" : "⏸ Pausieren"}</button>
+      <button class="ghost small bad" data-act="remove-combatant" data-id="${c.id}" title="${c.playerId ? "Spieler entfernen (Kick)" : "Entfernen"}">✕ Entfernen</button>
     </div>` : "";
   const idxLabel = num != null ? num : `<span class="idx-hidden">?</span>`;
-  const avImg = c.image ? `<img src="${esc(c.image)}" alt="">` : esc(zoneInitials(c.name));
+  const kuerzel = zoneInitials(c.name);
+  const avImg = c.image ? `<img src="${esc(c.image)}" alt="">`
+    : `<span class="av-init${kuerzel.length > 2 ? " eng" : ""}">${esc(kuerzel)}</span>`;
   const avatarEl = isGM
     ? `<label class="avatar" title="Bild wählen/ändern" style="cursor:pointer">${avImg}<input type="file" accept="image/*" data-act="pick-char-image" data-id="${c.id}" style="display:none"></label>`
     : (c.image ? `<span class="avatar${c.anon ? " verdeckt" : " zoomable"}"${c.anon ? "" : ` data-act="open-image" data-url="${esc(c.image)}" title="Bild groß anzeigen"`}><img src="${esc(c.image)}" alt=""></span>` : "");
@@ -1811,7 +1857,7 @@ function combatantRow(c, num, isGM, isOpen) {
     <div class="mini">${cardSlot(c.id, c.card, c.status, "", { open: showCard, tappable: false })}</div>
     ${avatarEl}
     <div class="who">
-      <div class="name">${c.anon && !isGM ? `<span class="verdeckt" title="Der Spielleiter hält verborgen, wer das ist">${esc(c.name)}</span>` : esc(c.name)}${c.anon && isGM ? ` <span class="tag" style="color:var(--muted);border-color:var(--muted)" title="Die Spieler sehen statt des Namens nur Unlesbares">🫥 verdeckt</span>` : ""} ${heldPill}</div>
+      <div class="name">${c.anon && !isGM ? `<span class="verdeckt" title="Der Spielleiter hält verborgen, wer das ist">${esc(c.name)}</span>` : esc(c.name)} ${heldPill}</div>
       ${c.playerName && c.playerName !== c.name ? `<div class="muted" style="font-size:0.72rem">🎲 ${esc(c.playerName)}</div>` : ""}
       ${isGM && c.note ? `<div class="combatant-note" title="SL-Notiz">📝 ${esc(c.note)}</div>` : ""}
       <div class="badges">
@@ -1819,11 +1865,15 @@ function combatantRow(c, num, isGM, isOpen) {
           ? `<span class="tag" style="color:var(--muted);border-color:var(--muted)">⏸ Nicht im Kampf</span>`
           : `<span class="tag zone-chip z${Zones.zoneOf(c)}">${esc(zoneLabel(Zones.zoneOf(c)))}</span>`}
         ${c.ally ? `<span class="tag" style="color:var(--good);border-color:var(--good)">🤝 Verbündet</span>` : ""}
+        ${/* "verdeckt" hier statt direkt am Namen - dort nahm es dem Namen den
+             Platz weg, und lange Namen brachen mitten im Wort um. */ ""}
+        ${c.anon && isGM ? `<span class="tag" style="color:var(--muted);border-color:var(--muted)" title="Die Spieler sehen statt des Namens nur Unlesbares">🫥 verdeckt</span>` : ""}
         ${jokerBadge}
-        ${c.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)">Wild Card</span>' : ""}
+        ${c.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card">WC</span>' : ""}
         ${showCard ? talentBadges(c.talents) : ""}${showCard ? talentTrail(c) : ""} ${hints}
+        ${bennyBadge(c)}
       </div>
-      <div class="status-badges">${bennyBadge(c)} ${statusBadges(c)}${
+      <div class="status-badges">${statusBadges(c)}${
         (isGM && isActive && (c.status || {}).shaken && !(c.status || {}).out)
           ? ` <button class="st-btn on-shaken" data-act="recover" data-id="${c.id}" data-benny="0" title="Angeschlagen aufheben (Willenskraft-Probe bestanden)">✓ erholt</button>` +
             (c.isWildCard && (c.bennies || 0) > 0
@@ -1831,10 +1881,12 @@ function combatantRow(c, num, isGM, isOpen) {
           : ""}</div>
     </div>
     ${gmActions}
-    ${isGM ? `<details class="row-status" data-rowstatus="${c.id}" ${App.rowStatusOpen.has(c.id) ? "open" : ""} style="flex-basis:100%">
-      <summary>Zustand</summary>
-      <div class="panel-body">${statusControls(c)} ${bennyControls(c)}</div>
-    </details>` : ""}
+    ${/* Zustände & Bennies nur, wenn per "⋯" geöffnet. Vorher stand der
+          zugeklappte "Zustand"-Knopf in einer eigenen Zeile unter JEDER Figur
+          und machte jede Zeile 32 px höher. */ ""}
+    ${isGM && App.rowStatusOpen.has(c.id) ? `<div class="row-status" style="flex-basis:100%">
+      <div class="panel-body">${selteneKnoepfe}${statusControls(c)} ${bennyControls(c)}</div>
+    </div>` : ""}
     ${isGM && App.editCombatantId === c.id ? `<div style="flex-basis:100%">${combatantEditor(c)}</div>` : ""}
   </div>`;
 }
@@ -2381,6 +2433,11 @@ document.addEventListener("click", (e) => {
     },
     "close-token-popup": () => { App.tokenPopupId = null; render(); },
     "zur-aktiven-zeile": () => zurAktivenZeile(true),
+    "zustand-umschalten": () => {
+      // Gemerkt in App.rowStatusOpen, damit ein Broadcast-Render es nicht zuklappt.
+      if (App.rowStatusOpen.has(id)) App.rowStatusOpen.delete(id); else App.rowStatusOpen.add(id);
+      render();
+    },
     "leiste-einstellungen": () => { App.leisteEinstellungen = !App.leisteEinstellungen; render(); },
     "auswahl-leeren": () => { App.auswahl.clear(); render(); },
     "auswahl-gruppe": () => {
@@ -2472,51 +2529,62 @@ document.addEventListener("keydown", (e) => {
 // Kampfzonen-Auswahl per pointerdown statt click: die Aktion schließt sofort ab,
 // unabhängig von einem gleich eintreffenden Broadcast-Render (behebt das „nur auf
 // dem Icon loslassen"-Problem). Token = Info-Popup; freie Bahn = dorthin bewegen.
-let tippStart = null;   // Startpunkt eines Tipps auf einen ziehbaren Marker
+let tippStart = null;   // gemerkter Tipp: erst beim LOSLASSEN wird gehandelt
+
+// Der Klick, den der Browser nach dem Loslassen nachschiebt, landet an derselben
+// Stelle - und dort liegt dann das gerade geöffnete Fenster. Also einmal schlucken.
+function schluckNaechstenKlick() {
+  const weg = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+  document.addEventListener("click", weg, { capture: true, once: true });
+  setTimeout(() => document.removeEventListener("click", weg, true), 350);
+}
+
 document.addEventListener("pointerdown", (e) => {
   const t = e.target.closest('[data-act="token-info"], [data-act="zone-goto"]');
   if (!t) {
+    tippStart = null;
     // Tipp daneben bricht eine schwebende Bewegungs-Bestätigung ab.
     if (App.pendingMove) { App.pendingMove = null; render(); }
     return;
   }
-  // ZIEHBARE Elemente (nur SL) hier NICHT abfangen: preventDefault() unterbindet
-  // das native Ziehen, und Drag & Drop wäre damit tot. Stattdessen merken wir
-  // uns den Startpunkt und entscheiden beim Loslassen, ob es ein Tipp war.
-  // (Auf ein "click"-Ereignis ist kein Verlass: der Browser wertet schon eine
-  // winzige Mausbewegung als Ziehversuch und unterdrückt es dann.)
-  if (t.getAttribute("draggable") === "true") {
-    // Strg/Cmd-Klick sammelt Figuren, statt das Info-Fenster zu öffnen.
-    // Danach zieht EIN Marker die ganze Auswahl mit.
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const id = t.getAttribute("data-id");
-      if (App.auswahl.has(id)) App.auswahl.delete(id); else App.auswahl.add(id);
-      render();
-      return;
-    }
-    tippStart = { x: e.clientX, y: e.clientY, el: t };
+  const ziehbar = t.getAttribute("draggable") === "true";
+  // Strg/Cmd-Klick (nur SL) sammelt Figuren, statt das Info-Fenster zu öffnen.
+  if (ziehbar && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    const id = t.getAttribute("data-id");
+    if (App.auswahl.has(id)) App.auswahl.delete(id); else App.auswahl.add(id);
+    render();
     return;
   }
-  e.preventDefault();
-  if (t.getAttribute("data-act") === "token-info") {
-    App.tokenPopupId = t.getAttribute("data-id");
-    render();
-  } else {
-    zoneGoto(t.getAttribute("data-id"), Number(t.getAttribute("data-tz")));
-  }
+  // NUR MERKEN - gehandelt wird beim Loslassen (pointerup). Früher öffnete das
+  // Info-Fenster schon beim Aufsetzen, direkt unter dem Finger; beim Loslassen
+  // landete der Tipp dann IM Fenster: auf dem Hintergrund (Fenster sofort wieder
+  // zu - "geht beim Tippen nicht auf"), oder gar auf "Angreifen" (ungewollte
+  // Aktion). Nur langes Halten klappte, weil das Handy den Tipp dann verwirft.
+  // Gemerkt werden reine Werte statt des Elements: ein Neuzeichnen zwischen
+  // Aufsetzen und Loslassen (Zustands-Update) schadet so nicht.
+  tippStart = {
+    x: e.clientX, y: e.clientY,
+    act: t.getAttribute("data-act"), id: t.getAttribute("data-id"), tz: t.getAttribute("data-tz"),
+  };
+  // Ziehbare Marker (SL) NICHT abfangen: preventDefault() unterbindet das
+  // native Ziehen, und Drag & Drop wäre tot.
+  if (!ziehbar) e.preventDefault();
 });
 
-// Loslassen auf einem ziehbaren Marker: kaum bewegt = es war ein Tipp, also
-// Info-Fenster öffnen. Wurde wirklich gezogen, hat das Ablegen schon gehandelt.
+document.addEventListener("pointercancel", () => { tippStart = null; });   // Handy scrollt
+
 document.addEventListener("pointerup", (e) => {
   const s = tippStart;
   tippStart = null;
-  if (!s || gezogeneId) return;
-  if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 5) return;   // war eine Zieh-Geste
-  if (s.el.getAttribute("data-act") === "token-info") {
-    App.tokenPopupId = s.el.getAttribute("data-id");
+  if (!s || gezogeneId) return;                                     // gezogen, kein Tipp
+  if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 10) return;    // gewischt/gescrollt
+  schluckNaechstenKlick();
+  if (s.act === "token-info") {
+    App.tokenPopupId = s.id;
     render();
+  } else {
+    zoneGoto(s.id, Number(s.tz));
   }
 });
 

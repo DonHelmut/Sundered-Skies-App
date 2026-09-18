@@ -878,3 +878,69 @@ def test_verbuendeter_behaelt_bild_und_seite(fresh_game):
     assert c["ally"] is True
     assert c["image"] == "/uploads/wache.png"
     assert c["zone"] == 1          # DEFAULT_ZONE_PLAYER
+
+
+# --- Beitritt mit veralteter Charakter-ID (Stefans Fall "Korgo") -----------
+
+def test_veraltete_charakter_id_wird_abgelehnt_statt_figurlos(fresh_game):
+    """Eine ID aus einer frueheren Runde darf keinen Spieler OHNE Figur
+    erzeugen - das Handy hing sonst in der Beitrittsschleife."""
+    g = fresh_game
+    anzahl_vorher = len(g.players)
+    ergebnis = g.register_player("Seppl", character_id="char-gibtsnichtmehr",
+                                 existing_player_id="plr-vonfrueher")
+    assert ergebnis is None
+    assert len(g.players) == anzahl_vorher        # keine Karteileiche
+
+
+def test_nach_ablehnung_klappt_der_richtige_charakter(fresh_game):
+    g = fresh_game
+    g.apply({"type": "roster_upsert", "name": "Korgo", "isWildCard": True})
+    korgo = g.roster[-1]["id"]
+    g.register_player("Seppl", character_id="char-gibtsnichtmehr",
+                      existing_player_id="plr-vonfrueher")
+
+    p = g.register_player("Seppl", character_id=korgo, existing_player_id=None)
+
+    meine = [c for c in g.combatants if c.get("playerId") == p["id"]]
+    assert [c["name"] for c in meine] == ["Korgo"]
+
+
+def test_bekannter_spieler_ohne_figur_bekommt_die_gewaehlte(fresh_game):
+    """Der zweite Teil des Fehlers: Wer als Spieler bekannt war, aber keine
+    Figur hatte, bekam bei erneutem Beitritt die gewaehlte Figur NICHT -
+    der Wiederbeitritt kehrte vorher einfach zurueck."""
+    g = fresh_game
+    g.apply({"type": "roster_upsert", "name": "Korgo", "isWildCard": True})
+    korgo = g.roster[-1]["id"]
+    # Spieler ohne Figur (so, wie ihn der alte Fehler hinterlassen hat)
+    g.players.append({"id": "plr-ohne", "name": "Seppl", "connected": True,
+                      "characterId": "char-alt"})
+
+    p = g.register_player("Seppl", character_id=korgo, existing_player_id="plr-ohne")
+
+    assert p["id"] == "plr-ohne"                  # derselbe Spieler ...
+    meine = [c for c in g.combatants if c.get("playerId") == "plr-ohne"]
+    assert [c["name"] for c in meine] == ["Korgo"]  # ... jetzt MIT Figur
+    assert p["characterId"] == korgo
+
+
+def test_wiederbeitritt_mit_figur_bleibt_unveraendert(fresh_game):
+    """Gegenprobe: Hat der Spieler schon eine Figur, bleibt alles wie es war."""
+    g = fresh_game
+    g.apply({"type": "roster_upsert", "name": "Korgo", "isWildCard": True})
+    korgo = g.roster[-1]["id"]
+    p = g.register_player("Seppl", character_id=korgo, existing_player_id=None)
+    figur = next(c for c in g.combatants if c.get("playerId") == p["id"])
+
+    p2 = g.register_player("Seppl", character_id=korgo, existing_player_id=p["id"])
+
+    assert p2["id"] == p["id"]
+    assert [c["id"] for c in g.combatants if c.get("playerId") == p["id"]] == [figur["id"]]
+
+
+def test_gast_ohne_charakter_weiterhin_moeglich(fresh_game):
+    g = fresh_game
+    p = g.register_player("Gast", character_id=None, existing_player_id=None)
+    assert p is not None
+    assert len([c for c in g.combatants if c.get("playerId") == p["id"]]) == 1

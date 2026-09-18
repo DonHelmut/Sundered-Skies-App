@@ -404,6 +404,20 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             character_id=msg.get("characterId"),
             existing_player_id=msg.get("playerId"),
         )
+        if player is None:
+            # Charakter-ID unbekannt - meist ein Rest aus einer frueheren Runde im
+            # Handy-Speicher. Das Handy vergisst sie daraufhin und zeigt die
+            # Auswahl neu, statt in der Beitrittsschleife haengen zu bleiben.
+            diag.log(f"BEITRITT ABGELEHNT: Charakter-ID unbekannt "
+                     f"({msg.get('characterId')!r}, ip={meta.get('ip', '?')})")
+            await ws.send_json({
+                "type": "joinError",
+                "grund": "charakter-unbekannt",
+                "message": "Diesen Charakter gibt es hier nicht (mehr) – "
+                           "vermutlich noch aus einer früheren Runde gespeichert. "
+                           "Bitte oben neu auswählen.",
+            })
+            return
         meta["playerId"] = player["id"]
         diag.log(f"BEIGETRETEN  {player.get('name', '?')} (ip={meta.get('ip', '?')})")
         game.save_session()

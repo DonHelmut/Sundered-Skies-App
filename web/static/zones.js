@@ -23,7 +23,13 @@
   }
   function initials(name) {
     const p = String(name || "?").trim().split(/\s+/);
-    return ((p[0] || "?").charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : "")).toUpperCase();
+    const erst = (p[0] || "?").charAt(0).toUpperCase();
+    const letzt = p.length > 1 ? p[p.length - 1] : "";
+    // Durchnummerierte Gegner behalten ihre GANZE Nummer ("Ork 11" -> "O11").
+    // Vorher zaehlte nur die erste Ziffer: Ork 1, 10, 11, 12 und 13 trugen
+    // alle "O1" - ab zehn gleichen Gegnern waren sie nicht zu unterscheiden.
+    if (/^\d+$/.test(letzt)) return erst + letzt;
+    return (erst + letzt.charAt(0)).toUpperCase();
   }
   function zoneOf(c) {
     const z = c && c.zone;
@@ -48,7 +54,7 @@
       c.ran ? "ran" : ""].filter(Boolean).join(" ");
     const inner = c.image
       ? `<img src="${esc(c.image)}" alt="">`
-      : `<span class="tinit">${esc(initials(c.name))}</span>`;
+      : `<span class="tinit${initials(c.name).length > 2 ? " eng" : ""}">${esc(initials(c.name))}</span>`;
     // Nur der SL zieht Figuren herum. Beim Spieler bleibt alles wie gehabt,
     // sonst koennte er per Ziehen die Bewegungsregeln umgehen.
     const zieh = opts.draggable ? ` draggable="true" data-drag-id="${esc(c.id)}"` : "";
