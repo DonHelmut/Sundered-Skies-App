@@ -255,7 +255,11 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
    Browser, das komplette Karten-SVG bei JEDEM Frame der 3D-Drehung neu zu
    rastern -> sichtbares Ruckeln genau beim Umdrehen. Der Schatten liegt darum
    als billiger, komponierter box-shadow auf der Kartenfläche. */
-.card-svg { width: 100%; height: 100%; transition: filter 0.35s ease-out; }
+/* KEIN `transition: filter` – das war ein animierter Filter durch die Hintertuer:
+   bei jedem Aufdecken wurde der Schatten 0,35 s lang weich aus- (waehrend die
+   Karte schon losdreht!) und am Ende wieder eingeblendet, jeweils mit
+   Neu-Rastern pro Frame. Das war das leichte Ruckeln am Anfang und Ende. */
+.card-svg { width: 100%; height: 100%; }
 .flip-face { border-radius: 7.5% / 5.36%; }
 
 /* RUHEZUSTAND: satter, weicher Schatten als Filter – folgt der Kartensilhouette.
@@ -316,7 +320,12 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
 /* Joker: pulsierendes Glühen. Bewusst als box-shadow auf der Kartenfläche –
    ein animierter `filter` auf dem SVG kostet pro Frame eine komplette
    Neu-Rasterung und lässt das Umdrehen hängen. */
-.joker-slot .flip-face { animation: jokerGlow 1.8s ease-in-out infinite; }
+/* Erst ab dem Aufdecken (.revealed): vorher pulsierte die VERDECKTE Rueckseite
+   golden und verriet den Joker, bevor er umgedreht war. */
+.joker-slot .flip.revealed .flip-face { animation: jokerGlow 1.8s ease-in-out infinite; }
+/* Ebenso der Ausbruch: er ragt ueber die Karte hinaus und blitzte sonst an den
+   Ecken der noch verdeckten Karte hervor. */
+.flip:not(.revealed) .joker-aussen { visibility: hidden; }
 @keyframes jokerGlow {
   0%, 100% { box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 16px rgba(238, 194, 74, 0.6); }
   50% { box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 38px rgba(238, 194, 74, 1); }
@@ -375,17 +384,29 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
 }
 /* „Pop" + Aufglühen im Moment des Umdrehens. */
 .flip.reveal-pop { z-index: 6; }
-.flip.reveal-pop .flip-front { animation: popRing 0.8s ease-out; }
-@keyframes popRing {
-  0%   { box-shadow: 0 0 0 rgba(255,220,120,0); }
-  30%  { box-shadow: 0 0 40px 6px rgba(255, 220, 120, 0.95); }
-  100% { box-shadow: 0 0 0 rgba(255,220,120,0); }
+/* Aufdeck-Leuchten als EIGENE Ebene hinter der Vorderseite: der Schein ist fest
+   gemalt, animiert wird nur die Deckkraft. Vorher wuchs ein box-shadow direkt
+   auf der Kartenflaeche - dann musste der Browser die ganze Karte samt Bild in
+   jedem Frame neu malen (am Handy spuerbar). Dreht mit der Karte mit und ist wie
+   die Vorderseite von hinten unsichtbar. */
+.flip-inner::before {
+  content: ""; position: absolute; inset: 0; border-radius: 7.5% / 5.36%;
+  pointer-events: none; opacity: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.flip.reveal-pop .flip-inner::before {
+  box-shadow: 0 0 40px 6px rgba(255, 220, 120, 0.95);
+  animation: glowPop 0.8s ease-out;
+}
+@keyframes glowPop {
+  0%   { opacity: 0; }
+  30%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Spieler-Großkarte: langer, ruhiger Zieh-Bogen + weicher, langsamer Flip (AHA).
    Bewusst KEINE Scale-Animation während der 3D-Drehung (das ruckelte); die
-   Dramatik kommt aus dem langsamen Flip + aufblühendem Glühen. Der Helligkeits-
-   wechsel wird sanft überblendet (filter-Transition), statt hart zu springen. */
+   Dramatik kommt aus dem langsamen Flip + aufblühendem Glühen. */
 #bigcard .flip-inner { transition: transform 0.85s cubic-bezier(0.2, 0.75, 0.2, 1); }
 /* box-shadow statt filter: ein animierter Filter kostet pro Frame eine
    Neu-Rasterung UND das mitwachsende Leuchten laesst die Karte „atmen". */
@@ -396,11 +417,17 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
 }
 #bigcard .flip.reveal-big .flip-inner { transition: transform 1.7s cubic-bezier(0.2, 0.9, 0.25, 1); }
 #bigcard .flip.reveal-big { z-index: 6; }
-#bigcard .flip.reveal-big .flip-front { animation: revealGlow 2s ease-out; }
-@keyframes revealGlow {
-  0% { box-shadow: 0 0 8px rgba(255, 220, 120, 0.3); }
-  35% { box-shadow: 0 0 30px rgba(255, 220, 120, 0.85); }
-  100% { box-shadow: 0 0 0 rgba(255, 220, 120, 0); }
+/* Leuchten beim grossen Aufdecken: feste Ebene, nur die Deckkraft laeuft (siehe
+   .flip-inner::before). Startet nicht bei null, damit es nahtlos an das
+   Einladungs-Glimmen der Rueckseite anschliesst. */
+#bigcard .flip.reveal-big .flip-inner::before {
+  box-shadow: 0 0 30px rgba(255, 220, 120, 0.85);
+  animation: glowBig 2s ease-out;
+}
+@keyframes glowBig {
+  0%   { opacity: 0.3; }
+  35%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Interaktiv: verdeckte eigene Großkarte lädt zum Antippen ein (Glühen auf der
@@ -1025,12 +1052,13 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
   45% { opacity: 0.65; transform: scale(1.03); }
   100% { opacity: 0; transform: scale(1.1); }
 }
-/* Gruenes Aufleuchten der freigelegten Karte (Glow-Strahlung). */
-.flip.rv-mist.revealing .flip-front { animation: glowFlash 1.35s ease-out; }
-@keyframes glowFlash {
-  0% { box-shadow: 0 0 0 rgba(90,230,170,0); }
-  35% { box-shadow: 0 0 46px rgba(90, 230, 170, 0.95); }
-  100% { box-shadow: 0 0 0 rgba(90,230,170,0); }
+/* Gruenes Aufleuchten der freigelegten Karte (Glow-Strahlung) - als feste
+   Leucht-Ebene, animiert wird nur die Deckkraft. Wichtig gerade hier: die
+   Vorderseite behaelt beim Glutnebel ihren Filter, ein wachsender box-shadow
+   auf ihr haette das gefilterte Kartenbild in jedem Frame neu gerastert. */
+.flip.rv-mist.revealing .flip-inner::before {
+  box-shadow: 0 0 46px rgba(90, 230, 170, 0.95);
+  animation: glowPop 1.35s ease-out;
 }
 /* Zwei Nebel-Lagen mit unterschiedlichem Tempo = wabernde Tiefe. */
 .mistfx {

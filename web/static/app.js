@@ -31,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "93";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "94";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -136,6 +136,12 @@ function shatterBack(node) {
   setTimeout(() => shards.forEach((s) => s.remove()), 1500);
 }
 
+// Wie lange ein Aufdeck-Stil laeuft (ms). „flip" = die 3D-Drehung der kleinen
+// Karten samt Pop-Leuchten.
+function revealDauer(style) {
+  return style === "mist" ? 1400 : style === "shatter" ? 1500 : style === "flip" ? 850 : 1000;
+}
+
 // Aufdecken mit dem gewählten Stil starten (setzt „revealing" für die Dauer).
 function playReveal(node) {
   const style = (node.className.match(/\brv-(\w+)\b/) || [])[1] || "flip";
@@ -154,7 +160,7 @@ function playReveal(node) {
       inner.appendChild(m); extras.push(m);
     });
   }
-  const dur = style === "mist" ? 1400 : style === "shatter" ? 1500 : 1000;
+  const dur = revealDauer(style);
   setTimeout(() => {
     node.classList.remove("revealing");
     extras.forEach((el) => el.remove());
@@ -769,6 +775,13 @@ function revealBigCard(node) {
     setTimeout(() => node.classList.remove("reveal-big", "flipping"), FLIP + 400);
     if (seq) Cards.playDrawSequence(node, seq, reasons, img, FLIP);
   }, CHARGE);
+
+  // Eigener Joker: „JOKER!" erst, wenn er sichtbar wird - nach knapp der halben
+  // Drehung, bzw. nach den verworfenen Karten (ein Joker wird immer behalten und
+  // kommt daher zuletzt).
+  if (kept && kept.suit === "joker") {
+    setTimeout(() => { if (node.isConnected) triggerJokerMoment(); }, CHARGE + FLIP * 0.35 + extra);
+  }
 }
 
 function runReveals() {
@@ -801,20 +814,31 @@ function runReveals() {
     }, { once: true });
   });
   const flyIn = 480 + nodes.length * 60;
+  let ende = 0;   // wann die LETZTE Aufdeckung wirklich fertig ist
   nodes.slice().reverse().forEach((node, i) => {
+    const stil = (node.className.match(/\brv-(\w+)\b/) || [])[1] || "flip";
+    ende = Math.max(ende, flyIn + i * 200 + revealDauer(stil));
     setTimeout(() => {
       if (!node.isConnected) return;
       node.classList.remove("awaiting");
       node.classList.add("revealed", "reveal-pop");
       playReveal(node);
+      // Spieler: „JOKER!" genau dann, wenn ein Joker vor seinen Augen aufgedeckt
+      // wird (der SL bekommt ihn schon beim Ziehen, siehe render()).
+      if (App.role === "player" && node.querySelector(".card-svg.is-joker")) triggerJokerMoment();
       setTimeout(() => node.classList.remove("reveal-pop"), 650);
     }, flyIn + i * 200);
   });
-  const lockMs = flyIn + (nodes.length - 1) * 200 + 700;
+  // Bis zum Ende der langsamsten Aufdeckung sperren. Vorher waren es pauschal
+  // 700 ms nach dem Start der letzten Karte - Glutnebel und Splitter laufen aber
+  // bis 1,5 s. Kam in der Luecke ein Update (z. B. der naechste Spieler deckt
+  // auf), baute render() die Karte mitten in der Animation neu -> sie sprang.
+  const lockMs = ende + 60;
 
   // Anti-Hakeln: die Aufdeckung gegen zwischenzeitliche Broadcasts abschirmen.
   // Der neueste Zustand wird gemerkt (App.pendingRender) und erst danach gerendert.
-  if (lockMs > 0) {
+  // Eine laufende, laengere Sperre (die eigene Grosskarte) nie verkuerzen.
+  if (lockMs > 0 && Date.now() + lockMs > (App.revealLockUntil || 0)) {
     App.revealLockUntil = Date.now() + lockMs;
     clearTimeout(App._revealFlush);
     App._revealFlush = setTimeout(() => {
@@ -1073,6 +1097,8 @@ function showMimiToast(text) {
 }
 
 function triggerJokerMoment() {
+  // Beide Joker kurz hintereinander aufgedeckt -> ein Blitz reicht.
+  if (document.querySelector(".joker-moment")) return;
   const m = el(`<div class="joker-moment"><div class="jm-flash"></div><div class="jm-star">★</div><div class="jm-text">JOKER!</div></div>`);
   document.body.appendChild(m);
   setTimeout(() => m.remove(), 1900);
@@ -1099,7 +1125,8 @@ function talentBadges(talents) {
 // (tv.js) rendern sie identisch.
 const talentTrail = (c) => Cards.trail(c);
 
-function activeHints(combatant) {
+// mitKarte = false: nur Hinweise, die nichts über die Karte verraten.
+function activeHints(combatant, mitKarte = true) {
   const out = [];
   // Angeschlagen-Erholung: nur für die Figur, die gerade dran ist (SW: Willenskraft-Probe).
   const st = combatant.status || {};
@@ -1107,7 +1134,7 @@ function activeHints(combatant) {
   if (isActive && st.shaken && !st.out) out.push("Angeschlagen: Willenskraft-Probe zum Erholen");
   // Hinweis-Talente, die bei passender Karte eingeblendet werden.
   const card = combatant.card;
-  if (!card) return out;
+  if (!card || !mitKarte) return out;
   const has = (t) => (combatant.talents || []).includes(t);
   const rankNum = { JOKER: 15, A: 14, K: 13, Q: 12, J: 11, "10": 10, "9": 9, "8": 8, "7": 7, "6": 6, "5": 5, "4": 4, "3": 3, "2": 2 }[card.rank];
   const isJoker = card.rank === "JOKER";
@@ -1172,11 +1199,14 @@ function render() {
   const root = $("app");
   Cards.setJokerRunde(App.state.round);      // Joker-Stil bleibt je Runde fest
 
-  // Joker-Moment auslösen, wenn ein neuer Joker gezogen wurde.
+  // Joker-Moment: beim SL sofort, wenn ein Joker gezogen wurde (er sieht alle
+  // Karten ohnehin offen). Beim Spieler NICHT hier - das verriet den Joker schon
+  // beim Austeilen, bevor irgendwer aufgedeckt hatte. Dort feuert er erst, wenn
+  // die Joker-Karte auf diesem Handy umgedreht wird (runReveals/revealBigCard).
   if (App.prevJokerFlash === null) App.prevJokerFlash = App.state.jokerFlash;
   else if (App.state.jokerFlash > App.prevJokerFlash) {
     App.prevJokerFlash = App.state.jokerFlash;
-    triggerJokerMoment();
+    if (App.role === "gm") triggerJokerMoment();
   }
 
   // Mimis Miau als kurzer, selbst-verschwindender Toast (nur Spieler).
@@ -1194,13 +1224,25 @@ function render() {
     const da = new Set(App.state.combatants.map((c) => c.id));
     App.auswahl.forEach((id) => { if (!da.has(id)) App.auswahl.delete(id); });
   }
-  root.innerHTML = (App.role === "gm" ? renderGM() : renderPlayer()) + renderTokenPopupOverlay();
-  // Platz für die fixierte Steuerleiste schaffen - über eine Klasse statt über
-  // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
-  document.body.classList.toggle("hat-leiste", !!root.querySelector(".aktionsleiste"));
-  runReveals();
-  playFlip(prevRects);
-  playTokens(prevTokens);
+  Cards.renderStart();
+  let html;
+  try { html = (App.role === "gm" ? renderGM() : renderPlayer()) + renderTokenPopupOverlay(); }
+  finally { Cards.renderEnde(); }
+  // Unveraendert? Dann den Bildschirm NICHT neu aufbauen. Jeder Neuaufbau ersetzt
+  // alle Karten: laufende Animationen (Joker, Glanz, Glimmen) starten von vorn,
+  // Bilder werden neu eingesetzt, und am Handy steht die Seite dafuer spuerbar
+  // kurz still. Viele Server-Updates aendern an DIESER Ansicht gar nichts.
+  // (Das Bild-Overlay unten haengt an <body> und wird trotzdem abgeglichen.)
+  if (html !== App._letztesHtml || !root.firstChild) {
+    App._letztesHtml = html;
+    root.innerHTML = html;
+    // Platz für die fixierte Steuerleiste schaffen - über eine Klasse statt über
+    // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
+    document.body.classList.toggle("hat-leiste", !!root.querySelector(".aktionsleiste"));
+    runReveals();
+    playFlip(prevRects);
+    playTokens(prevTokens);
+  }
 
   // Das Overlay haengt an <body> (nicht im #app-Root) und wird von render()
   // deshalb NICHT automatisch ersetzt -> vorher immer selbst aufraeumen.
@@ -2165,7 +2207,10 @@ function renderPlayer() {
     ? timerRing()
     : (s.phase === "gate" ? `<div class="center muted small">Warte auf Freigabe durch den Spielleiter…</div>` : "");
 
-  const hints = activeHints(mine).map((h) => `<div class="pill warn" style="margin:4px 2px">${esc(h)}</div>`).join("");
+  // Karten-Hinweise („Joker: +2 …", „Berechnend" bei niedriger Karte) erst,
+  // wenn die eigene Karte aufgedeckt ist - sonst stand unter der verdeckten
+  // Karte schon, was drunter liegt.
+  const hints = activeHints(mine, !mine.card || !!mine.revealed).map((h) => `<div class="pill warn" style="margin:4px 2px">${esc(h)}</div>`).join("");
 
   // Abwarten darf JEDE Figur (SW-Regel) – sinnvoll ansagen kann man es, wenn
   // man gerade dran ist.

@@ -47,6 +47,18 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## v94 (18.09.2026): Aufdecken ohne Ruckeln, Joker bleibt geheim
+
+- Kein `transition: filter` mehr auf `.card-svg` (war ein animierter Filter bei
+  jedem Aufdecken). Aufdeck-Leuchten als feste Ebene `.flip-inner::before`,
+  animiert wird nur `opacity`.
+- Aufdeck-Sperre reicht bis zum Ende der langsamsten Animation (`revealDauer`).
+- `render()` baut nicht neu, wenn das HTML gleich ist; SVG-IDs dafür pro Aufbau
+  ab 1 (`Cards.renderStart/renderEnde`), außerhalb ab einer Million.
+- Joker verrät sich beim Spieler nicht mehr vor dem Aufdecken: kein „JOKER!"
+  beim Austeilen, kein Goldpulsieren/Ausbruch der verdeckten Karte, keine
+  Karten-Hinweise darunter. SL und TV bleiben bewusst wie sie sind.
+
 ## Änderungen vom 16.09.2026 (Version weiterhin 91)
 
 ### Karten-Optik
@@ -124,8 +136,8 @@ sich über **Export/Import** in der App umziehen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v93** (veröffentlicht).
-      Nächstes Release also 93 → 94 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v94** (veröffentlicht).
+      Nächstes Release also 94 → 95 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.

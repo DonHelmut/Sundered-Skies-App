@@ -63,7 +63,15 @@ function esc(s) {
   return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 }
 
-let _cidSeq = 0;
+// Eindeutige IDs fuer Verlaeufe/Clip-Pfade im SVG. Zwei getrennte Zaehler:
+// Innerhalb eines kompletten Neuaufbaus (Cards.renderStart/-Ende) beginnt es
+// jedesmal bei 1 - so ist das HTML einer unveraenderten Ansicht wirklich gleich
+// und die App kann den Neuaufbau sparen. Karten, die ausserhalb davon direkt in
+// die Seite gesetzt werden (Zieh-Sequenz beim Aufdecken), zaehlen ab einer
+// Million weiter und koennen deshalb nie mit ihnen zusammenstossen.
+let _cidSeq = 1000000;
+let _renderSeq = null;
+function naechsteId() { return _renderSeq !== null ? ++_renderSeq : ++_cidSeq; }
 
 // Papierfaser: EINMAL als kleines Rausch-Bild erzeugen und danach als Muster
 // kacheln. Ein feTurbulence-Filter waere pro Karte UND pro Neu-Rendern neu zu
@@ -727,7 +735,7 @@ const JOKER_BAU = { riss: jokerRiss, siegel: jokerSiegel, glyphen: jokerGlyphen,
 // Joker mit oder ohne Bild im aktuell gewaehlten Stil.
 function jokerSVG(card, image) {
   const p = jokerPalette(card.jokerColor);
-  const uid = "jk" + (++_cidSeq);
+  const uid = "jk" + naechsteId();
   const bau = JOKER_BAU[jokerStilFuer(card)] || JOKER_BAU.riss;
   return jokerDefs(uid, p) + bau(uid, p, image);
 }
@@ -786,7 +794,7 @@ function renderCardSVG(card, image) {
 
   const tier = tierKey(card);
   const t = TIERS[tier];
-  const uid = "c" + (++_cidSeq);
+  const uid = "c" + naechsteId();
   const d = defs(uid, t);
 
   if (image) return svgWrap(portraitFace(card, image, uid, tier, t), "tier-" + tier, d);
@@ -818,7 +826,7 @@ function renderBackSVG(image) {
   // WICHTIG: für ALLE Karten identisch – darf den Joker nicht verraten.
   if (image) {
     const ix = 5, iy = 5, iw = CARD_W - 10, ih = CARD_H - 10;
-    const cid = "cb" + (++_cidSeq);
+    const cid = "cb" + naechsteId();
     const cx = CARD_W / 2, cy = CARD_H / 2;
     const rays = Array.from({ length: 8 }).map((_, i) => {
       const a = (i * Math.PI) / 4;
@@ -1042,6 +1050,9 @@ window.Cards = {
     jokerAuswahl = gut.length ? gut : JOKER_STILE.slice();
   },
   setJokerRunde: (n) => { jokerRunde = Number(n) || 0; },
+  // Klammer um einen kompletten Neuaufbau (siehe naechsteId).
+  renderStart: () => { _renderSeq = 0; },
+  renderEnde: () => { _renderSeq = null; },
   // Nur Musterseite: einen Stil erzwingen (null = wieder normal waehlen).
   setJokerStil: (s) => { jokerErzwungen = JOKER_BAU[s] ? s : null; },
 };
