@@ -47,6 +47,17 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## v96 (19.09.2026): Talente selbst wählen, Regel-Spickzettel, Statisten-Regel
+
+- Spieler haken ihre **Initiative-Talente** (Schnell, Kühler Kopf …) und **Glück /
+  Großes Glück** im Charakterbogen selbst an (`talents_update`, kein Undo-Eintrag,
+  am Roster gespeichert). Kühler + Sehr Kühler Kopf -> nur das stärkere.
+- **Regel-Spickzettel** „❔ So geht Angriff & Schaden" im Reiter Kampf
+  (`regelTipp`): Treffen gegen Parade / 4, Schaden gegen Robustheit, Joker, Wunden …
+  setzt eigene Werte aus dem Bogen ein.
+- **Statisten raus bei der 1./2./3. Wunde** stellt der SL in ⚙ ein (`statisten_ko`,
+  Standard 3, gespeichert + in der Sicherung). Wild Cards immer bei der 4.
+
 ## v95 (19.09.2026): Kampf abräumen, Bennies, Effekte, Charakterbogen
 
 - **🧹 Kampf abräumen** (`clear_all`): Gegner/Verbündete weg, Spieler nur pausiert
@@ -162,8 +173,8 @@ sich über **Export/Import** in der App umziehen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v95** (veröffentlicht).
-      Nächstes Release also 95 → 96 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v96** (veröffentlicht).
+      Nächstes Release also 96 → 97 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.

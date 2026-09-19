@@ -148,7 +148,7 @@ Mehrere gleichnamige Gegner werden automatisch **durchnummeriert** („Ork 1",
   Schnell-Zustände **Verwundbar / Abgelenkt / Am Boden / Betäubt**. SL setzt sie
   für alle (inkl. NPCs), Spieler für sich selbst. Angezeigt als Overlay auf der
   Karte + Badge; Wunden zeigen den Abzug (−1/−2/−3).
-- **Wild Card vs. Statist:** Wild Cards vertragen **3** Wunden, Statisten **2**.
+- **Wild Card vs. Statist:** Wild Cards vertragen **3** Wunden (bei der 4. raus). Bei welcher Wunde Statisten raus sind (1., 2. oder 3.), stellt der SL unter ⚙ ein – Standard ist die 3. Wild Card kann der SL auch jedem Gegner geben.
   Eine Wunde darüber heißt **ausgeschaltet** (sofern Auto-K.O. eingeschaltet ist).
 - **Treffer ☠ / Heilung ✚ mit einem Klick:** Treffer macht *angeschlagen*, beim
   nächsten Mal **+1 Wunde**. Heilung geht denselben Weg rückwärts (erst wieder

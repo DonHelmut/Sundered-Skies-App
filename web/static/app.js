@@ -31,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "95";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "96";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -1883,7 +1883,14 @@ function leisteEinstellungenHtml() {
     </label>
     <label class="row tight" style="align-items:center; cursor:pointer">
       <input type="checkbox" data-act="toggle-auto-incap" ${s.autoIncap ? "checked" : ""} style="width:auto">
-      <span class="small">Bei der 4. Wunde automatisch „Ausgeschaltet"</span>
+      <span class="small">Zu viele Wunden → automatisch „Ausgeschaltet"</span>
+    </label>
+    <label class="row tight" style="align-items:center; margin-top:6px; gap:6px"
+           title="Wild Cards (Spieler, Bosse) sind immer bei der 4. Wunde raus">
+      <span class="small">Statisten raus bei der</span>
+      <select data-act="set-statisten-ko" style="width:auto">${[1, 2, 3].map((n) =>
+        `<option value="${n}"${(s.statistenKo || 3) === n ? " selected" : ""}>${n}.</option>`).join("")}</select>
+      <span class="small">Wunde (Wild Cards bei der 4.)</span>
     </label>
     <label class="row tight" style="align-items:center; margin-top:6px; cursor:pointer"
            title="Spart bei vielen Gegnern einen Klick pro Figur">
@@ -2400,8 +2407,10 @@ function renderBogen(mine) {
   const leiste = `<div class="reiter">${BOGEN_REITER.map(([k, n]) =>
     `<button class="${k === reiter ? "an" : ""}" data-act="bogen-reiter" data-reiter="${k}">${n}</button>`).join("")}</div>`;
   let inhalt;
-  if (!edit && bogenIstLeer(b)) {
+  if (!edit && bogenIstLeer(b) && reiter !== "talente") {
     inhalt = `<div class="muted small" style="padding:6px 0">Noch leer. Tippe auf <b>✎ Bearbeiten</b> und trag deine Werte ein – dann hast du sie im Kampf immer griffbereit.</div>`;
+    if (reiter === "kampf") inhalt += regelTipp(b);
+    return section("bogen", "📜 Mein Charakter", `<div class="bogen">${leiste}${inhalt}<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div></div>`);
   } else if (reiter === "kampf") {
     inhalt = edit
       ? `<div class="bogen-raster">
@@ -2433,9 +2442,23 @@ function renderBogen(mine) {
             ? `<div class="fert">${b.fertigkeiten.map((f) => `<span>${esc(f.name)}</span><span class="w">${esc(f.wert || "–")}</span>`).join("")}</div>`
             : `<div class="muted small">–</div>`)}`;
   } else if (reiter === "talente") {
-    // Die Initiative-Talente (Schnell, Kühler Kopf …) setzt der SL - hier nur zur Info.
-    const init = (mine.talents || []).map((t) => `<span class="tag">${esc(((App.state.talents || {})[t] || {}).label || t)}</span>`).join("");
-    inhalt = `${init ? `<div class="bogen-titel">Initiative (vom SL)</div><div class="chips">${init}</div>` : ""}
+    // Initiative-Talente (Schnell, Kühler Kopf …) und Glück: wirken direkt aufs
+    // Kartenziehen bzw. die Bennies - der Spieler hakt sie hier selbst an.
+    const alle = App.state.talents || {};
+    const te = App.talentEntwurf;
+    const hat = (k) => (edit ? te.talents : (mine.talents || [])).includes(k);
+    const glueck = edit ? te : mine;
+    const initAnzeige = [
+      ...(mine.talents || []).map((t) => (alle[t] || {}).label || t),
+      ...(mine.gluck ? ["Glück"] : []), ...(mine.grosses_gluck ? ["Großes Glück"] : []),
+    ].map((n) => `<span class="tag">${esc(n)}</span>`).join("");
+    const initEdit = Object.keys(alle).map((k) =>
+        `<label class="talent-wahl"><input type="checkbox" data-talent="${k}"${hat(k) ? " checked" : ""}> ${esc(alle[k].label)}</label>`).join("")
+      + `<label class="talent-wahl"><input type="checkbox" data-talent="gluck"${glueck.gluck ? " checked" : ""}> Glück (+1 Benny)</label>`
+      + `<label class="talent-wahl"><input type="checkbox" data-talent="grosses_gluck"${glueck.grosses_gluck ? " checked" : ""}> Großes Glück (+2)</label>`;
+    inhalt = `<div class="bogen-titel">Initiative &amp; Glück</div>
+      ${edit ? `<div class="talent-raster">${initEdit}</div>`
+        : `<div class="chips">${initAnzeige || `<span class="muted small">–</span>`}</div>`}
       <div class="bogen-titel">Talente</div>
       ${edit ? `<textarea data-bogen="talente" rows="4" placeholder="Ein Talent pro Zeile">${esc(b.talente.join("\n"))}</textarea>`
         : `<div class="chips">${b.talente.map((t) => `<span class="tag">${esc(t)}</span>`).join("") || `<span class="muted small">–</span>`}</div>`}
@@ -2447,12 +2470,56 @@ function renderBogen(mine) {
       ? `<textarea data-bogen="ausruestung" rows="6" placeholder="Ein Gegenstand pro Zeile, z. B. Heiltrank ×3">${esc(b.ausruestung.join("\n"))}</textarea>`
       : (b.ausruestung.map((z) => `<div class="zeile2"><span>${esc(z)}</span></div>`).join("") || `<div class="muted small">–</div>`);
   }
+  // Regel-Spickzettel nur im Kampf-Reiter und nicht beim Bearbeiten.
+  if (reiter === "kampf" && !edit) inhalt += regelTipp(b);
   const knoepfe = edit
     ? `<div class="row" style="margin-top:10px; gap:8px"><button class="primary" data-act="bogen-speichern">✓ Speichern</button>
          <button class="ghost" data-act="bogen-abbrechen">Abbrechen</button></div>`
     : `<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div>`;
   return section("bogen", "📜 Mein Charakter", `<div class="bogen${edit ? " bogen-form" : ""}">${leiste}${inhalt}${knoepfe}</div>`);
 }
+
+// Kurzregeln zu Angriff und Schaden (Savage Worlds, wie in Sundered Skies).
+// Setzt die eigenen Werte ein, wo der Bogen sie kennt - sonst allgemein.
+function regelTipp(b) {
+  const fert = (name) => (b.fertigkeiten.find((f) => f.name.trim().toLowerCase() === name) || {}).wert;
+  const kaempfen = fert("kämpfen") || fert("kaempfen");
+  const schiessen = fert("schießen") || fert("schiessen");
+  const st = b.attribute.st;
+  const w = (x, allg) => (x ? `<b>${esc(x)}</b>` : allg);
+  return `<details class="regel-tipp"${App.regelOffen ? " open" : ""}>
+    <summary>❔ So geht Angriff &amp; Schaden</summary>
+    <div class="regel-block"><b>1 · Treffen</b>
+      <ul>
+        <li><b>Nahkampf:</b> ${w(kaempfen && `Kämpfen ${kaempfen}`, "Kämpfen")} würfeln – erreichen oder übertreffen der <b>Parade</b> des Gegners = Treffer.</li>
+        <li><b>Fernkampf:</b> ${w(schiessen && `Schießen ${schiessen}`, "Schießen")} gegen <b>4</b>. Mittlere Reichweite −2, weite −4, Deckung zieht ab.</li>
+        <li>Als Wild Card würfelst du den <b>Wild-Würfel (W6)</b> mit, der höhere zählt. Jede gewürfelte Höchstzahl darf nochmal (<b>Ass</b>).</li>
+        <li><b>4 oder mehr darüber</b> (Steigerung) = <b>+1W6 Schaden</b>.</li>
+      </ul></div>
+    <div class="regel-block"><b>2 · Schaden</b>
+      <ul>
+        <li><b>Nahkampf:</b> ${w(st && `Stärke ${st}`, "Stärke")} + Waffenwürfel (z. B. St+W6). <b>Fernkampf:</b> fester Waffenschaden (z. B. 2W6). Kein Wild-Würfel beim Schaden.</li>
+        <li>Verglichen wird mit der <b>Robustheit</b> des Ziels:
+          erreicht = <b>Angeschlagen</b>, je 4 darüber = <b>1 Wunde</b>.
+          Ist das Ziel schon angeschlagen, wird aus „Angeschlagen" eine Wunde.</li>
+        <li>Normale Gegner (Statisten) sind bei der <b>${App.state.statistenKo || 3}. Wunde</b> draußen, Wild Cards (Spieler, Bosse) bei der <b>4.</b></li>
+      </ul></div>
+    <div class="regel-block"><b>Gut zu wissen</b>
+      <ul>
+        <li><b>Joker:</b> +2 auf alle Würfe <i>und</i> den Schaden.</li>
+        <li>Jede eigene Wunde: <b>−1</b> auf alle Würfe.</li>
+        <li><b>Mehrere gegen einen:</b> +1 pro zusätzlichem Angreifer (höchstens +4).</li>
+        <li><b>Wilder Angriff:</b> +2 aufs Treffen und den Schaden, dafür −2 Parade bis zum nächsten Zug.</li>
+        <li><b>Benny für Wunden:</b> sofort nach dem Treffer Konstitution würfeln – Erfolg und jede Steigerung heben je eine Wunde auf.</li>
+      </ul></div>
+    <div class="muted small">Im Zweifel entscheidet der Spielleiter.</div>
+  </details>`;
+}
+
+// Auf-/Zugeklappt merken - sonst klappte ihn jedes Update vom Tisch wieder zu.
+document.addEventListener("toggle", (e) => {
+  if (e.target.classList && e.target.classList.contains("regel-tipp")) App.regelOffen = e.target.open;
+}, true);
 
 // Eingabe im Entwurf mitschreiben (Pfad wie „waffen.0.name").
 function bogenEingabe(t) {
@@ -2468,7 +2535,21 @@ function bogenEingabe(t) {
   ziel[teile[teile.length - 1]] = t.value;
 }
 document.addEventListener("input", (e) => { if (e.target.closest && e.target.closest(".bogen-form")) bogenEingabe(e.target); });
-document.addEventListener("change", (e) => { if (e.target.closest && e.target.closest(".bogen-form")) bogenEingabe(e.target); });
+document.addEventListener("change", (e) => {
+  const t = e.target;
+  if (!t.closest || !t.closest(".bogen-form")) return;
+  const k = t.getAttribute("data-talent");
+  if (k && App.talentEntwurf) {
+    if (k === "gluck" || k === "grosses_gluck") App.talentEntwurf[k] = t.checked;
+    else {
+      const l = App.talentEntwurf.talents.filter((x) => x !== k);
+      if (t.checked) l.push(k);
+      App.talentEntwurf.talents = l;
+    }
+    return;
+  }
+  bogenEingabe(t);
+});
 // Solange im Bogen getippt wird, NICHT neu aufbauen (sonst waeren Fokus und
 // Cursor weg, sobald irgendwer am Tisch etwas tut). Nach dem Verlassen des
 // Felds den zurueckgehaltenen Stand nachholen.
@@ -2837,12 +2918,19 @@ document.addEventListener("click", (e) => {
     "firewall-allow": () => allowFirewall(),
     "fokus": () => fokusUmschalten(),
     "bogen-reiter": () => { App.bogenReiter = target.getAttribute("data-reiter"); render(); },
-    "bogen-bearbeiten": () => { App.bogenEntwurf = bogenVon(myCombatant()); render(); },
-    "bogen-abbrechen": () => { App.bogenEntwurf = null; render(); },
+    "bogen-bearbeiten": () => {
+      const m = myCombatant();
+      App.bogenEntwurf = bogenVon(m);
+      App.talentEntwurf = { talents: [...(m.talents || [])], gluck: !!m.gluck, grosses_gluck: !!m.grosses_gluck };
+      render();
+    },
+    "bogen-abbrechen": () => { App.bogenEntwurf = null; App.talentEntwurf = null; render(); },
     "bogen-speichern": () => {
       const mine = myCombatant();
       if (mine && App.bogenEntwurf) gmActionOrPlayer({ type: "sheet_update", id: mine.id, bogen: App.bogenEntwurf });
+      if (mine && App.talentEntwurf) gmActionOrPlayer({ type: "talents_update", id: mine.id, ...App.talentEntwurf });
       App.bogenEntwurf = null;
+      App.talentEntwurf = null;
       toast("📜 Gespeichert");
       render();
     },
@@ -3051,6 +3139,8 @@ document.addEventListener("change", (e) => {
   } else if (act === "remember-player-zone") {
     const v = parseInt(t.value, 10);
     if (!isNaN(v)) { try { localStorage.setItem("lastZonePlayer", String(v)); } catch {} }
+  } else if (act === "set-statisten-ko") {
+    gmAction({ type: "set_statisten_ko", value: parseInt(t.value, 10) });
   } else if (act === "toggle-auto-incap") {
     gmAction({ type: "set_auto_incap", on: t.checked });
   } else if (act === "toggle-auto-release") {

@@ -1097,3 +1097,48 @@ def test_gast_ohne_charakter_weiterhin_moeglich(fresh_game):
     p = g.register_player("Gast", character_id=None, existing_player_id=None)
     assert p is not None
     assert len([c for c in g.combatants if c.get("playerId") == p["id"]]) == 1
+
+
+def test_player_sets_own_talents(fresh_game):
+    fresh_game.apply({"type": "roster_upsert", "name": "Tessa", "isWildCard": True})
+    char = fresh_game.roster[-1]["id"]
+    pid = fresh_game.register_player("Stefan", char, None)["id"]
+    tessa = next(c for c in fresh_game.combatants if c["playerId"] == pid)
+    undo_vorher = len(fresh_game._history)
+
+    fresh_game.apply({"type": "talents_update", "id": tessa["id"],
+                      "talents": ["schnell", "kuehler_kopf", "sehr_kuehler_kopf", "gibtsnicht"],
+                      "gluck": True, "grosses_gluck": False})
+    assert tessa["talents"] == ["schnell", "sehr_kuehler_kopf"]    # Unsinn raus, stärkeres gilt
+    assert fresh_game.roster[-1]["talents"] == ["schnell", "sehr_kuehler_kopf"]
+    assert fresh_game.roster[-1]["gluck"] is True
+    assert len(fresh_game._history) == undo_vorher                  # kein Undo-Eintrag beim SL
+
+    fresh_game.apply({"type": "new_round"})                         # „Schnell" wirkt beim Ziehen
+    assert tessa["card"] is not None
+
+
+def test_house_rule_extra_out_on_third_wound_wildcard_on_fourth(fresh_game):
+    ork = _add_npc(fresh_game, "Ork", wildcard=False)
+    boss = _add_npc(fresh_game, "Boss", wildcard=True)
+    for c, raus_bei in ((ork, 3), (boss, 4)):
+        fresh_game.apply({"type": "apply_hit", "id": c["id"]})          # erst Angeschlagen
+        for wunde in range(1, raus_bei + 1):
+            fresh_game.apply({"type": "apply_hit", "id": c["id"]})      # je +1 Wunde
+            assert fresh_game._combatant(c["id"])["status"]["out"] is (wunde == raus_bei)
+
+
+def test_gm_chooses_when_extras_are_out(fresh_game):
+    for ko in (1, 2, 3):
+        fresh_game.apply({"type": "set_statisten_ko", "value": ko})
+        ork = _add_npc(fresh_game, f"Ork{ko}", wildcard=False)
+        fresh_game.apply({"type": "apply_hit", "id": ork["id"]})          # Angeschlagen
+        for wunde in range(1, ko + 1):
+            fresh_game.apply({"type": "apply_hit", "id": ork["id"]})
+            assert fresh_game._combatant(ork["id"])["status"]["out"] is (wunde == ko)
+    assert fresh_game.snapshot()["statistenKo"] == 3
+    # Wild-Card-Gegner bleiben unabhängig davon bei der 4. Wunde.
+    fresh_game.apply({"type": "set_statisten_ko", "value": 1})
+    boss = _add_npc(fresh_game, "Boss", wildcard=True)
+    fresh_game.apply({"type": "set_status", "id": boss["id"], "wounds": 3})
+    assert fresh_game._combatant(boss["id"])["status"]["out"] is False

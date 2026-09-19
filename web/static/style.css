@@ -1531,3 +1531,13 @@ details.section:not([open]) { padding-top: 8px; padding-bottom: 8px; }
 /* Die globale Regel „select: volle Breite" quetschte sonst das Namensfeld daneben zusammen. */
 .bogen-reihe select, .bogen-raster select { width: auto; flex: 0 0 auto; }
 .bogen-form textarea { font-family: inherit; }
+.talent-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-bottom: 4px; }
+.talent-wahl { display: flex; align-items: center; gap: 6px; font-size: 0.88rem; }
+.talent-wahl input { width: auto; }
+
+/* Regel-Spickzettel im Charakterbogen (Angriff & Schaden). */
+.regel-tipp { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--panel2); }
+.regel-tipp summary { cursor: pointer; font-weight: 700; color: var(--accent); }
+.regel-block { margin-top: 8px; font-size: 0.88rem; }
+.regel-block ul { margin: 4px 0 0; padding-left: 18px; }
+.regel-block li { margin-bottom: 3px; }

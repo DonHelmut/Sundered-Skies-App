@@ -74,9 +74,11 @@ def default_status() -> dict:
     }
 
 
-def max_wounds(c: dict) -> int:
-    """Wie viele Wunden vertraegt die Figur? Wild Card 3, Statist 2."""
-    return 3 if c.get("isWildCard") else 2
+def max_wounds(c: dict, statisten_ko: int = 3) -> int:
+    """Wie viele Wunden vertraegt die Figur? Wild Card 3 (bei der 4. raus).
+    Statisten: am Tisch verschieden (Regelbuch 1., Hausregeln 2. oder 3.) -
+    der SL stellt ein, bei welcher Wunde sie raus sind (statisten_ko)."""
+    return 3 if c.get("isWildCard") else max(0, statisten_ko - 1)
 
 
 # Zusatz-Zustände, die als Chips umgeschaltet werden können.
@@ -220,7 +222,8 @@ class Game:
         self.sound_enabled: bool = True
         self.benny_start: int = 3          # Standard-Startwert je Wild Card
         self.sl_bennies: int = 0           # Benny-Pool des Spielleiters
-        self.auto_incap: bool = True       # bei der 4. Wunde automatisch K.O.
+        self.auto_incap: bool = True       # zu viele Wunden -> automatisch K.O.
+        self.statisten_ko: int = 3         # Statisten raus bei dieser Wunde (1-3)
         self.conditions_enabled: bool = True   # Zusatz-Zustaende ueberhaupt verwenden?
         self.requests_enabled: bool = True     # duerfen Spieler ueberhaupt anfragen?
         self.benny_to_gm: bool = True      # Hausregel: Spieler-Benny -> SL-Pool
@@ -244,6 +247,10 @@ class Game:
         except (TypeError, ValueError):
             self.benny_start = 3
         self.auto_incap = bool(settings.get("autoIncap", True))
+        try:
+            self.statisten_ko = max(1, min(3, int(settings.get("statistenKo", 3))))
+        except (TypeError, ValueError):
+            self.statisten_ko = 3
         self.conditions_enabled = bool(settings.get("conditionsEnabled", True))
         self.auto_release = bool(settings.get("autoRelease", False))
         self.requests_enabled = bool(settings.get("requestsEnabled", True))
@@ -299,6 +306,7 @@ class Game:
             "timerSeconds": self.timer_seconds,
             "bennyStart": self.benny_start,
             "autoIncap": self.auto_incap,
+            "statistenKo": self.statisten_ko,
             "bennyToGm": self.benny_to_gm,
             "conditionsEnabled": self.conditions_enabled,
             "requestsEnabled": self.requests_enabled,
@@ -314,6 +322,7 @@ class Game:
             "allies": self.allies, "encounters": self.encounters,
             "settings": {"bennyStart": self.benny_start,
                          "autoIncap": self.auto_incap,
+                         "statistenKo": self.statisten_ko,
                          "timerSeconds": self.timer_seconds},
         }
 
@@ -364,6 +373,10 @@ class Game:
             except (TypeError, ValueError):
                 pass
             self.auto_incap = bool(s.get("autoIncap", self.auto_incap))
+            try:
+                self.statisten_ko = max(1, min(3, int(s.get("statistenKo", self.statisten_ko))))
+            except (TypeError, ValueError):
+                pass
             self.save_settings()
             touched = True
 
@@ -536,6 +549,7 @@ class Game:
             "bennyStart": self.benny_start,
             "slBennies": self.sl_bennies,
             "autoIncap": self.auto_incap,
+            "statistenKo": self.statisten_ko,
             "bennyToGm": self.benny_to_gm,
             "conditionsEnabled": self.conditions_enabled,
             "requestsEnabled": self.requests_enabled,
@@ -591,6 +605,12 @@ class Game:
         # Spielers zurück statt seiner eigenen letzten Aktion.
         if t == "sheet_update":
             self.bogen_setzen(action.get("id"), action.get("bogen"))
+            return
+        # Eigene Initiative-Talente (Schnell, Kühler Kopf …) + Glück: pflegt der
+        # Spieler ebenfalls selbst - aus demselben Grund kein Undo-Ziel.
+        if t == "talents_update":
+            self.talente_setzen(action.get("id"), action.get("talents"),
+                                action.get("gluck"), action.get("grosses_gluck"))
             return
 
         handler = getattr(self, f"_do_{t}", None)
@@ -1128,7 +1148,7 @@ class Game:
                 w = st.get("wounds", 0)
             # Obergrenze je Typ: Wild Cards vertragen 3 Wunden, Statisten 2.
             # Eine Wunde darueber -> ausgeschaltet (sofern Auto-K.O. an ist).
-            max_w = max_wounds(c)
+            max_w = max_wounds(c, self.statisten_ko)
             if self.auto_incap and w > max_w:
                 st["wounds"] = max_w
                 st["out"] = True
@@ -1143,7 +1163,8 @@ class Game:
     def _do_apply_hit(self, a: dict) -> None:
         """Ein Treffer nach Savage-Worlds-Logik in EINEM Klick:
         nicht angeschlagen -> Angeschlagen; schon angeschlagen -> +1 Wunde
-        (und bei der 4. automatisch K.O., falls Auto-K.O. an)."""
+        (Hausregel: Statisten bei der 3., Wild Cards bei der 4. Wunde automatisch
+        K.O., falls Auto-K.O. an - siehe max_wounds)."""
         c = self._combatant(a.get("id"))
         if not c:
             return
@@ -1300,6 +1321,22 @@ class Game:
         char = next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
         if char is not None:
             char["bogen"] = bogen
+            self.save_roster()
+        self.save_session()
+
+    def talente_setzen(self, cid: Optional[str], talente, gluck, grosses_gluck) -> None:
+        c = self._combatant(cid)
+        if not c or not isinstance(talente, list):
+            return
+        sauber = [t for t in dict.fromkeys(talente) if t in TALENTS]
+        # Kühler Kopf und Sehr Kühler Kopf schließen sich aus - das stärkere gilt.
+        if "sehr_kuehler_kopf" in sauber and "kuehler_kopf" in sauber:
+            sauber.remove("kuehler_kopf")
+        werte = {"talents": sauber, "gluck": bool(gluck), "grosses_gluck": bool(grosses_gluck)}
+        c.update(werte)
+        char = next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
+        if char is not None:
+            char.update(werte)
             self.save_roster()
         self.save_session()
 
@@ -1607,7 +1644,7 @@ class Game:
                 if "woundsDelta" in d:
                     c = self._combatant(cid)
                     cur = (c.get("status") or {}).get("wounds", 0) if c else 0
-                    lim = max_wounds(c) if c else 3
+                    lim = max_wounds(c, self.statisten_ko) if c else 3
                     d = {"wounds": max(0, min(lim + 1, cur + d.pop("woundsDelta")))}
                 self._do_set_status({"id": cid, **d})
         self.requests = [r for r in self.requests if r["id"] != a.get("id")]
@@ -1641,6 +1678,14 @@ class Game:
         """Zusatz-Zustaende (Verwundbar/Abgelenkt/Am Boden/Betaeubt) ein- oder
         ausblenden. Gesetzte Flags bleiben erhalten, sind nur unsichtbar."""
         self.conditions_enabled = bool(a.get("on", True))
+        self.save_settings()
+
+    def _do_set_statisten_ko(self, a: dict) -> None:
+        """Bei welcher Wunde sind Statisten raus? (1 = Regelbuch, 2/3 = Hausregel)"""
+        try:
+            self.statisten_ko = max(1, min(3, int(a.get("value", 3))))
+        except (TypeError, ValueError):
+            return
         self.save_settings()
 
     def _do_set_auto_incap(self, a: dict) -> None:
