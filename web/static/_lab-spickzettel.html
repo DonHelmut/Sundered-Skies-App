@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Musterseite · Spickzettel</title>
+<link rel="stylesheet" href="/static/style.css?v=lab">
+<style>
+  /* Nur fuer diese Musterseite: zwei Handy-Rahmen nebeneinander. */
+  body { padding: 18px; }
+  .buehne { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
+  .handy { width: 360px; border: 2px solid var(--line); border-radius: 26px; padding: 14px 12px 18px;
+    background: var(--bg, transparent); }
+  .handy-titel { text-align: center; font: 700 15px Georgia, serif; margin-bottom: 10px; color: var(--accent); }
+  .karten-platzhalter { height: 150px; border: 1px dashed var(--line); border-radius: 12px; display: flex;
+    align-items: center; justify-content: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 8px; }
+
+  /* --- Variante A: Kampfwerte-Leiste + aufklappbarer Rest --- */
+  .kw-leiste { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; }
+  .kw { border: 1px solid var(--line); border-radius: 10px; padding: 6px 4px; text-align: center; background: var(--panel2); }
+  .kw b { display: block; font-size: 1.5rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .kw span { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .kw small { font-size: 0.72rem; color: var(--muted); }
+  .waffe { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid var(--line);
+    border-radius: 8px; margin-bottom: 4px; font-size: 0.88rem; }
+  .waffe .w-name { font-weight: 700; }
+  .waffe .w-wert { color: var(--muted); text-align: right; white-space: nowrap; }
+  .blatt h4 { margin: 10px 0 4px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); }
+  .attr { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .attr div { text-align: center; border: 1px solid var(--line); border-radius: 8px; padding: 4px 0; font-size: 0.78rem; }
+  .attr b { display: block; font-size: 1rem; }
+  .fert { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 0.88rem; }
+  .fert .w { font-weight: 700; text-align: right; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chips .tag.handicap { color: var(--bad); border-color: var(--bad); }
+
+  /* --- Variante B: Reiter wie ein kleiner Charakterbogen --- */
+  .reiter { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 6px 0 8px; overflow-x: auto; }
+  .reiter button { flex: 1; padding: 6px 4px; font-size: 0.8rem; border: 0; border-radius: 8px 8px 0 0;
+    background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .reiter button.an { background: var(--panel2); color: var(--text); font-weight: 700; }
+  .reiter-inhalt > div { display: none; }
+  .reiter-inhalt > div.an { display: block; }
+  .zeile2 { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 3px 0; border-bottom: 1px dotted var(--line); }
+  .notiz { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
+  .erklaerung { max-width: 760px; margin: 0 auto 16px; font-size: 0.92rem; }
+</style>
+</head>
+<body class="player theme-pergament">
+  <div class="erklaerung panel">
+    <b>Entwurf „Spickzettel“</b> – so könnte ein halber Charakterbogen auf dem Spieler-Handy aussehen,
+    direkt unter der eigenen Karte. Nur Ansicht, noch ohne Funktion. Beispielwerte ausgedacht.
+  </div>
+  <div class="buehne">
+
+    <!-- ===================== Variante A ===================== -->
+    <div class="handy">
+      <div class="handy-titel">A · Kampfwerte immer sichtbar</div>
+      <div class="karten-platzhalter">(eigene Karte wie bisher)</div>
+      <div class="big-status-row"><span class="big-status s-ok">✓ Gesund</span></div>
+
+      <div class="kw-leiste">
+        <div class="kw"><span>Parade</span><b>7</b><small>6 +1 Rapier</small></div>
+        <div class="kw"><span>Robustheit</span><b>8</b><small>6 +2 Panzer</small></div>
+        <div class="kw"><span>Tempo</span><b>6</b><small>Rennen W6</small></div>
+      </div>
+      <div class="waffe"><span class="w-name">⚔ Rapier</span><span class="w-wert">Kämpfen W8 · St+W4 · Parade +1</span></div>
+      <div class="waffe"><span class="w-name">🏹 Glutpistole</span><span class="w-wert">Schießen W6 · 2W6 · 12/24/48</span></div>
+
+      <details class="panel section blatt" style="margin-top:8px">
+        <summary class="sec-head"><span class="sec-title">📜 Mein Charakter</span><span class="sec-caret">▸</span></summary>
+        <div class="panel-body">
+          <h4>Attribute</h4>
+          <div class="attr">
+            <div>GE<b>W8</b></div><div>VE<b>W6</b></div><div>WI<b>W8</b></div><div>ST<b>W6</b></div><div>KO<b>W6</b></div>
+          </div>
+          <h4>Fertigkeiten</h4>
+          <div class="fert">
+            <span>Kämpfen</span><span class="w">W8</span>
+            <span>Schießen</span><span class="w">W6</span>
+            <span>Wahrnehmung</span><span class="w">W6</span>
+            <span>Heimlichkeit</span><span class="w">W8</span>
+            <span>Überreden</span><span class="w">W4</span>
+            <span>Fliegen (Skiff)</span><span class="w">W6</span>
+          </div>
+          <h4>Talente &amp; Handicaps</h4>
+          <div class="chips">
+            <span class="tag">Schnell</span><span class="tag">Kühler Kopf</span><span class="tag">Flink</span>
+            <span class="tag handicap">Neugierig</span><span class="tag handicap">Eid (klein)</span>
+          </div>
+          <h4>Ausrüstung</h4>
+          <div class="fert"><span>Lederpanzer (+2)</span><span></span><span>Seil, Enterhaken</span><span></span><span>3 Heiltränke</span><span></span></div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ===================== Variante B ===================== -->
+    <div class="handy">
+      <div class="handy-titel">B · Kleiner Bogen mit Reitern</div>
+      <div class="karten-platzhalter">(eigene Karte wie bisher)</div>
+      <div class="big-status-row"><span class="big-status s-ok">✓ Gesund</span></div>
+
+      <div class="panel" style="padding:10px; margin-top:8px">
+        <div class="reiter" data-gruppe="b">
+          <button class="an" data-reiter="kampf">Kampf</button>
+          <button data-reiter="werte">Werte</button>
+          <button data-reiter="talente">Talente</button>
+          <button data-reiter="zeug">Ausrüstung</button>
+        </div>
+        <div class="reiter-inhalt" data-gruppe="b">
+          <div class="an" data-inhalt="kampf">
+            <div class="zeile2"><span>Parade</span><b>7</b></div>
+            <div class="zeile2"><span>Robustheit</span><b>8 (2)</b></div>
+            <div class="zeile2"><span>Tempo</span><b>6 · Rennen W6</b></div>
+            <div class="zeile2"><span>⚔ Rapier</span><b>St+W4</b></div>
+            <div class="zeile2"><span>🏹 Glutpistole</span><b>2W6 · 12/24/48</b></div>
+            <div class="notiz">Tipp: Beim Treffer würfelst du Kämpfen W8 bzw. Schießen W6.</div>
+          </div>
+          <div data-inhalt="werte">
+            <div class="attr">
+              <div>GE<b>W8</b></div><div>VE<b>W6</b></div><div>WI<b>W8</b></div><div>ST<b>W6</b></div><div>KO<b>W6</b></div>
+            </div>
+            <div class="fert" style="margin-top:8px">
+              <span>Kämpfen</span><span class="w">W8</span><span>Schießen</span><span class="w">W6</span>
+              <span>Wahrnehmung</span><span class="w">W6</span><span>Heimlichkeit</span><span class="w">W8</span>
+            </div>
+          </div>
+          <div data-inhalt="talente">
+            <div class="chips">
+              <span class="tag">Schnell</span><span class="tag">Kühler Kopf</span><span class="tag">Flink</span>
+              <span class="tag handicap">Neugierig</span><span class="tag handicap">Eid (klein)</span>
+            </div>
+          </div>
+          <div data-inhalt="zeug">
+            <div class="zeile2"><span>Lederpanzer</span><b>+2</b></div>
+            <div class="zeile2"><span>Heiltränke</span><b>3</b></div>
+            <div class="zeile2"><span>Seil, Enterhaken</span><b></b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+<script>
+  // #offen: Variante A gleich aufgeklappt zeigen (fuer Bildschirmfotos).
+  if (location.hash === "#offen") document.querySelectorAll("details.blatt").forEach((d) => { d.open = true; });
+  // Reiter umschalten (nur Musterseite).
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-reiter]");
+    if (!b) return;
+    const leiste = b.parentElement, g = leiste.dataset.gruppe;
+    leiste.querySelectorAll("button").forEach((x) => x.classList.toggle("an", x === b));
+    document.querySelectorAll(`.reiter-inhalt[data-gruppe="${g}"] > div`).forEach((d) =>
+      d.classList.toggle("an", d.dataset.inhalt === b.dataset.reiter));
+  });
+</script>
+</body>
+</html>

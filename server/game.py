@@ -148,6 +148,46 @@ def _write_json(path: Path, data: Any, backup: bool = False) -> None:
         pass
 
 
+WUERFEL = ("", "W4", "W6", "W8", "W10", "W12", "W12+1", "W12+2")
+
+
+def _bogen_sauber(roh: dict) -> dict:
+    """Charakterbogen vom Handy prüfen und begrenzen - er kommt ungefiltert vom
+    Spieler, also Längen und Anzahlen deckeln und nur bekannte Felder behalten."""
+    def txt(v, n=40):
+        return str(v or "").strip()[:n]
+
+    def zeilen(v, n=40, maxz=30):
+        return [z for z in (txt(x, n) for x in (v if isinstance(v, list) else [])) if z][:maxz]
+
+    attr_roh = roh.get("attribute") if isinstance(roh.get("attribute"), dict) else {}
+    attribute = {k: (attr_roh.get(k) if attr_roh.get(k) in WUERFEL else "")
+                 for k in ("ge", "ve", "wi", "st", "ko")}
+    fert = []
+    for f in (roh.get("fertigkeiten") if isinstance(roh.get("fertigkeiten"), list) else [])[:30]:
+        if isinstance(f, dict) and txt(f.get("name")):
+            fert.append({"name": txt(f.get("name")),
+                         "wert": f.get("wert") if f.get("wert") in WUERFEL else ""})
+    waffen = []
+    for w in (roh.get("waffen") if isinstance(roh.get("waffen"), list) else [])[:12]:
+        if isinstance(w, dict) and txt(w.get("name")):
+            waffen.append({"name": txt(w.get("name")), "schaden": txt(w.get("schaden"), 20),
+                           "info": txt(w.get("info"), 40)})
+    return {
+        "parade": txt(roh.get("parade"), 6),
+        "robustheit": txt(roh.get("robustheit"), 6),
+        "panzer": txt(roh.get("panzer"), 6),
+        "tempo": txt(roh.get("tempo"), 6),
+        "rennen": roh.get("rennen") if roh.get("rennen") in WUERFEL else "",
+        "attribute": attribute,
+        "fertigkeiten": fert,
+        "waffen": waffen,
+        "talente": zeilen(roh.get("talente")),
+        "handicaps": zeilen(roh.get("handicaps")),
+        "ausruestung": zeilen(roh.get("ausruestung"), 60, 40),
+    }
+
+
 class Game:
     def __init__(self) -> None:
         # Darf NIE den Start verhindern - ohne Schreibrechte laeuft die Runde
@@ -189,6 +229,9 @@ class Game:
         # ("die drei Orks ruecken vor"). Jede Figur traegt hoechstens eine
         # Gruppe (c["groupId"]); die Namen liegen hier.
         self.groups: list[dict] = []
+        # Abgelaufene Dauer-Effekte, damit der SL einen Hinweis bekommt (nur
+        # fluechtig, nicht gespeichert - nach einem Neustart ist das egal).
+        self.effekt_meldungen: list[dict] = []
 
         # Dauerhafte SL-Voreinstellungen (letzter Timer-/Benny-Startwert bleibt Default).
         settings = _read_json(SETTINGS_FILE) or {}
@@ -332,6 +375,12 @@ class Game:
         return bericht
 
     def save_session(self) -> None:
+        # Solange die alte Sitzung auf „Fortsetzen?" wartet, NICHT überschreiben.
+        # Sonst meldeten sich nach einem Neustart die Handys automatisch wieder an
+        # (Beitritt speichert) - schneller, als der SL klicken kann - und der
+        # gespeicherte Kampf war durch den fast leeren Neustart-Stand ersetzt.
+        if self.resume_available:
+            return
         _write_json(SESSION_FILE, {
             "combatants": self.combatants,
             "players": [{**p, "connected": False} for p in self.players],
@@ -500,6 +549,7 @@ class Game:
             "encounters": self.encounters,
             "players": self.players,
             "groups": self.groups,
+            "effektMeldungen": [] if fuer_spieler else self.effekt_meldungen,
             "combatants": self._fuer_spieler(self.combatants) if anon else self.combatants,
             "messages": self.messages[-MAX_MESSAGES:],
             "requests": self.requests,
@@ -536,6 +586,13 @@ class Game:
                 self.save_session()
             return
 
+        # Charakterbogen (Spickzettel): pflegt der SPIELER selbst. Bewusst kein
+        # Undo-Ziel - sonst drehte das ↶ des SL als Erstes den Bogen eines
+        # Spielers zurück statt seiner eigenen letzten Aktion.
+        if t == "sheet_update":
+            self.bogen_setzen(action.get("id"), action.get("bogen"))
+            return
+
         handler = getattr(self, f"_do_{t}", None)
         if handler:
             # Erste Aktion = frische Sitzung begonnen -> keine Fortsetzen-Abfrage mehr.
@@ -543,6 +600,8 @@ class Game:
             # Zustand vor der Änderung sichern (für Rückgängig).
             self._push_history()
             handler(action)
+            if self._bennies_merken() or t == "benny_refresh":
+                self.save_roster()
             self.save_session()
 
     # Roster ------------------------------------------------------------------
@@ -560,6 +619,10 @@ class Game:
             # Char-Bild beim Bearbeiten NICHT verlieren.
             "image": a.get("image", (prev or {}).get("image")),
         }
+        # Gemerkte Bennies und den Charakterbogen der Spieler ebenso.
+        for feld in ("bennies", "bogen"):
+            if prev and feld in prev:
+                entry[feld] = prev[feld]
         for i, r in enumerate(self.roster):
             if r["id"] == entry["id"]:
                 self.roster[i] = entry
@@ -747,8 +810,10 @@ class Game:
             "talents": list(char.get("talents", [])),
             "gluck": bool(char.get("gluck", False)),
             "grosses_gluck": bool(char.get("grosses_gluck", False)),
-            "bennies": self._starting_bennies(char) if is_wc else 0,
+            # Gemerkter Stand vom Charakter (letzter Abend, Neu-Beitritt) vor Startwert.
+            "bennies": (int(char["bennies"]) if "bennies" in char else self._starting_bennies(char)) if is_wc else 0,
             "characterId": char.get("id"),
+            "bogen": char.get("bogen"),
             "playerId": player_id,
             "card": None,
             "held": False,
@@ -1160,6 +1225,26 @@ class Game:
         self.requests = [r for r in self.requests if r.get("combatantId") not in vids]
         self.combatants = [x for x in self.combatants if x["id"] not in vids]
 
+    def _do_unbench_all(self, a: dict) -> None:
+        """Alle pausierten Figuren auf einmal zurück in den Kampf – das
+        Gegenstück zu „Kampf abräumen", sonst müsste der SL jeden einzeln holen."""
+        for c in self.combatants:
+            c["benched"] = False
+        self._resort()
+
+    def _do_clear_all(self, a: dict) -> None:
+        """Kampf komplett abräumen: Gegner und Verbündete verschwinden, Spieler
+        werden nur pausiert. Sie bleiben verbunden, behalten ihren Charakter und
+        stehen nicht mehr auf dem Zonen-Board; der SL holt sie mit „Wieder rein"
+        zurück, ohne dass jemand neu beitreten muss. Danach ist alles wie nach
+        „Zurücksetzen" (Runde 0, frisches Deck)."""
+        self.combatants = [c for c in self.combatants if c.get("kind") == "player"]
+        for c in self.combatants:
+            c["benched"] = True
+            c["groupId"] = None
+        self.groups = []
+        self._do_reset(a)   # sammelt die Karten ein, Runde/Phase/Anfragen auf null
+
     # Karten austeilen --------------------------------------------------------
 
     def _deal(self, new_round: bool) -> None:
@@ -1192,6 +1277,7 @@ class Game:
             self.reshuffle_next = True
         if new_round:
             self.round += 1
+            self._effekte_runterzaehlen()
         elif self.round == 0:
             self.round = 1
         self._resort()
@@ -1199,6 +1285,70 @@ class Game:
         self.active_id = self.combatants[0]["id"] if self.combatants else None
         self.phase = "gate"
         self.timer_ends_at = None
+
+    # Charakterbogen (Spickzettel) ---------------------------------------------
+    # Die Spieler tragen ihre Werte selbst ein (Stefan: „nur die Spieler").
+    # Gespeichert am Roster-Charakter, damit er Neustart und Neu-Beitreten
+    # übersteht; die Figur trägt eine Kopie zum Anzeigen.
+
+    def bogen_setzen(self, cid: Optional[str], roh) -> None:
+        c = self._combatant(cid)
+        if not c or not isinstance(roh, dict):
+            return
+        bogen = _bogen_sauber(roh)
+        c["bogen"] = bogen
+        char = next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
+        if char is not None:
+            char["bogen"] = bogen
+            self.save_roster()
+        self.save_session()
+
+    # Dauer-Effekte ------------------------------------------------------------
+    # „Betäubt, noch 2 Runden", „Schutz, 5 Runden": hängen an der Figur
+    # (c["effekte"]) und zählen bei jeder NEUEN Runde eins runter. Läuft einer
+    # aus, verschwindet er und der SL bekommt eine Meldung - vorher musste er
+    # sich das alles selbst merken. runden = 0 heißt „ohne Ablauf".
+
+    def _do_effect_add(self, a: dict) -> None:
+        c = self._combatant(a.get("id"))
+        name = (a.get("name") or "").strip()[:40]
+        if not c or not name:
+            return
+        try:
+            runden = max(0, min(99, int(a.get("runden") or 0)))
+        except (TypeError, ValueError):
+            runden = 0
+        c.setdefault("effekte", []).append({"id": _new_id("eff"), "name": name, "runden": runden})
+
+    def _do_effect_remove(self, a: dict) -> None:
+        c = self._combatant(a.get("id"))
+        if c:
+            c["effekte"] = [e for e in c.get("effekte", []) if e.get("id") != a.get("effekt")]
+
+    def _do_effect_adjust(self, a: dict) -> None:
+        """Restdauer von Hand nachstellen (+/-1), z. B. wenn eine Macht verlängert wird."""
+        c = self._combatant(a.get("id"))
+        if not c:
+            return
+        for e in c.get("effekte", []):
+            if e.get("id") == a.get("effekt") and e.get("runden", 0) > 0:
+                e["runden"] = max(1, min(99, e["runden"] + (1 if int(a.get("delta", 1)) > 0 else -1)))
+
+    def _effekte_runterzaehlen(self) -> None:
+        for c in self.combatants:
+            bleiben = []
+            for e in c.get("effekte", []):
+                if e.get("runden", 0) > 0:
+                    e["runden"] -= 1
+                    if e["runden"] <= 0:
+                        self.effekt_meldungen.append({
+                            "id": _new_id("em"),
+                            "text": f"{e['name']} bei {c['name']} ist abgelaufen",
+                        })
+                        continue
+                bleiben.append(e)
+            c["effekte"] = bleiben
+        self.effekt_meldungen = self.effekt_meldungen[-10:]
 
     def _do_deal_current(self, a: dict) -> None:
         self._deal(new_round=False)
@@ -1380,6 +1530,21 @@ class Game:
         target = a.get("target", "all")   # "all" | playerId | "beamer"
         text = (a.get("text") or "").strip()
         image_url = a.get("imageUrl")
+        # Bennies gleich mitschicken („Gut gespielt! +1 Benny"). An „alle" bekommt
+        # jede Wild Card eines verbundenen Spielers welche, sonst nur der Empfänger.
+        try:
+            bennies = max(0, min(10, int(a.get("bennies") or 0)))
+        except (TypeError, ValueError):
+            bennies = 0
+        if bennies and target != "beamer":
+            empfaenger = [c for c in self.combatants
+                          if c.get("kind") == "player" and c.get("isWildCard") and c.get("playerId")
+                          and (target == "all" or c.get("playerId") == target)]
+            for c in empfaenger:
+                c["bennies"] = max(0, int(c.get("bennies", 0))) + bennies
+            if empfaenger:
+                zeile = f"🪙 +{bennies} {'Benny' if bennies == 1 else 'Bennies'}"
+                text = f"{text}\n{zeile}" if text else zeile
         if not text and not image_url:
             return
         # Ziel Beamer/TV: Bild großflächig auf dem TV anzeigen (kein Chat-Eintrag).
@@ -1502,10 +1667,29 @@ class Game:
             self.sl_bennies += before - c["bennies"]
 
     def _do_benny_refresh(self, a: dict) -> None:
-        """Setzt alle Wild Cards auf ihren Startwert (+ Glück-Boni)."""
+        """Setzt alle Wild Cards auf ihren Startwert (+ Glück-Boni) – auch die
+        gemerkten Stände der Charaktere, die gerade nicht im Kampf sind."""
         for c in self.combatants:
             if c.get("isWildCard"):
                 c["bennies"] = self._starting_bennies(c)
+        for r in self.roster:
+            if r.get("isWildCard", True):
+                r["bennies"] = self._starting_bennies(r)
+
+    def _bennies_merken(self) -> bool:
+        """Benny-Stand jeder Spielerfigur an ihren Charakter zurückschreiben.
+        Vorher hingen Bennies nur an der Kampf-Figur: wurde sie entfernt oder
+        trat der Spieler neu bei, stand er wieder auf dem Startwert. Liefert
+        True, wenn sich etwas geändert hat (dann Roster speichern)."""
+        geaendert = False
+        for c in self.combatants:
+            if not (c.get("characterId") and c.get("isWildCard")):
+                continue
+            char = next((r for r in self.roster if r.get("id") == c["characterId"]), None)
+            if char is not None and char.get("bennies") != c.get("bennies", 0):
+                char["bennies"] = c.get("bennies", 0)
+                geaendert = True
+        return geaendert
 
     def _do_sl_benny_adjust(self, a: dict) -> None:
         try:
@@ -1562,7 +1746,11 @@ class Game:
             player["characterId"] = character_id
             player_id = player["id"]
         else:
-            player_id = _new_id("plr")
+            # Das Handy bringt seine alte ID mit (z. B. nach einem Server-Neustart,
+            # bevor der SL „Fortsetzen" geklickt hat) -> behalten. Dann passt es
+            # nach dem Fortsetzen sofort wieder zu seiner gespeicherten Figur,
+            # statt mit einer neuen ID vor der Beitrittsseite zu stehen.
+            player_id = existing_player_id or _new_id("plr")
             player = {"id": player_id, "name": name, "connected": True,
                       "characterId": character_id}
             self.players.append(player)

@@ -3,8 +3,10 @@
 > ## ▶ ZUM SPIELEN HIER HERUNTERLADEN
 > ### **[» SunderedSkies-App.zip (fertiges Paket) «](https://github.com/DonHelmut/Sundered-Skies-App/releases/latest)**
 >
-> Entpacken → **`SunderedSkiesInitiative.exe`** starten → fertig.
-> Kein Python, kein Git, nichts zu installieren.
+> Den **ganzen Ordner** entpacken → **`START.bat`** (oder `SunderedSkiesInitiative.exe`)
+> starten → fertig. Kein Python, kein Git, nichts zu installieren.
+> Update von einer älteren Version: den Ordner **`data`** von der alten .exe in den
+> neuen Ordner kopieren, sonst fehlen Charaktere und Bilder.
 >
 > ⚠️ **Nicht** den grünen **Code → Download ZIP**-Knopf nehmen – darin ist nur der
 > Quellcode **ohne** .exe. Das spielbare Paket gibt es **nur** über den Link oben

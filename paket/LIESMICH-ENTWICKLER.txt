@@ -1,10 +1,18 @@
-Dieser Ordner enthaelt die Dateien, die NEBEN der .exe ausgeliefert werden
-(also alles, was im Zip "SunderedSkies-App.zip" landet ausser der .exe selbst).
+Dieser Ordner enthaelt die Dateien, die NEBEN der Programmdatei ausgeliefert
+werden (ausser dieser Datei selbst).
+
+Seit v95 gibt es nur noch EIN Paket: die Ordnerversion (laeuft auch auf
+Firmen-Laptops, startet schneller). Die Einzeldatei-Spec
+(SunderedSkiesInitiative.spec) wird nicht mehr ausgeliefert.
 
 Paket bauen:
-  1. .venv\Scripts\python.exe -m PyInstaller SunderedSkiesInitiative.spec --noconfirm --clean
-  2. dist\SunderedSkiesInitiative.exe + diese Dateien in einen Ordner legen
-  3. Ordner zippen, als Release-Datei hochladen
+  1. .venv\Scripts\python.exe -m PyInstaller SunderedSkiesInitiative-Ordner.spec --noconfirm --clean
+  2. Inhalt von dist\SunderedSkies-Ordnerversion (exe + _internal) plus
+     START-HIER.txt, START.bat, "WICHTIG - ganzen Ordner behalten.txt",
+     Firewall-*.bat und WLAN-Stromsparen-aus.bat in einen Ordner
+     "SunderedSkies-App" legen
+  3. Ordner als SunderedSkies-App.zip zippen, Tag setzen und pushen,
+     dann: gh release create vNN --verify-tag ... SunderedSkies-App.zip
 
 Vor jedem Release die Version an DREI Stellen hochzaehlen:
   server/paths.py  APP_VERSION

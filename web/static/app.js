@@ -31,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "94";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "95";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -51,11 +51,12 @@ function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({
 // damit im Spiel alles Wichtige auf einen Bildschirm passt. Wer eines aufklappt,
 // dessen Wahl wird gemerkt (App.collapsed) und gewinnt ab dann.
 const VORBEREITUNGS_PANELS = new Set([
-  "connect", "stabil", "roster", "bestiary", "allies", "encounters", "message",
-  // Gruppen und Bennies braucht man nicht in jedem Zug. Offen machten sie die
-  // linke Spalte über 600 px länger - das Gruppen-Panel listet jede Figur als
-  // Chip und wächst mit dem Kampf. Ein Klick klappt sie auf, die Wahl bleibt.
-  "groups", "bennies",
+  "connect", "stabil", "roster", "bestiary", "allies", "encounters",
+  // Gruppen braucht man nicht in jedem Zug. Offen machten sie die linke Spalte
+  // deutlich länger - das Panel listet jede Figur als Chip und wächst mit dem
+  // Kampf. Ein Klick klappt es auf, die Wahl bleibt. (Nachricht / Bild /
+  // Bennies ist dagegen bewusst offen: das braucht der SL mitten im Spiel.)
+  "groups",
 ]);
 
 function section(id, title, body, defaultOpen) {
@@ -63,7 +64,9 @@ function section(id, title, body, defaultOpen) {
   const saved = App.collapsed[id];
   const open = saved === undefined ? defaultOpen : saved !== true;
   return `<details class="panel section" data-sec="${id}"${open ? " open" : ""}>` +
-    `<summary class="sec-head"><span class="sec-title">${title}</span><span class="sec-caret">▸</span></summary>` +
+    // SL: an der Ueberschrift ziehbar (Panels selbst anordnen, siehe PANEL_BAU).
+    `<summary class="sec-head"${App.role === "gm" && PANEL_BAU[id] ? ` draggable="true" data-panel-zieh="${id}" title="Klicken: auf-/zuklappen · Ziehen: an andere Stelle verschieben"` : ""}>` +
+    `<span class="sec-title">${title}</span><span class="sec-caret">▸</span></summary>` +
     `<div class="panel-body">${body}</div></details>`;
 }
 // Klappzustand merken (toggle bubbelt nicht -> capture).
@@ -223,6 +226,29 @@ function checkRequestAlert() {
   App._reqInit = true;
 }
 
+// Wer kommt nach dem aktiven Akteur dran? Pausierte, ausgeschiedene und schon
+// fertige Figuren werden uebersprungen. (SL-Leiste „danach:" und die
+// Vorwarnung „Gleich bist du dran" auf dem Handy.)
+function naechsterAkteur(s) {
+  if (!s || !s.activeId) return null;
+  const platz = s.combatants.findIndex((c) => c.id === s.activeId);
+  if (platz < 0) return null;
+  return s.combatants.slice(platz + 1).find((c) => !c.benched && !(c.status || {}).out && !c.done) || null;
+}
+
+// SL: abgelaufene Dauer-Effekte kurz einblenden (nur neue, nicht beim Laden).
+function checkEffektMeldungen() {
+  if (App.role !== "gm" || !App.state) return;
+  const liste = App.state.effektMeldungen || [];
+  const gesehen = App._effektGesehen || new Set();
+  if (App._effektInit) {
+    liste.filter((m) => !gesehen.has(m.id)).forEach((m, i) =>
+      setTimeout(() => toast("⏱ " + m.text), i * 1600));
+  }
+  App._effektGesehen = new Set(liste.map((m) => m.id));
+  App._effektInit = true;
+}
+
 // Spieler: Vibration + Ton, wenn man dran wird (abschaltbar, pro Handy gemerkt).
 function checkTurnNotify() {
   const s = App.state;
@@ -246,6 +272,14 @@ function checkTurnNotify() {
       setTimeout(() => { if (window.scrollY > 0) window.scrollTo(0, 0); }, 450);
     }, 60);
   }
+  // Vorwarnung: man ist als Naechster dran -> einmal kurz vibrieren (leiser
+  // als beim eigenen Zug), damit man das Handy schon mal in die Hand nimmt.
+  const binNaechster = !!(mine && !myTurn && !mine.benched && (naechsterAkteur(s) || {}).id === mine.id
+    && s.phase !== "idle");
+  if (binNaechster && !App._prevNaechster && App._turnInit && localStorage.getItem("notifyTurn") !== "off") {
+    try { if (navigator.vibrate) navigator.vibrate(90); } catch { /* ignore */ }
+  }
+  App._prevNaechster = binNaechster;
   App._prevMyTurn = myTurn;
   App._turnInit = true;
 }
@@ -346,12 +380,15 @@ function connect() {
       if (msg.state.serverNow) App.clockOffset = msg.state.serverNow - Date.now();
       App.state = msg.state;
       checkRequestAlert();   // SL: neue Anfrage -> Signal
+      checkEffektMeldungen(); // SL: Dauer-Effekt abgelaufen -> Hinweis
       checkTurnNotify();     // Spieler: dran -> Vibration/Ton
       pruefeAktivenWechsel();  // SL: aktive Zeile ins Bild holen
       // Während einer laufenden Karten-Aufdeckung NICHT sofort neu rendern – sonst
       // baut render() die Karte neu und sie schnappt aufgedeckt (das „Hakeln").
       // Neuesten Zustand nur merken und direkt nach der Animation einmal anwenden.
       if (App.revealLockUntil && Date.now() < App.revealLockUntil) { App.pendingRender = true; return; }
+      // Spieler tippt gerade im Charakterbogen -> nach dem Feld nachholen.
+      if (App.role === "player" && tipptImBogen()) { App.bogenWartet = true; return; }
       render();
     } else if (msg.type === "joinError") {
       // Charakter wird gerade woanders gespielt oder ist unbekannt -> zurück
@@ -609,7 +646,35 @@ function statusBadges(c) {
   }
   const conds = (App.state && App.state.conditions) || {};
   Object.keys(conds).forEach((k) => { if (st[k]) b.push(`<span class="pill">${esc(conds[k])}</span>`); });
-  return b.join(" ");
+  return b.join(" ") + effektBadges(c);
+}
+
+// Dauer-Effekte als kleine Uhr-Pillen: „⏱ Betäubt · 2" (Restrunden), ohne Zahl
+// = ohne Ablauf. Zaehlen serverseitig bei jeder neuen Runde runter.
+function effektBadges(c) {
+  return (c.effekte || []).map((e) =>
+    ` <span class="pill effekt" title="${e.runden ? `noch ${e.runden} Runde${e.runden > 1 ? "n" : ""}` : "ohne Ablauf"}">⏱ ${esc(e.name)}${e.runden ? ` · ${e.runden}` : ""}</span>`).join("");
+}
+
+// SL: Effekte im ⋯-Feld verwalten. Schnellwahl fuer das Uebliche, sonst frei.
+const EFFEKT_VORSCHLAEGE = ["Betäubt", "Abgelenkt", "Verwundbar", "Am Boden", "Verwirrt", "Schutz", "Brennt", "Unsichtbar", "Gebunden"];
+function effektSteuerung(c) {
+  const liste = (c.effekte || []).map((e) => `
+    <span class="effekt-zeile">
+      ⏱ ${esc(e.name)}
+      ${e.runden ? `<button class="st-btn" data-act="effekt-minus" data-id="${c.id}" data-effekt="${e.id}" title="Eine Runde weniger">–</button>
+        <b>${e.runden}</b>
+        <button class="st-btn" data-act="effekt-plus" data-id="${c.id}" data-effekt="${e.id}" title="Eine Runde mehr">+</button>` : `<span class="muted small">ohne Ablauf</span>`}
+      <button class="st-btn" data-act="effekt-weg" data-id="${c.id}" data-effekt="${e.id}" title="Effekt entfernen">✕</button>
+    </span>`).join("");
+  return `<div class="effekt-steuerung">
+    ${liste}
+    <span class="effekt-neu">
+      <input list="effekt-vorschlaege" id="effname-${c.id}" placeholder="Effekt, z. B. Betäubt" maxlength="40">
+      <input type="number" id="effrunden-${c.id}" min="0" max="99" value="1" title="Runden (0 = ohne Ablauf)">
+      <button class="st-btn" data-act="effekt-add" data-id="${c.id}">⏱ + Effekt</button>
+    </span>
+  </div>`;
 }
 
 function reqBtn(label, kind, detail) {
@@ -682,6 +747,7 @@ function bigStatusDisplay(c) {
     Object.keys(conds).forEach((k) => { if (st[k]) b.push(`<span class="big-status s-cond">${esc(conds[k])}</span>`); });
   }
   if (!b.length) b.push(`<span class="big-status s-ok">✓ Gesund</span>`);
+  (c.effekte || []).forEach((e) => b.push(`<span class="big-status s-cond">⏱ ${esc(e.name)}${e.runden ? ` · noch ${e.runden} Runde${e.runden > 1 ? "n" : ""}` : ""}</span>`));
   return `<div class="big-status-row">${b.join("")}</div>`;
 }
 
@@ -1262,7 +1328,10 @@ function render() {
 
 function renderGM() {
   const s = App.state;
-  const resume = s.hasSavedSession && s.combatants.length === 0 && s.round === 0
+  // Auch zeigen, wenn schon Figuren da sind: nach einem Neustart melden sich die
+  // Handys sofort wieder an - frueher verschwand der Hinweis dadurch, bevor der
+  // SL ihn sehen konnte, und der gespeicherte Kampf war nicht mehr erreichbar.
+  const resume = s.hasSavedSession
     ? `<div class="panel"><div class="row spread">
          <div><strong>Gespeicherte Sitzung gefunden.</strong> <span class="muted">Letzten Kampf fortsetzen?</span></div>
          <div class="row tight">
@@ -1270,33 +1339,77 @@ function renderGM() {
            <button class="ghost" data-act="discard-session">Verwerfen</button>
          </div></div></div>`
     : "";
+  const spalte = panelAnordnung();
 
   return `
     <div class="row spread" style="align-items:center; margin-bottom:10px">
       <h1 style="margin:0">Spielleiter · Sundered Skies Initiative</h1>
-      <button class="ghost" data-act="fokus" title="Alles ausser Kampf, Zonen und Reihenfolge zuklappen">
-        ${App.fokus ? "▤ Alles zeigen" : "▣ Fokus auf den Kampf"}</button>
+      <div class="row tight">
+        ${anordnungIstStandard(spalte) ? "" : `<button class="ghost" data-act="anordnung-zuruecksetzen" title="Panels wieder in die ursprüngliche Reihenfolge bringen">↺ Anordnung zurücksetzen</button>`}
+        <button class="ghost" data-act="fokus" title="Alles ausser Kampf, Zonen und Reihenfolge zuklappen">
+          ${App.fokus ? "▤ Alles zeigen" : "▣ Fokus auf den Kampf"}</button>
+      </div>
     </div>
     ${resume}
     <div class="grid2">
-      <div class="sp sp1">
-        ${renderRequestsPanel()}
-        ${renderZonesPanel()}
-        ${renderGroupPanel()}
-        ${renderBennyPanel()}
-        ${renderRosterPanel()}
-        ${renderBestiaryPanel()}
-        ${renderAllyPanel()}
-        ${renderEncounterPanel()}
-        ${renderConnectPanel()}
-        ${renderStabilitaetPanel()}
-        ${renderMessagePanel()}
-      </div>
-      <div class="sp sp2">
-        ${renderOrderPanel(true)}
-      </div>
+      <div class="sp sp1" data-spalte="links">${spalte.links.map((k) => PANEL_BAU[k]()).join("")}</div>
+      <div class="sp sp2" data-spalte="rechts">${spalte.rechts.map((k) => PANEL_BAU[k]()).join("")}</div>
     </div>
-    ${renderAktionsleiste()}`;
+    ${renderAktionsleiste()}
+    <datalist id="effekt-vorschlaege">${EFFEKT_VORSCHLAEGE.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`;
+}
+
+// --- Panels selbst anordnen (nur SL) -----------------------------------------
+// Jedes Panel laesst sich an seiner Ueberschrift auf einen anderen Platz ziehen,
+// auch in die andere Spalte. Die Anordnung gilt pro Geraet (wie das Auf-/
+// Zuklappen). Schluessel = data-sec des Panels.
+const PANEL_BAU = {
+  requests: () => renderRequestsPanel(),
+  zones: () => renderZonesPanel(),
+  groups: () => renderGroupPanel(),
+  message: () => renderMessagePanel(),
+  roster: () => renderRosterPanel(),
+  bestiary: () => renderBestiaryPanel(),
+  allies: () => renderAllyPanel(),
+  encounters: () => renderEncounterPanel(),
+  connect: () => renderConnectPanel(),
+  stabil: () => renderStabilitaetPanel(),
+  combat: () => renderOrderPanel(true),
+};
+const STANDARD_ANORDNUNG = {
+  links: ["requests", "zones", "groups", "message", "roster", "bestiary", "allies", "encounters", "connect", "stabil"],
+  rechts: ["combat"],
+};
+
+// Gespeicherte Anordnung, bereinigt: unbekannte Panels fliegen raus, neue (aus
+// einer spaeteren Version) kommen an ihren Standardplatz - sonst waere ein neues
+// Panel nach einem Update bei jedem, der schon umsortiert hat, unsichtbar.
+function panelAnordnung() {
+  let gespeichert = null;
+  try { gespeichert = JSON.parse(localStorage.getItem("panelAnordnung") || "null"); } catch { /* egal */ }
+  if (!gespeichert || !Array.isArray(gespeichert.links) || !Array.isArray(gespeichert.rechts)) {
+    return { links: STANDARD_ANORDNUNG.links.slice(), rechts: STANDARD_ANORDNUNG.rechts.slice() };
+  }
+  const gesehen = new Set();
+  const sauber = (liste) => liste.filter((k) => PANEL_BAU[k] && !gesehen.has(k) && gesehen.add(k));
+  const erg = { links: sauber(gespeichert.links), rechts: sauber(gespeichert.rechts) };
+  ["links", "rechts"].forEach((sp) => STANDARD_ANORDNUNG[sp].forEach((k) => {
+    if (!gesehen.has(k)) { erg[sp].push(k); gesehen.add(k); }
+  }));
+  return erg;
+}
+function anordnungIstStandard(a) {
+  return JSON.stringify(a) === JSON.stringify(STANDARD_ANORDNUNG);
+}
+function panelVerschieben(key, zielSpalte, vorKey) {
+  const a = panelAnordnung();
+  a.links = a.links.filter((k) => k !== key);
+  a.rechts = a.rechts.filter((k) => k !== key);
+  const liste = a[zielSpalte];
+  const i = vorKey ? liste.indexOf(vorKey) : -1;
+  if (i >= 0) liste.splice(i, 0, key); else liste.push(key);
+  try { localStorage.setItem("panelAnordnung", JSON.stringify(a)); } catch { /* egal */ }
+  render();
 }
 
 function joinUrlHtml() {
@@ -1385,6 +1498,61 @@ function fokusUmschalten() {
 // Zwei Ziele: ein Kasten im Gruppen-Panel (Figur zuordnen) und eine Bahn im
 // Zonen-Board (Figur bzw. ihre GANZE Gruppe umsetzen).
 let gezogeneId = null;
+
+// Panels verschieben. Eigene Variable, damit sich das nicht mit dem Figuren-
+// Ziehen im Zonen-Board vermischt (das wertet nur gezogeneId aus).
+let gezogenesPanel = null;
+
+function panelEinfuegeStelle(e) {
+  const sp = e.target.closest && e.target.closest(".grid2 .sp[data-spalte]");
+  if (!sp) return null;
+  // Das Panel, ueber dessen OBERER Haelfte die Maus steht, bekommt die Linie
+  // ueber sich; sonst landet es dahinter (= vor dem naechsten).
+  const panels = [...sp.querySelectorAll(":scope > details.section[data-sec]")]
+    .filter((d) => d.dataset.sec !== gezogenesPanel);
+  const vor = panels.find((d) => {
+    const r = d.getBoundingClientRect();
+    return e.clientY < r.top + r.height / 2;
+  });
+  return { spalte: sp.dataset.spalte, spEl: sp, vor: vor || null };
+}
+function panelLinieWeg() {
+  document.querySelectorAll(".einfuege-vor, .einfuege-ende").forEach((x) => x.classList.remove("einfuege-vor", "einfuege-ende"));
+}
+
+document.addEventListener("dragstart", (e) => {
+  const kopf = e.target.closest && e.target.closest("[data-panel-zieh]");
+  if (!kopf) return;
+  gezogenesPanel = kopf.dataset.panelZieh;
+  kopf.closest("details").classList.add("panel-wird-gezogen");
+  try { e.dataTransfer.setData("application/x-panel", gezogenesPanel); e.dataTransfer.effectAllowed = "move"; } catch { /* egal */ }
+});
+document.addEventListener("dragover", (e) => {
+  if (!gezogenesPanel) return;
+  const stelle = panelEinfuegeStelle(e);
+  if (!stelle) return;
+  e.preventDefault();
+  try { e.dataTransfer.dropEffect = "move"; } catch { /* egal */ }
+  panelLinieWeg();
+  if (stelle.vor) stelle.vor.classList.add("einfuege-vor");
+  else stelle.spEl.classList.add("einfuege-ende");
+});
+document.addEventListener("drop", (e) => {
+  if (!gezogenesPanel) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();       // nicht als Figur ins Zonen-Board fallen lassen
+  const stelle = panelEinfuegeStelle(e);
+  const key = gezogenesPanel;
+  gezogenesPanel = null;
+  panelLinieWeg();
+  if (stelle) panelVerschieben(key, stelle.spalte, stelle.vor ? stelle.vor.dataset.sec : null);
+}, true);
+document.addEventListener("dragend", () => {
+  if (!gezogenesPanel && !document.querySelector(".panel-wird-gezogen")) return;
+  gezogenesPanel = null;
+  panelLinieWeg();
+  document.querySelectorAll(".panel-wird-gezogen").forEach((x) => x.classList.remove("panel-wird-gezogen"));
+});
 
 document.addEventListener("dragstart", (e) => {
   const el = e.target.closest && e.target.closest("[data-drag-id]");
@@ -1600,6 +1768,9 @@ function renderControlBody() {
     <div class="row">
       <button class="primary big" data-act="new-round" style="flex:1">🃏 ${s.round === 0 ? "Karten an ALLE austeilen" : "Neue Runde – an ALLE austeilen"}</button>
       <button class="ghost bad" data-act="reset" title="Alles zurücksetzen">Zurücksetzen</button>
+      ${s.combatants.some((c) => c.kind === "npc" || !c.benched)
+        ? `<button class="ghost bad" data-act="clear-all" title="Gegner und Verbündete entfernen, Spieler pausieren – die Zonen sind danach leer">🧹 Kampf abräumen</button>`
+        : ""}
     </div>
     <div class="muted small">Teilt allen Teilnehmern (Spieler & Gegner) gleichzeitig eine neue Karte aus. Einzeln nachziehen geht mit 🔄 in der Liste.</div>
     ${renderRundenHinweis()}`;
@@ -1653,9 +1824,7 @@ function renderAktionsleiste() {
   const istNsc = active.kind === "npc";
   // Wer kommt danach? Der SL soll nicht suchen müssen, wen er als Nächstes
   // ansagen muss - pausierte und ausgeschiedene Figuren überspringen wir.
-  const naechster = s.combatants
-    .slice(platz)
-    .find((c) => !c.benched && !(c.status || {}).out && !c.done);
+  const naechster = naechsterAkteur(s);
 
   const haupt = s.phase === "running"
     ? `<button class="good big" data-act="confirm-turn">Zug bestätigen ✓</button>`
@@ -1707,6 +1876,10 @@ function leisteEinstellungenHtml() {
     <label class="field" style="width:170px; margin-bottom:10px">
       <span>Zeit pro Zug (Sek.)</span>
       <input type="number" min="1" max="600" value="${s.timerSeconds}" data-act="set-timer">
+    </label>
+    <label class="field" style="width:170px; margin-bottom:10px" title="Gilt beim Auffrischen und für neue Charaktere; Glück/Großes Glück kommen dazu">
+      <span>Bennies je Wildcard (Start)</span>
+      <input type="number" min="0" max="20" value="${s.bennyStart}" data-act="set-benny-start">
     </label>
     <label class="row tight" style="align-items:center; cursor:pointer">
       <input type="checkbox" data-act="toggle-auto-incap" ${s.autoIncap ? "checked" : ""} style="width:auto">
@@ -1788,33 +1961,6 @@ function renderRequestsPanel() {
   return section("requests", `✋ Anfragen (${s.requests.length})`, rows);
 }
 
-function renderBennyPanel() {
-  const s = App.state;
-  return section("bennies", "Bennies", `
-    <div class="row" style="margin-bottom:8px">
-      <button data-act="benny-refresh" title="Alle Wildcards auf Startwert setzen">↻ Auffrischen</button>
-    </div>
-    <div class="row" style="align-items:flex-end">
-      <label class="field" style="width:170px">
-        <span>Startwert je Wildcard</span>
-        <input type="number" id="bennystart" min="0" max="20" value="${s.bennyStart}" data-act="set-benny-start">
-      </label>
-      <div class="grow">
-        <div class="muted small">SL-Pool</div>
-        <div class="status-ctrl">
-          <button class="st-btn" data-act="sl-benny-minus">–</button>
-          <span style="min-width:44px;text-align:center;font-weight:700">🪙 ${s.slBennies}</span>
-          <button class="st-btn" data-act="sl-benny-plus">+</button>
-        </div>
-      </div>
-    </div>
-    <label class="row tight" style="align-items:center; margin-top:8px; cursor:pointer">
-      <input type="checkbox" data-act="toggle-benny-to-gm" ${s.bennyToGm ? "checked" : ""} style="width:auto">
-      <span class="small">Ausgegebene Spieler-Bennies wandern in den SL-Pool (Hausregel)</span>
-    </label>
-    <div class="muted small" style="margin-top:6px">Auffrischen setzt jede Wildcard auf Startwert + Glück-Bonus. Ohne Klick bleiben alle Bennies erhalten.</div>`);
-}
-
 function renderOrderPanel(isGM) {
   const s = App.state;
   if (s.combatants.length === 0) {
@@ -1829,7 +1975,9 @@ function renderOrderPanel(isGM) {
   const benched = s.combatants.filter((c) => c.benched);
   // Pausierte („Nicht im Kampf") unten, ausgegraut, ohne Position.
   const benchRows = benched.length
-    ? `<div class="order-divider">⏸ Nicht im Kampf</div>` + benched.map((c) => combatantRow(c, null, isGM, isGM)).join("")
+    ? `<div class="order-divider">⏸ Nicht im Kampf${isGM && benched.length > 1
+        ? ` <button class="ghost small" data-act="alle-wieder-rein" style="margin-left:8px" title="Alle pausierten Figuren zurück in den Kampf (z. B. nach „Kampf abräumen“)">▶️ Alle wieder rein</button>`
+        : ""}</div>` + benched.map((c) => combatantRow(c, null, isGM, isGM)).join("")
     : "";
   // SL sieht Kampf-Steuerung + volle Reihenfolge in EINER Box.
   if (isGM) {
@@ -1927,7 +2075,7 @@ function combatantRow(c, num, isGM, isOpen) {
           zugeklappte "Zustand"-Knopf in einer eigenen Zeile unter JEDER Figur
           und machte jede Zeile 32 px höher. */ ""}
     ${isGM && App.rowStatusOpen.has(c.id) ? `<div class="row-status" style="flex-basis:100%">
-      <div class="panel-body">${selteneKnoepfe}${statusControls(c)} ${bennyControls(c)}</div>
+      <div class="panel-body">${selteneKnoepfe}${statusControls(c)} ${bennyControls(c)}${effektSteuerung(c)}</div>
     </div>` : ""}
     ${isGM && App.editCombatantId === c.id ? `<div style="flex-basis:100%">${combatantEditor(c)}</div>` : ""}
   </div>`;
@@ -2169,29 +2317,178 @@ function lastPlayerZone() {
   return isNaN(v) ? 1 : Math.max(0, Math.min(4, v));
 }
 
+// Nachrichtentext mit Zeilenumbruechen (z. B. die mitgeschickte Benny-Zeile).
+const mehrzeilig = (t) => esc(t).replace(/\n/g, "<br>");
+
+// Spieler mit Figurname: am Tisch denkt man in Charakteren („Tessa"), nicht in
+// dem, was jemand beim Beitreten als Namen eingetippt hat.
+function spielerAnzeige(p) {
+  if (!p) return "?";
+  const fig = App.state.combatants.find((c) => c.playerId === p.id);
+  return fig && fig.name !== p.name ? `${fig.name} (${p.name})` : p.name;
+}
+
 function renderMessagePanel() {
   const s = App.state;
   const opts = [`<option value="all">Alle Spieler</option>`, `<option value="beamer">📺 Beamer / TV (Bild groß)</option>`]
-    .concat(s.players.map((p) => `<option value="${p.id}">${esc(p.name)}${p.connected ? "" : " (offline)"}</option>`))
+    .concat(s.players.map((p) =>
+      `<option value="${p.id}">${esc(spielerAnzeige(p))}${p.connected ? "" : " (offline)"}</option>`))
     .join("");
   const preview = App.pendingImageUrl
     ? `<div class="msg"><img src="${esc(App.pendingImageUrl)}"><button class="ghost small" data-act="clear-image" style="margin-top:6px">Bild entfernen</button></div>`
     : "";
-  const log = s.messages.slice().reverse().map((m) => `
-    <div class="msg"><div class="to">an ${m.target === "all" ? "alle" : esc((s.players.find((p) => p.id === m.target) || {}).name || "?")}</div>
-      ${m.text ? esc(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}">` : ""}</div>`).join("");
+  // Das Panel ist jetzt dauerhaft offen -> nur die letzten drei Nachrichten,
+  // sonst waechst die linke Spalte mit jedem verschickten Benny.
+  const log = s.messages.slice(-3).reverse().map((m) => `
+    <div class="msg"><div class="to">an ${m.target === "all" ? "alle" : esc(spielerAnzeige(s.players.find((p) => p.id === m.target)))}</div>
+      ${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}">` : ""}</div>`).join("");
 
-  return section("message", "Nachricht / Bild senden", `
-    <label class="field"><span>Empfänger</span><select id="msgtarget">${opts}</select></label>
+  return section("message", "Nachricht / Bild / Bennies", `
+    <div class="row" style="align-items:flex-end; gap:8px">
+      <label class="field grow" style="margin-bottom:0"><span>Empfänger</span><select id="msgtarget">${opts}</select></label>
+      <button data-act="benny-geben" title="Der gewählte Empfänger (bei „Alle Spieler“ jeder) bekommt einen Benny – mit kurzem Hinweis aufs Handy">🪙 +1 Benny</button>
+    </div>
     <label class="field"><span>Text</span><input id="msgtext" placeholder="Nachricht…"></label>
     ${preview}
     <div class="row">
       <input type="file" id="msgimage" accept="image/*" data-act="pick-image" class="grow">
       <button class="primary" data-act="send-message">Senden</button>
     </div>
+    <div class="row" style="align-items:center; gap:6px; margin-top:8px">
+      <span class="muted small">SL-Pool</span>
+      <button class="st-btn" data-act="sl-benny-minus">–</button>
+      <span style="min-width:40px; text-align:center; font-weight:700">🪙 ${s.slBennies}</span>
+      <button class="st-btn" data-act="sl-benny-plus">+</button>
+      <button class="ghost small" data-act="benny-refresh" style="margin-left:auto" title="Jede Wildcard auf den Startwert (+ Glück-Bonus) setzen – z. B. zu Beginn des Abends. Startwert: ⚙ unten in der Leiste">↻ Bennies auffrischen</button>
+    </div>
     ${s.tvImage ? `<div class="row" style="margin-top:8px"><span class="pill good">📺 TV zeigt gerade ein Bild</span><button class="ghost small" data-act="clear-tv">TV-Bild entfernen</button></div>` : ""}
     ${log ? `<div style="margin-top:10px"><div class="muted small">Verlauf</div>${log}<button class="ghost small" data-act="clear-messages" style="margin-top:6px">Verlauf leeren</button></div>` : ""}`);
 }
+
+// ---------- Charakterbogen (Spickzettel) ----------
+// Der Spieler pflegt ihn selbst (Stefan: „nur die Spieler tragen es ein").
+// Vier Reiter wie ein kleiner Bogen. Bearbeitet wird ein Entwurf
+// (App.bogenEntwurf); erst „Speichern" schickt ihn an den Server.
+const WUERFEL = ["", "W4", "W6", "W8", "W10", "W12", "W12+1", "W12+2"];
+const ATTRIBUTE = [["ge", "GE", "Geschicklichkeit"], ["ve", "VE", "Verstand"], ["wi", "WI", "Willenskraft"],
+  ["st", "ST", "Stärke"], ["ko", "KO", "Konstitution"]];
+const BOGEN_REITER = [["kampf", "Kampf"], ["werte", "Werte"], ["talente", "Talente"], ["zeug", "Ausrüstung"]];
+
+function leererBogen() {
+  return { parade: "", robustheit: "", panzer: "", tempo: "", rennen: "",
+    attribute: { ge: "", ve: "", wi: "", st: "", ko: "" },
+    fertigkeiten: [], waffen: [], talente: [], handicaps: [], ausruestung: [] };
+}
+function bogenVon(c) {
+  const b = c && c.bogen;
+  return b ? { ...leererBogen(), ...JSON.parse(JSON.stringify(b)) } : leererBogen();
+}
+function bogenIstLeer(b) {
+  return !b.parade && !b.robustheit && !b.tempo && !b.waffen.length && !b.fertigkeiten.length
+    && !Object.values(b.attribute).some(Boolean) && !b.talente.length && !b.handicaps.length && !b.ausruestung.length;
+}
+const wuerfelWahl = (pfad, wert) =>
+  `<select data-bogen="${pfad}">${WUERFEL.map((w) => `<option value="${w}"${w === (wert || "") ? " selected" : ""}>${w || "–"}</option>`).join("")}</select>`;
+const bogenFeld = (pfad, wert, platz, breite) =>
+  `<input data-bogen="${pfad}" value="${esc(wert || "")}" placeholder="${esc(platz || "")}"${breite ? ` style="width:${breite}"` : ""}>`;
+
+function renderBogen(mine) {
+  if (!mine) return "";
+  const reiter = App.bogenReiter || "kampf";
+  const edit = !!App.bogenEntwurf;
+  const b = edit ? App.bogenEntwurf : bogenVon(mine);
+  const leiste = `<div class="reiter">${BOGEN_REITER.map(([k, n]) =>
+    `<button class="${k === reiter ? "an" : ""}" data-act="bogen-reiter" data-reiter="${k}">${n}</button>`).join("")}</div>`;
+  let inhalt;
+  if (!edit && bogenIstLeer(b)) {
+    inhalt = `<div class="muted small" style="padding:6px 0">Noch leer. Tippe auf <b>✎ Bearbeiten</b> und trag deine Werte ein – dann hast du sie im Kampf immer griffbereit.</div>`;
+  } else if (reiter === "kampf") {
+    inhalt = edit
+      ? `<div class="bogen-raster">
+           <label>Parade ${bogenFeld("parade", b.parade, "z. B. 7", "4.5em")}</label>
+           <label>Robustheit ${bogenFeld("robustheit", b.robustheit, "z. B. 8", "4.5em")}</label>
+           <label>davon Panzer ${bogenFeld("panzer", b.panzer, "z. B. 2", "4.5em")}</label>
+           <label>Tempo ${bogenFeld("tempo", b.tempo, "z. B. 6", "4.5em")}</label>
+           <label>Rennen ${wuerfelWahl("rennen", b.rennen)}</label>
+         </div>
+         <div class="bogen-titel">Waffen</div>
+         ${b.waffen.map((w, i) => `<div class="bogen-reihe">
+           ${bogenFeld(`waffen.${i}.name`, w.name, "Name")}${bogenFeld(`waffen.${i}.schaden`, w.schaden, "Schaden", "6em")}
+           ${bogenFeld(`waffen.${i}.info`, w.info, "Reichweite / Notiz")}
+           <button class="st-btn" data-act="bogen-weg" data-liste="waffen" data-i="${i}" title="Entfernen">✕</button></div>`).join("")}
+         <button class="ghost small" data-act="bogen-dazu" data-liste="waffen">+ Waffe</button>`
+      : `<div class="zeile2"><span>Parade</span><b>${esc(b.parade || "–")}</b></div>
+         <div class="zeile2"><span>Robustheit</span><b>${esc(b.robustheit || "–")}${b.panzer ? ` (${esc(b.panzer)})` : ""}</b></div>
+         <div class="zeile2"><span>Tempo</span><b>${esc(b.tempo || "–")}${b.rennen ? ` · Rennen ${esc(b.rennen)}` : ""}</b></div>
+         ${b.waffen.map((w) => `<div class="zeile2"><span>⚔ ${esc(w.name)}</span><b>${esc([w.schaden, w.info].filter(Boolean).join(" · "))}</b></div>`).join("")}`;
+  } else if (reiter === "werte") {
+    inhalt = `<div class="attr">${ATTRIBUTE.map(([k, kurz, lang]) =>
+        `<div title="${lang}">${kurz}${edit ? wuerfelWahl(`attribute.${k}`, b.attribute[k]) : `<b>${esc(b.attribute[k] || "–")}</b>`}</div>`).join("")}</div>
+      <div class="bogen-titel">Fertigkeiten</div>
+      ${edit
+        ? b.fertigkeiten.map((f, i) => `<div class="bogen-reihe">${bogenFeld(`fertigkeiten.${i}.name`, f.name, "z. B. Kämpfen")}${wuerfelWahl(`fertigkeiten.${i}.wert`, f.wert)}
+            <button class="st-btn" data-act="bogen-weg" data-liste="fertigkeiten" data-i="${i}" title="Entfernen">✕</button></div>`).join("")
+          + `<button class="ghost small" data-act="bogen-dazu" data-liste="fertigkeiten">+ Fertigkeit</button>`
+        : (b.fertigkeiten.length
+            ? `<div class="fert">${b.fertigkeiten.map((f) => `<span>${esc(f.name)}</span><span class="w">${esc(f.wert || "–")}</span>`).join("")}</div>`
+            : `<div class="muted small">–</div>`)}`;
+  } else if (reiter === "talente") {
+    // Die Initiative-Talente (Schnell, Kühler Kopf …) setzt der SL - hier nur zur Info.
+    const init = (mine.talents || []).map((t) => `<span class="tag">${esc(((App.state.talents || {})[t] || {}).label || t)}</span>`).join("");
+    inhalt = `${init ? `<div class="bogen-titel">Initiative (vom SL)</div><div class="chips">${init}</div>` : ""}
+      <div class="bogen-titel">Talente</div>
+      ${edit ? `<textarea data-bogen="talente" rows="4" placeholder="Ein Talent pro Zeile">${esc(b.talente.join("\n"))}</textarea>`
+        : `<div class="chips">${b.talente.map((t) => `<span class="tag">${esc(t)}</span>`).join("") || `<span class="muted small">–</span>`}</div>`}
+      <div class="bogen-titel">Handicaps</div>
+      ${edit ? `<textarea data-bogen="handicaps" rows="3" placeholder="Ein Handicap pro Zeile">${esc(b.handicaps.join("\n"))}</textarea>`
+        : `<div class="chips">${b.handicaps.map((t) => `<span class="tag handicap">${esc(t)}</span>`).join("") || `<span class="muted small">–</span>`}</div>`}`;
+  } else {
+    inhalt = edit
+      ? `<textarea data-bogen="ausruestung" rows="6" placeholder="Ein Gegenstand pro Zeile, z. B. Heiltrank ×3">${esc(b.ausruestung.join("\n"))}</textarea>`
+      : (b.ausruestung.map((z) => `<div class="zeile2"><span>${esc(z)}</span></div>`).join("") || `<div class="muted small">–</div>`);
+  }
+  const knoepfe = edit
+    ? `<div class="row" style="margin-top:10px; gap:8px"><button class="primary" data-act="bogen-speichern">✓ Speichern</button>
+         <button class="ghost" data-act="bogen-abbrechen">Abbrechen</button></div>`
+    : `<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div>`;
+  return section("bogen", "📜 Mein Charakter", `<div class="bogen${edit ? " bogen-form" : ""}">${leiste}${inhalt}${knoepfe}</div>`);
+}
+
+// Eingabe im Entwurf mitschreiben (Pfad wie „waffen.0.name").
+function bogenEingabe(t) {
+  const pfad = t.getAttribute("data-bogen");
+  if (!pfad || !App.bogenEntwurf) return;
+  const teile = pfad.split(".");
+  if (["talente", "handicaps", "ausruestung"].includes(pfad)) {
+    App.bogenEntwurf[pfad] = t.value.split("\n").map((z) => z.trim()).filter(Boolean);
+    return;
+  }
+  let ziel = App.bogenEntwurf;
+  for (let i = 0; i < teile.length - 1; i++) ziel = ziel[teile[i]];
+  ziel[teile[teile.length - 1]] = t.value;
+}
+document.addEventListener("input", (e) => { if (e.target.closest && e.target.closest(".bogen-form")) bogenEingabe(e.target); });
+document.addEventListener("change", (e) => { if (e.target.closest && e.target.closest(".bogen-form")) bogenEingabe(e.target); });
+// Solange im Bogen getippt wird, NICHT neu aufbauen (sonst waeren Fokus und
+// Cursor weg, sobald irgendwer am Tisch etwas tut). Nach dem Verlassen des
+// Felds den zurueckgehaltenen Stand nachholen.
+function tipptImBogen() {
+  const a = document.activeElement;
+  return !!(a && a.closest && a.closest(".bogen-form") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+}
+// ABER nicht, solange Finger/Maus noch unten sind: Tippt man vom Feld direkt
+// auf einen Knopf (Reiter, Speichern), verliert das Feld den Fokus schon beim
+// Herunterdruecken. Ein Neuaufbau in diesem Moment tauschte den Knopf unter
+// dem Finger aus - der Klick ging ins Leere. Darum erst nach dem Loslassen.
+let zeigerUnten = false;
+function bogenNachholen() {
+  if (App.bogenWartet && !tipptImBogen() && !zeigerUnten) { App.bogenWartet = false; render(); }
+}
+document.addEventListener("pointerdown", () => { zeigerUnten = true; }, true);
+const zeigerOben = () => { zeigerUnten = false; setTimeout(bogenNachholen, 60); };
+document.addEventListener("pointerup", zeigerOben, true);
+document.addEventListener("pointercancel", zeigerOben, true);
+document.addEventListener("focusout", () => setTimeout(bogenNachholen, 0));
 
 // ---------- Spieler-Ansicht ----------
 
@@ -2203,9 +2500,19 @@ function renderPlayer() {
 
   const isMyTurn = s.activeId === mine.id && s.phase === "running";
   const banner = isMyTurn ? `<div class="myturn-banner">Du bist dran!</div>` : "";
+  // Der Sekunden-Ring nur bei dem, der WIRKLICH dran ist - bei allen anderen
+  // tickte er mit und machte unnoetig Druck. Wer als Naechster kommt, bekommt
+  // stattdessen eine Vorwarnung, alle anderen sehen nur, wer gerade dran ist.
+  const aktiv = s.combatants.find((c) => c.id === s.activeId);
+  const binNaechster = !isMyTurn && !mine.benched && (naechsterAkteur(s) || {}).id === mine.id;
+  const werDran = aktiv
+    ? (aktiv.kind === "npc" && !aktiv.ally ? "Ein Gegner ist dran" : `${esc(aktiv.name)} ist dran`)
+    : "";
+  const vorwarnung = binNaechster && s.phase !== "idle"
+    ? `<div class="gleich-dran">⏳ Gleich bist du dran – mach dich bereit!</div>` : "";
   const timer = s.phase === "running"
-    ? timerRing()
-    : (s.phase === "gate" ? `<div class="center muted small">Warte auf Freigabe durch den Spielleiter…</div>` : "");
+    ? (isMyTurn ? timerRing() : `${vorwarnung}<div class="center muted small">${werDran}</div>`)
+    : (s.phase === "gate" ? `${vorwarnung}<div class="center muted small">Warte auf Freigabe durch den Spielleiter…</div>` : "");
 
   // Karten-Hinweise („Joker: +2 …", „Berechnend" bei niedriger Karte) erst,
   // wenn die eigene Karte aufgedeckt ist - sonst stand unter der verdeckten
@@ -2233,7 +2540,7 @@ function renderPlayer() {
 
   const myMsgs = s.messages.filter((m) => m.target === "all" || m.target === App.myPlayerId);
   const msgs = myMsgs.slice().reverse().slice(0, 8)
-    .map((m) => `<div class="msg"><div class="to">${m.sender === "mimi" ? "🐈 Mimi" : "Spielleiter"}</div>${m.text ? esc(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
+    .map((m) => `<div class="msg"><div class="to">${m.sender === "mimi" ? "🐈 Mimi" : "Spielleiter"}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
 
   // Blockierendes Banner NUR für echte SL-Nachrichten (Mimis Miau ist ein Toast).
   const gmMsgs = myMsgs.filter((m) => m.sender !== "mimi");
@@ -2242,7 +2549,7 @@ function renderPlayer() {
     ? `<div class="msg-overlay">
          <div class="msg-card">
            <div class="muted small">${newest.sender === "mimi" ? "🐈 Nachricht von Mimi" : "✉ Nachricht vom Spielleiter"}</div>
-           ${newest.text ? `<div class="msg-text">${esc(newest.text)}</div>` : ""}
+           ${newest.text ? `<div class="msg-text">${mehrzeilig(newest.text)}</div>` : ""}
            ${newest.imageUrl ? `<img src="${esc(newest.imageUrl)}">` : ""}
            <button class="primary big" data-act="dismiss-msg" data-ts="${newest.ts}" style="margin-top:14px;width:100%">Verstanden</button>
          </div>
@@ -2297,6 +2604,7 @@ function renderPlayer() {
     </div>
     ${banner}
     ${cardPanel}
+    ${renderBogen(mine)}
     ${orderPanel}
     ${mine.benched ? "" : renderZonesPanel()}
     <label class="row tight" style="align-items:center; justify-content:center; margin-top:10px; cursor:pointer">
@@ -2360,6 +2668,10 @@ document.addEventListener("click", (e) => {
   const handlers = {
     // SL – Kampf
     "new-round": () => gmAction({ type: "new_round" }),
+    "alle-wieder-rein": () => gmAction({ type: "unbench_all" }),
+    "clear-all": () => {
+      if (confirm("Kampf abräumen?\n\nAlle Gegner und Verbündeten werden entfernt, die Spieler pausiert (sie bleiben verbunden und behalten ihren Charakter). Die Zonen sind danach leer.\n\nRückgängig geht mit ↶.")) gmAction({ type: "clear_all" });
+    },
     "reset": () => { if (confirm("Initiative komplett zurücksetzen?")) gmAction({ type: "reset" }); },
     "release": () => gmAction({ type: "release" }),
     "confirm-turn": () => gmActionOrPlayer({ type: "confirm_turn" }),
@@ -2524,6 +2836,41 @@ document.addEventListener("click", (e) => {
     // Firewall in einem Klick freigeben (Windows-SL) -> löst UAC-Abfrage aus
     "firewall-allow": () => allowFirewall(),
     "fokus": () => fokusUmschalten(),
+    "bogen-reiter": () => { App.bogenReiter = target.getAttribute("data-reiter"); render(); },
+    "bogen-bearbeiten": () => { App.bogenEntwurf = bogenVon(myCombatant()); render(); },
+    "bogen-abbrechen": () => { App.bogenEntwurf = null; render(); },
+    "bogen-speichern": () => {
+      const mine = myCombatant();
+      if (mine && App.bogenEntwurf) gmActionOrPlayer({ type: "sheet_update", id: mine.id, bogen: App.bogenEntwurf });
+      App.bogenEntwurf = null;
+      toast("📜 Gespeichert");
+      render();
+    },
+    "bogen-dazu": () => {
+      const liste = target.getAttribute("data-liste");
+      if (!App.bogenEntwurf) return;
+      App.bogenEntwurf[liste].push(liste === "waffen" ? { name: "", schaden: "", info: "" } : { name: "", wert: "" });
+      render();
+    },
+    "bogen-weg": () => {
+      const liste = target.getAttribute("data-liste");
+      if (!App.bogenEntwurf) return;
+      App.bogenEntwurf[liste].splice(parseInt(target.getAttribute("data-i"), 10), 1);
+      render();
+    },
+    "effekt-add": () => {
+      const name = (($("effname-" + id) || {}).value || "").trim();
+      if (!name) { toast("Erst einen Effekt eintragen"); return; }
+      const runden = parseInt(($("effrunden-" + id) || {}).value, 10) || 0;
+      gmAction({ type: "effect_add", id, name, runden });
+    },
+    "effekt-weg": () => gmAction({ type: "effect_remove", id, effekt: target.getAttribute("data-effekt") }),
+    "effekt-plus": () => gmAction({ type: "effect_adjust", id, effekt: target.getAttribute("data-effekt"), delta: 1 }),
+    "effekt-minus": () => gmAction({ type: "effect_adjust", id, effekt: target.getAttribute("data-effekt"), delta: -1 }),
+    "anordnung-zuruecksetzen": () => {
+      try { localStorage.removeItem("panelAnordnung"); } catch { /* egal */ }
+      render();
+    },
     "einladung-whatsapp": () => einladungWhatsApp(),
     "einladung-teilen": () => einladungTeilen(),
     "einladung-kopieren": () => einladungKopieren(),
@@ -2533,6 +2880,14 @@ document.addEventListener("click", (e) => {
     // Bennies
     "benny-plus": () => gmActionOrPlayer({ type: "benny_adjust", id, delta: 1 }),
     "benny-minus": () => gmActionOrPlayer({ type: "benny_adjust", id, delta: -1 }),
+    // Benny an den oben gewaehlten Empfaenger - laeuft als kurze Nachricht
+    // („🪙 +1 Benny"), damit der Spieler es auch mitbekommt.
+    "benny-geben": () => {
+      const ziel = ($("msgtarget") || {}).value || "all";
+      if (ziel === "beamer") { toast("Bennies gehen nur an Spieler"); return; }
+      gmAction({ type: "message", target: ziel, text: "", bennies: 1 });
+      toast(ziel === "all" ? "🪙 Jeder Spieler bekommt einen Benny" : "🪙 Benny verteilt");
+    },
     "benny-refresh": () => { if (confirm("Alle Wildcards auf Startwert auffrischen?")) gmAction({ type: "benny_refresh" }); },
     "sl-benny-plus": () => gmAction({ type: "sl_benny_adjust", delta: 1 }),
     "sl-benny-minus": () => gmAction({ type: "sl_benny_adjust", delta: -1 }),

@@ -1,17 +1,32 @@
-Sundered Skies – Initiative  (Version 94)
+Sundered Skies – Initiative  (Version 95)
 ==========================================
 
 Du brauchst NICHTS zu installieren. Kein Python, keine Zusatzpakete –
-alles steckt in der .exe.
+alles steckt in diesem Ordner.
 
 SO STARTEST DU
 --------------
-1. Diesen Ordner an einen festen Platz legen (z. B. Desktop) und dort LASSEN.
-2. Doppelklick auf  SunderedSkiesInitiative.exe
+1. Den GANZEN Ordner entpacken, an einen festen Platz legen (z. B. Desktop)
+   und dort LASSEN. Der Unterordner "_internal" gehoert dazu - nicht
+   loeschen, nicht verschieben. Die .exe allein funktioniert nicht.
+2. Doppelklick auf  START.bat  (oder direkt auf SunderedSkiesInitiative.exe).
+   START.bat sagt Bescheid, falls am Ordner etwas fehlt.
 3. Es öffnet sich automatisch der Browser mit der Spielleiter-Ansicht.
 4. Spieler tippen mit dem Handy die angezeigte Adresse ein
    (z. B. http://192.168.178.22:8000  – Zahl kann bei dir anders sein),
    oder scannen den QR-Code. Nichts zu installieren.
+
+Desktop-Symbol gewuenscht? Rechtsklick auf die .exe -> "Verknuepfung
+erstellen" und DIESE auf den Desktop ziehen. Die .exe bleibt im Ordner.
+
+>>> UPDATE VON EINER AELTEREN VERSION (bis v94) <<<
+---------------------------------------------------
+Deine Charaktere, Gegner, Bilder und der letzte Kampf liegen im Ordner
+"data" NEBEN deiner alten .exe. Den ganzen Ordner "data" von dort in
+DIESEN Ordner kopieren (neben SunderedSkiesInitiative.exe) - dann ist
+alles wieder da. Ohne das startet die App leer.
+Bis v94 gab es zusaetzlich eine Einzeldatei-.exe; ab v95 gibt es nur noch
+diese Ordnerversion (laeuft auch auf Firmen-Laptops und startet schneller).
 
 >>> BLAUES FENSTER "DER COMPUTER WURDE GESCHÜTZT"? <<<
 ------------------------------------------------------
@@ -28,15 +43,10 @@ Doppelklick tut scheinbar gar nichts.
 Auf Dienst-Laptops sperrt die IT oft genau das, was diese App braucht.
 Der Reihe nach ausprobieren:
 
-1) ORDNERVERSION STATT EINZELDATEI
-   Im Release liegt zusaetzlich "SunderedSkies-App-Ordnerversion.zip".
-   Die normale .exe entpackt sich bei jedem Start heimlich nach %TEMP% und
-   startet von dort - genau das verbieten AppLocker und viele
-   Endpoint-Schutz-Programme, und der Doppelklick tut dann scheinbar NICHTS.
-   Die Ordnerversion laeuft komplett aus ihrem eigenen Ordner. Sie startet
-   auch schneller. Einfach entpacken und die .exe darin starten.
+(Die App laeuft komplett aus ihrem eigenen Ordner, ohne Umweg ueber
+%TEMP% - das, woran AppLocker & Co. frueher scheiterten, gibt es nicht mehr.)
 
-2) KEINE ADMINRECHTE -> KEINE FIREWALL-FREIGABE
+1) KEINE ADMINRECHTE -> KEINE FIREWALL-FREIGABE
    Die Windows-Firewall laesst sich nur mit Adminrechten oeffnen. Fragt
    Windows nach einem Passwort, das du nicht hast: Dann kann dieser Laptop
    nicht der Gastgeber sein.
@@ -44,18 +54,18 @@ Der Reihe nach ausprobieren:
       einfach dorthin. Der Firmen-Laptop kann problemlos MITSPIELEN - als
       Spieler braucht er gar keine Freigabe, nur der Gastgeber.
 
-3) FIRMEN-VPN AUS
+2) FIRMEN-VPN AUS
    Ein immer-an-VPN (GlobalProtect, AnyConnect, Zscaler, Netskope ...) leitet
    den ganzen Verkehr um. Die Handys im WLAN erreichen den Laptop dann nicht.
    Waehrend des Spielabends das VPN trennen.
 
-4) EIGENER VIRENSCANNER STATT WINDOWS-FIREWALL
+3) EIGENER VIRENSCANNER STATT WINDOWS-FIREWALL
    Sophos, CrowdStrike, SentinelOne & Co. blocken eingehende Verbindungen
    selbst - die Windows-Freigabe hilft dann NICHT. Steht so ein Programm in
    data\log.txt unter "FIREWALL-PRODUKT", muss die Ausnahme dort eingetragen
-   werden (oder Punkt 2 nutzen: anderer Gastgeber).
+   werden (oder Punkt 1 nutzen: anderer Gastgeber).
 
-5) NOTFALL, DER FAST IMMER GEHT: HANDY-HOTSPOT
+4) NOTFALL, DER FAST IMMER GEHT: HANDY-HOTSPOT
    Ein Handy macht einen Hotspot auf, Laptop UND alle anderen Handys gehen
    dort hinein. Das ist ein privates Netz ohne Firmen-Richtlinien und ohne
    Gaeste-WLAN-Trennung. Adresse danach neu ablesen (sie aendert sich!).
@@ -125,8 +135,8 @@ WENN VERBINDUNGEN ZICKEN (z. B. WLAN flackert)
 
 WICHTIG – DAMIT NICHTS "ALTES" AUFTAUCHT
 ----------------------------------------
-- Die .exe legt ihre Daten IMMER in den Unterordner "data" NEBEN der .exe.
-  Also die .exe in DIESEM Ordner lassen, nicht neben alte Versionen.
+- Die App legt ihre Daten IMMER in den Unterordner "data" NEBEN der .exe.
+  Also den Ordner zusammenlassen und nicht mit alten Versionen mischen.
 - Auf den Handys bei Bedarf einmal die Seite hart neu laden (Tab schließen /
   neu öffnen), falls dort noch eine ältere Ansicht im Cache hängt.
 

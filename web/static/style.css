@@ -1477,3 +1477,57 @@ details.section:not([open]) { padding-top: 8px; padding-bottom: 8px; }
 
 /* Dreistellige Kuerzel ("O11") passen sonst nur randvoll in den Kreis. */
 .tinit.eng, .av-init.eng { font-size: 0.8em; letter-spacing: -0.4px; }
+
+/* Kampf-Einstellungen: Häkchen und Text bleiben nebeneinander, lange Texte
+   brechen innerhalb der Zeile um statt unter das Häkchen zu rutschen. */
+.al-einstellungen label.row { flex-wrap: nowrap; }
+
+/* Panels selbst anordnen (SL): Ueberschrift ziehen, Linie zeigt den Zielplatz. */
+[data-panel-zieh] { cursor: grab; }
+[data-panel-zieh]:active { cursor: grabbing; }
+.panel-wird-gezogen { opacity: 0.45; }
+.grid2 .sp > details.einfuege-vor { box-shadow: 0 -8px 0 -4px var(--accent); }
+.grid2 .sp.einfuege-ende::after {
+  content: ""; display: block; height: 4px; border-radius: 2px; background: var(--accent);
+}
+
+/* Dauer-Effekte (⏱ Betäubt · 2) */
+.pill.effekt { border-color: var(--accent); color: var(--accent); }
+.effekt-steuerung { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.effekt-zeile { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px;
+  border: 1px solid var(--accent); border-radius: 8px; font-size: 0.85rem; }
+.effekt-neu { display: inline-flex; gap: 4px; align-items: center; }
+.effekt-neu input[list] { width: 150px; padding: 3px 6px; }
+.effekt-neu input[type=number] { width: 52px; padding: 3px 4px; }
+
+/* Spieler: Vorwarnung, wenn man als Naechster dran ist. */
+.gleich-dran { margin: 6px auto 4px; padding: 6px 10px; border-radius: 10px; text-align: center;
+  font-weight: 700; border: 1px solid var(--gold); color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 12%, transparent); }
+
+/* Charakterbogen (Spickzettel) auf dem Spieler-Handy – Variante B mit Reitern. */
+.bogen .reiter { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: 0 0 8px; overflow-x: auto; }
+.bogen .reiter button { flex: 1; padding: 6px 4px; font-size: 0.82rem; border: 0; border-radius: 8px 8px 0 0;
+  background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.bogen .reiter button.an { background: var(--panel2); color: var(--text); font-weight: 700; }
+.bogen .zeile2 { display: flex; justify-content: space-between; gap: 10px; font-size: 0.92rem; padding: 4px 0;
+  border-bottom: 1px dotted var(--line); }
+.bogen .zeile2 b { text-align: right; }
+.bogen .attr { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.bogen .attr > div { text-align: center; border: 1px solid var(--line); border-radius: 8px; padding: 4px 2px; font-size: 0.78rem; }
+.bogen .attr b { display: block; font-size: 1rem; }
+.bogen .attr select { width: 100%; padding: 2px 0; font-size: 0.85rem; }
+.bogen .fert { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 0.92rem; }
+.bogen .fert .w { font-weight: 700; text-align: right; }
+.bogen .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.bogen .tag.handicap { color: var(--bad); border-color: var(--bad); }
+.bogen-titel { margin: 10px 0 4px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); font-weight: 700; }
+.bogen-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.bogen-raster label { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 0.88rem; }
+.bogen-reihe { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; }
+.bogen-reihe input { min-width: 0; flex: 1; }
+.bogen-form input, .bogen-form select, .bogen-form textarea { padding: 4px 6px; font-size: 0.92rem; }
+.bogen-form textarea { width: 100%; box-sizing: border-box; }
+/* Die globale Regel „select: volle Breite" quetschte sonst das Namensfeld daneben zusammen. */
+.bogen-reihe select, .bogen-raster select { width: auto; flex: 0 0 auto; }
+.bogen-form textarea { font-family: inherit; }

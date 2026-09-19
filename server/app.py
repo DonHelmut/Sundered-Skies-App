@@ -444,6 +444,11 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             # Der Laptop hat volle Kontrolle.
             if atype == "resume_session":
                 game.resume_session()
+                # Handys, die sich schon vor dem Fortsetzen wieder gemeldet haben,
+                # stehen in der geladenen Sitzung als „offline" - sie sind aber da.
+                for m in list(hub.sockets.values()):
+                    if m.get("playerId"):
+                        game.set_player_connected(m["playerId"], True)
             elif atype == "discard_session":
                 game.discard_saved_session()
             else:
@@ -451,6 +456,11 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             await hub.broadcast_state()
             return
 
+        # Wartet noch eine gespeicherte Sitzung auf „Fortsetzen?", zählen
+        # Spieler-Aktionen nicht: sie träfen nur den vorläufigen Neustart-Stand
+        # und würden (als erste Aktion) die Fortsetzen-Möglichkeit wegwerfen.
+        if game.resume_available:
+            return
         # Spieler dürfen nur eng begrenzte Aktionen für den eigenen Charakter.
         pid = meta.get("playerId")
         own = next((c for c in game.combatants if c.get("playerId") == pid), None)
@@ -471,6 +481,10 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         elif atype == "set_image" and action.get("id") == own["id"]:
             # Spieler setzt NUR das Bild der eigenen Figur.
             game.apply({"type": "set_image", "id": own["id"], "url": action.get("url")})
+            await hub.broadcast_state()
+        elif atype == "sheet_update":
+            # Charakterbogen: NUR der eigene (die ID kommt vom Server, nicht vom Handy).
+            game.apply({"type": "sheet_update", "id": own["id"], "bogen": action.get("bogen")})
             await hub.broadcast_state()
         elif atype in ("hold", "intervene") and action.get("id") == own["id"]:
             game.apply({"type": atype, "id": own["id"]})

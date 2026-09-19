@@ -255,6 +255,159 @@ def test_clear_defeated_removes_only_enemies(fresh_game):
     assert "Held" in names               # Spieler bleibt
 
 
+def test_clear_all_removes_npcs_and_benches_players(fresh_game):
+    enemy = _add_npc(fresh_game, "Feind")
+    fresh_game.apply({"type": "group_create", "name": "Bande", "ids": [enemy["id"]]})
+    fresh_game.apply({"type": "ally_upsert", "name": "Freund"})
+    fresh_game.apply({"type": "add_ally_from_library", "id": fresh_game.allies[-1]["id"]})
+    fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    fresh_game.apply({"type": "add_from_roster", "id": fresh_game.roster[-1]["id"]})
+    fresh_game.apply({"type": "new_round"})
+
+    fresh_game.apply({"type": "clear_all"})
+
+    assert [c["name"] for c in fresh_game.combatants] == ["Held"]   # nur der Spieler bleibt
+    held = fresh_game.combatants[0]
+    assert held["benched"] is True and held["card"] is None      # aus dem Kampf, nicht vom Board
+    assert fresh_game.groups == []
+    assert fresh_game.round == 0 and fresh_game.active_id is None
+    assert len(fresh_game.deck) == 54 and fresh_game.discard == []   # alle Karten zurück
+
+    fresh_game.apply({"type": "unbench_all"})                   # nächster Kampf: alle wieder rein
+    assert fresh_game.combatants[0]["benched"] is False
+    fresh_game.apply({"type": "undo"})
+
+    fresh_game.apply({"type": "undo"})                          # Versehen? Rückgängig holt alles zurück
+    assert {"Feind", "Freund", "Held"} <= {c["name"] for c in fresh_game.combatants}
+
+
+def test_bennies_are_remembered_on_the_character(fresh_game):
+    fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    char_id = fresh_game.roster[-1]["id"]
+    fresh_game.apply({"type": "add_from_roster", "id": char_id})
+    held = fresh_game.combatants[-1]
+    start = held["bennies"]
+    fresh_game.apply({"type": "benny_adjust", "id": held["id"], "delta": 2})
+
+    # Figur fliegt raus und kommt neu -> der Stand bleibt, nicht der Startwert.
+    fresh_game.apply({"type": "remove_combatant", "id": held["id"]})
+    fresh_game.apply({"type": "add_from_roster", "id": char_id})
+    assert fresh_game.combatants[-1]["bennies"] == start + 2
+
+    # Charakter bearbeiten verliert den gemerkten Stand nicht.
+    fresh_game.apply({"type": "roster_upsert", "id": char_id, "name": "Held II", "isWildCard": True})
+    assert fresh_game.roster[-1]["bennies"] == start + 2
+
+    # Auffrischen setzt auch den gemerkten Stand zurück.
+    fresh_game.apply({"type": "benny_refresh"})
+    assert fresh_game.roster[-1]["bennies"] == start
+
+
+def test_message_can_carry_bennies(fresh_game):
+    fresh_game.apply({"type": "roster_upsert", "name": "Tessa", "isWildCard": True})
+    tessa_char = fresh_game.roster[-1]["id"]
+    fresh_game.apply({"type": "roster_upsert", "name": "Vorn", "isWildCard": True})
+    vorn_char = fresh_game.roster[-1]["id"]
+    p1 = fresh_game.register_player("P1", tessa_char, None)["id"]
+    fresh_game.register_player("P2", vorn_char, None)
+    tessa = next(c for c in fresh_game.combatants if c["name"] == "Tessa")
+    vorn = next(c for c in fresh_game.combatants if c["name"] == "Vorn")
+    t0, v0 = tessa["bennies"], vorn["bennies"]
+
+    fresh_game.apply({"type": "message", "target": p1, "text": "Gut gespielt!", "bennies": 1})
+    assert tessa["bennies"] == t0 + 1 and vorn["bennies"] == v0      # nur die Empfängerin
+    assert "+1 Benny" in fresh_game.messages[-1]["text"]
+
+    fresh_game.apply({"type": "message", "target": "all", "text": "", "bennies": 2})   # ohne Text geht auch
+    assert tessa["bennies"] == t0 + 3 and vorn["bennies"] == v0 + 2
+    assert fresh_game.messages[-1]["text"] == "🪙 +2 Bennies"
+
+
+def test_rejoin_before_resume_keeps_saved_session(fresh_game):
+    """Neustart mitten im Abend: Die Handys melden sich automatisch wieder an,
+    BEVOR der SL „Fortsetzen" klickt. Das darf den gespeicherten Kampf nicht
+    überschreiben, und das Handy muss danach wieder zu seiner Figur passen."""
+    from server import game as game_mod
+    fresh_game.apply({"type": "roster_upsert", "name": "Tessa", "isWildCard": True})
+    char = fresh_game.roster[-1]["id"]
+    pid = fresh_game.register_player("Stefan", char, None)["id"]
+    _add_npc(fresh_game, "Ork")
+    fresh_game.apply({"type": "new_round"})          # speichert den Kampf
+
+    neu = game_mod.Game()                            # „Server-Neustart"
+    assert neu.resume_available
+    neu.register_player("Stefan", char, pid)         # Handy meldet sich sofort wieder
+    neu.save_session()                               # (so wie app.py es beim Beitritt tut)
+    assert neu.resume_available                      # Fortsetzen ist noch möglich
+    assert neu.resume_session()
+    namen = {c["name"] for c in neu.combatants}
+    assert namen == {"Tessa", "Ork"} and neu.round == 1    # der Kampf ist noch da
+    tessa = next(c for c in neu.combatants if c["name"] == "Tessa")
+    assert tessa["playerId"] == pid                  # und das Handy passt zu seiner Figur
+
+
+def test_sheet_is_kept_on_character_and_sanitized(fresh_game):
+    fresh_game.apply({"type": "roster_upsert", "name": "Tessa", "isWildCard": True})
+    char = fresh_game.roster[-1]["id"]
+    pid = fresh_game.register_player("Stefan", char, None)["id"]
+    tessa = next(c for c in fresh_game.combatants if c["playerId"] == pid)
+    undo_vorher = len(fresh_game._history)
+
+    fresh_game.apply({"type": "sheet_update", "id": tessa["id"], "bogen": {
+        "parade": "7", "robustheit": "8", "panzer": "2", "tempo": "6", "rennen": "W6",
+        "attribute": {"ge": "W8", "ve": "W99", "hack": "W12"},
+        "fertigkeiten": [{"name": "Kämpfen", "wert": "W8"}, {"name": ""}],
+        "waffen": [{"name": "Rapier", "schaden": "St+W4", "info": "Parade +1"}],
+        "talente": ["Flink", "x" * 500], "handicaps": ["Neugierig"], "ausruestung": ["Heiltrank ×3"],
+        "boese": "<script>",
+    }})
+    bogen = fresh_game.roster[-1]["bogen"]
+    assert bogen["attribute"] == {"ge": "W8", "ve": "", "wi": "", "st": "", "ko": ""}   # Unsinn raus
+    assert [f["name"] for f in bogen["fertigkeiten"]] == ["Kämpfen"]                   # leere Zeile raus
+    assert len(bogen["talente"][1]) == 40 and "boese" not in bogen
+    assert len(fresh_game._history) == undo_vorher          # kein Eintrag im Rückgängig des SL
+
+    # Figur fliegt raus, Spieler kommt neu: der Bogen ist wieder da.
+    fresh_game.apply({"type": "remove_combatant", "id": tessa["id"]})
+    fresh_game.register_player("Stefan", char, None)
+    neu = next(c for c in fresh_game.combatants if c.get("characterId") == char)
+    assert neu["bogen"]["waffen"][0]["name"] == "Rapier"
+    # SL bearbeitet den Charakter -> Bogen bleibt erhalten.
+    fresh_game.apply({"type": "roster_upsert", "id": char, "name": "Tessa", "isWildCard": True})
+    assert fresh_game.roster[-1]["bogen"]["parade"] == "7"
+
+
+def test_effects_count_down_each_new_round(fresh_game):
+    ork = _add_npc(fresh_game, "Ork")
+    fresh_game.apply({"type": "new_round"})
+    fresh_game.apply({"type": "effect_add", "id": ork["id"], "name": "Betäubt", "runden": 2})
+    fresh_game.apply({"type": "effect_add", "id": ork["id"], "name": "Brennt", "runden": 0})   # ohne Ablauf
+    ork = fresh_game._combatant(ork["id"])
+
+    fresh_game.apply({"type": "deal_current"})          # gleiche Runde neu austeilen: zählt NICHT
+    assert [e["runden"] for e in ork["effekte"]] == [2, 0]
+
+    fresh_game.apply({"type": "new_round"})
+    assert [e["runden"] for e in ork["effekte"]] == [1, 0]
+    fresh_game.apply({"type": "new_round"})
+    assert [e["name"] for e in ork["effekte"]] == ["Brennt"]   # Betäubt abgelaufen
+    assert "Betäubt bei Ork ist abgelaufen" in fresh_game.effekt_meldungen[-1]["text"]
+
+    brennt = ork["effekte"][0]["id"]
+    fresh_game.apply({"type": "effect_remove", "id": ork["id"], "effekt": brennt})
+    assert ork["effekte"] == []
+
+
+def test_effect_adjust_never_drops_to_zero(fresh_game):
+    ork = _add_npc(fresh_game, "Ork")
+    fresh_game.apply({"type": "effect_add", "id": ork["id"], "name": "Schutz", "runden": 1})
+    eff = fresh_game._combatant(ork["id"])["effekte"][0]
+    fresh_game.apply({"type": "effect_adjust", "id": ork["id"], "effekt": eff["id"], "delta": -1})
+    assert fresh_game._combatant(ork["id"])["effekte"][0]["runden"] == 1   # Entfernen geht über ✕
+    fresh_game.apply({"type": "effect_adjust", "id": ork["id"], "effekt": eff["id"], "delta": 1})
+    assert fresh_game._combatant(ork["id"])["effekte"][0]["runden"] == 2
+
+
 def test_remove_active_advances(fresh_game):
     a = _add_npc(fresh_game, "A")
     b = _add_npc(fresh_game, "B")

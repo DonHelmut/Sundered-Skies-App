@@ -47,6 +47,32 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## v95 (19.09.2026): Kampf abräumen, Bennies, Effekte, Charakterbogen
+
+- **🧹 Kampf abräumen** (`clear_all`): Gegner/Verbündete weg, Spieler nur pausiert
+  (bleiben verbunden), Gruppen weg, danach wie „Zurücksetzen". Dazu
+  **▶️ Alle wieder rein** (`unbench_all`) an „Nicht im Kampf".
+- **Bennies** am Roster-Charakter gemerkt (`_bennies_merken` nach jeder Aktion).
+  Verteilen: „🪙 +1 Benny" im Panel „Nachricht / Bild / Bennies" (Nachricht mit
+  `bennies: 1`). Benny-Panel entfernt; SL-Pool + Auffrischen im Nachrichten-Panel,
+  Startwert in ⚙ Kampf-Einstellungen. Bewusst schlank halten (Stefan).
+- **Panels selbst anordnen** (nur SL): Überschrift ziehen, auch zwischen den
+  Spalten; `PANEL_BAU`/`STANDARD_ANORDNUNG`, localStorage `panelAnordnung`.
+  Neue Panels dort eintragen, sonst erscheinen sie nicht.
+- **Dauer-Effekte** (`effect_add/remove/adjust`): zählen bei jeder NEUEN Runde
+  runter, SL bekommt beim Ablauf einen Hinweis.
+- Spieler: **Sekunden-Ring nur bei dem, der dran ist**; Vorwarnung **„Gleich bist du
+  dran"** (+ kurze Vibration).
+- **Charakterbogen** (Spickzettel, Reiter Kampf/Werte/Talente/Ausrüstung) auf dem
+  Handy – nur die Spieler tragen ein (`sheet_update`, kein Undo-Eintrag, gespeichert
+  am Charakter). Während des Tippens wird nicht neu aufgebaut. Entwurf:
+  `_lab-spickzettel.html`. Offen: SL sieht die Bögen noch nicht.
+- **Fix Neustart:** Handys meldeten sich nach einem Server-Neustart sofort wieder
+  an und überschrieben dabei die gespeicherte Sitzung; „Fortsetzen?" verschwand.
+  Jetzt: `save_session` schweigt solange `resume_available`, Spieler-Aktionen
+  zählen bis dahin nicht, Handy behält seine Spieler-ID, Hinweis bleibt sichtbar.
+- Paket: nur noch **eine** Datei (Ordnerversion als `SunderedSkies-App.zip`).
+
 ## v94 (18.09.2026): Aufdecken ohne Ruckeln, Joker bleibt geheim
 
 - Kein `transition: filter` mehr auf `.card-svg` (war ein animierter Filter bei
@@ -136,8 +162,8 @@ sich über **Export/Import** in der App umziehen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v94** (veröffentlicht).
-      Nächstes Release also 94 → 95 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v95** (veröffentlicht).
+      Nächstes Release also 95 → 96 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.
