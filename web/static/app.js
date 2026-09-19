@@ -31,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "96";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "97";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -224,6 +224,16 @@ function checkRequestAlert() {
   if (isNew && App._reqInit) { playBeep(880, 90); setTimeout(() => playBeep(1170, 110), 120); }
   App._prevReqIds = ids;
   App._reqInit = true;
+}
+
+// Rundenzähler: „Runde 3" gut sichtbar - beim SL in der Leiste unten, beim
+// Spieler oben rechts. Wechselt die Runde, pulsiert er einmal kurz (nur beim
+// ersten Zeichnen nach dem Wechsel, sonst würde jedes Update ihn neu anstoßen).
+function rundenZaehler(s) {
+  if (!s || !s.round) return "";
+  const neu = App._gezeigteRunde !== undefined && App._gezeigteRunde !== s.round;
+  App._gezeigteRunde = s.round;
+  return `<span class="runden-zaehler${neu ? " neu" : ""}" title="Aktuelle Kampfrunde">Runde <b>${s.round}</b></span>`;
 }
 
 // Wer kommt nach dem aktiven Akteur dran? Pausierte, ausgeschiedene und schon
@@ -1733,12 +1743,12 @@ function renderConnectPanel() {
       <span class="muted small">Read-only Ansicht für einen zweiten Bildschirm.</span>
     </div>
     <div class="row" style="margin-top:12px; align-items:center; flex-wrap:wrap; gap:8px">
-      <a href="/api/export" download="sundered-skies-backup.json"><button class="ghost">💾 Sicherung exportieren</button></a>
+      <a href="/api/export"><button class="ghost">💾 Sicherung exportieren</button></a>
       <label class="ghost" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; border:1px solid var(--line); border-radius:10px; padding:10px 14px">
         ⤵ Sicherung importieren
-        <input type="file" accept="application/json,.json" data-act="pick-import" style="display:none">
+        <input type="file" accept=".zip,application/zip,application/json,.json" data-act="pick-import" style="display:none">
       </label>
-      <span class="muted small">Charaktere + Bibliotheken + Begegnungen.</span>
+      <span class="muted small">Charaktere + Bibliotheken + Begegnungen, mit allen Bildern (Zip). Alte .json-Sicherungen gehen auch.</span>
     </div>
     <div class="row" style="margin-top:10px; align-items:center; gap:8px">
       <button class="ghost" data-act="bilder-aufraeumen">🧹 Alte Bilder aufräumen</button>
@@ -1812,7 +1822,7 @@ function renderAktionsleiste() {
   if (!active) {
     if (!s.round) return "";
     return `<div class="aktionsleiste">
-      <div class="al-wer"><span class="pill good">✓ Runde ${s.round} beendet – alle waren dran</span></div>
+      <div class="al-wer">${rundenZaehler(s)}<span class="pill good">✓ Runde ${s.round} beendet – alle waren dran</span></div>
       <div class="al-haupt">
         <button class="primary big" data-act="new-round">🃏 Neue Runde – an ALLE austeilen</button>
       </div>
@@ -1842,6 +1852,7 @@ function renderAktionsleiste() {
   return `<div class="aktionsleiste">
     ${App.leisteEinstellungen ? leisteEinstellungenHtml() : ""}
     <div class="al-wer">
+      ${rundenZaehler(s)}
       <span class="al-platz">${platz}</span>
       <button class="al-name" data-act="zur-aktiven-zeile" title="Zur Zeile springen">${esc(active.name)}</button>
       ${istNsc ? `<span class="muted small">(NSC)</span>` : ""}
@@ -2681,7 +2692,10 @@ function renderPlayer() {
         </label>
         <div><h1 style="margin:0; font-size:1.25rem">${esc(mine.name)}</h1>${playerTag}</div>
       </div>
-      <button class="ghost small" data-act="leave">Verlassen</button>
+      <div class="row tight" style="align-items:center">
+        ${rundenZaehler(s)}
+        <button class="ghost small" data-act="leave">Verlassen</button>
+      </div>
     </div>
     ${banner}
     ${cardPanel}

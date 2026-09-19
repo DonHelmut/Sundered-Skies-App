@@ -47,6 +47,15 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## v97 (19.09.2026): Sicherung mit Bildern, Rundenzähler
+
+- **Sicherung als Zip** (`server/sicherung.py`): `sicherung.json` + `uploads/<bild>`
+  für alle Bilder aus Charakteren, Bibliotheken und Begegnungen. Import nimmt Zip
+  und alte JSON; nur Dateinamen im Upload-Muster werden entpackt (kein Pfad-Trick),
+  Größen gedeckelt. Tests: `tests/test_sicherung.py`.
+- **Rundenzähler** „Runde N" beim SL links in der Leiste und beim Spieler oben
+  rechts; pulsiert kurz beim Rundenwechsel (`rundenZaehler`).
+
 ## v96 (19.09.2026): Talente selbst wählen, Regel-Spickzettel, Statisten-Regel
 
 - Spieler haken ihre **Initiative-Talente** (Schnell, Kühler Kopf …) und **Glück /
@@ -173,8 +182,8 @@ sich über **Export/Import** in der App umziehen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v96** (veröffentlicht).
-      Nächstes Release also 96 → 97 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v97** (veröffentlicht).
+      Nächstes Release also 97 → 98 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.

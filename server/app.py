@@ -25,6 +25,7 @@ from .game import Game, UPLOAD_DIR
 from .paths import RESOURCE_DIR, HOSTNAME, APP_VERSION, local_ip, all_lan_ips, active_port
 from . import diag
 from . import winnet
+from . import sicherung
 
 WEB_DIR = RESOURCE_DIR / "web"
 LOCAL_IP = local_ip()
@@ -230,12 +231,16 @@ async def upload(request: Request, file: UploadFile):
 
 @app.get("/api/export")
 async def export_backup(request: Request):
-    """Sicherung als Download (nur SL/Laptop): Charaktere + Bibliotheken + Begegnungen."""
+    """Sicherung als Download (nur SL/Laptop): Charaktere + Bibliotheken +
+    Begegnungen als Zip MIT allen benutzten Bildern (vorher nur JSON - beim
+    Laptop-Wechsel fehlten dann die Bilder)."""
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
-    body = json.dumps(game.export_data(), ensure_ascii=False, indent=2)
-    return Response(content=body, media_type="application/json",
-                    headers={"Content-Disposition": 'attachment; filename="sundered-skies-backup.json"'})
+    body, bilder = sicherung.baue_zip(game.export_data(), UPLOAD_DIR)
+    diag.log(f"Sicherung exportiert: {len(body) / 1024:.0f} KB, {bilder} Bild(er)")
+    datum = time.strftime("%Y-%m-%d")
+    return Response(content=body, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="sundered-skies-sicherung-{datum}.zip"'})
 
 
 @app.post("/api/import")
@@ -244,13 +249,15 @@ async def import_backup(request: Request, file: UploadFile):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
     raw = await file.read()
-    if len(raw) > 8 * 1024 * 1024:
+    if len(raw) > 500 * 1024 * 1024:     # Zip mit Bildern darf gross sein
         return JSONResponse({"error": "too_large"}, status_code=413)
     try:
-        data = json.loads(raw.decode("utf-8"))
-    except Exception:
+        data, bilder = sicherung.lies_sicherung(raw, UPLOAD_DIR)
+    except ValueError:
         return JSONResponse({"error": "bad_json"}, status_code=400)
-    bericht = game.import_data(data)
+    bericht = game.import_data(data) if isinstance(data, dict) else {"ok": False, "fehler": "Unbekanntes Format."}
+    if bericht.get("ok"):
+        bericht.setdefault("uebernommen", {})["Bilder"] = bilder
     if bericht.get("ok"):
         await hub.broadcast_state()
     return JSONResponse(bericht)

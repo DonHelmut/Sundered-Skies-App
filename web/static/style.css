@@ -1541,3 +1541,12 @@ details.section:not([open]) { padding-top: 8px; padding-bottom: 8px; }
 .regel-block { margin-top: 8px; font-size: 0.88rem; }
 .regel-block ul { margin: 4px 0 0; padding-left: 18px; }
 .regel-block li { margin-bottom: 3px; }
+
+/* Rundenzähler (SL-Leiste unten, Spieler oben rechts). Pulsieren nur per
+   transform - kein Filter, keine Layout-Verschiebung. */
+.runden-zaehler { display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--gold); color: var(--gold); font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+  background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.runden-zaehler b { font-size: 1.15rem; line-height: 1; }
+.runden-zaehler.neu { animation: rundePuls 0.9s ease-out 2; }
+@keyframes rundePuls { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.18); } }
