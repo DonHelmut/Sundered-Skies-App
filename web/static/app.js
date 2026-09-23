@@ -31,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "97";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "98";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -1084,7 +1084,12 @@ function renderZonesPanel() {
         ? `<div class="zone-hint">Figur auf eine Bahn <b>ziehen</b> zum Umsetzen – gehört sie zu einer Gruppe, rückt die ganze Gruppe mit.
              Mit <b>Strg-Klick</b> mehrere sammeln und gemeinsam ziehen.</div>`
         : `<div class="zone-hint">Tippe ein Token für Infos.</div>`);
-  return section("zones", "Kampfzonen", `${target}${auswahlHinweis}${controls}`);
+  // Am Handy ist das Board mit 20+ Figuren riesig. Es startet dort darum
+  // eingeklappt (ein Tipp oeffnet es, die Wahl wird wie ueberall gemerkt);
+  // beim SL bleibt es offen, er arbeitet staendig damit.
+  const grossesBoard = App.role !== "gm" && s.combatants.length > 12;
+  return section("zones", `Kampfzonen${grossesBoard ? ` <span class="muted small">(${s.combatants.length} Figuren)</span>` : ""}`,
+    `${target}${auswahlHinweis}${controls}`, !grossesBoard);
 }
 
 // Info-Fenster beim Antippen eines Tokens (im #app, damit es pro Render frisch ist).
@@ -1535,6 +1540,10 @@ document.addEventListener("dragstart", (e) => {
   if (!kopf) return;
   gezogenesPanel = kopf.dataset.panelZieh;
   kopf.closest("details").classList.add("panel-wird-gezogen");
+  // Beide Spalten sichtbar machen: eine LEERE Spalte war 0 Pixel hoch und
+  // damit kein Ziel mehr - wer das letzte Panel herauszog, bekam nie wieder
+  // eines hinein ("man kann nur die linke Seite anpassen").
+  document.body.classList.add("panel-zieht");
   try { e.dataTransfer.setData("application/x-panel", gezogenesPanel); e.dataTransfer.effectAllowed = "move"; } catch { /* egal */ }
 });
 document.addEventListener("dragover", (e) => {
@@ -1555,12 +1564,14 @@ document.addEventListener("drop", (e) => {
   const key = gezogenesPanel;
   gezogenesPanel = null;
   panelLinieWeg();
+  document.body.classList.remove("panel-zieht");
   if (stelle) panelVerschieben(key, stelle.spalte, stelle.vor ? stelle.vor.dataset.sec : null);
 }, true);
 document.addEventListener("dragend", () => {
   if (!gezogenesPanel && !document.querySelector(".panel-wird-gezogen")) return;
   gezogenesPanel = null;
   panelLinieWeg();
+  document.body.classList.remove("panel-zieht");
   document.querySelectorAll(".panel-wird-gezogen").forEach((x) => x.classList.remove("panel-wird-gezogen"));
 });
 
@@ -1759,11 +1770,18 @@ function renderConnectPanel() {
 // Kampf-Steuerung (Body, ohne eigenes Panel) – wird oben in die Kampf&Initiative-Box gesetzt.
 function renderControlBody() {
   const s = App.state;
-  const phasePill = {
+  // Die Phase steht schon in der Leiste unten („Freigeben"/„Zug läuft") - hier
+  // nur noch zeigen, solange es die Leiste nicht gibt (vor dem Austeilen).
+  const anyCards = s.combatants.some((c) => c.card);
+  const phasePill = anyCards ? "" : {
     idle: `<span class="pill">Bereit</span>`,
     running: `<span class="pill warn">Zug läuft</span>`,
     gate: `<span class="pill good">Freigabe ausstehend</span>`,
   }[s.phase] || "";
+  // Austeilen ist nur am Rundenende (oder vor der ersten Runde) der Haupt-Knopf.
+  // Mitten in der Runde stand er trotzdem gross an der besten Stelle - jetzt
+  // rueckt er dann zur Seite und macht Platz für die Reihenfolge.
+  const rundeDran = !s.round || !s.activeId;
   // Aufräum-Knopf nur zeigen, wenn es ausgeschaltete Gegner gibt (kein Dauer-Clutter).
   const defeated = s.combatants.filter((c) => c.kind === "npc" && !c.ally && (c.status || {}).out);
   const cleanupRow = defeated.length
@@ -1776,13 +1794,13 @@ function renderControlBody() {
     </div>
     ${cleanupRow}
     <div class="row">
-      <button class="primary big" data-act="new-round" style="flex:1">🃏 ${s.round === 0 ? "Karten an ALLE austeilen" : "Neue Runde – an ALLE austeilen"}</button>
-      <button class="ghost bad" data-act="reset" title="Alles zurücksetzen">Zurücksetzen</button>
+      <button class="${rundeDran ? "primary big" : "ghost small"}" data-act="new-round" ${rundeDran ? 'style="flex:1"' : 'title="Allen eine neue Karte austeilen"'}>🃏 ${s.round === 0 ? "Karten an ALLE austeilen" : rundeDran ? "Neue Runde – an ALLE austeilen" : "Neue Runde"}</button>
+      <button class="ghost bad ${rundeDran ? "" : "small"}" data-act="reset" title="Alles zurücksetzen">Zurücksetzen</button>
       ${s.combatants.some((c) => c.kind === "npc" || !c.benched)
-        ? `<button class="ghost bad" data-act="clear-all" title="Gegner und Verbündete entfernen, Spieler pausieren – die Zonen sind danach leer">🧹 Kampf abräumen</button>`
+        ? `<button class="ghost bad ${rundeDran ? "" : "small"}" data-act="clear-all" title="Gegner und Verbündete entfernen, Spieler pausieren – die Zonen sind danach leer">🧹 Kampf abräumen</button>`
         : ""}
     </div>
-    <div class="muted small">Teilt allen Teilnehmern (Spieler & Gegner) gleichzeitig eine neue Karte aus. Einzeln nachziehen geht mit 🔄 in der Liste.</div>
+    ${rundeDran ? `<div class="muted small">Teilt allen Teilnehmern (Spieler & Gegner) gleichzeitig eine neue Karte aus. Einzeln nachziehen geht mit 🔄 in der Liste.</div>` : ""}
     ${renderRundenHinweis()}`;
   // Aktueller Akteur, Freigeben/Weiter, Timer und die Schalter sind BEWUSST
   // nicht mehr hier: sie saßen mitten im Panel und wanderten bei jeder
@@ -1999,19 +2017,60 @@ function renderOrderPanel(isGM) {
     : "";
   // SL sieht Kampf-Steuerung + volle Reihenfolge in EINER Box.
   if (isGM) {
-    const rows = active.map((c, i) => combatantRow(c, i + 1, true, true)).join("");
+    // „Wer kommt danach" stand bisher nur in der Leiste unten - in der Liste
+    // musste man es suchen. Jetzt traegt die Zeile selbst die Markierung.
+    App._naechsterId = (naechsterAkteur(s) || {}).id || null;
+    // Lange Listen (viele Gegner): auf Wunsch nur zeigen, wer noch dran ist.
+    const fertig = active.filter((c) => c.done || (c.status || {}).out);
+    const sichtbar = App.nurOffene ? active.filter((c) => !c.done && !(c.status || {}).out) : active;
+    const filter = (active.length > 8 || App.nurOffene) && fertig.length
+      ? `<button class="ghost small" data-act="nur-offene" title="Erledigte und ausgeschaltete Figuren ausblenden">${App.nurOffene ? `▦ alle zeigen (${fertig.length} versteckt)` : `▣ nur Offene (${fertig.length} erledigt)`}</button>`
+      : "";
+    const rows = active.map((c, i) => (sichtbar.includes(c) ? combatantRow(c, i + 1, true, true) : "")).join("");
     return section("combat", `Kampf & Initiative · Runde ${s.round}`,
-      `${renderControlBody()}<hr class="combat-sep"><div class="order-heading">Initiative-Reihenfolge</div><div class="order">${rows}${benchRows}</div>`);
+      `${renderControlBody()}<hr class="combat-sep">
+       <div class="order-heading row spread"><span>Initiative-Reihenfolge</span>${filter}</div>
+       <div class="order">${rows}${benchRows}</div>`);
   }
   // Spieler: Position nur für tischweit AUFGEDECKTE Karten. Verdeckte kommen ohne
   // Nummer in neutraler Reihenfolge nach unten -> verraten die Reihenfolge nicht.
   const openC = active.filter((c) => c.revealed);
   const hiddenC = active.filter((c) => !c.revealed)
     .slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  let body = openC.map((c, i) => combatantRow(c, i + 1, false, true)).join("");
+  // Bei 20+ Figuren war die Liste am Handy zwei Bildschirme lang, und der
+  // Spieler scrollte an allem vorbei. Darum standardmaessig nur der Ausschnitt
+  // um das Geschehen: der Aktive, ein paar danach - und IMMER die eigene Figur.
+  const mineId = (myCombatant() || {}).id;
+  const aktivPos = openC.findIndex((c) => c.id === s.activeId);
+  const kurz = (openC.length + hiddenC.length) > 8 && !App.alleZeigen;
+  const von = kurz ? Math.max(0, (aktivPos < 0 ? 0 : aktivPos) - 1) : 0;
+  const bis = kurz ? von + 6 : openC.length;
+  const zeigen = (c, i) => !kurz || (i >= von && i < bis) || c.id === mineId;
+  // „Du bist 6. von 25 - noch 3 vor dir": die Frage, die am Tisch am haeufigsten
+  // kommt, ohne die ganze Liste durchzuzaehlen.
+  const meinPlatz = openC.findIndex((c) => c.id === mineId);
+  const vorMir = meinPlatz >= 0 ? openC.slice(0, meinPlatz).filter((c) => !c.done && !(c.status || {}).out).length : 0;
+  const positionsZeile = meinPlatz >= 0
+    ? `<div class="mein-platz">Du bist <b>${meinPlatz + 1}.</b> von ${openC.length + hiddenC.length}${
+        s.activeId === mineId ? " – <b>du bist dran!</b>"
+          : vorMir ? ` · noch <b>${vorMir}</b> vor dir` : " · du kommst als Nächstes"}</div>`
+    : "";
+  let body = positionsZeile + openC.map((c, i) => (zeigen(c, i) ? combatantRow(c, i + 1, false, true) : "")).join("");
+  const versteckt = openC.filter((c, i) => !zeigen(c, i)).length;
+  // Noch verdeckte Figuren sagen nichts über die Reihenfolge - davon reichen
+  // im Kurzmodus ein paar, sonst füllen 20 Gegner den halben Bildschirm.
+  let verdecktGekuerzt = 0;
   if (hiddenC.length) {
+    const zeigenH = kurz ? hiddenC.filter((c, i) => i < 4 || c.id === mineId) : hiddenC;
+    verdecktGekuerzt = hiddenC.length - zeigenH.length;
     body += `<div class="order-divider">${openC.length ? "Noch verdeckt" : "Noch niemand aufgedeckt – tippt eure Karte an!"}</div>`;
-    body += hiddenC.map((c) => combatantRow(c, null, false, false)).join("");
+    body += zeigenH.map((c) => combatantRow(c, null, false, false)).join("");
+  }
+  const restlich = versteckt + verdecktGekuerzt;
+  if (kurz && restlich) {
+    body += `<button class="ghost small order-mehr" data-act="alle-zeigen">▾ Alle ${openC.length + hiddenC.length} zeigen (${restlich} weitere)</button>`;
+  } else if (App.alleZeigen && (openC.length + hiddenC.length) > 8) {
+    body += `<button class="ghost small order-mehr" data-act="alle-zeigen">▴ Weniger zeigen</button>`;
   }
   return section("order", "Initiative-Reihenfolge", `<div class="order">${body}${benchRows}</div>`);
 }
@@ -2020,12 +2079,16 @@ function renderOrderPanel(isGM) {
 function combatantRow(c, num, isGM, isOpen) {
   const s = App.state;
   const isActive = c.id === s.activeId;
+  // Eigene Figur (nur Spieler): in einer langen Liste soll man sie sofort finden.
+  const isOwn = !isGM && c.playerId && c.playerId === App.myPlayerId;
   const showCard = isGM || isOpen;                 // Karte offen sichtbar?
   // Karten-abgeleitete Infos (Joker/hält/Hinweise) NUR zeigen, wenn aufgedeckt.
   const hasJoker = showCard && c.card && c.card.suit === "joker";
   const cls = ["combatant",
     c.kind === "npc" ? (c.ally ? "ally" : "enemy") : "", isActive ? "active" : "",
     c.done ? "done" : "", (showCard && c.held) ? "held" : "", hasJoker ? "joker-holder" : "",
+    (isGM && !isActive && App._naechsterId === c.id) ? "naechster" : "",
+    (!isGM && isOwn) ? "eigene" : "",
     c.benched ? "benched" : "", showCard ? "" : "facedown"].filter(Boolean).join(" ");
   // In der Zeile knapp: "★ JOKER" steht schon daneben, der ausgeschriebene Satz
   // brach um und machte die Zeile doppelt so hoch. Voller Text im Tooltip.
@@ -2053,6 +2116,9 @@ function combatantRow(c, num, isGM, isOpen) {
       <button class="ghost small" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}" title="${c.benched ? "Wieder in den Kampf" : "Aus dem Kampf (pausieren)"}">${c.benched ? "▶️ Wieder rein" : "⏸ Pausieren"}</button>
       <button class="ghost small bad" data-act="remove-combatant" data-id="${c.id}" title="${c.playerId ? "Spieler entfernen (Kick)" : "Entfernen"}">✕ Entfernen</button>
     </div>` : "";
+  const duTag = (!isGM && isOwn) ? `<span class="tag du-tag">Du</span>` : "";
+  const naechsterTag = (isGM && !isActive && App._naechsterId === c.id)
+    ? `<span class="tag naechster-tag" title="Kommt als Nächstes dran">↓ danach</span>` : "";
   const idxLabel = num != null ? num : `<span class="idx-hidden">?</span>`;
   const kuerzel = zoneInitials(c.name);
   const avImg = c.image ? `<img src="${esc(c.image)}" alt="">`
@@ -2076,7 +2142,7 @@ function combatantRow(c, num, isGM, isOpen) {
         ${/* "verdeckt" hier statt direkt am Namen - dort nahm es dem Namen den
              Platz weg, und lange Namen brachen mitten im Wort um. */ ""}
         ${c.anon && isGM ? `<span class="tag" style="color:var(--muted);border-color:var(--muted)" title="Die Spieler sehen statt des Namens nur Unlesbares">🫥 verdeckt</span>` : ""}
-        ${jokerBadge}
+        ${duTag}${naechsterTag}${jokerBadge}
         ${c.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card">WC</span>' : ""}
         ${showCard ? talentBadges(c.talents) : ""}${showCard ? talentTrail(c) : ""} ${hints}
         ${bennyBadge(c)}
@@ -2226,7 +2292,8 @@ function renderEncounterPanel() {
       <div class="grow"><strong>${esc(e.name)}</strong>
         <div class="muted small">${(e.members || []).length} Figur(en): ${esc(names).slice(0, 90)}</div>
       </div>
-      <button class="small primary" data-act="encounter-to-combat" data-id="${e.id}" title="Ganze Begegnung in den Kampf setzen">+ Kampf</button>
+      <button class="small primary" data-act="encounter-start" data-id="${e.id}" title="Einsetzen, pausierte Spieler zurückholen und sofort austeilen">▶ Starten</button>
+      <button class="ghost small" data-act="encounter-to-combat" data-id="${e.id}" title="Nur einsetzen, ohne auszuteilen">+ Kampf</button>
       <button class="ghost small bad" data-act="encounter-delete" data-id="${e.id}">✕</button>
     </div>`;
   }).join("") || `<div class="muted small">Noch keine Begegnungen gespeichert.</div>`;
@@ -2358,8 +2425,28 @@ function renderMessagePanel() {
   // Das Panel ist jetzt dauerhaft offen -> nur die letzten drei Nachrichten,
   // sonst waechst die linke Spalte mit jedem verschickten Benny.
   const log = s.messages.slice(-3).reverse().map((m) => `
-    <div class="msg"><div class="to">an ${m.target === "all" ? "alle" : esc(spielerAnzeige(s.players.find((p) => p.id === m.target)))}</div>
-      ${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}">` : ""}</div>`).join("");
+    <div class="msg"><div class="to">an ${m.target === "all" ? "alle" : esc(spielerAnzeige(s.players.find((p) => p.id === m.target)))}
+        <button class="st-btn" data-act="nochmal-senden" data-msg="${m.id}" title="Nochmal senden – an den oben gewählten Empfänger">🔁</button>
+        ${m.imageUrl ? `<button class="st-btn" data-act="auf-tv" data-url="${esc(m.imageUrl)}" title="Bild groß auf den TV/Beamer">📺</button>` : ""}
+      </div>
+      ${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}" title="Groß ansehen">` : ""}</div>`).join("");
+
+  // Bild-Archiv: jedes schon einmal verschickte Bild bleibt als Miniatur da -
+  // Karten, Handouts und Porträts lassen sich so ohne Suchen erneut zeigen.
+  const archiv = [...new Map(s.messages.filter((m) => m.imageUrl)
+    .map((m) => [m.imageUrl, m])).values()].reverse().slice(0, 24);
+  const archivHtml = archiv.length ? `
+    <details class="section" data-sec="bildarchiv" ${App.collapsed.bildarchiv === false ? "open" : ""} style="margin-top:10px">
+      <summary class="sec-head"><span class="sec-title">🖼 Bild-Archiv (${archiv.length})</span><span class="sec-caret">▸</span></summary>
+      <div class="panel-body bild-archiv">${archiv.map((m) => `
+        <div class="archiv-bild">
+          <img src="${esc(m.imageUrl)}" alt="" data-act="open-image" data-url="${esc(m.imageUrl)}" title="Groß ansehen">
+          <div class="row tight">
+            <button class="st-btn" data-act="nochmal-senden" data-msg="${m.id}" title="Nochmal an den gewählten Empfänger senden">🔁</button>
+            <button class="st-btn" data-act="auf-tv" data-url="${esc(m.imageUrl)}" title="Groß auf den TV/Beamer">📺</button>
+          </div>
+        </div>`).join("")}</div>
+    </details>` : "";
 
   return section("message", "Nachricht / Bild / Bennies", `
     <div class="row" style="align-items:flex-end; gap:8px">
@@ -2380,7 +2467,8 @@ function renderMessagePanel() {
       <button class="ghost small" data-act="benny-refresh" style="margin-left:auto" title="Jede Wildcard auf den Startwert (+ Glück-Bonus) setzen – z. B. zu Beginn des Abends. Startwert: ⚙ unten in der Leiste">↻ Bennies auffrischen</button>
     </div>
     ${s.tvImage ? `<div class="row" style="margin-top:8px"><span class="pill good">📺 TV zeigt gerade ein Bild</span><button class="ghost small" data-act="clear-tv">TV-Bild entfernen</button></div>` : ""}
-    ${log ? `<div style="margin-top:10px"><div class="muted small">Verlauf</div>${log}<button class="ghost small" data-act="clear-messages" style="margin-top:6px">Verlauf leeren</button></div>` : ""}`);
+    ${log ? `<div style="margin-top:10px"><div class="muted small">Verlauf (letzte 3)</div>${log}<button class="ghost small" data-act="clear-messages" style="margin-top:6px">Verlauf leeren</button></div>` : ""}
+    ${archivHtml}`);
 }
 
 // ---------- Charakterbogen (Spickzettel) ----------
@@ -2682,8 +2770,16 @@ function renderPlayer() {
     : renderOrderPanel(false);
 
   // Reihenfolge: Eigene Karte → Reihenfolge → Kampfzonen → Aktionen → Zustände.
+  // Schmale Leiste, die beim Scrollen oben stehen bleibt: „wer ist dran" war
+  // sonst nur ganz oben zu sehen - bei langer Seite scrollt man daran vorbei.
+  const dranLeiste = s.round && werDran
+    ? `<div class="dran-leiste${isMyTurn ? " ich" : ""}">${isMyTurn ? "▶ Du bist dran!" : esc(werDran)}${
+        binNaechster && !isMyTurn ? " · du kommst als Nächstes" : ""}</div>`
+    : "";
+
   return `
     ${msgBanner}
+    ${dranLeiste}
     <div class="row spread" style="margin-bottom:6px">
       <div class="row tight" style="align-items:center">
         <label class="avatar big" title="Eigenes Bild wählen/ändern" style="cursor:pointer">
@@ -2721,7 +2817,10 @@ function renderJoin() {
     <div class="panel">
       ${fehler}
       ${s.roster.length ? `<label class="field"><span>Charakter wählen</span>
-        <select id="joinchar"><option value="">– Gast (ohne Charakter) –</option>${chars}</select></label>` : ""}
+        <select id="joinchar" data-act="join-char-wahl"><option value="">– Gast (ohne Charakter) –</option>${chars}<option value="neu">➕ Neuen Charakter anlegen …</option></select></label>` : ""}
+      <label class="field" id="neu-char-feld" style="display:${s.roster.length ? "none" : "block"}">
+        <span>Name des Charakters</span>
+        <input id="joinneu" placeholder="z. B. Tessa" maxlength="40"></label>
       <label class="field"><span>Dein Name (Spieler)${s.roster.length ? " – optional bei Charakterwahl" : ""}</span>
         <input id="joinname" value="${esc(App.myName)}" placeholder="z. B. Stefan"></label>
       <button class="primary big" data-act="join" style="width:100%">Beitreten</button>
@@ -2931,6 +3030,20 @@ document.addEventListener("click", (e) => {
     // Firewall in einem Klick freigeben (Windows-SL) -> löst UAC-Abfrage aus
     "firewall-allow": () => allowFirewall(),
     "fokus": () => fokusUmschalten(),
+    "nur-offene": () => { App.nurOffene = !App.nurOffene; render(); },
+    // Begegnung einsetzen, Spieler zurueckholen und austeilen - in einem Schritt.
+    "encounter-start": () => {
+      const npcs = (S.combatants || []).filter((c) => c.kind === "npc").length;
+      let ersetzen = false;
+      if (npcs) {
+        ersetzen = confirm(`Es stehen noch ${npcs} Gegner/Verbündete im Kampf.
+
+OK = alte entfernen und die Begegnung frisch starten.
+Abbrechen = Begegnung zusätzlich dazustellen.`);
+      }
+      gmAction({ type: "start_encounter", id, ersetzen });
+    },
+    "alle-zeigen": () => { App.alleZeigen = !App.alleZeigen; render(); },
     "bogen-reiter": () => { App.bogenReiter = target.getAttribute("data-reiter"); render(); },
     "bogen-bearbeiten": () => {
       const m = myCombatant();
@@ -2984,6 +3097,19 @@ document.addEventListener("click", (e) => {
     "benny-minus": () => gmActionOrPlayer({ type: "benny_adjust", id, delta: -1 }),
     // Benny an den oben gewaehlten Empfaenger - laeuft als kurze Nachricht
     // („🪙 +1 Benny"), damit der Spieler es auch mitbekommt.
+    // Aus dem Verlauf/Archiv erneut schicken - an den oben gewaehlten Empfaenger,
+    // nicht zwingend an den von damals (meist will man es jemand anderem zeigen).
+    "nochmal-senden": () => {
+      const m = (S.messages || []).find((x) => x.id === target.getAttribute("data-msg"));
+      if (!m) return;
+      const ziel = ($("msgtarget") || {}).value || m.target || "all";
+      gmAction({ type: "message", target: ziel, text: m.text, imageUrl: m.imageUrl });
+      toast(ziel === "all" ? "Nochmal an alle geschickt" : "Nochmal geschickt");
+    },
+    "auf-tv": () => {
+      gmAction({ type: "message", target: "beamer", text: "", imageUrl: target.getAttribute("data-url") });
+      toast("📺 Bild liegt auf dem TV");
+    },
     "benny-geben": () => {
       const ziel = ($("msgtarget") || {}).value || "all";
       if (ziel === "beamer") { toast("Bennies gehen nur an Spieler"); return; }
@@ -3010,7 +3136,15 @@ document.addEventListener("keydown", (e) => {
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
   const s = App.state;
   const aktiv = s.combatants.find((c) => c.id === s.activeId);
-  if (!aktiv) return;
+  // Runde durch (niemand mehr dran) oder noch nichts ausgeteilt: Leertaste
+  // teilt die naechste Runde aus. Vorher musste man dafuer zur Maus greifen.
+  if (!aktiv) {
+    if ((e.key === " " || e.key === "Enter") && s.combatants.some((c) => !c.benched)) {
+      e.preventDefault();
+      gmAction({ type: "new_round" });
+    }
+    return;
+  }
 
   const taste = e.key.toLowerCase();
   if (e.key === " " || e.key === "Enter") {
@@ -3153,6 +3287,10 @@ document.addEventListener("change", (e) => {
   } else if (act === "remember-player-zone") {
     const v = parseInt(t.value, 10);
     if (!isNaN(v)) { try { localStorage.setItem("lastZonePlayer", String(v)); } catch {} }
+  } else if (act === "join-char-wahl") {
+    const feld = $("neu-char-feld");
+    if (feld) feld.style.display = t.value === "neu" ? "block" : "none";
+    if (t.value === "neu" && $("joinneu")) $("joinneu").focus();
   } else if (act === "set-statisten-ko") {
     gmAction({ type: "set_statisten_ko", value: parseInt(t.value, 10) });
   } else if (act === "toggle-auto-incap") {
@@ -3335,19 +3473,28 @@ function sendMessage() {
 
 function doJoin() {
   const charSel = $("joinchar");
-  const characterId = charSel ? (charSel.value || null) : null;
+  let characterId = charSel ? (charSel.value || null) : null;
+  // „Neuen Charakter anlegen": der Server legt ihn beim Beitritt an. Ohne
+  // Charakterliste (erster Abend) gibt es das Feld sofort.
+  const neuFeld = $("joinneu");
+  const neuerCharakter = (characterId === "neu" || !charSel) && neuFeld ? neuFeld.value.trim() : "";
+  if (characterId === "neu") {
+    characterId = null;
+    if (!neuerCharakter) { alert("Bitte einen Namen für den neuen Charakter eingeben."); return; }
+  }
   let name = $("joinname").value.trim();   // Spielername (Person)
   // Charakter gewählt, aber kein Name getippt -> Charaktername als Fallback.
   if (characterId && !name) {
     const c = App.state.roster.find((r) => r.id === characterId);
     name = c ? c.name : name;
   }
+  if (!name) name = neuerCharakter;        // nur Charaktername getippt -> reicht
   if (!name) { alert("Bitte einen Charakter wählen oder deinen Namen eingeben."); return; }
   App.joinFehler = null;              // alte Meldung verwerfen
   App.myName = name; App.myCharacterId = characterId;
   localStorage.setItem("playerName", name);
   if (characterId) localStorage.setItem("characterId", characterId); else localStorage.removeItem("characterId");
-  wsSend({ type: "join", name, characterId, playerId: App.myPlayerId });
+  wsSend({ type: "join", name, characterId, neuerCharakter, playerId: App.myPlayerId });
   App.joined = true;
 }
 

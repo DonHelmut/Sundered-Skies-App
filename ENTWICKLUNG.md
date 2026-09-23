@@ -47,6 +47,33 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## v98 (23.09.2026): Übersicht für SL und Spieler, Beitritt, Archiv
+
+**SL**
+- Leertaste teilt am Rundenende (und vor der ersten Runde) die nächste Runde aus.
+- „Neue Runde" nur groß, wenn er dran ist; mitten in der Runde klein. Phasen-Pille
+  oben entfällt, solange die Leiste unten dasselbe sagt.
+- „↓ danach" an der Zeile des nächsten Akteurs, erledigte Zeilen stärker abgeblendet
+  (nur Deckkraft – ein Filter würde beim Umsortieren pro Frame neu rastern).
+- Filter **„nur Offene"** in der Reihenfolge ab 9 Figuren (`App.nurOffene`).
+- Begegnung **„▶ Starten"** (`start_encounter`): optional alte Gegner ersetzen,
+  pausierte Spieler zurückholen, austeilen – in einem Schritt.
+- Verlauf: **🔁 nochmal senden** und **📺 auf den TV**, dazu ein **Bild-Archiv**
+  aller verschickten Bilder; Verlaufsbilder nur noch als Vorschau.
+- Panel-Ziehen: leere Spalte war 0 px hoch und damit kein Ziel mehr – beim Ziehen
+  bekommen beide Spalten Mindesthöhe und „Hierher ziehen" (`body.panel-zieht`).
+- Fix: `benutzte_bilder()` las beim TV-Bild `url` statt `imageUrl`; ein gerade
+  gezeigtes Bild galt als verwaist und wurde aufgeräumt.
+
+**Spieler**
+- Beitritt: **„➕ Neuen Charakter anlegen"** (`charakter_anlegen`, Namensdublette
+  greift auf den vorhandenen Charakter zurück).
+- Lange Listen: nur der Ausschnitt um das Geschehen + eigene Figur, Rest hinter
+  „▾ Alle N zeigen"; Zonen-Board startet ab 13 Figuren eingeklappt.
+  (Testkampf mit 25 Figuren: Seite von 5600 px auf 2550 px.)
+- „Du bist 2. von 25 · noch 1 vor dir", eigene Zeile mit „Du"-Abzeichen,
+  mitlaufende Leiste oben „… ist dran" (sticky unter der Verbindungs-Pille).
+
 ## v97 (19.09.2026): Sicherung mit Bildern, Rundenzähler
 
 - **Sicherung als Zip** (`server/sicherung.py`): `sicherung.json` + `uploads/<bild>`
@@ -182,8 +209,8 @@ sich über **Export/Import** in der App umziehen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v97** (veröffentlicht).
-      Nächstes Release also 97 → 98 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v98** (veröffentlicht).
+      Nächstes Release also 98 → 99 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.

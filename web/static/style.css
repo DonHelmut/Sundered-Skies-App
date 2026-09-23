@@ -1550,3 +1550,46 @@ details.section:not([open]) { padding-top: 8px; padding-bottom: 8px; }
 .runden-zaehler b { font-size: 1.15rem; line-height: 1; }
 .runden-zaehler.neu { animation: rundePuls 0.9s ease-out 2; }
 @keyframes rundePuls { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.18); } }
+
+/* Beim Ziehen eines Panels beide Spalten als Ziel zeigen. Ohne Mindesthöhe ist
+   eine leergeräumte Spalte 0 px hoch - dann kommt nie wieder ein Panel hinein. */
+body.panel-zieht .grid2 .sp { min-height: 130px; outline: 2px dashed var(--line); outline-offset: 4px; border-radius: 12px; }
+body.panel-zieht .grid2 .sp:empty::after,
+body.panel-zieht .grid2 .sp.leer::after {
+  content: "Hierher ziehen"; display: block; padding: 40px 0; text-align: center; color: var(--muted); font-size: 0.9rem;
+}
+
+/* Bild-Archiv im Nachrichten-Panel: alles schon Verschickte auf einen Blick. */
+.bild-archiv { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.archiv-bild { border: 1px solid var(--line); border-radius: 8px; padding: 4px; text-align: center; }
+.archiv-bild img { width: 100%; height: 64px; object-fit: cover; border-radius: 5px; cursor: zoom-in; display: block; }
+.archiv-bild .row { justify-content: center; margin-top: 4px; gap: 4px; }
+.msg .to { display: flex; align-items: center; gap: 6px; }
+.msg .to .st-btn { padding: 1px 6px; font-size: 0.78rem; }
+/* Verlauf: Bilder nur als Vorschau - sonst ist das Panel nach drei Handouts
+   endlos lang. Klick zeigt sie groß. */
+.msg img { max-height: 150px; object-fit: cover; cursor: zoom-in; }
+
+/* Wer als Nächstes dran ist: in der Liste sichtbar, nicht nur in der Leiste. */
+.combatant.naechster { border-left: 4px solid var(--accent); }
+.naechster-tag { color: var(--accent); border-color: var(--accent); }
+/* Erledigte Züge treten deutlicher zurück, damit die offenen hervorstechen.
+   Nur Deckkraft - ein Filter auf der Zeile muesste beim Umsortieren (die Zeilen
+   gleiten) pro Frame neu gerastert werden. */
+.combatant.done { opacity: 0.4; }
+.combatant.done:hover { opacity: 0.8; }
+/* „Alle zeigen" unter der gekürzten Reihenfolge (Spieler-Handy). */
+.order-mehr { width: 100%; margin-top: 4px; }
+
+/* Spieler: eigene Zeile, eigene Position und eine schmale Leiste oben. */
+.combatant.eigene { border-left: 4px solid var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); }
+.du-tag { color: var(--gold); border-color: var(--gold); font-weight: 700; }
+.mein-platz { padding: 6px 8px; margin-bottom: 6px; border-radius: 8px; text-align: center;
+  border: 1px solid var(--line); background: var(--panel2); font-size: 0.92rem; }
+/* top: 34px, damit die fixierte Verbindungs-Pille oben drueber Platz hat -
+   bei top:0 lag sie mitten im Text. */
+.dran-leiste { position: sticky; top: 34px; z-index: 30; margin: 0 -2px 8px; padding: 7px 10px;
+  border-radius: 0 0 10px 10px; text-align: center; font-weight: 700; font-size: 0.92rem;
+  border: 1px solid var(--line); border-top: 0;
+  background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(3px); }
+.dran-leiste.ich { color: var(--gold); border-color: var(--gold); }

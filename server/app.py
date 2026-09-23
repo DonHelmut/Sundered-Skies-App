@@ -386,6 +386,16 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         return
 
     if mtype == "join":
+        # Spieler legt sich selbst einen Charakter an (Name aus dem Handy).
+        # So kann jemand mitspielen, ohne dass der SL erst etwas eintragen muss.
+        if msg.get("neuerCharakter"):
+            neu = game.charakter_anlegen(msg["neuerCharakter"])
+            if neu is None:
+                await ws.send_json({"type": "joinError", "message": "Bitte einen Namen für den Charakter eingeben."})
+                return
+            diag.log(f"CHARAKTER ANGELEGT (Spieler): {neu['name']}")
+            msg = {**msg, "characterId": neu["id"], "name": (msg.get("name") or neu["name"])}
+
         # Spielt jemand anderes diesen Charakter GERADE? Dann nicht wegnehmen.
         belegt = game.charakter_aktiv_belegt(msg.get("characterId"),
                                              ausser_player_id=msg.get("playerId"))

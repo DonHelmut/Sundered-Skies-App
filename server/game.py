@@ -790,6 +790,23 @@ class Game:
         self.encounters = [e for e in self.encounters if e.get("id") != a.get("id")]
         self.save_encounters()
 
+    def _do_start_encounter(self, a: dict) -> None:
+        """Begegnung einsetzen UND sofort losspielen: optional die alten Gegner
+        wegräumen, pausierte Spieler zurückholen, dann austeilen. Das waren
+        bisher drei bis vier Klicks an drei Stellen."""
+        if a.get("ersetzen"):
+            weg = {c["id"] for c in self.combatants if c.get("kind") == "npc"}
+            for c in self.combatants:
+                if c["id"] in weg and c.get("card"):
+                    self.discard.append(c["card"])
+            self.combatants = [c for c in self.combatants if c["id"] not in weg]
+            self.requests = [r for r in self.requests if r.get("combatantId") not in weg]
+            self.groups = []
+        self._do_add_encounter(a)
+        for c in self.combatants:
+            c["benched"] = False
+        self._deal(new_round=True)
+
     def _do_add_encounter(self, a: dict) -> None:
         """Setzt eine gespeicherte Begegnung komplett in den Kampf."""
         enc = next((e for e in self.encounters if e.get("id") == a.get("id")), None)
@@ -1490,7 +1507,10 @@ class Game:
                 if isinstance(url, str) and url.startswith("/uploads/"):
                     benutzt.add(url.rsplit("/", 1)[-1])
         if isinstance(self.tv_image, dict):
-            url = self.tv_image.get("url")
+            # Der Eintrag heisst "imageUrl" (siehe _do_message) - unter "url"
+            # stand nie etwas, dadurch galt ein Bild, das GERADE auf dem TV
+            # liegt, als verwaist und wurde beim Aufraeumen geloescht.
+            url = self.tv_image.get("imageUrl") or self.tv_image.get("url")
             if isinstance(url, str) and url.startswith("/uploads/"):
                 benutzt.add(url.rsplit("/", 1)[-1])
         return benutzt
@@ -1762,6 +1782,24 @@ class Game:
             return None
         p = next((p for p in self.players if p["id"] == c["playerId"]), None)
         return c.get("name") if (p and p.get("connected")) else None
+
+    def charakter_anlegen(self, name: str) -> Optional[dict]:
+        """Ein Spieler legt sich beim Beitritt selbst einen Charakter an, statt
+        auf den SL zu warten. Gibt es den Namen schon, wird dieser Charakter
+        genommen (Tippfehler-Dubletten wie „Tessa"/„tessa" sollen nicht
+        entstehen); der SL kann jederzeit nachbearbeiten."""
+        name = (name or "").strip()[:40]
+        if not name:
+            return None
+        vorhanden = next((r for r in self.roster
+                          if (r.get("name") or "").strip().lower() == name.lower()), None)
+        if vorhanden:
+            return vorhanden
+        char = {"id": _new_id("char"), "name": name, "isWildCard": True,
+                "talents": [], "gluck": False, "grosses_gluck": False, "image": None}
+        self.roster.append(char)
+        self.save_roster()
+        return char
 
     def register_player(self, name: str, character_id: Optional[str],
                         existing_player_id: Optional[str]) -> Optional[dict]:

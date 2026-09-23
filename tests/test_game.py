@@ -1142,3 +1142,53 @@ def test_gm_chooses_when_extras_are_out(fresh_game):
     boss = _add_npc(fresh_game, "Boss", wildcard=True)
     fresh_game.apply({"type": "set_status", "id": boss["id"], "wounds": 3})
     assert fresh_game._combatant(boss["id"])["status"]["out"] is False
+
+
+def test_tv_bild_wird_nicht_aufgeraeumt(fresh_game, tmp_path):
+    from server import game as gmod
+    bild = gmod.UPLOAD_DIR / "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png"
+    bild.write_bytes(b"png")
+    fresh_game.apply({"type": "message", "target": "beamer", "text": "", "imageUrl": f"/uploads/{bild.name}"})
+    assert bild.name in fresh_game.benutzte_bilder()      # liegt sichtbar auf dem TV
+    fresh_game.bilder_aufraeumen()
+    assert bild.exists()
+
+
+def test_spieler_legt_charakter_selbst_an(fresh_game):
+    char = fresh_game.charakter_anlegen("  Tessa  ")
+    assert char["name"] == "Tessa" and char["isWildCard"] is True
+    assert fresh_game.roster[-1]["id"] == char["id"]
+    # Gleicher Name (auch anders geschrieben) -> derselbe Charakter, keine Dublette.
+    assert fresh_game.charakter_anlegen("tessa")["id"] == char["id"]
+    assert len(fresh_game.roster) == 1
+    assert fresh_game.charakter_anlegen("   ") is None
+
+    pid = fresh_game.register_player("Stefan", char["id"], None)["id"]
+    assert any(c.get("playerId") == pid and c["name"] == "Tessa" for c in fresh_game.combatants)
+
+
+def test_start_encounter_deals_and_brings_players_back(fresh_game):
+    fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    fresh_game.apply({"type": "add_from_roster", "id": fresh_game.roster[-1]["id"]})
+    held = fresh_game.combatants[-1]
+    fresh_game.apply({"type": "add_npc", "name": "Pirat", "isWildCard": False, "zone": 2, "count": 2})
+    fresh_game.apply({"type": "save_encounter", "name": "Überfall"})
+    enc = fresh_game.encounters[-1]["id"]
+    for c in [c for c in fresh_game.combatants if c["name"].startswith("Pirat")]:
+        fresh_game.apply({"type": "remove_combatant", "id": c["id"]})
+    _add_npc(fresh_game, "Alter Gegner")          # steht noch vom letzten Kampf da
+    fresh_game.apply({"type": "bench", "id": held["id"], "on": True})     # Spieler pausiert
+
+    fresh_game.apply({"type": "start_encounter", "id": enc, "ersetzen": True})
+
+    namen = [c["name"] for c in fresh_game.combatants]
+    assert "Alter Gegner" not in namen                    # alte Gegner ersetzt
+    assert "Held" in namen and len([n for n in namen if n.startswith("Pirat")]) == 2
+    assert fresh_game._combatant(held["id"])["benched"] is False
+    assert all(c["card"] for c in fresh_game.combatants)  # direkt ausgeteilt
+    assert fresh_game.round == 1
+
+    # Ohne "ersetzen" kommen die neuen Figuren zu den alten dazu.
+    vorher = len(fresh_game.combatants)
+    fresh_game.apply({"type": "start_encounter", "id": enc})
+    assert len(fresh_game.combatants) == vorher + 2
