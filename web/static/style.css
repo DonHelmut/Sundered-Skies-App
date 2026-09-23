@@ -1593,3 +1593,20 @@ body.panel-zieht .grid2 .sp.leer::after {
   border: 1px solid var(--line); border-top: 0;
   background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(3px); }
 .dran-leiste.ich { color: var(--gold); border-color: var(--gold); }
+
+/* Charakterbogen: Würfelfelder und Waffen (Nah-/Fernkampf) */
+.wuerfel-feld { width: 5.5em; text-align: center; }
+.waffe-block { border: 1px solid var(--line); border-radius: 8px; padding: 6px; margin-bottom: 6px; }
+.waffe-block .bogen-reihe:last-child { margin-bottom: 0; }
+.waffe-block select { width: auto; flex: 0 0 auto; }
+.wuerfel-tipp { font-size: 0.82rem; color: var(--muted); padding: 2px 0 6px; border-bottom: 1px dotted var(--line); }
+.wuerfel-tipp b { color: var(--text); }
+.bogen .attr .wuerfel-feld { width: 100%; font-size: 0.82rem; padding: 2px 1px; }
+.wuerfel-feld.ungueltig { border-color: var(--bad); color: var(--bad); }
+/* Attribute untereinander mit ausgeschriebenem Namen statt fünf Kürzeln. */
+.attr-liste { display: grid; gap: 3px; }
+.attr-zeile { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 3px 6px; border: 1px solid var(--line); border-radius: 8px; font-size: 0.9rem; }
+.attr-zeile b { font-size: 1rem; }
+.attr-zeile .wuerfel-feld { width: 6em; }
+.auto-wert { font-size: 0.72rem; font-weight: 400; color: var(--muted); }

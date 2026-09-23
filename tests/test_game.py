@@ -1192,3 +1192,41 @@ def test_start_encounter_deals_and_brings_players_back(fresh_game):
     vorher = len(fresh_game.combatants)
     fresh_game.apply({"type": "start_encounter", "id": enc})
     assert len(fresh_game.combatants) == vorher + 2
+
+
+def test_wuerfelwerte_mit_zuschlag(fresh_game):
+    from server.game import wuerfel_wert
+    assert wuerfel_wert("W6+2") == "W6+2"
+    assert wuerfel_wert(" w8 - 1 ") == "W8-1"          # Schreibweise vereinheitlicht
+    assert wuerfel_wert("d10") == "W10"                 # englische Schreibweise
+    assert wuerfel_wert("2W6") == ""                    # mehrere Würfel nur beim Schaden
+    assert wuerfel_wert("2W6+1", mehrere=True) == "2W6+1"
+    assert wuerfel_wert("W7") == "" and wuerfel_wert("Unsinn") == "" and wuerfel_wert("") == ""
+
+
+def test_bogen_nimmt_zuschlag_und_waffenart(fresh_game):
+    fresh_game.apply({"type": "roster_upsert", "name": "Tessa", "isWildCard": True})
+    char = fresh_game.roster[-1]["id"]
+    pid = fresh_game.register_player("Stefan", char, None)["id"]
+    tessa = next(c for c in fresh_game.combatants if c["playerId"] == pid)
+    fresh_game.apply({"type": "sheet_update", "id": tessa["id"], "bogen": {
+        "attribute": {"st": "W6+2", "ge": "w8"},
+        "fertigkeiten": [{"name": "Kämpfen", "wert": "W8+1"}],
+        "waffen": [
+            {"name": "Rapier", "art": "nah", "fertigkeit": "Kämpfen", "schaden": "St+W4", "info": "Parade +1"},
+            {"name": "Glutpistole", "art": "fern", "schaden": "2W6", "info": "12/24/48"},
+        ],
+    }})
+    bogen = fresh_game.roster[-1]["bogen"]
+    assert bogen["attribute"]["st"] == "W6+2" and bogen["attribute"]["ge"] == "W8"
+    assert bogen["fertigkeiten"][0]["wert"] == "W8+1"
+    assert [w["art"] for w in bogen["waffen"]] == ["nah", "fern"]
+    assert bogen["waffen"][0]["fertigkeit"] == "Kämpfen"
+
+
+def test_wuerfel_ohne_w_getippt(fresh_game):
+    from server.game import wuerfel_wert
+    assert wuerfel_wert("6") == "W6"          # nur die Zahl reicht
+    assert wuerfel_wert("6+2") == "W6+2"
+    assert wuerfel_wert("12") == "W12"
+    assert wuerfel_wert("26") == ""           # keine gültige Würfelzahl

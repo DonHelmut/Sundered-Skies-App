@@ -31,7 +31,7 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "98";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "99";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -2475,7 +2475,9 @@ function renderMessagePanel() {
 // Der Spieler pflegt ihn selbst (Stefan: „nur die Spieler tragen es ein").
 // Vier Reiter wie ein kleiner Bogen. Bearbeitet wird ein Entwurf
 // (App.bogenEntwurf); erst „Speichern" schickt ihn an den Server.
-const WUERFEL = ["", "W4", "W6", "W8", "W10", "W12", "W12+1", "W12+2"];
+// Vorschläge fürs Eingabefeld - frei tippbar bleibt es trotzdem, damit auch
+// „W6+2" oder „W8-1" gehen (der Server prüft und schreibt es einheitlich).
+const WUERFEL = ["W4", "W6", "W8", "W10", "W12", "W12+1", "W12+2"];
 const ATTRIBUTE = [["ge", "GE", "Geschicklichkeit"], ["ve", "VE", "Verstand"], ["wi", "WI", "Willenskraft"],
   ["st", "ST", "Stärke"], ["ko", "KO", "Konstitution"]];
 const BOGEN_REITER = [["kampf", "Kampf"], ["werte", "Werte"], ["talente", "Talente"], ["zeug", "Ausrüstung"]];
@@ -2493,8 +2495,8 @@ function bogenIstLeer(b) {
   return !b.parade && !b.robustheit && !b.tempo && !b.waffen.length && !b.fertigkeiten.length
     && !Object.values(b.attribute).some(Boolean) && !b.talente.length && !b.handicaps.length && !b.ausruestung.length;
 }
-const wuerfelWahl = (pfad, wert) =>
-  `<select data-bogen="${pfad}">${WUERFEL.map((w) => `<option value="${w}"${w === (wert || "") ? " selected" : ""}>${w || "–"}</option>`).join("")}</select>`;
+const wuerfelWahl = (pfad, wert, breite) =>
+  `<input class="wuerfel-feld" list="wuerfel-vorschlaege" data-bogen="${pfad}" value="${esc(wert || "")}" placeholder="6 oder 6+2" inputmode="text"${breite ? ` style="width:${breite}"` : ""}>`;
 const bogenFeld = (pfad, wert, platz, breite) =>
   `<input data-bogen="${pfad}" value="${esc(wert || "")}" placeholder="${esc(platz || "")}"${breite ? ` style="width:${breite}"` : ""}>`;
 
@@ -2513,25 +2515,42 @@ function renderBogen(mine) {
   } else if (reiter === "kampf") {
     inhalt = edit
       ? `<div class="bogen-raster">
-           <label>Parade ${bogenFeld("parade", b.parade, "z. B. 7", "4.5em")}</label>
-           <label>Robustheit ${bogenFeld("robustheit", b.robustheit, "z. B. 8", "4.5em")}</label>
+           <label title="Leer lassen: 2 + halbes Kämpfen">Parade ${bogenFeld("parade", b.parade, autoParade(b) !== null ? `auto ${autoParade(b)}` : "z. B. 7", "4.5em")}</label>
+           <label title="Leer lassen: 2 + halbe Konstitution + Panzer">Robustheit ${bogenFeld("robustheit", b.robustheit, autoRobustheit(b) !== null ? `auto ${autoRobustheit(b)}` : "z. B. 8", "4.5em")}</label>
            <label>davon Panzer ${bogenFeld("panzer", b.panzer, "z. B. 2", "4.5em")}</label>
            <label>Tempo ${bogenFeld("tempo", b.tempo, "z. B. 6", "4.5em")}</label>
            <label>Rennen ${wuerfelWahl("rennen", b.rennen)}</label>
          </div>
+         <div class="muted small">Parade und Robustheit rechnet die App aus Kämpfen bzw. Konstitution + Panzer, solange du die Felder leer lässt.</div>
          <div class="bogen-titel">Waffen</div>
-         ${b.waffen.map((w, i) => `<div class="bogen-reihe">
-           ${bogenFeld(`waffen.${i}.name`, w.name, "Name")}${bogenFeld(`waffen.${i}.schaden`, w.schaden, "Schaden", "6em")}
-           ${bogenFeld(`waffen.${i}.info`, w.info, "Reichweite / Notiz")}
-           <button class="st-btn" data-act="bogen-weg" data-liste="waffen" data-i="${i}" title="Entfernen">✕</button></div>`).join("")}
+         ${b.waffen.map((w, i) => `<div class="waffe-block">
+           <div class="bogen-reihe">
+             <select data-bogen="waffen.${i}.art" title="Nahkampf oder Fernkampf">
+               <option value="nah"${w.art !== "fern" ? " selected" : ""}>⚔ Nahkampf</option>
+               <option value="fern"${w.art === "fern" ? " selected" : ""}>🏹 Fernkampf</option>
+             </select>
+             ${bogenFeld(`waffen.${i}.name`, w.name, "Name")}
+             <button class="st-btn" data-act="bogen-weg" data-liste="waffen" data-i="${i}" title="Entfernen">✕</button>
+           </div>
+           <div class="bogen-reihe">
+             ${bogenFeld(`waffen.${i}.fertigkeit`, w.fertigkeit, w.art === "fern" ? "Schießen" : "Kämpfen", "8em")}
+             ${bogenFeld(`waffen.${i}.schaden`, w.schaden, w.art === "fern" ? "z. B. 2W6" : "z. B. St+W6", "7em")}
+             ${bogenFeld(`waffen.${i}.info`, w.info, w.art === "fern" ? "Reichweite 12/24/48" : "Notiz, z. B. Parade +1")}
+           </div>
+         </div>`).join("")}
          <button class="ghost small" data-act="bogen-dazu" data-liste="waffen">+ Waffe</button>`
-      : `<div class="zeile2"><span>Parade</span><b>${esc(b.parade || "–")}</b></div>
-         <div class="zeile2"><span>Robustheit</span><b>${esc(b.robustheit || "–")}${b.panzer ? ` (${esc(b.panzer)})` : ""}</b></div>
+      : `<div class="zeile2"><span>Parade</span><b>${b.parade ? esc(b.parade) : (autoParade(b) !== null ? `${autoParade(b)} <span class="auto-wert">automatisch</span>` : "–")}</b></div>
+         <div class="zeile2"><span>Robustheit</span><b>${b.robustheit ? esc(b.robustheit) : (autoRobustheit(b) !== null ? `${autoRobustheit(b)} <span class="auto-wert">automatisch</span>` : "–")}${b.panzer ? ` (${esc(b.panzer)})` : ""}</b></div>
          <div class="zeile2"><span>Tempo</span><b>${esc(b.tempo || "–")}${b.rennen ? ` · Rennen ${esc(b.rennen)}` : ""}</b></div>
-         ${b.waffen.map((w) => `<div class="zeile2"><span>⚔ ${esc(w.name)}</span><b>${esc([w.schaden, w.info].filter(Boolean).join(" · "))}</b></div>`).join("")}`;
+         ${b.waffen.map((w) => `<div class="zeile2"><span>${w.art === "fern" ? "🏹" : "⚔"} ${esc(w.name)}</span><b>${esc([w.schaden, w.info].filter(Boolean).join(" · "))}</b></div>
+           <div class="wuerfel-tipp">${wuerfelTipp(w, b)}</div>`).join("")}`;
   } else if (reiter === "werte") {
-    inhalt = `<div class="attr">${ATTRIBUTE.map(([k, kurz, lang]) =>
-        `<div title="${lang}">${kurz}${edit ? wuerfelWahl(`attribute.${k}`, b.attribute[k]) : `<b>${esc(b.attribute[k] || "–")}</b>`}</div>`).join("")}</div>
+    // Fruehere Kuerzel (GE/VE/WI/ST/KO) waren nicht eindeutig - jetzt
+    // ausgeschrieben, untereinander statt in fuenf schmalen Kaestchen.
+    inhalt = `<div class="attr-liste">${ATTRIBUTE.map(([k, kurz, lang]) =>
+        `<div class="attr-zeile"><span>${lang} <span class="muted small">(${kurz})</span></span>
+          ${edit ? wuerfelWahl(`attribute.${k}`, b.attribute[k]) : `<b>${esc(b.attribute[k] || "–")}</b>`}</div>`).join("")}</div>
+      ${edit ? `<div class="muted small">Nur die Zahl reicht: <b>6</b> wird zu W6, <b>6+2</b> zu W6+2.</div>` : ""}
       <div class="bogen-titel">Fertigkeiten</div>
       ${edit
         ? b.fertigkeiten.map((f, i) => `<div class="bogen-reihe">${bogenFeld(`fertigkeiten.${i}.name`, f.name, "z. B. Kämpfen")}${wuerfelWahl(`fertigkeiten.${i}.wert`, f.wert)}
@@ -2578,6 +2597,22 @@ function renderBogen(mine) {
   return section("bogen", "📜 Mein Charakter", `<div class="bogen${edit ? " bogen-form" : ""}">${leiste}${inhalt}${knoepfe}</div>`);
 }
 
+// „Womit würfle ich?" - aus den eigenen Werten für GENAU diese Waffe.
+// Beispiel: „Kämpfen W8+1 + Wild-Würfel W6 gegen Parade · Schaden W6+W6".
+function wuerfelTipp(w, b) {
+  const fern = w.art === "fern";
+  const fert = (name) => (b.fertigkeiten.find((f) => f.name.trim().toLowerCase() === String(name).trim().toLowerCase()) || {}).wert;
+  // Eigene Angabe an der Waffe hat Vorrang, sonst die uebliche Fertigkeit.
+  const wert = fert(w.fertigkeit) || fert(fern ? "schießen" : "kämpfen") || fert(fern ? "schiessen" : "kaempfen") || "";
+  const fertName = w.fertigkeit || (fern ? "Schießen" : "Kämpfen");
+  // „St+W6" heisst: Stärke-Würfel plus Waffenwürfel - hier gleich einsetzen.
+  const st = b.attribute.st;
+  const schaden = (w.schaden || "").replace(/\b(St|ST|Stärke|Staerke)\b/g, st || "Stärke");
+  const angriff = `${esc(fertName)}${wert ? ` <b>${esc(wert)}</b>` : ""} + Wild-Würfel W6 ${fern ? "gegen <b>4</b>" : "gegen die <b>Parade</b>"}`;
+  return `🎲 ${angriff}${schaden ? ` · Schaden <b>${esc(schaden)}</b>` : ""}${
+    fern && w.info ? ` · ${esc(w.info)} (mittel −2, weit −4)` : ""}`;
+}
+
 // Kurzregeln zu Angriff und Schaden (Savage Worlds, wie in Sundered Skies).
 // Setzt die eigenen Werte ein, wo der Bogen sie kennt - sonst allgemein.
 function regelTipp(b) {
@@ -2586,6 +2621,8 @@ function regelTipp(b) {
   const schiessen = fert("schießen") || fert("schiessen");
   const st = b.attribute.st;
   const w = (x, allg) => (x ? `<b>${esc(x)}</b>` : allg);
+  const parade = b.parade || autoParade(b);
+  const robust = b.robustheit || autoRobustheit(b);
   return `<details class="regel-tipp"${App.regelOffen ? " open" : ""}>
     <summary>❔ So geht Angriff &amp; Schaden</summary>
     <div class="regel-block"><b>1 · Treffen</b>
@@ -2603,6 +2640,9 @@ function regelTipp(b) {
           Ist das Ziel schon angeschlagen, wird aus „Angeschlagen" eine Wunde.</li>
         <li>Normale Gegner (Statisten) sind bei der <b>${App.state.statistenKo || 3}. Wunde</b> draußen, Wild Cards (Spieler, Bosse) bei der <b>4.</b></li>
       </ul></div>
+    ${parade || robust ? `<div class="regel-block"><b>Deine Werte</b>
+      <ul>${parade ? `<li><b>Parade ${esc(String(parade))}</b> – so schwer ist es, dich im Nahkampf zu treffen.</li>` : ""}
+        ${robust ? `<li><b>Robustheit ${esc(String(robust))}</b> – so viel Schaden steckst du weg, bevor du angeschlagen bist.</li>` : ""}</ul></div>` : ""}
     <div class="regel-block"><b>Gut zu wissen</b>
       <ul>
         <li><b>Joker:</b> +2 auf alle Würfe <i>und</i> den Schaden.</li>
@@ -2620,6 +2660,69 @@ document.addEventListener("toggle", (e) => {
   if (e.target.classList && e.target.classList.contains("regel-tipp")) App.regelOffen = e.target.open;
 }, true);
 
+// Wie der Server (wuerfel_wert): W4-W12, optional mit Zuschlag; beim Schaden
+// auch mehrere Wuerfel. Rot markieren statt stillschweigend verwerfen.
+const WUERFEL_PRUEFUNG = /^(\d{0,2})[wWdD]?(4|6|8|10|12)\s*([+-]\s*\d{1,2})?$/;
+// Aus „W8" bzw. „W12+1" die Bestandteile holen (fuer Parade/Robustheit).
+function wuerfelTeile(wert) {
+  const m = WUERFEL_PRUEFUNG.exec(String(wert || "").trim().replace(/\s+/g, ""));
+  if (!m) return null;
+  return { seiten: parseInt(m[2], 10), plus: parseInt((m[3] || "0").replace(/\s+/g, ""), 10) || 0 };
+}
+
+// Savage Worlds: Parade = 2 + halbes Kaempfen, Robustheit = 2 + halbe
+// Konstitution + Panzerung. Ein Plus zaehlt nur oberhalb von W12 mit (W12+1).
+// Die App rechnet das nur, wenn der Spieler das Feld LEER laesst - wer eigene
+// Werte eintraegt (Talente, Ausruestung), behaelt sie.
+function halberWuerfel(wert) {
+  const t = wuerfelTeile(wert);
+  if (!t) return null;
+  return t.seiten / 2 + (t.seiten === 12 ? t.plus : 0);
+}
+function autoParade(b) {
+  const h = halberWuerfel((b.fertigkeiten.find((f) => /^k(ä|ae)mpfen$/i.test(f.name.trim())) || {}).wert);
+  return h === null ? null : 2 + h;
+}
+function autoRobustheit(b) {
+  const h = halberWuerfel(b.attribute.ko);
+  if (h === null) return null;
+  const panzer = parseInt(b.panzer, 10);
+  return 2 + h + (isNaN(panzer) ? 0 : panzer);
+}
+
+function wuerfelNorm(text, mehrere) {
+  const roh = String(text || "").trim().replace(/\s+/g, "");
+  if (!roh) return "";
+  const m = WUERFEL_PRUEFUNG.exec(roh);
+  if (!m) return null;                       // null = unbrauchbar
+  let anzahl = m[1];
+  if (["", "0", "1"].includes(anzahl)) anzahl = "";
+  else if (!mehrere) return null;            // mehrere Würfel nur beim Schaden
+  return `${anzahl}W${m[2]}${(m[3] || "").replace(/\s+/g, "")}`;
+}
+
+function wuerfelFeldPruefen(t) {
+  const pfad = t.getAttribute("data-bogen") || "";
+  if (!t.classList.contains("wuerfel-feld")) return;
+  const wert = wuerfelNorm(t.value, /schaden/.test(pfad));
+  t.classList.toggle("ungueltig", wert === null);
+}
+
+// Beim Verlassen des Felds sauber schreiben: aus „6" wird sichtbar „W6", aus
+// „w8 +1" wird „W8+1". Der Spieler soll das „W" nicht tippen müssen.
+function wuerfelFeldAufraeumen(t) {
+  if (!t.classList || !t.classList.contains("wuerfel-feld")) return;
+  const wert = wuerfelNorm(t.value, /schaden/.test(t.getAttribute("data-bogen") || ""));
+  if (wert !== null && wert !== t.value) {
+    t.value = wert;
+    bogenEingabe(t);
+    t.classList.remove("ungueltig");
+  }
+}
+document.addEventListener("focusout", (e) => {
+  if (e.target.closest && e.target.closest(".bogen-form")) wuerfelFeldAufraeumen(e.target);
+}, true);
+
 // Eingabe im Entwurf mitschreiben (Pfad wie „waffen.0.name").
 function bogenEingabe(t) {
   const pfad = t.getAttribute("data-bogen");
@@ -2633,7 +2736,11 @@ function bogenEingabe(t) {
   for (let i = 0; i < teile.length - 1; i++) ziel = ziel[teile[i]];
   ziel[teile[teile.length - 1]] = t.value;
 }
-document.addEventListener("input", (e) => { if (e.target.closest && e.target.closest(".bogen-form")) bogenEingabe(e.target); });
+document.addEventListener("input", (e) => {
+  if (!e.target.closest || !e.target.closest(".bogen-form")) return;
+  bogenEingabe(e.target);
+  wuerfelFeldPruefen(e.target);
+});
 document.addEventListener("change", (e) => {
   const t = e.target;
   if (!t.closest || !t.closest(".bogen-form")) return;
@@ -2777,7 +2884,10 @@ function renderPlayer() {
         binNaechster && !isMyTurn ? " · du kommst als Nächstes" : ""}</div>`
     : "";
 
+  const wuerfelListe = `<datalist id="wuerfel-vorschlaege">${WUERFEL.map((w) => `<option value="${w}">`).join("")}</datalist>`;
+
   return `
+    ${wuerfelListe}
     ${msgBanner}
     ${dranLeiste}
     <div class="row spread" style="margin-bottom:6px">
@@ -3064,7 +3174,9 @@ Abbrechen = Begegnung zusätzlich dazustellen.`);
     "bogen-dazu": () => {
       const liste = target.getAttribute("data-liste");
       if (!App.bogenEntwurf) return;
-      App.bogenEntwurf[liste].push(liste === "waffen" ? { name: "", schaden: "", info: "" } : { name: "", wert: "" });
+      App.bogenEntwurf[liste].push(liste === "waffen"
+        ? { name: "", art: "nah", fertigkeit: "", schaden: "", info: "" }
+        : { name: "", wert: "" });
       render();
     },
     "bogen-weg": () => {

@@ -150,7 +150,28 @@ def _write_json(path: Path, data: Any, backup: bool = False) -> None:
         pass
 
 
-WUERFEL = ("", "W4", "W6", "W8", "W10", "W12", "W12+1", "W12+2")
+# Würfelwerte im Charakterbogen: nicht nur W4-W12, sondern auch mit Zuschlag
+# („W6+2", „W8-1") und für Schaden mehrere Würfel („2W6+1") - am Tisch stehen
+# solche Werte auf jedem Bogen. Das „W" darf man weglassen: „6" wird zu „W6",
+# „6+2" zu „W6+2" - am Handy tippt niemand gern Buchstaben.
+WUERFEL_MUSTER = re.compile(r"^(\d{0,2})[wWdD]?(4|6|8|10|12)\s*([+-]\s*\d{1,2})?$")
+
+
+def wuerfel_wert(v, mehrere: bool = False) -> str:
+    """Prüft eine Würfelangabe und schreibt sie einheitlich. Unsinn wird zu "".
+    ``mehrere`` erlaubt die Anzahl davor (2W6) - das gibt es nur beim Schaden."""
+    roh = str(v or "").strip().replace(" ", "")
+    if not roh:
+        return ""
+    m = WUERFEL_MUSTER.match(roh)
+    if not m:
+        return ""
+    anzahl, seiten, zuschlag = m.group(1), m.group(2), (m.group(3) or "").replace(" ", "")
+    if anzahl in ("", "0", "1"):
+        anzahl = ""
+    elif not mehrere:
+        return ""
+    return f"{anzahl}W{seiten}{zuschlag}"
 
 
 def _bogen_sauber(roh: dict) -> dict:
@@ -163,24 +184,27 @@ def _bogen_sauber(roh: dict) -> dict:
         return [z for z in (txt(x, n) for x in (v if isinstance(v, list) else [])) if z][:maxz]
 
     attr_roh = roh.get("attribute") if isinstance(roh.get("attribute"), dict) else {}
-    attribute = {k: (attr_roh.get(k) if attr_roh.get(k) in WUERFEL else "")
-                 for k in ("ge", "ve", "wi", "st", "ko")}
+    attribute = {k: wuerfel_wert(attr_roh.get(k)) for k in ("ge", "ve", "wi", "st", "ko")}
     fert = []
     for f in (roh.get("fertigkeiten") if isinstance(roh.get("fertigkeiten"), list) else [])[:30]:
         if isinstance(f, dict) and txt(f.get("name")):
-            fert.append({"name": txt(f.get("name")),
-                         "wert": f.get("wert") if f.get("wert") in WUERFEL else ""})
+            fert.append({"name": txt(f.get("name")), "wert": wuerfel_wert(f.get("wert"))})
     waffen = []
     for w in (roh.get("waffen") if isinstance(roh.get("waffen"), list) else [])[:12]:
         if isinstance(w, dict) and txt(w.get("name")):
-            waffen.append({"name": txt(w.get("name")), "schaden": txt(w.get("schaden"), 20),
+            waffen.append({"name": txt(w.get("name")),
+                           # Nah- oder Fernkampf: davon haengt ab, wogegen man
+                           # wuerfelt (Parade bzw. 4) - steht jetzt im Tipp.
+                           "art": "fern" if w.get("art") == "fern" else "nah",
+                           "fertigkeit": txt(w.get("fertigkeit"), 30),
+                           "schaden": txt(w.get("schaden"), 20),
                            "info": txt(w.get("info"), 40)})
     return {
         "parade": txt(roh.get("parade"), 6),
         "robustheit": txt(roh.get("robustheit"), 6),
         "panzer": txt(roh.get("panzer"), 6),
         "tempo": txt(roh.get("tempo"), 6),
-        "rennen": roh.get("rennen") if roh.get("rennen") in WUERFEL else "",
+        "rennen": wuerfel_wert(roh.get("rennen")),
         "attribute": attribute,
         "fertigkeiten": fert,
         "waffen": waffen,

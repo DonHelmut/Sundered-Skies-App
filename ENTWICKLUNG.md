@@ -47,6 +47,23 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## v99 (23.09.2026): Charakterbogen rechnet mit
+
+- **Würfelwerte frei**: Attribute/Fertigkeiten als Eingabefeld statt Auswahl –
+  „W6+2", „W8-1", beim Schaden auch „2W6+1". `wuerfel_wert()` in game.py und
+  `wuerfelNorm()` in app.js normalisieren gleich; Unsinn wird rot markiert.
+- **Ohne „W" tippen**: „6" wird beim Verlassen des Felds zu „W6", „6+2" zu „W6+2".
+- **Attribute ausgeschrieben** (Geschicklichkeit (GE) …) als Liste statt fünf
+  Kürzel-Kästchen – die Abkürzungen waren nicht eindeutig.
+- **Waffen mit Art**: ⚔ Nahkampf / 🏹 Fernkampf, eigene Fertigkeit je Waffe,
+  passende Platzhalter (St+W6 bzw. 2W6, Reichweite).
+- **Würfel-Tipp je Waffe** (`wuerfelTipp`): „Kämpfen W8+1 + Wild-Würfel W6 gegen
+  die Parade · Schaden W6+2+W4" – „St" wird durch den Stärke-Würfel ersetzt.
+- **Parade und Robustheit automatisch** (`autoParade`, `autoRobustheit`):
+  2 + halbes Kämpfen bzw. 2 + halbe Konstitution + Panzer; Plus zählt nur über
+  W12. Nur wenn das Feld leer bleibt – eigener Wert gewinnt immer.
+  Im Spickzettel dazu der Block „Deine Werte".
+
 ## v98 (23.09.2026): Übersicht für SL und Spieler, Beitritt, Archiv
 
 **SL**
@@ -209,8 +226,8 @@ sich über **Export/Import** in der App umziehen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v98** (veröffentlicht).
-      Nächstes Release also 98 → 99 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v99** (veröffentlicht).
+      Nächstes Release also 99 → 100 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.
