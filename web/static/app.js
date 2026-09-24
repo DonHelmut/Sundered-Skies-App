@@ -31,7 +31,48 @@ const App = {
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
 };
 
-const ASSET_VERSION = "99";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
+// --- Ansicht des SL-Laptops zusätzlich auf dem Laptop sichern ---------------
+// Der Browser merkt sich Anordnung, Klappzustand, Design & Co. pro ADRESSE.
+// Läuft die App einmal auf Port 8001 statt 8000, fehlt dort alles. Deshalb
+// schickt der SL-Browser diese Werte an den Server (data/settings.json) und
+// übernimmt sie zurück, wenn sie im Browser fehlen. WICHTIG: vor dem ersten
+// Zeichnen festhalten, was wirklich fehlte - applySkin() setzt z. B. sofort
+// ein Standard-Design und würde die Lücke sonst verdecken.
+const SL_ANSICHT_SCHLUESSEL = ["collapsed", "panelAnordnung", "skin", "jokerStile", "reveal"];
+const ansichtFehlteBeimStart = new Set(SL_ANSICHT_SCHLUESSEL.filter((k) => {
+  try { return localStorage.getItem(k) === null; } catch { return true; }
+}));
+let ansichtTimer = null;
+function slAnsichtSichern() {
+  if (App.role !== "gm" || !App.state) return;
+  clearTimeout(ansichtTimer);
+  ansichtTimer = setTimeout(() => {
+    const werte = {};
+    SL_ANSICHT_SCHLUESSEL.forEach((k) => {
+      try { const v = localStorage.getItem(k); if (v !== null) werte[k] = v; } catch { /* egal */ }
+    });
+    wsSend({ type: "gm_action", action: { type: "set_sl_ansicht", werte } });
+  }, 800);
+}
+function slAnsichtUebernehmen(server) {
+  let geaendert = false, lokalMehr = false;
+  SL_ANSICHT_SCHLUESSEL.forEach((k) => {
+    const v = server && server[k];
+    if (ansichtFehlteBeimStart.has(k) && typeof v === "string") {
+      try { localStorage.setItem(k, v); } catch { return; }
+      geaendert = true;
+      if (k === "collapsed") { try { App.collapsed = JSON.parse(v) || {}; } catch { /* egal */ } }
+      if (k === "skin") applySkin(v);
+      if (k === "jokerStile") { try { Cards.setJokerAuswahl(JSON.parse(v)); } catch { /* egal */ } }
+    } else if (!ansichtFehlteBeimStart.has(k) && !(server && k in server)) {
+      lokalMehr = true;          // Browser kennt es, der Laptop noch nicht
+    }
+  });
+  if (lokalMehr) slAnsichtSichern();
+  return geaendert;
+}
+
+const ASSET_VERSION = "100";   // muss mit ?v=NN in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -76,6 +117,7 @@ document.addEventListener("toggle", (e) => {
   if (d.matches("details.section[data-sec]")) {
     App.collapsed[d.dataset.sec] = !d.open;   // true = eingeklappt
     try { localStorage.setItem("collapsed", JSON.stringify(App.collapsed)); } catch { /* ignore */ }
+    slAnsichtSichern();
   }
   // (Die Zustands-Leiste einer Figur ist kein <details> mehr, sondern wird per
   // "⋯"-Knopf umgeschaltet - siehe "zustand-umschalten".)
@@ -389,6 +431,10 @@ function connect() {
     } else if (msg.type === "state") {
       if (msg.state.serverNow) App.clockOffset = msg.state.serverNow - Date.now();
       App.state = msg.state;
+      if (App.role === "gm" && !App._ansichtAbgeglichen) {
+        App._ansichtAbgeglichen = true;
+        if (slAnsichtUebernehmen(msg.state.slAnsicht)) App._letztesHtml = null;
+      }
       checkRequestAlert();   // SL: neue Anfrage -> Signal
       checkEffektMeldungen(); // SL: Dauer-Effekt abgelaufen -> Hinweis
       checkTurnNotify();     // Spieler: dran -> Vibration/Ton
@@ -1015,7 +1061,7 @@ function renderGroupPanel() {
   const farben = gruppenFarben();
   const kaempfer = (s.combatants || []).filter((c) => !c.out);
 
-  const chip = (c) => `<button type="button" class="grp-chip" draggable="true"
+  const chip = (c) => `<button type="button" class="grp-chip${App.auswahl.has(c.id) ? " ausgewaehlt" : ""}" draggable="true"
       data-drag-id="${c.id}" data-act="token-info" data-id="${c.id}"
       title="In eine Gruppe ziehen">${esc(c.name)}</button>`;
 
@@ -1045,6 +1091,11 @@ function renderGroupPanel() {
         eine davon auf eine Bahn ziehen – die ganze Gruppe rückt mit.</span>
     </div>
     ${kaesten}
+    ${App.auswahl.size ? `<div class="auswahl-leiste">
+        <b>${App.auswahl.size} ausgewählt</b>
+        <span class="muted small">– eine davon in einen Kasten ziehen, dann kommen alle mit</span>
+        <button class="ghost small" data-act="auswahl-leeren">Auswahl aufheben</button>
+      </div>` : ""}
     <div class="grp-box grp-frei" data-group="">
       <div class="muted small" style="margin-bottom:6px">Ohne Gruppe (hierher ziehen zum Herauslösen)</div>
       <div class="grp-mitglieder">${ohne.map(chip).join("") || `<span class="muted small">–</span>`}</div>
@@ -1424,6 +1475,7 @@ function panelVerschieben(key, zielSpalte, vorKey) {
   const i = vorKey ? liste.indexOf(vorKey) : -1;
   if (i >= 0) liste.splice(i, 0, key); else liste.push(key);
   try { localStorage.setItem("panelAnordnung", JSON.stringify(a)); } catch { /* egal */ }
+  slAnsichtSichern();
   render();
 }
 
@@ -1506,6 +1558,7 @@ function fokusUmschalten() {
     App.fokus = true;
   }
   try { localStorage.setItem("collapsed", JSON.stringify(App.collapsed)); } catch { /* egal */ }
+  slAnsichtSichern();
   render();
 }
 
@@ -1580,6 +1633,13 @@ document.addEventListener("dragstart", (e) => {
   if (!el) return;
   gezogeneId = el.dataset.dragId;
   el.classList.add("wird-gezogen");
+  // Gehört die Figur zur Strg-Auswahl, zeigen ALLE ausgewählten, dass sie
+  // mitgehen - sonst glaubt man, nur die eine wandert.
+  if (App.auswahl.has(gezogeneId)) {
+    document.querySelectorAll("[data-drag-id]").forEach((x) => {
+      if (App.auswahl.has(x.dataset.dragId)) x.classList.add("wird-gezogen");
+    });
+  }
   try { e.dataTransfer.setData("text/plain", gezogeneId); e.dataTransfer.effectAllowed = "move"; } catch { /* egal */ }
 });
 
@@ -1627,8 +1687,15 @@ document.addEventListener("drop", (e) => {
       gmAction({ type: "set_zone", id, zone });
     }
   } else {
-    // In einem Gruppenkasten abgelegt (leerer Wert = herauslösen).
-    gmAction({ type: "group_assign", id, group: ziel.dataset.group || null });
+    // In einem Gruppenkasten abgelegt (leerer Wert = herauslösen). Gehört die
+    // gezogene Figur zur Strg-Auswahl, wandert die GANZE Auswahl mit.
+    if (App.auswahl.size && App.auswahl.has(id)) {
+      gmAction({ type: "group_assign_many", ids: [...App.auswahl], group: ziel.dataset.group || null });
+      toast(`${App.auswahl.size} Figuren ${ziel.dataset.group ? "in die Gruppe gesteckt" : "aus ihren Gruppen gelöst"}`);
+      App.auswahl.clear();
+    } else {
+      gmAction({ type: "group_assign", id, group: ziel.dataset.group || null });
+    }
   }
   gezogeneId = null;
 });
@@ -1652,20 +1719,109 @@ function toast(text) {
 
 // Adresse per WhatsApp/Teilen-Dialog verschicken. Der Text nennt bewusst das
 // WLAN mit - ein Link auf 192.168.x.x nützt nichts, wenn das Handy woanders ist.
+// Einladung für WhatsApp & Co. Der Link steht ALLEIN in einer Zeile und mit
+// „http://" davor - nur so machen WhatsApp (Android wie iPhone) ihn zuverlässig
+// antippbar; Text direkt daneben oder ohne http:// blieb es oft reiner Text.
+// Vorweg der wichtigste Tipp gegen „plötzlich weg": mobile Daten aus.
 function einladungstext() {
   const url = (App._info && App._info.url) || location.origin + "/";
+  // Kein Emoji am Anfang: WhatsApp am PC zeigte den Würfel als „�".
   return `Sundered Skies – Initiative
 
-Geh mit dem Handy ins gleiche WLAN und öffne:
+So kommst du rein:
+1) Mobile Daten AUSSCHALTEN (WLAN bleibt an) – sonst springt das Handy mitten im Spiel vom Tisch weg.
+2) Ins gleiche WLAN wie mein Laptop.
+3) Diesen Link antippen:
+
 ${url}
 
-(Funktioniert nur im selben WLAN wie mein Laptop.)`;
+Lässt sich der Link nicht antippen? Lange drücken → Kopieren → in Chrome oder Safari oben einfügen.`;
+}
+
+// Einladung als BILD mit QR-Code. Warum: WhatsApp macht Links auf reine
+// Zahlen-Adressen (192.168.…) nicht antippbar - es hielt die Adresse für eine
+// Telefonnummer. Einen QR-Code im Bild erkennt dagegen jede Handy-Kamera am
+// Tisch, und auf dem eigenen Handy die Fotos-App (iPhone) bzw. Google Lens
+// (Android) - alles ohne Internet.
+async function einladungsBild() {
+  const url = (App._info && App._info.url) || location.origin + "/";
+  const qr = new Image();
+  qr.src = "/qr.png?t=" + Date.now();
+  await new Promise((ok, fehler) => { qr.onload = ok; qr.onerror = fehler; });
+  const B = 640, H = 900;
+  const c = document.createElement("canvas");
+  c.width = B; c.height = H;
+  const g = c.getContext("2d");
+  g.fillStyle = "#f4ead3"; g.fillRect(0, 0, B, H);
+  g.fillStyle = "#3a2a18"; g.textAlign = "center";
+  g.font = "bold 34px Georgia, serif";
+  g.fillText("Sundered Skies – Initiative", B / 2, 62);
+  g.font = "20px sans-serif";
+  g.fillText("QR-Code scannen oder im Bild antippen", B / 2, 98);
+  g.fillStyle = "#ffffff"; g.fillRect(B / 2 - 230, 120, 460, 460);
+  g.imageSmoothingEnabled = false;          // QR scharf halten
+  g.drawImage(qr, B / 2 - 220, 130, 440, 440);
+  g.fillStyle = "#3a2a18";
+  g.font = "bold 26px monospace";
+  g.fillText(url, B / 2, 622);
+  g.font = "20px sans-serif";
+  g.textAlign = "left";
+  [
+    "1) Mobile Daten AUS (WLAN bleibt an)",
+    "2) Ins gleiche WLAN wie der Laptop",
+    "3) Am Tisch: Kamera auf den Code halten",
+    "    Auf dem eigenen Handy: Bild öffnen –",
+    "    iPhone: lange auf den Code drücken",
+    "    Android: Google Lens im Bild",
+  ].forEach((z, i) => g.fillText(z, 60, 680 + i * 32));
+  return new Promise((ok) => c.toBlob(ok, "image/png"));
+}
+
+async function einladungsBildKopieren() {
+  try {
+    const bild = await einladungsBild();
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": bild })]);
+    toast("QR-Bild kopiert – in WhatsApp mit Strg+V einfügen.");
+  } catch {
+    // Kein Bild-Kopieren (älterer Browser): als Datei herunterladen.
+    const bild = await einladungsBild();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(bild);
+    a.download = "sundered-skies-einladung.png";
+    document.body.appendChild(a); a.click(); a.remove();
+    toast("QR-Bild gespeichert – in WhatsApp als Bild anhängen.");
+  }
+}
+
+function qrGrossZeigen() {
+  App.overlayImage = "/qr.png?t=" + Date.now();
+  // Beim Spieler ist die eigene Adresse genau die richtige (er ist ja drin).
+  App.overlayName = (App.role === "gm" && App._info && App._info.url) || location.origin + "/";
+  const bar = $("skinbar");
+  if (bar) bar.classList.remove("open");      // Menü zu, damit der Code frei liegt
+  if (App.state) render(); else zeigeOverlayOhneStand();
+}
+// Vor dem ersten Server-Stand (z. B. auf der Beitrittsseite) läuft render()
+// noch nicht - das Overlay dann direkt anhängen.
+function zeigeOverlayOhneStand() {
+  document.querySelectorAll(".overlay-img").forEach((n) => n.remove());
+  document.body.appendChild(el(`<div class="overlay-img" data-act="close-overlay">
+      <img src="${esc(App.overlayImage)}"><div class="overlay-name">${esc(App.overlayName)}</div>
+      <div class="overlay-hint">Tippen zum Schließen</div></div>`));
 }
 
 async function einladungTeilen() {
   const text = einladungstext();
-  // Windows-Teilen-Dialog, wenn der Browser ihn kann (Edge/Chrome) - dort ist
-  // WhatsApp neben allem anderen direkt dabei.
+  // Mit Bild teilen, wenn der Browser das kann (Windows-Teilen-Dialog in
+  // Edge/Chrome - dort ist WhatsApp dabei). Sonst nur der Text.
+  try {
+    const bild = await einladungsBild();
+    const datei = new File([bild], "sundered-skies-einladung.png", { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+      await navigator.share({ files: [datei], text, title: "Sundered Skies – Initiative" });
+      return;
+    }
+  } catch { /* abgebrochen oder nicht möglich -> Text-Weg */ }
   if (navigator.share) {
     try { await navigator.share({ title: "Sundered Skies – Initiative", text }); return; }
     catch { /* abgebrochen oder nicht erlaubt -> WhatsApp-Weg */ }
@@ -1740,10 +1896,12 @@ function renderConnectPanel() {
         <div class="small" style="margin-top:6px">${joinUrlHtml()}</div>
         <div class="muted small" style="margin-top:6px">Der Laptop hier ist automatisch Spielleiter.</div>
         <div class="row" style="margin-top:10px; flex-wrap:wrap; gap:6px">
-          <button class="ghost" data-act="einladung-whatsapp">💬 Per WhatsApp</button>
-          <button class="ghost" data-act="einladung-teilen">📤 Teilen…</button>
-          <button class="ghost" data-act="einladung-kopieren">🔗 Kopieren</button>
+          <button class="primary" data-act="einladung-bild" title="Bild mit QR-Code kopieren – in WhatsApp mit Strg+V einfügen">🖼 QR-Bild kopieren</button>
+          <button class="ghost" data-act="einladung-teilen" title="Bild mit QR-Code über den Teilen-Dialog verschicken">📤 Teilen…</button>
+          <button class="ghost" data-act="qr-gross" title="QR-Code bildschirmfüllend zum Scannen am Tisch">🔍 QR groß zeigen</button>
+          <button class="ghost" data-act="einladung-whatsapp" title="Nur Text – WhatsApp macht die Adresse leider nicht antippbar">💬 Text per WhatsApp</button>
         </div>
+        <div class="muted small" style="margin-top:6px">WhatsApp macht Zahlen-Adressen nicht antippbar – darum lieber das <b>QR-Bild</b> schicken.</div>
       </div>
     </div>
     ${connectedPlayersHtml()}
@@ -2089,6 +2247,7 @@ function combatantRow(c, num, isGM, isOpen) {
     c.done ? "done" : "", (showCard && c.held) ? "held" : "", hasJoker ? "joker-holder" : "",
     (isGM && !isActive && App._naechsterId === c.id) ? "naechster" : "",
     (!isGM && isOwn) ? "eigene" : "",
+    (isGM && App.auswahl.has(c.id)) ? "ausgewaehlt" : "",
     c.benched ? "benched" : "", showCard ? "" : "facedown"].filter(Boolean).join(" ");
   // In der Zeile knapp: "★ JOKER" steht schon daneben, der ausgeschriebene Satz
   // brach um und machte die Zeile doppelt so hoch. Voller Text im Tooltip.
@@ -3196,11 +3355,14 @@ Abbrechen = Begegnung zusätzlich dazustellen.`);
     "effekt-minus": () => gmAction({ type: "effect_adjust", id, effekt: target.getAttribute("data-effekt"), delta: -1 }),
     "anordnung-zuruecksetzen": () => {
       try { localStorage.removeItem("panelAnordnung"); } catch { /* egal */ }
+      slAnsichtSichern();
       render();
     },
     "einladung-whatsapp": () => einladungWhatsApp(),
     "einladung-teilen": () => einladungTeilen(),
     "einladung-kopieren": () => einladungKopieren(),
+    "einladung-bild": () => einladungsBildKopieren(),
+    "qr-gross": () => qrGrossZeigen(),
     "jetzt-verbinden": () => { App.wentOfflineAt = App.wentOfflineAt || Date.now(); ensureConnected(); adressFallback(); },
     // Rückgängig (SL)
     "undo": () => gmAction({ type: "undo" }),
@@ -3286,6 +3448,19 @@ function schluckNaechstenKlick() {
   document.addEventListener("click", weg, { capture: true, once: true });
   setTimeout(() => document.removeEventListener("click", weg, true), 350);
 }
+
+// Strg-Klick auf eine Zeile der Reihenfolge (SL) sammelt ebenfalls - vorher
+// ging das nur im Zonen-Board, in der Liste passierte beim Strg-Klick nichts.
+document.addEventListener("pointerdown", (e) => {
+  if (App.role !== "gm" || !(e.ctrlKey || e.metaKey)) return;
+  const zeile = e.target.closest && e.target.closest(".order .combatant[data-cid]");
+  if (!zeile || e.target.closest("button, input, select, label, a")) return;
+  e.preventDefault();
+  const id = zeile.dataset.cid;
+  if (App.auswahl.has(id)) App.auswahl.delete(id); else App.auswahl.add(id);
+  schluckNaechstenKlick();
+  render();
+}, true);
 
 document.addEventListener("pointerdown", (e) => {
   const t = e.target.closest('[data-act="token-info"], [data-act="zone-goto"]');
@@ -3646,6 +3821,7 @@ function applySkin(skin) {
   document.body.classList.remove(...SKINS.map((s) => "theme-" + s));
   document.body.classList.add("theme-" + skin);
   localStorage.setItem("skin", skin);
+  slAnsichtSichern();
   const box = $("skins");
   if (box) box.querySelectorAll(".skin-dot").forEach((d) => d.classList.toggle("active", d.dataset.skin === skin));
 }
@@ -3680,7 +3856,10 @@ function mountSkins() {
   const box = document.createElement("div");
   box.id = "skins";
   box.className = "skins skin-menu";
-  box.innerHTML = SKINS.map((s) => `<button class="skin-dot skin-${s}" data-skin="${s}" title="${SKIN_NAMES[s]}"></button>`).join("") +
+  // „QR-Code zeigen" für JEDES Gerät: wer schon mitspielt, hält sein Handy
+  // hin und der Nächste scannt davon - statt dass alle den Laptop abfilmen.
+  box.innerHTML = `<button type="button" class="qr-teilen-knopf" data-act="qr-gross">📱 QR-Code für Mitspieler zeigen</button>` +
+    SKINS.map((s) => `<button class="skin-dot skin-${s}" data-skin="${s}" title="${SKIN_NAMES[s]}"></button>`).join("") +
     `<div class="reveal-pick">
        <div class="muted small" style="margin-bottom:4px">Karten aufdecken</div>
        <select id="revealsel">${REVEALS.map((r) =>
@@ -3701,6 +3880,7 @@ function mountSkins() {
       // Mindestens einer bleibt an – sonst gaebe es keinen Joker-Stil mehr.
       if (!liste.length) { e.target.checked = true; return; }
       try { localStorage.setItem("jokerStile", JSON.stringify(liste)); } catch { /* ignore */ }
+      slAnsichtSichern();
       Cards.setJokerAuswahl(liste);
       const zahl = $("jokerzahl");
       if (zahl) zahl.textContent = jokerZahlText();
@@ -3709,6 +3889,7 @@ function mountSkins() {
     }
     if (e.target && e.target.id === "revealsel") {
       try { localStorage.setItem("reveal", e.target.value); } catch { /* ignore */ }
+      slAnsichtSichern();
       _revealPick.clear();
       if (App.state) render();
     }

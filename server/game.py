@@ -174,6 +174,18 @@ def wuerfel_wert(v, mehrere: bool = False) -> str:
     return f"{anzahl}W{seiten}{zuschlag}"
 
 
+SL_ANSICHT_SCHLUESSEL = ("collapsed", "panelAnordnung", "skin", "jokerStile", "reveal")
+
+
+def _sl_ansicht_sauber(roh) -> dict:
+    """Nur bekannte Schlüssel, nur Text, Länge gedeckelt - der Browser liefert
+    die Werte so, wie er sie selbst speichert (JSON-Text bzw. Name)."""
+    if not isinstance(roh, dict):
+        return {}
+    return {k: v[:20000] for k, v in roh.items()
+            if k in SL_ANSICHT_SCHLUESSEL and isinstance(v, str)}
+
+
 def _bogen_sauber(roh: dict) -> dict:
     """Charakterbogen vom Handy prüfen und begrenzen - er kommt ungefiltert vom
     Spieler, also Längen und Anzahlen deckeln und nur bekannte Felder behalten."""
@@ -279,6 +291,14 @@ class Game:
         self.auto_release = bool(settings.get("autoRelease", False))
         self.requests_enabled = bool(settings.get("requestsEnabled", True))
         self.benny_to_gm = bool(settings.get("bennyToGm", True))
+        # Ton-Schalter des SL: gehoert zu den Einstellungen, nicht zum Kampf.
+        # Stand frueher nur in der Sitzung - nach „Verwerfen" war er wieder an.
+        self.sound_enabled = bool(settings.get("soundEnabled", True))
+        # Ansicht des SL-Laptops (Panel-Anordnung, aufgeklappte Panels, Design,
+        # Joker-/Aufdeck-Stil). Der Browser merkt sich das pro ADRESSE - startet
+        # die App einmal auf Port 8001 statt 8000, sah alles zurueckgesetzt aus.
+        # Darum hier zusaetzlich eine Kopie, die der Browser bei Bedarf uebernimmt.
+        self.sl_ansicht: dict = _sl_ansicht_sauber(settings.get("slAnsicht"))
 
         # Gab es beim Start eine frühere Sitzung auf Platte? (für "Fortsetzen?")
         self.resume_available: bool = SESSION_FILE.exists()
@@ -335,6 +355,8 @@ class Game:
             "conditionsEnabled": self.conditions_enabled,
             "requestsEnabled": self.requests_enabled,
             "autoRelease": self.auto_release,
+            "soundEnabled": self.sound_enabled,
+            "slAnsicht": self.sl_ansicht,
         })
 
     def export_data(self) -> dict:
@@ -477,7 +499,7 @@ class Game:
         self.timer_ends_at = None  # Timer läuft nach Neustart nicht weiter.
         self.joker_active = data.get("jokerActive", False)
         self.reshuffle_next = data.get("reshuffleNext", False)
-        self.sound_enabled = data.get("soundEnabled", True)
+        # (Ton kommt aus den Einstellungen, nicht aus der alten Sitzung.)
         self.benny_start = data.get("bennyStart", 3)
         self.sl_bennies = data.get("slBennies", 0)
         self.resume_available = False
@@ -588,6 +610,7 @@ class Game:
             "players": self.players,
             "groups": self.groups,
             "effektMeldungen": [] if fuer_spieler else self.effekt_meldungen,
+            "slAnsicht": {} if fuer_spieler else self.sl_ansicht,
             "combatants": self._fuer_spieler(self.combatants) if anon else self.combatants,
             "messages": self.messages[-MAX_MESSAGES:],
             "requests": self.requests,
@@ -630,6 +653,16 @@ class Game:
         if t == "sheet_update":
             self.bogen_setzen(action.get("id"), action.get("bogen"))
             return
+        # Ansicht des SL-Laptops sichern: kein Spielzug, also weder Rückgängig-
+        # Schritt noch Ende der „Fortsetzen?"-Möglichkeit (Panel aufklappen vor
+        # dem Fortsetzen durfte die gespeicherte Sitzung nicht verwerfen).
+        if t == "set_sl_ansicht":
+            neu = _sl_ansicht_sauber(action.get("werte"))
+            if neu != self.sl_ansicht:
+                self.sl_ansicht = neu
+                self.save_settings()
+            return
+
         # Eigene Initiative-Talente (Schnell, Kühler Kopf …) + Glück: pflegt der
         # Spieler ebenfalls selbst - aus demselben Grund kein Undo-Ziel.
         if t == "talents_update":
@@ -1084,6 +1117,17 @@ class Game:
             return
         gid = a.get("group")
         c["groupId"] = gid if gid and self._gruppe(gid) else None
+
+    def _do_group_assign_many(self, a: dict) -> None:
+        """Die ganze Strg-Auswahl auf einmal in eine Gruppe stecken (oder mit
+        group=None herausnehmen) - als EINE Aktion, damit Rückgängig auch alles
+        auf einmal zurückholt."""
+        gid = a.get("group")
+        gid = gid if gid and self._gruppe(gid) else None
+        for cid in a.get("ids") or []:
+            c = self._combatant(cid)
+            if c:
+                c["groupId"] = gid
 
     def _do_group_rename(self, a: dict) -> None:
         g = self._gruppe(a.get("group"))
@@ -1695,6 +1739,7 @@ class Game:
 
     def _do_toggle_sound(self, a: dict) -> None:
         self.sound_enabled = not self.sound_enabled
+        self.save_settings()
 
     # Bennies ----------------------------------------------------------------
 

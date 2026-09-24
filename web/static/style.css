@@ -1434,11 +1434,13 @@ body.hat-leiste .wrap { padding-bottom: 96px; }
 /* (Die Leiste ist weiter oben bereits "position: fixed" - das ist zugleich der
    Bezugspunkt fuer das Einstellungsfeld darueber.) */
 
-/* Strg-Auswahl im Zonen-Board */
+/* Strg-Auswahl: eigene, deutlich andere Farbe (Blau). Die Akzentfarbe des
+   jeweiligen Designs ging im Pergament-Look im Gold-Braun der Rahmen unter. */
+:root { --auswahl: #2b86ff; }
 .zone-token.ausgewaehlt .tdisc {
-  box-shadow: 0 0 0 3px var(--accent2), 0 0 10px color-mix(in srgb, var(--accent2) 60%, transparent);
+  box-shadow: 0 0 0 3px var(--auswahl), 0 0 12px color-mix(in srgb, var(--auswahl) 70%, transparent);
 }
-.zone-token.ausgewaehlt .tname { color: var(--accent2); }
+.zone-token.ausgewaehlt .tname { color: var(--auswahl); font-weight: 800; }
 .auswahl-leiste {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin: 8px 0; padding: 8px 10px;
@@ -1610,3 +1612,25 @@ body.panel-zieht .grid2 .sp.leer::after {
 .attr-zeile b { font-size: 1rem; }
 .attr-zeile .wuerfel-feld { width: 6em; }
 .auto-wert { font-size: 0.72rem; font-weight: 400; color: var(--muted); }
+
+/* Strg-Auswahl überall sichtbar: Zonen-Board, Gruppen-Kästen, Reihenfolge. */
+.zone-token.ausgewaehlt { outline: 2px solid var(--auswahl); outline-offset: 2px; border-radius: 999px;
+  background: color-mix(in srgb, var(--auswahl) 14%, transparent); }
+.grp-chip.ausgewaehlt {
+  border-color: var(--auswahl); color: var(--auswahl); font-weight: 700;
+  box-shadow: 0 0 0 2px var(--auswahl), 0 0 10px color-mix(in srgb, var(--auswahl) 55%, transparent);
+}
+.combatant.ausgewaehlt {
+  outline: 3px solid var(--auswahl); outline-offset: -3px;
+  background: color-mix(in srgb, var(--auswahl) 12%, transparent);
+}
+.auswahl-leiste { border-color: var(--auswahl) !important; }
+
+/* ⚙-Menü: QR-Code für Mitspieler (jedes Gerät). */
+.qr-teilen-knopf { display: block; width: 100%; margin-bottom: 8px; padding: 8px 10px; font-weight: 700;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); color: var(--text); cursor: pointer; }
+/* Der QR-Code im Vollbild braucht eine weisse Ruhezone, sonst scannen manche Kameras schlecht. */
+.overlay-img img[src^="/qr.png"] { background: #fff; padding: 18px; border-radius: 12px; image-rendering: pixelated;
+  width: min(80vw, 80vh); height: auto; }
+/* Adresse unter dem QR hell, damit man sie notfalls abtippen kann. */
+.overlay-img img[src^="/qr.png"] + .overlay-name { color: #fff; font-size: 1.15rem; }

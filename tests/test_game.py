@@ -1230,3 +1230,44 @@ def test_wuerfel_ohne_w_getippt(fresh_game):
     assert wuerfel_wert("6+2") == "W6+2"
     assert wuerfel_wert("12") == "W12"
     assert wuerfel_wert("26") == ""           # keine gültige Würfelzahl
+
+
+def test_auswahl_auf_einmal_in_gruppe(fresh_game):
+    orks = [_add_npc(fresh_game, f"Ork {i}") for i in range(1, 5)]
+    fresh_game.apply({"type": "group_create", "name": "Spähtrupp"})
+    gid = fresh_game.groups[-1]["id"]
+    ids = [o["id"] for o in orks[:3]]
+    fresh_game.apply({"type": "group_assign_many", "ids": ids, "group": gid})
+    assert [fresh_game._combatant(i)["groupId"] for i in ids] == [gid] * 3
+    assert fresh_game._combatant(orks[3]["id"]).get("groupId") is None
+    fresh_game.apply({"type": "undo"})                       # ein Rückgängig holt alle zurück
+    assert all(fresh_game._combatant(i).get("groupId") is None for i in ids)
+    fresh_game.apply({"type": "group_assign_many", "ids": ids, "group": "gibtsnicht"})
+    assert all(fresh_game._combatant(i).get("groupId") is None for i in ids)
+
+
+def test_ton_und_sl_ansicht_ueberstehen_neustart(fresh_game):
+    from server import game as game_mod
+    fresh_game.apply({"type": "toggle_sound"})                      # Ton aus
+    assert fresh_game.sound_enabled is False
+    undo_vorher = len(fresh_game._history)
+    fresh_game.apply({"type": "set_sl_ansicht", "werte": {
+        "skin": "dark", "panelAnordnung": '{"links":["zones"],"rechts":["combat"]}',
+        "boese": "x", "reveal": 123}})
+    assert len(fresh_game._history) == undo_vorher                  # kein Rückgängig-Schritt
+
+    neu = game_mod.Game()                                           # „Laptop neu gestartet"
+    assert neu.sound_enabled is False
+    assert neu.sl_ansicht == {"skin": "dark", "panelAnordnung": '{"links":["zones"],"rechts":["combat"]}'}
+    assert neu.snapshot()["slAnsicht"]["skin"] == "dark"
+    assert neu.snapshot(fuer_spieler=True)["slAnsicht"] == {}        # Spieler sehen das nicht
+
+
+def test_sl_ansicht_verwirft_fortsetzen_nicht(fresh_game):
+    from server import game as game_mod
+    _add_npc(fresh_game, "Ork")
+    fresh_game.apply({"type": "new_round"})                          # Sitzung gespeichert
+    neu = game_mod.Game()
+    assert neu.resume_available
+    neu.apply({"type": "set_sl_ansicht", "werte": {"skin": "dark"}})
+    assert neu.resume_available                                     # Fortsetzen geht noch

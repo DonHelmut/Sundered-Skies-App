@@ -47,6 +47,23 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## v100 (24.09.2026): Strg-Auswahl, Einstellungen bleiben, QR-Einladung
+
+- **Strg-Auswahl sichtbar**: Strg-Klick markiert Gegner blau (eigene Farbe
+  `--auswahl`, im Pergament-Schema war die Akzentfarbe zu schwach) – auch in
+  der Reihenfolge. Zieht man eine markierte Figur, wandern alle markierten in
+  die Gruppe (`group_assign_many`).
+- **Ton + SL-Ansicht bleiben**: `soundEnabled` und `slAnsicht` (Schema,
+  Panel-Anordnung, Eingeklapptes, Joker-Stile, Aufdecken) stehen in
+  settings.json. localStorage hängt am Port – nach Portwechsel war sonst alles
+  weg. `set_sl_ansicht` läuft ohne Undo und ohne das Fortsetzen zu verwerfen.
+- **Einladung als QR-Bild**: WhatsApp macht Zahlen-Adressen nicht antippbar
+  (und zeigte Emojis als „�"). Darum „🖼 QR-Bild kopieren" (Canvas 640×900 mit
+  QR, Adresse, Hinweisen) bzw. „📤 Teilen…" mit Bild. Text ohne Emojis bleibt
+  als Plan B. Bewusst kein Umweg über Internet-Dienste – bleibt lokal.
+- **QR im ⚙-Menü jedes Handys**: Spieler zeigen den Code selbst weiter, statt
+  dass alle den Laptop abfilmen.
+
 ## v99 (23.09.2026): Charakterbogen rechnet mit
 
 - **Würfelwerte frei**: Attribute/Fertigkeiten als Eingabefeld statt Auswahl –
@@ -226,8 +243,8 @@ sich über **Export/Import** in der App umziehen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v99** (veröffentlicht).
-      Nächstes Release also 99 → 100 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v100** (veröffentlicht).
+      Nächstes Release also 100 → 101 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.
