@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import time
 
 FIREWALL_RULE_NAME = "Sundered Skies Initiative"
 # ALLE moeglichen Ports freigeben - die App kann auf einen Ausweich-Port gehen,
@@ -130,3 +131,118 @@ def umgebungsbericht() -> list[str]:
     except Exception as exc:
         zeilen.append(f"UMGEBUNGSBERICHT nicht moeglich: {exc}")
     return zeilen
+
+
+# --- Welches WLAN nutzt der Laptop gerade? -----------------------------------
+# Anlass: Bei einem Gastgeber kamen Spieler "manchmal" nicht rein. Der Laptop
+# hing im Zusatznetz "Bengals!" (nur 2,4 GHz, Wi-Fi 4, 72 MBit/s), die iPhones
+# je nach Empfang im Hauptnetz "Regelanto!" (5 GHz) - zwei WLANs aus demselben
+# Geraet. Diese Angabe macht so etwas beim SL und im Log sichtbar.
+#
+# Quelle ist `netsh wlan show interfaces`. Die Ausgabe ist UEBERSETZT: deutsch
+# heisst das Band "Bereich", englisch "Band"; Kanal/Channel, Funktyp/Radio type.
+# Das Ue in "Uebertragungsrate" haengt an der Kodierung - darum Wortrest-Vergleich.
+# Unbekannte Sprache oder LAN-Kabel -> was sich erkennen laesst, sonst None.
+
+_WLAN_FELDER = (
+    ("ssid", lambda k: k == "ssid"),
+    ("status", lambda k: k in ("status", "state")),
+    ("band", lambda k: k in ("bereich", "band")),
+    ("kanal", lambda k: k in ("kanal", "channel")),
+    ("funktyp", lambda k: k in ("funktyp", "radio type")),
+    ("empfang", lambda k: k.startswith(("empfangsrate", "receive rate"))),
+    ("senden", lambda k: "bertragungsrate" in k or k.startswith("transmit rate")),
+    ("signal", lambda k: k == "signal"),
+)
+_WLAN_STANDARD = {"802.11be": "Wi-Fi 7", "802.11ax": "Wi-Fi 6", "802.11ac": "Wi-Fi 5",
+                  "802.11n": "Wi-Fi 4"}
+
+
+def _zahl(text: str | None) -> int | None:
+    try:
+        return round(float((text or "").replace("%", "").replace(",", ".").strip()))
+    except ValueError:
+        return None
+
+
+def wlan_aus_netsh(text: str) -> dict | None:
+    """Liest die erste Schnittstelle aus `netsh wlan show interfaces`. Rein
+    rechnend (testbar ohne WLAN). None = nicht per WLAN verbunden/nicht lesbar."""
+    roh: dict[str, str] = {}
+    for zeile in (text or "").splitlines():
+        schluessel, trenner, wert = zeile.partition(":")
+        if not trenner:
+            continue
+        k = schluessel.strip().lower()
+        for feld, passt in _WLAN_FELDER:
+            if feld not in roh and passt(k):
+                roh[feld] = wert.strip()
+                break
+    status = roh.get("status", "").lower()
+    if not roh.get("ssid") or (status and status not in ("verbunden", "connected")):
+        return None
+
+    kanal = _zahl(roh.get("kanal"))
+    band = roh.get("band", "").replace("2.4", "2,4")
+    if not band and kanal:
+        band = "2,4 GHz" if kanal <= 14 else "5 GHz"     # aeltere Windows ohne Band-Zeile
+    funktyp = roh.get("funktyp", "")
+    standard = _WLAN_STANDARD.get(funktyp, funktyp)
+    if standard == "Wi-Fi 6" and band.startswith("6"):
+        standard = "Wi-Fi 6E"
+    return {
+        "ssid": roh["ssid"], "band": band, "kanal": kanal,
+        "funktyp": funktyp, "standard": standard,
+        "empfang": _zahl(roh.get("empfang")), "senden": _zahl(roh.get("senden")),
+        "signal": _zahl(roh.get("signal")),
+    }
+
+
+_wlan_puffer: dict = {"zeit": -1e9, "wert": None}
+
+
+def wlan_info(max_alter: float = 15.0) -> dict | None:
+    """Aktuelles WLAN des Laptops. Kurz gepuffert: /api/info fragen alle Handys
+    regelmaessig ab - netsh soll nicht bei jedem Aufruf neu starten."""
+    if not _is_windows():
+        return None
+    jetzt = time.monotonic()
+    if jetzt - _wlan_puffer["zeit"] < max_alter:
+        return _wlan_puffer["wert"]
+    try:
+        roh = subprocess.run(["netsh", "wlan", "show", "interfaces"], capture_output=True,
+                             timeout=5, creationflags=_NO_WINDOW).stdout
+        # netsh schreibt in der Windows-ANSI-Codepage ("mbcs"), nicht in der OEM-
+        # Konsolen-Codepage - mit "oem" kaeme "Uebertragungsrate" verstuemmelt an.
+        wert = wlan_aus_netsh(roh.decode("mbcs", errors="replace"))
+    except Exception:
+        wert = None
+    _wlan_puffer.update(zeit=jetzt, wert=wert)
+    return wert
+
+
+def wlan_text(w: dict | None) -> str:
+    """Eine Zeile fuers Log, z. B. „Heimnetz · 5 GHz · Wi-Fi 5 (802.11ac) ·
+    Kanal 36 · 351/390 MBit/s · Signal 82 %"."""
+    if not w:
+        return "nicht per WLAN verbunden (LAN-Kabel?) oder nicht lesbar"
+    teile = [w["ssid"], w.get("band") or ""]
+    if w.get("standard"):
+        teile.append(w["standard"] + (f" ({w['funktyp']})" if w.get("funktyp") and w["funktyp"] != w["standard"] else ""))
+    if w.get("kanal"):
+        teile.append(f"Kanal {w['kanal']}")
+    if w.get("empfang") or w.get("senden"):
+        teile.append(f"{w.get('empfang') or '?'}/{w.get('senden') or '?'} MBit/s")
+    if w.get("signal") is not None:
+        teile.append(f"Signal {w['signal']} %")
+    return " · ".join(t for t in teile if t)
+
+
+def wlan_wechsel(vorher: dict | None, jetzt: dict | None) -> str | None:
+    """Logzeile, wenn der Laptop in ein anderes WLAN/Band/Standard wechselt
+    (Rate und Signal schwanken staendig - die allein sind kein Wechsel)."""
+    def kern(w):
+        return (w.get("ssid"), w.get("band"), w.get("standard")) if w else None
+    if kern(vorher) == kern(jetzt):
+        return None
+    return "WLAN: " + wlan_text(jetzt)

@@ -77,6 +77,11 @@ def netz_waechter_starten() -> None:
     def _lauf():
         zustand = {"bekannt": set(all_lan_ips()), "weg_seit": None}
         letzter = time.time()
+        # In welchem WLAN (Netz, Band, Wi-Fi-Standard) der Abend lief, gehoert ins
+        # Log: einmal zum Start, danach bei jedem Wechsel.
+        wlan = winnet.wlan_info(max_alter=0)
+        if os.name == "nt":
+            diag.log("WLAN: " + winnet.wlan_text(wlan))
         while True:
             time.sleep(NETZ_INTERVALL)
             try:
@@ -87,6 +92,11 @@ def netz_waechter_starten() -> None:
                     diag.log(zeile)
                 if zustand.get("adresswechsel"):
                     app_modul.adresse_gewechselt(zustand["adresswechsel"])
+                neu = winnet.wlan_info()
+                zeile = winnet.wlan_wechsel(wlan, neu)
+                if zeile:
+                    diag.log(zeile)
+                wlan = neu
             except Exception:
                 pass
 

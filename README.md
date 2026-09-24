@@ -224,8 +224,13 @@ Eingebaute Hilfen:
   „Dein Handy ist auf Mobilfunk umgesprungen" samt Lösung, verbindet sich neu,
   sobald wieder WLAN aktiv ist, und vermerkt es im Log. Vorbeugend – der Tipp steht
   auch auf der Beitrittsseite: **Flugmodus an, danach nur WLAN wieder an.**
-- `data/log.txt` protokolliert Firewall-Status, Adressen und Spielernamen –
-  das ist die Datei, die bei Problemen weiterhilft.
+- **Mehrere WLANs im Haus?** Alle – Laptop **und** Handys – ins **selbe** Netz,
+  am besten ins 5-GHz-Hauptnetz. Hängt der Laptop in einem Zusatz- oder Gastnetz,
+  kommen Handys aus dem anderen Netz oft nur „manchmal" rein. Unter der Adresse
+  zeigt die Spielleiter-Ansicht, womit der Laptop funkt (z. B. „📶 Laptop-WLAN:
+  Heimnetz · 5 GHz · Wi-Fi 5 · 351 Mbit/s · Signal 82 %"); nur 2,4 GHz ist gelb.
+- `data/log.txt` protokolliert Firewall-Status, Adressen, Spielernamen und das
+  WLAN des Laptops (bei jedem Wechsel) – die Datei, die bei Problemen weiterhilft.
 - Notfalls die Skripte in `paket/`: `Firewall-freigeben.bat`,
   `WLAN-Stromsparen-aus.bat`.
 
@@ -255,7 +260,7 @@ Dateien werden mit `no-cache` ausgeliefert, damit Updates immer laden.
 ```
 start.bat                                     REM legt .venv an und startet
 .venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\python -m pytest                REM 92 Tests
+.venv\Scripts\python -m pytest                REM alle Tests
 run-tests.bat                                 REM dasselbe als Doppelklick
 ```
 

@@ -120,6 +120,8 @@ async def api_info():
     ohne Neustart auffällt. Liefert ALLE Kandidaten-IPs (falls eine nicht geht)."""
     ips = all_lan_ips()
     primary = ips[0] if ips else LOCAL_IP
+    # netsh startet einen Prozess - nicht im Event-Loop warten (kurz gepuffert).
+    wlan = await asyncio.get_event_loop().run_in_executor(None, winnet.wlan_info)
     return JSONResponse({
         "ip": primary, "port": active_port(),
         "url": f"http://{primary}:{active_port()}/",
@@ -132,6 +134,7 @@ async def api_info():
         "isAdmin": winnet.ist_admin(),          # ohne Adminrechte keine Firewall-Regel
         "firewallRuleActive": winnet.rule_active(),
         "addressChanged": ADRESSWECHSEL["passiert"],
+        "wlan": wlan,   # Netz, Band, Wi-Fi-Standard des Laptops (None = kein WLAN)
     }, headers={
         # Handys pruefen bei Verbindungsverlust ALLE bekannten Adressen des
         # Servers durch (siehe adressFallback in app.js). Dieser Test laeuft

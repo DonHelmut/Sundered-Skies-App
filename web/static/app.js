@@ -1490,11 +1490,27 @@ function joinUrlHtml() {
     html += urls.slice(1).map((u) => `<div style="margin-top:3px"><code class="url">${esc(u)}</code></div>`).join("");
   }
   if (info.prettyUrl) html += `<div class="muted small" style="margin-top:4px">oder <code class="url">${esc(info.prettyUrl)}</code></div>`;
+  html += wlanHtml(info.wlan);
   if (loopback) {
     html += `<div class="pill bad" style="margin-top:8px">⚠ Keine WLAN-Adresse gefunden – ist der Laptop im WLAN? 127.0.0.1 erreicht keine Handys.</div>`;
   }
   html += `<div class="muted small" style="margin-top:8px">Klappt gar nichts? Prüfen: alle im <b>selben WLAN</b> (nicht Gast, nicht 2,4/5 GHz getrennt) · Windows-Firewall darf den Zugriff (Privat) · Router-Client-Trennung aus.</div>`;
   return html;
+}
+
+// Womit funkt der Laptop gerade: Netzname, Band, Wi-Fi-Standard (4/5/6/6E/7),
+// Rate, Signal. Anlass: Beim Gastgeber hing der Laptop im 2,4-GHz-Zusatznetz
+// (Wi-Fi 4, 72 MBit/s), die iPhones je nach Empfang im 5-GHz-Hauptnetz – und
+// „manchmal" kam keiner rein. Auf 2,4 GHz gelb, mit Tipp im Tooltip.
+function wlanHtml(w) {
+  if (!w || !w.ssid) return "";
+  const teile = [w.band, w.standard, w.empfang ? `${w.empfang} Mbit/s` : "",
+    w.signal != null ? `Signal ${w.signal} %` : ""].filter(Boolean).map(esc);
+  const nur24 = /^2/.test(w.band || "");
+  const tipp = nur24
+    ? ` title="Nur 2,4 GHz – gibt es hier ein 5-GHz-Netz? Dann Laptop UND Handys dorthin, alle ins selbe WLAN."`
+    : "";
+  return `<div class="pill ${nur24 ? "warn" : ""}" style="margin-top:8px"${tipp}>📶 Laptop-WLAN: <b>${esc(w.ssid)}</b>${teile.length ? " · " + teile.join(" · ") : ""}</div>`;
 }
 
 function connectedPlayersHtml() {

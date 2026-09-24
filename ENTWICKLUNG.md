@@ -28,7 +28,7 @@ start.bat
 
 `start.bat` legt beim ersten Mal die `.venv` an, installiert alles und startet
 den Server. Die zweite Zeile installiert die Test-Werkzeuge, die dritte führt
-die 92 Tests aus.
+alle Tests aus.
 
 Nicht im Git (bleibt pro PC): `.venv/`, `data/` (Charaktere, Bestiarium,
 Sitzung, hochgeladene Bilder), `.claude/`. Charaktere und Bibliotheken lassen
@@ -46,6 +46,25 @@ sich über **Export/Import** in der App umziehen.
   Sitzung („Fortsetzen?"). Vor Tests mit echten Daten erst fortsetzen.
 
 ---
+
+## Nach v100 (24.09.2026, noch ohne Versionssprung): WLAN des Laptops sichtbar
+
+- Anlass: Bei einem Gastgeber kamen iPhones „manchmal" nicht rein (Seite lud gar
+  nicht, nichts im Log), zu Hause nie. Befund vor Ort: zwei WLANs aus demselben
+  Zugangspunkt – der Laptop hing in „Bengals!" (nur 2,4 GHz, Kanal 5, Wi-Fi 4,
+  72 MBit/s), die Handys je nach Empfang im Hauptnetz „Regelanto!" (5 GHz). Nach
+  dem Wechsel des Laptops ins Hauptnetz: Wi-Fi 5, ~390 MBit/s, Router-Ping 3 statt
+  12 ms. Lösung am Tisch: alle ins selbe (5-GHz-)Netz; ob es das war, zeigt der
+  nächste Abend dort.
+- `winnet.wlan_info()` liest `netsh wlan show interfaces` (15 s gepuffert):
+  Netz, Band, Kanal, Wi-Fi-Standard (4/5/6/6E/7), Raten, Signal. Die Ausgabe ist
+  übersetzt („Bereich"/„Band", „Kanal"/„Channel" …) und kommt in der ANSI-
+  Codepage (`mbcs`), nicht in der OEM-Konsolen-Codepage. Reiner Parser
+  `wlan_aus_netsh()`, Tests in `tests/test_wlan.py` (echte deutsche Ausgabe).
+- `/api/info` liefert `wlan`; die SL-Ansicht zeigt es unter der Adresse
+  (`wlanHtml`), 2,4 GHz gelb mit Tipp. Beitrittsseite/QR bewusst unverändert.
+- Netz-Wächter (`run.py`) schreibt „WLAN: …" beim Start und bei jedem Wechsel von
+  Netz/Band/Standard ins Log (Rate und Signal allein zählen nicht).
 
 ## v100 (24.09.2026): Strg-Auswahl, Einstellungen bleiben, QR-Einladung
 
