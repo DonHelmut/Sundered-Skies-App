@@ -10,6 +10,8 @@ const App = {
   hilfeOffen: new Set(), // SL: Panels, deren Erklärtext per ⓘ eingeblendet ist
   offeneUnter: new Set(), // aufgeklappte Unter-Klappen (details[data-merk]) - überleben das Neuzeichnen
   gruppeOffen: new Set(), // SL: aufgeklappte Gruppenkarten-Zeilen (Schlüssel = Karten-ID)
+  angriffSpaeter: new Set(), // SL: Angriffs-Popups, die er auf „Später" geschoben hat (Anfrage-IDs)
+  angriffZugEnde: true,   // SL: nach dem Entscheiden den Zug des Angreifers beenden?
   role: null,
   state: null,
   myPlayerId: localStorage.getItem("playerId") || null,
@@ -75,7 +77,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.0";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.1";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -1321,6 +1323,56 @@ function renderTokenPopupOverlay() {
 
 // --- Joker-Vollbild-Moment --------------------------------------------------
 
+// Reichweite zwischen zwei Figuren auf dem Board: Jede Seite zählt ihre Zonen
+// von der Mitte aus (0 = Nahkampf … 4 = außer Reichweite). Es gilt die WEITERE
+// der beiden Zonen (Stefan): beide im Fernbereich = Fernkampf, ich nah und der
+// Gegner fern = Fernkampf, Nahkampf nur, wenn beide in der Mitte stehen.
+function reichweite(a, b) {
+  return Math.max(Zones.zoneOf(a), Zones.zoneOf(b));
+}
+
+// Spieler: Wen greifst du an? Gegner nach Reichweite von nah nach fern, mit
+// Zustand (angeschlagen/Wunden) und Standort. Verdeckte Gegner tragen ihren
+// Tarnnamen (kommt so vom Server).
+function angriffWahlHtml(mine) {
+  const s = App.state;
+  const ziele = s.combatants.filter((c) => c.kind === "npc" && !c.ally && !c.benched && !(c.status || {}).out)
+    .map((c) => ({ c, rw: reichweite(mine, c) }))
+    .sort((x, y) => x.rw - y.rw || Zones.zoneOf(x.c) - Zones.zoneOf(y.c) || String(x.c.name).localeCompare(String(y.c.name), "de", { numeric: true }));
+  const stufen = [...new Set(ziele.map((x) => x.rw))];
+  const chip = ({ c }) => {
+    const st = c.status || {};
+    return `<button type="button" class="aw-ziel${st.shaken ? " angeschlagen" : ""}" data-act="angriff-auf" data-id="${c.id}">
+      <span class="aw-name">${esc(c.name)}</span>
+      <span class="aw-zustand">${st.shaken ? `<span title="angeschlagen">😵</span>` : ""}${st.wounds ? `<span class="aw-wunden" title="Wunden">🩸${st.wounds}</span>` : ""}</span>
+      <span class="aw-ort">steht: ${esc(zoneLabel(Zones.zoneOf(c)))}</span></button>`;
+  };
+  const inhalt = stufen.map((rw) => `<div class="aw-zone"><div class="aw-reichweite">${rw === 0 ? "⚔️ Nahkampf" : `${esc(zoneLabel(rw))}`}${rw === 4 ? "" : " – in Reichweite"}</div>
+      <div class="aw-ziele">${ziele.filter((x) => x.rw === rw).map(chip).join("")}</div></div>`).join("");
+  return `<div class="angriff-wahl">
+    <div class="row spread" style="align-items:center; margin-bottom:2px">
+      <strong>⚔ Wen greifst du an?</strong>
+      <button class="ghost small" data-act="angriff-waehlen">Abbrechen</button>
+    </div>
+    <div class="muted small">Du stehst: ${esc(zoneLabel(Zones.zoneOf(mine)))} · von nah nach fern</div>
+    ${inhalt || `<div class="muted small" style="margin-top:6px">Kein Gegner in Sicht.</div>`}
+  </div>`;
+}
+function angriffMelden(id) {
+  const tgt = findCombatant(id);
+  const detail = { targetId: id };
+  const label = "greift " + (tgt ? tgt.name : "?") + " an";
+  // Nur das Ziel: Würfe und Schaden sagt der Spieler am Tisch an (Stefan).
+  gmActionOrPlayer({ type: "request", kind: "attack", detail, label });
+  return true;
+}
+// Ergebnis eines Angriffs (vom SL entschieden) - kurz und deutlich, blockiert nichts.
+function showKampfToast(text) {
+  const t = el(`<div class="kampf-toast">${esc(text)}</div>`);
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 5200);
+}
+
 function showMimiToast(text) {
   const t = el(`<div class="mimi-toast">🐈 ${esc(text || "Miau!")}</div>`);
   document.body.appendChild(t);
@@ -1455,6 +1507,10 @@ function render() {
     const latest = mimi[mimi.length - 1];
     if (App._lastMimiTs === undefined) App._lastMimiTs = latest ? latest.ts : 0;
     else if (latest && latest.ts > App._lastMimiTs) { App._lastMimiTs = latest.ts; showMimiToast(latest.text); }
+    const kampf = (App.state.messages || []).filter((m) => m.sender === "kampf" && m.target === App.myPlayerId);
+    const neu = kampf[kampf.length - 1];
+    if (App._lastKampfTs === undefined) App._lastKampfTs = neu ? neu.ts : 0;
+    else if (neu && neu.ts > App._lastKampfTs) { App._lastKampfTs = neu.ts; showKampfToast(neu.text); }
   }
 
   const prevRects = captureRects();
@@ -1533,6 +1589,7 @@ function renderGM() {
     </div>
     ${renderAktionsleiste()}
     ${App.tastenHilfe ? tastenHilfeHtml() : ""}
+    ${angriffPopupHtml()}
     <datalist id="effekt-vorschlaege">${EFFEKT_VORSCHLAEGE.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`;
 }
 
@@ -2328,6 +2385,68 @@ function trefferAuf(id, offenLassen) {
   render();
 }
 
+// Ein Spieler hat angegriffen: Fenster mit allem, was der SL zum Entscheiden
+// braucht (Ziel, Werte, gemeldeter Schaden, Vorschlag). Ein Klick trägt das
+// Ergebnis ein; der Spieler bekommt nur die Ergebnis-Meldung.
+function angriffPopupHtml() {
+  const s = App.state;
+  const r = (s.requests || []).find((x) => x.kind === "attack" && !App.angriffSpaeter.has(x.id));
+  if (!r) return "";
+  const angreifer = s.combatants.find((c) => c.id === r.combatantId);
+  const ziel = s.combatants.find((c) => c.id === (r.detail || {}).targetId);
+  // Schaden sagt der Spieler am Tisch an; mit der Kampfhilfe tippt der SL ihn
+  // hier ein und bekommt den Vorschlag (Feld überlebt das Neuzeichnen).
+  const schadenRoh = s.schadenRechnen ? parseInt(App.angriffSchaden, 10) : NaN;
+  const schaden = isNaN(schadenRoh) ? null : schadenRoh;
+  const werte = ziel ? kampfwerteText(ziel) : "";
+  const zst = ziel ? (ziel.status || {}) : {};
+  // Vorschlag aus gemeldetem Schaden gegen die Robustheit (nur mit Kampfhilfe)
+  let vorschlag = null, vorschlagText = "";
+  const rob = ziel ? kampfwerte(ziel).r : null;
+  if (s.schadenRechnen && schaden != null && rob != null) {
+    if (schaden < rob) { vorschlag = "kein"; vorschlagText = `${schaden} gegen Robustheit ${rob} → kein Schaden`; }
+    else {
+      vorschlag = Math.floor((schaden - rob) / 4);
+      vorschlagText = `${schaden} gegen Robustheit ${rob} → ${vorschlag ? `+${vorschlag} Steigerung${vorschlag > 1 ? "en" : ""}` : "Erfolg (angeschlagen)"}`;
+    }
+  }
+  const knopf = (ergebnis, stg, text, extra = "") => {
+    const vorgeschlagen = (ergebnis === "kein_schaden" && vorschlag === "kein") || (ergebnis === "treffer" && vorschlag === stg);
+    return `<button class="ap-knopf ${extra}${vorgeschlagen ? " vorschlag" : ""}" data-act="angriff-ergebnis" data-id="${r.id}"
+      data-ergebnis="${ergebnis}" data-stg="${stg}">${text}</button>`;
+  };
+  const aktiv = angreifer && s.activeId === angreifer.id;
+  const weitere = (s.requests || []).filter((x) => x.kind === "attack").length - 1;
+  return `<div class="angriff-popup-hg">
+    <div class="angriff-popup panel">
+      <div class="ap-titel">⚔ Angriff${weitere > 0 ? ` <span class="muted small">(+${weitere} weitere)</span>` : ""}</div>
+      <div class="ap-wer"><b>${esc(angreifer ? angreifer.name : r.name)}</b> greift <b class="ap-ziel">${esc(ziel ? ziel.name : "?")}</b> an</div>
+      <div class="ap-infos">
+        ${werte ? `<span class="tag">${werte}</span>` : ""}
+        ${zst.shaken ? `<span class="tag" style="color:var(--warn);border-color:var(--warn)">😵 angeschlagen</span>` : ""}
+        ${zst.wounds ? `<span class="tag" style="color:var(--bad);border-color:var(--bad)">${zst.wounds} 🩸</span>` : ""}
+      </div>
+      ${s.schadenRechnen ? `<label class="treffer-schaden ap-schadenfeld" title="Angesagten Schaden eintippen – die App vergleicht mit der Robustheit">
+        Angesagter Schaden <input id="angriff-schaden" type="number" min="0" max="99" inputmode="numeric" value="${esc(App.angriffSchaden || "")}" placeholder="z. B. 14"></label>` : ""}
+      ${vorschlagText ? `<div class="ap-vorschlag">Vorschlag: ${vorschlagText}</div>` : ""}
+      <div class="ap-knoepfe">
+        ${knopf("daneben", 0, "✗ Daneben", "ghost")}
+        ${knopf("kein_schaden", 0, "🛡 Kein Schaden", "ghost")}
+        ${knopf("treffer", 0, "💥 Erfolg <small>😵</small>")}
+        ${knopf("treffer", 1, "+1 <small>😵+1🩸</small>")}
+        ${knopf("treffer", 2, "+2 <small>😵+2🩸</small>")}
+        ${knopf("treffer", 3, "+3 <small>😵+3🩸</small>")}
+      </div>
+      <div class="row spread" style="align-items:center; margin-top:10px">
+        ${aktiv ? `<label class="row tight" style="align-items:center; cursor:pointer; gap:6px">
+          <input type="checkbox" id="angriff-zugende" data-act="angriff-zugende" ${App.angriffZugEnde ? "checked" : ""} style="width:auto">
+          <span class="small">Zug von ${esc(angreifer.name)} danach beenden</span></label>` : "<span></span>"}
+        <button class="ghost small" data-act="angriff-spaeter" data-id="${r.id}" title="Fenster schließen – die Meldung bleibt unter „Anfragen" stehen">Später</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 // Übersicht aller Tastenkürzel (Taste ? oder ☰ Mehr). Viele Kürzel kannte
 // man sonst nur aus dem Kleingedruckten in den Kampf-Einstellungen.
 function tastenHilfeHtml() {
@@ -2405,9 +2524,7 @@ function leisteEinstellungenHtml() {
     <div class="kampfhilfen" style="margin-top:12px">
       <div class="muted small" style="margin-bottom:2px">Optionale Kampfhilfen</div>
       ${hilfe("schadenRechnen", s.schadenRechnen, "🎯 Schaden eintippen – App rechnet mit der Robustheit",
-        "In der Treffer-Auswahl gibt es ein Schadensfeld; Steigerungen rechnet die App aus Parade/Robustheit der Vorlage bzw. dem Charakterbogen")}
-      ${hilfe("spielerSchaden", s.spielerSchaden, "⚔ Spieler geben beim Angriff ihren Schaden an",
-        "Beim Melden eines Angriffs fragt das Handy nach dem Schadenswurf – er steht dann schon in deiner Treffer-Auswahl")}
+        "In der Treffer-Auswahl und im Angriffs-Fenster gibt es ein Schadensfeld; Steigerungen rechnet die App aus der Robustheit der Vorlage bzw. dem Charakterbogen")}
       ${hilfe("gruppenKarte", s.gruppenKarte, "🃏 Gleiche Statisten teilen sich eine Karte",
         "Savage Worlds: z. B. alle Orks handeln gemeinsam auf einer Karte (ab der nächsten Runde). Wild Cards bekommen immer eine eigene")}
     </div>
@@ -2508,7 +2625,7 @@ function renderRequestsPanel() {
     const attack = r.kind === "attack";
     const actions = attack
       // Angriff ist reine Meldung: würfeln am Tisch, Ergebnis über das Ziel-Token setzen.
-      ? `${(r.detail || {}).targetId ? `<button class="st-btn" data-act="req-treffer" data-id="${r.id}" title="Getroffen: Zielwahl öffnen (Stärke/Steigerung wählen) – die Meldung wird dabei abgehakt">💥 Treffer…</button>` : ""}
+      ? `${(r.detail || {}).targetId ? `<button class="st-btn" data-act="angriff-oeffnen" data-id="${r.id}" title="Angriffs-Fenster öffnen: Daneben, Kein Schaden, Erfolg oder Steigerungen">⚔ Entscheiden</button>` : ""}
          <button class="st-btn on" data-act="req-dismiss" data-id="${r.id}" title="Daneben / erledigt">Erledigt ✓</button>`
       : `<button class="st-btn on" data-act="req-apply" data-id="${r.id}" title="Anwenden">✓</button>
          <button class="st-btn" data-act="req-dismiss" data-id="${r.id}" title="Ablehnen">✕</button>`;
@@ -2996,7 +3113,7 @@ function renderMessagePanel() {
     : "";
   // Das Panel ist jetzt dauerhaft offen -> nur die letzten drei Nachrichten,
   // sonst waechst die linke Spalte mit jedem verschickten Benny.
-  const log = s.messages.slice(-3).reverse().map((m) => `
+  const log = s.messages.filter((m) => m.sender !== "kampf").slice(-3).reverse().map((m) => `
     <div class="msg"><div class="to">an ${m.target === "all" ? "alle" : esc(spielerAnzeige(s.players.find((p) => p.id === m.target)))}
         <button class="st-btn" data-act="nochmal-senden" data-msg="${m.id}" title="Nochmal senden – an den oben gewählten Empfänger">🔁</button>
         ${m.imageUrl ? `<button class="st-btn" data-act="auf-tv" data-url="${esc(m.imageUrl)}" title="Bild groß auf den TV/Beamer">📺</button>` : ""}
@@ -3337,10 +3454,19 @@ function tipptImBogen() {
   const a = document.activeElement;
   // Auch das Schadensfeld der Treffer-Auswahl (SL): sonst wäre die Eingabe
   // bei jedem Server-Update weg.
-  return !!(a && a.closest && a.closest(".bogen-form, .al-treffer") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  return !!(a && a.closest && a.closest(".bogen-form, .al-treffer, .angriff-popup") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
 }
 document.addEventListener("input", (e) => {
   if (e.target && e.target.id === "treffer-schaden") App.trefferSchaden = e.target.value;
+  // Angriffs-Fenster: Vorschlag sofort neu rechnen (einmal neu zeichnen, Fokus
+  // und Cursor danach wiederherstellen).
+  if (e.target && e.target.id === "angriff-schaden") {
+    App.angriffSchaden = e.target.value;
+    const pos = e.target.selectionStart;
+    render();
+    const neu = $("angriff-schaden");
+    if (neu) { neu.focus(); try { neu.setSelectionRange(pos, pos); } catch { /* type=number */ } }
+  }
 });
 // ABER nicht, solange Finger/Maus noch unten sind: Tippt man vom Feld direkt
 // auf einen Knopf (Reiter, Speichern), verliert das Feld den Fokus schon beim
@@ -3391,7 +3517,21 @@ function renderPlayer() {
   if (!mine.held && isMyTurn) holdBtn = `<button data-act="hold" data-id="${mine.id}">Abwarten ⏸</button>`;
   if (mine.held) holdBtn = `<button class="primary big" data-act="intervene" data-id="${mine.id}">Jetzt eingreifen! ⚡</button>`;
 
-  const confirmBtn = isMyTurn ? `<button class="good big" data-act="confirm-turn">Zug bestätigen ✓</button>` : "";
+  // Dran: der Hauptknopf ist „⚔ Angreifen" (Ziel wählen, der SL entscheidet,
+  // man sieht nur das Ergebnis). „Zug beenden" bleibt klein daneben - für Züge
+  // ohne Angriff. Ohne Anfragen-System (SL hat es abgeschaltet) wie früher.
+  const meinAngriff = (s.requests || []).find((r) => r.kind === "attack" && r.combatantId === mine.id);
+  const angriffMoeglich = isMyTurn && s.requestsEnabled !== false;
+  const angriffZiel = meinAngriff && s.combatants.find((c) => c.id === (meinAngriff.detail || {}).targetId);
+  const angriffBtn = !angriffMoeglich ? ""
+    : meinAngriff
+      ? `<div class="angriff-wartet">⚔ Angriff auf <b>${esc(angriffZiel ? angriffZiel.name : "?")}</b> gemeldet – der Spielleiter entscheidet ⏳</div>`
+      : `<button class="primary big angriff-knopf" data-act="angriff-waehlen">⚔ Angreifen</button>`;
+  const confirmBtn = isMyTurn
+    ? (angriffMoeglich
+        ? `<button class="ghost" data-act="confirm-turn" title="Zug ohne (weiteren) Angriff beenden">Zug beenden ✓</button>`
+        : `<button class="good big" data-act="confirm-turn">Zug bestätigen ✓</button>`)
+    : "";
   // Angeschlagen + man ist dran: ein deutlicher Knopf, um sich (nach bestandener
   // Willenskraft- oder Konstitutions-Probe) zu erholen – meldet es dem SL, statt es im Zustand-Menü zu suchen.
   const mySt = mine.status || {};
@@ -3417,10 +3557,10 @@ function renderPlayer() {
 
   const myMsgs = s.messages.filter((m) => m.target === "all" || m.target === App.myPlayerId);
   const msgs = myMsgs.slice().reverse().slice(0, 8)
-    .map((m) => `<div class="msg"><div class="to">${m.sender === "mimi" ? "🐈 Mimi" : "Spielleiter"}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
+    .map((m) => `<div class="msg"><div class="to">${m.sender === "mimi" ? "🐈 Mimi" : m.sender === "kampf" ? "⚔ Kampf" : "Spielleiter"}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
 
   // Blockierendes Banner NUR für echte SL-Nachrichten (Mimis Miau ist ein Toast).
-  const gmMsgs = myMsgs.filter((m) => m.sender !== "mimi");
+  const gmMsgs = myMsgs.filter((m) => m.sender !== "mimi" && m.sender !== "kampf");
   const newest = gmMsgs[gmMsgs.length - 1];
   const msgBanner = newest && newest.ts > App.lastSeenMsgTs
     ? `<div class="msg-overlay">
@@ -3451,7 +3591,9 @@ function renderPlayer() {
       ${s.phase !== "idle" ? `<div style="margin-top:8px">${timer}</div>` : ""}
       ${angeschlagenHinweis}
       ${recoverBtn && !recoverGemeldet ? `<div class="row" style="justify-content:center; margin-top:10px">${recoverBtn}</div>` : ""}
+      ${angriffBtn ? `<div class="row" style="justify-content:center; margin-top:10px">${angriffBtn}</div>` : ""}
       <div class="row" style="justify-content:center; margin-top:10px">${confirmBtn}${holdBtn}</div>
+      ${App.angriffWahl && angriffMoeglich && !meinAngriff ? angriffWahlHtml(mine) : ""}
       ${playerQuickControls(mine)}
     </div>`;
 
@@ -3679,18 +3821,7 @@ document.addEventListener("click", (e) => {
       App.tokenPopupId = null;
     },
     "attack-request": () => {
-      const tgt = findCombatant(id);
-      const detail = { targetId: id };
-      let label = "greift " + (tgt ? tgt.name : "?") + " an";
-      // Optional (SL-Schalter): Schaden gleich mitschicken - er steht dann
-      // beim SL schon im Treffer-Feld. Leer lassen geht auch.
-      if (S.spielerSchaden) {
-        const roh = prompt("Getroffen? Wie viel Schaden hast du gewürfelt?\n(Leer lassen, wenn noch nicht gewürfelt)", "");
-        if (roh === null) return;
-        const n = parseInt(roh, 10);
-        if (!isNaN(n) && n >= 0) { detail.schaden = Math.min(99, n); label += ` · ${detail.schaden} Schaden`; }
-      }
-      gmActionOrPlayer({ type: "request", kind: "attack", detail, label });
+      if (!angriffMelden(id)) return;
       App.tokenPopupId = null; render();
     },
     "close-token-popup": () => { App.tokenPopupId = null; render(); },
@@ -3704,18 +3835,6 @@ document.addEventListener("click", (e) => {
     "treffer-wahl": () => { App.trefferWahl = !App.trefferWahl; App.trefferSteigerung = 0; App.leisteEinstellungen = false; render(); },
     "treffer-stufe": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; render(); },
     "treffer-auf": () => trefferAuf(id, e.shiftKey),
-    "req-treffer": () => {
-      // Nicht sofort treffen: in der Zielwahl kann der SL noch Steigerungen
-      // wählen. Das gemeldete Ziel ist dort golden markiert, ein mitgemeldeter
-      // Schaden steht schon im Feld.
-      const r = (S.requests || []).find((x) => x.id === id);
-      const gemeldet = r && (r.detail || {}).schaden;
-      App.trefferSchaden = gemeldet != null && gemeldet !== "" ? String(gemeldet) : "";
-      App.trefferWahl = true;
-      App.trefferSteigerung = 0;
-      App.leisteEinstellungen = false;
-      render();
-    },
     "auswahl-leeren": () => { App.auswahl.clear(); render(); },
     "auswahl-gruppe": () => {
       const name = prompt("Name der Gruppe?", "Trupp");
@@ -3839,6 +3958,21 @@ Abbrechen = Begegnung zusätzlich dazustellen.`);
       render();
     },
     "tasten-hilfe": () => { App.tastenHilfe = !App.tastenHilfe; render(); },
+    "angriff-waehlen": () => { App.angriffWahl = !App.angriffWahl; render(); },
+    "angriff-auf": () => { if (angriffMelden(id)) { App.angriffWahl = false; render(); } },
+    // SL: Angriffs-Fenster wieder hervorholen bzw. auf später schieben
+    "angriff-oeffnen": () => { App.angriffSpaeter.delete(id); render(); },
+    "angriff-spaeter": () => { App.angriffSpaeter.add(id); render(); },
+    "angriff-ergebnis": () => {
+      const r = (S.requests || []).find((x) => x.id === id);
+      if (!r) return;
+      const angreifer = findCombatant(r.combatantId);
+      const zugEnde = !!(angreifer && S.activeId === angreifer.id && App.angriffZugEnde);
+      gmAction({ type: "resolve_attack", id, ergebnis: target.dataset.ergebnis,
+        steigerungen: parseInt(target.dataset.stg, 10) || 0, zugEnde });
+      App.angriffSchaden = "";
+      toast(`⚔ Ergebnis an ${angreifer ? angreifer.name : "den Spieler"} geschickt${zugEnde ? " – Zug beendet" : ""}`);
+    },
     "hilfe-umschalten": () => {
       const sec = target.dataset.sec;
       if (App.hilfeOffen.has(sec)) App.hilfeOffen.delete(sec); else App.hilfeOffen.add(sec);
@@ -4083,6 +4217,8 @@ document.addEventListener("change", (e) => {
     gmAction({ type: "set_auto_release", on: t.checked });
   } else if (act === "toggle-conditions") {
     gmAction({ type: "set_conditions_enabled", on: t.checked });
+  } else if (act === "angriff-zugende") {
+    App.angriffZugEnde = t.checked;
   } else if (act === "toggle-kampfhilfe") {
     gmAction({ type: "set_kampfhilfe", name: t.dataset.name, on: t.checked });
   } else if (act === "toggle-requests") {

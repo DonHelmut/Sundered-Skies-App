@@ -279,7 +279,6 @@ class Game:
         self.requests_enabled: bool = True     # duerfen Spieler ueberhaupt anfragen?
         # Optionale Kampfhilfen - der SL entscheidet (Stefan: „nur mit Option"):
         self.schaden_rechnen: bool = False      # Schaden eintippen, App rechnet mit Robustheit
-        self.spieler_schaden: bool = False      # Spieler geben beim Angriff ihren Schaden an
         self.gruppen_karte: bool = False        # gleiche Statisten teilen sich eine Karte
         self.benny_to_gm: bool = True      # Hausregel: Spieler-Benny -> SL-Pool
         self.auto_release: bool = False    # naechsten Zug ohne Klick freigeben
@@ -310,7 +309,6 @@ class Game:
         self.auto_release = bool(settings.get("autoRelease", False))
         self.requests_enabled = bool(settings.get("requestsEnabled", True))
         self.schaden_rechnen = bool(settings.get("schadenRechnen", False))
-        self.spieler_schaden = bool(settings.get("spielerSchaden", False))
         self.gruppen_karte = bool(settings.get("gruppenKarte", False))
         self.benny_to_gm = bool(settings.get("bennyToGm", True))
         # Ton-Schalter des SL: gehoert zu den Einstellungen, nicht zum Kampf.
@@ -380,7 +378,6 @@ class Game:
             "soundEnabled": self.sound_enabled,
             "slAnsicht": self.sl_ansicht,
             "schadenRechnen": self.schaden_rechnen,
-            "spielerSchaden": self.spieler_schaden,
             "gruppenKarte": self.gruppen_karte,
         })
 
@@ -644,7 +641,6 @@ class Game:
             "requestsEnabled": self.requests_enabled,
             "autoRelease": self.auto_release,
             "schadenRechnen": self.schaden_rechnen,
-            "spielerSchaden": self.spieler_schaden,
             "gruppenKarte": self.gruppen_karte,
             "deckCount": len(self.deck),
             "hasSavedSession": self.resume_available,
@@ -1784,6 +1780,44 @@ class Game:
         self.messages.append(msg)
         self.messages = self.messages[-MAX_MESSAGES:]
 
+    def _do_resolve_attack(self, a: dict) -> None:
+        """SL entscheidet über einen gemeldeten Angriff eines Spielers:
+        ``ergebnis`` = "daneben" | "kein_schaden" | "treffer" (mit ``steigerungen``).
+        Der Treffer wird eingetragen, der ANGREIFER bekommt nur das Ergebnis als
+        kurze Meldung (keine Werte des Ziels), auf Wunsch endet sein Zug gleich mit."""
+        req = next((r for r in self.requests if r["id"] == a.get("id") and r.get("kind") == "attack"), None)
+        if not req:
+            return
+        self.requests = [r for r in self.requests if r["id"] != req["id"]]
+        angreifer = self._combatant(req.get("combatantId"))
+        ziel = self._combatant((req.get("detail") or {}).get("targetId"))
+        ergebnis = a.get("ergebnis")
+        # Verdeckte Gegner: auch in der Ergebnis-Meldung nur der Tarnname -
+        # Nachrichten gehen an alle Handys, der echte Name soll dort nicht landen.
+        name = (self._tarnname(ziel) if ziel.get("anon") else ziel.get("name", "?")) if ziel else "das Ziel"
+        if ergebnis == "treffer" and ziel and not (ziel.get("status") or {}).get("out"):
+            st = ziel.setdefault("status", default_status())
+            vorher_w, vorher_s = st.get("wounds", 0), st.get("shaken", False)
+            self._do_apply_hit({"id": ziel["id"], "steigerungen": a.get("steigerungen")})
+            st = ziel["status"]
+            neue_w = st.get("wounds", 0) - vorher_w
+            if st.get("out"):
+                text = f"⚔ Treffer! {name} ist ausgeschaltet ☠"
+            elif neue_w > 0:
+                text = f"⚔ Treffer! {name} erleidet {neue_w} Wunde{'n' if neue_w > 1 else ''}"
+            elif st.get("shaken") and not vorher_s:
+                text = f"⚔ Treffer! {name} ist angeschlagen"
+            else:
+                text = f"⚔ Treffer auf {name}"
+        elif ergebnis == "kein_schaden":
+            text = f"🛡 Getroffen – aber {name} steckt es weg"
+        else:
+            text = f"⚔ Daneben – {name} wurde nicht getroffen"
+        if angreifer and angreifer.get("playerId"):
+            self._do_message({"target": angreifer["playerId"], "sender": "kampf", "text": text})
+        if a.get("zugEnde") and angreifer and self.active_id == angreifer["id"]:
+            self._zug_fertig()
+
     def _do_clear_messages(self, a: dict) -> None:
         self.messages = []
 
@@ -1848,10 +1882,10 @@ class Game:
         self.save_settings()   # letzter Wert bleibt Default
 
     def _do_set_kampfhilfe(self, a: dict) -> None:
-        """Optionale Kampfhilfen an/aus (Schaden rechnen, Spieler-Schaden,
-        Gruppenkarte). Gilt dauerhaft wie die übrigen Einstellungen."""
-        feld = {"schadenRechnen": "schaden_rechnen", "spielerSchaden": "spieler_schaden",
-                "gruppenKarte": "gruppen_karte"}.get(a.get("name"))
+        """Optionale Kampfhilfen an/aus (Schaden rechnen, Gruppenkarte). Gilt
+        dauerhaft wie die übrigen Einstellungen. (Spieler geben keinen Schaden
+        mehr ein - Stefan: das sagen sie am Tisch an.)"""
+        feld = {"schadenRechnen": "schaden_rechnen", "gruppenKarte": "gruppen_karte"}.get(a.get("name"))
         if feld:
             setattr(self, feld, bool(a.get("on")))
             self.save_settings()

@@ -1953,3 +1953,41 @@ label.field.row span { display: inline; margin: 0; font-size: 0.9rem; color: var
 /* Formulare (Charakter, Gegner, Figur bearbeiten) in einem Panel: eigener
    Innenabstand - die flache SL-Optik nahm allen .panel den Rand. */
 body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8px; }
+
+/* Spieler: Angreifen */
+.angriff-knopf { min-width: 60%; }
+.angriff-wartet { padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--accent2); text-align: center; font-size: 0.92rem; }
+.angriff-wahl { margin-top: 12px; padding: 10px 12px; border: 2px solid var(--bad); border-radius: 12px;
+  background: color-mix(in srgb, var(--bad) 8%, var(--panel)); text-align: left; }
+.aw-zone { margin-top: 8px; }
+.aw-ziele { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.aw-ziel { padding: 10px 14px; font-size: 1rem; border-left: 4px solid var(--bad); }
+.kampf-toast { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); z-index: 200; max-width: 90vw;
+  padding: 14px 20px; border-radius: 14px; background: var(--panel); border: 2px solid var(--gold);
+  color: var(--text); font-size: 1.15rem; font-weight: 800; text-align: center;
+  box-shadow: 0 12px 34px rgba(0,0,0,0.45); animation: kampfToast 5.2s ease both; }
+@keyframes kampfToast { 0% { opacity: 0; transform: translate(-50%, -10px) scale(0.96); } 6%, 88% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -6px); } }
+
+/* SL: Angriffs-Fenster */
+.angriff-popup-hg { position: fixed; inset: 0; z-index: 110; background: rgba(0,0,0,0.35); display: flex;
+  align-items: flex-start; justify-content: center; padding: 70px 16px 16px; }
+.angriff-popup { width: min(560px, 100%); padding: 16px 18px; border: 2px solid var(--bad); box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
+.ap-titel { font-weight: 800; font-size: 1.05rem; color: var(--bad); margin-bottom: 6px; }
+.ap-wer { font-size: 1.1rem; }
+.ap-ziel { color: var(--foe-name); }
+.ap-infos { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.ap-schadenfeld { margin: 2px 0 8px; }
+.ap-vorschlag { margin: 4px 0 8px; font-weight: 700; color: var(--accent); }
+.ap-knoepfe { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-knopf { padding: 9px 12px; }
+.ap-knopf small { color: var(--muted); margin-left: 3px; }
+.ap-knopf.vorschlag { box-shadow: 0 0 0 3px var(--gold); font-weight: 800; }
+
+/* Zielwahl am Handy: Reichweite als Überschrift, Zustand + Standort am Ziel */
+.aw-reichweite { font-weight: 800; font-size: 0.85rem; color: var(--accent); margin-top: 4px; }
+.aw-ziel { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; min-width: 120px; }
+.aw-ziel .aw-name { font-weight: 700; }
+.aw-ziel .aw-zustand { display: inline-flex; gap: 6px; font-size: 0.9rem; min-height: 1.1em; }
+.aw-ziel .aw-wunden { color: var(--bad); font-weight: 700; }
+.aw-ziel .aw-ort { font-size: 0.72rem; color: var(--muted); }
+.aw-ziel.angeschlagen { border-color: var(--warn); }

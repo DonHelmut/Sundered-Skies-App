@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zonen-Ideen (Lab)</title>
+  <link rel="stylesheet" href="/static/style.css?lab=4" />
+  <style>
+    /* LAB: Ideen auf Basis von Stefans Zonen-Logik. Nicht im Paket (_lab*). */
+    body { padding: 16px; }
+    .raster { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1400px; margin: 0 auto; }
+    .var { padding: 12px 14px; }
+    .var.breit { grid-column: 1 / -1; }
+    .var h2 { margin: 0 0 4px; font-size: 1.05rem; }
+    .erkl { font-size: 0.82rem; color: var(--muted); margin-bottom: 8px; }
+    .tags { position: absolute; top: -9px; right: -4px; display: flex; gap: 2px; }
+    .tagx { font-size: 0.6rem; font-weight: 800; padding: 0 4px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); }
+    .tagx.dk { color: #3d6fb0; border-color: #3d6fb0; } .tagx.ho { color: #8a5a1e; border-color: #8a5a1e; }
+    .zone-token { position: relative; overflow: visible; }
+    .liste { font-size: 0.82rem; margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 6px; }
+    .liste div { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+    .liste b.sum { color: var(--bad); }
+    .schalter { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 8px; }
+    .schalter span { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 0.8rem; font-weight: 700; }
+    .schalter span.an { background: var(--accent2); color: var(--on-accent); border-color: var(--accent2); }
+    .zones-conv { max-width: 100%; }
+  </style>
+</head>
+<body class="theme-pergament">
+  <div class="raster" id="raster"></div>
+  <script src="/static/zones.js?lab=4"></script>
+  <script>
+    const F = [
+      { id: "k", name: "Kumpel", kind: "player", zone: 1 },
+      { id: "t", name: "Testud", kind: "player", zone: 2, status: { shaken: true } },
+      { id: "g", name: "Korgo", kind: "player", zone: 0 },
+      { id: "v", name: "Gardist", kind: "npc", ally: true, zone: 2 },
+      { id: "o1", name: "Ork 1", kind: "npc", zone: 0 }, { id: "o2", name: "Ork 2", kind: "npc", zone: 0, status: { shaken: true } },
+      { id: "o4", name: "Ork 4", kind: "npc", zone: 0 },
+      { id: "o3", name: "Ork 3", kind: "npc", zone: 2 },
+      { id: "b", name: "Ork-Boss", kind: "npc", zone: 3, isWildCard: true },
+      { id: "s", name: "Scharfschütze", kind: "npc", zone: 3 },
+    ];
+    const feind = (c) => c.kind === "npc" && !c.ally;
+    const kurz = (n) => { const p = n.split(/\s+/); const l = p[p.length - 1]; return /^\d+$/.test(l) ? p[0][0] + l : (p[0][0] + (p[1] ? p[1][0] : "")).toUpperCase(); };
+    const RW = ["⚔ Nahkampf", "Nah ±0", "Fern −2", "Weit −4", "außer Reichweite"];
+    const RWMOD = [0, 0, -2, -4, null];
+
+    // ===== 1 · Arena: deine Zonen als Ringe um das Getümmel =====
+    function arena() {
+      const R = [78, 122, 162, 200, 234];
+      const farbe = ["#b8860b", "#2f8a4d", "#c08a1e", "#c0582a", "#8a8174"];
+      let s = `<svg viewBox="0 0 500 500" width="100%" style="max-width:560px">`;
+      for (let i = 4; i >= 0; i--) s += `<circle cx="250" cy="250" r="${R[i]}" fill="${farbe[i]}" fill-opacity="${i ? 0.1 : 0.22}" stroke="${farbe[i]}" stroke-dasharray="${i ? "5 4" : ""}"/>`;
+      s += `<line x1="10" y1="250" x2="490" y2="250" stroke="var(--line)" stroke-dasharray="2 5"/>`;
+      s += `<text x="250" y="18" text-anchor="middle" font-size="12" font-weight="800" fill="var(--bad)">▲ GEGNER</text>`;
+      s += `<text x="250" y="494" text-anchor="middle" font-size="12" font-weight="800" fill="var(--accent)">▼ WIR</text>`;
+      ["⚔", "Nah ±0", "Fern −2", "Weit −4", "außer"].forEach((t, i) => { if (!i) return; const m = (R[i] + R[i - 1]) / 2;
+        s += `<text x="${250 + m}" y="254" text-anchor="middle" font-size="10" font-weight="800" fill="${farbe[i]}">${t}</text>`; });
+      const punkt = (x, y, c) => {
+        const f = feind(c), fill = f ? "#4b2620" : c.ally ? "#1f4a37" : "#2a3550";
+        const ich = c.id === "k";
+        return `<circle cx="${x}" cy="${y}" r="13" fill="${fill}" stroke="${ich ? "#2b86ff" : f ? "var(--bad)" : "var(--accent)"}" stroke-width="${ich ? 4 : 2}"/>
+          <text x="${x}" y="${y + 3.5}" text-anchor="middle" font-size="9" font-weight="800" fill="#f6ecd2">${kurz(c.name)}</text>
+          <text x="${x}" y="${y + 25}" text-anchor="middle" font-size="9.5" font-weight="700" fill="var(--text)">${c.name}${(c.status || {}).shaken ? " 😵" : ""}</text>`;
+      };
+      for (let z = 0; z < 5; z++) {
+        ["o", "u"].forEach((seite) => {
+          const liste = F.filter((c) => c.zone === z && (seite === "o" ? feind(c) : !feind(c)));
+          const r = z === 0 ? 46 : (R[z] + R[z - 1]) / 2;
+          liste.forEach((c, i) => {
+            const w = Math.PI * (0.12 + 0.76 * (i + 1) / (liste.length + 1));
+            const y = seite === "o" ? 250 - Math.sin(w) * r : 250 + Math.sin(w) * r;
+            s += punkt(250 - Math.cos(w) * r, y, c);
+          });
+        });
+      }
+      return s + `</svg>`;
+    }
+
+    // ===== 2 · Deckung & Höhe: kleine Marken, Abzüge automatisch =====
+    const deckung = { o3: "dk2", s: "dk4", b: "ho" };
+    function brettMitMarken() {
+      const div = document.createElement("div");
+      div.innerHTML = Zones.renderTarget(F, { interactive: false });
+      Object.entries(deckung).forEach(([id, art]) => {
+        const t = div.querySelector(`[data-id="${id}"]`);
+        if (!t) return;
+        const tag = art === "dk2" ? `<span class="tagx dk">🛡 −2</span>` : art === "dk4" ? `<span class="tagx dk">🛡 −4</span>` : `<span class="tagx ho">⛰ erhöht</span>`;
+        t.insertAdjacentHTML("beforeend", `<span class="tags">${tag}</span>`);
+      });
+      return div.innerHTML;
+    }
+    function angriffsListe() {
+      const ich = F[0];
+      return `<div class="liste"><b>Kumpel greift an – die App rechnet mit:</b>${F.filter(feind).map((c) => {
+        const rw = Math.max(ich.zone, c.zone);
+        const dk = deckung[c.id] === "dk2" ? -2 : deckung[c.id] === "dk4" ? -4 : 0;
+        const teile = [RW[rw]]; if (dk) teile.push(`Deckung ${dk}`); if (deckung[c.id] === "ho") teile.push("erhöht (kein Abzug, gut zu wissen)");
+        const summe = rw === 0 ? "Kämpfen" : RWMOD[rw] === null ? "✗" : `${RWMOD[rw] + dk >= 0 ? "±0" : RWMOD[rw] + dk}`;
+        return `<div><span>${c.name}: ${teile.join(" · ")}</span><b class="sum">${summe}</b></div>`;
+      }).join("")}</div>`;
+    }
+
+    // ===== 3 · Luftschiff-Modus: zwei Schiffe, dazwischen die Entfernung =====
+    function schiffe() {
+      let s = `<svg viewBox="0 0 520 420" width="100%" style="max-width:600px">`;
+      const schiff = (y, farbe, name, decks, oben) => {
+        let g = `<path d="M40 ${y} L480 ${y} L${oben ? 455 : 455} ${y + (oben ? -70 : 70)} L65 ${y + (oben ? -70 : 70)} Z" fill="${farbe}" fill-opacity="0.18" stroke="${farbe}" stroke-width="2"/>`;
+        g += `<text x="260" y="${oben ? y - 76 : y + 86}" text-anchor="middle" font-size="12" font-weight="800" fill="${farbe}">${name}</text>`;
+        decks.forEach((d, i) => { const x = 70 + i * 130;
+          g += `<rect x="${x}" y="${oben ? y - 60 : y + 10}" width="120" height="50" rx="6" fill="var(--panel)" stroke="${farbe}" stroke-dasharray="4 3"/>
+            <text x="${x + 60}" y="${oben ? y - 46 : y + 24}" text-anchor="middle" font-size="10" font-weight="800" fill="${farbe}">${d[0]}</text>
+            <text x="${x + 60}" y="${oben ? y - 22 : y + 46}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--text)">${d[1]}</text>`; });
+        return g;
+      };
+      s += schiff(120, "#a8432c", "⚓ „Rostzahn“ (Orks)", [["Bug", "Ork 1, Ork 2"], ["Mitteldeck", "Ork-Boss"], ["Takelage", "Scharfschütze"]], true);
+      s += schiff(300, "#2a5d8f", "⛵ „Sturmvogel“ (wir)", [["Bug", "Korgo"], ["Mitteldeck", "Kumpel, Testud"], ["Achterdeck", "Gardist"]], false);
+      s += `<rect x="140" y="180" width="240" height="60" rx="30" fill="var(--panel2)" stroke="var(--gold)" stroke-width="2"/>
+        <text x="260" y="204" text-anchor="middle" font-size="11" font-weight="800" fill="var(--text)">Schiffsabstand: 🏹 FERN (−2)</text>
+        <text x="260" y="224" text-anchor="middle" font-size="10" fill="var(--muted)">◀ näher   ·   ⚓ längsseits = Entern   ·   weiter ▶</text>`;
+      return s + `</svg>`;
+    }
+
+    const V = [
+      { titel: "1 · Arena – deine Zonen als Ringe um das Getümmel",
+        erkl: "Genau deine Logik, nur rund: in der Mitte das Getümmel, außen herum Nah / Fern / Weit / außer Reichweite – Gegner oben, wir unten. Weil jeder Ring „Abstand zur Mitte“ ist, sieht man die Reichweite sofort: es gilt der äußere der beiden Ringe. Schön für den TV/Beamer, auch als Übersicht am Handy. Mit Bündeln („Ork ×10“) auch im Gedränge lesbar.",
+        html: arena() },
+      { titel: "2 · Deckung & Höhe – kleine Marken an den Figuren",
+        erkl: "Dein Board bleibt, der SL gibt Figuren per ⋯ eine Marke: 🛡 leichte/mittlere Deckung (−2/−4), ⛰ erhöht. Beim Angreifen rechnet die App Reichweite + Deckung zusammen – der Spieler sieht nur „Ork 3: −4“, der SL alles.",
+        html: brettMitMarken() + angriffsListe() },
+      { breit: true, titel: "3 · Luftschiff-Modus (Sundered Skies!) – zwei Schiffe, dazwischen der Abstand",
+        erkl: "Für Schiffskämpfe: oben das Gegnerschiff, unten unseres, jeweils mit benannten Decks (Bug, Mitteldeck, Takelage …). Zwischen den Schiffen EIN Regler „Schiffsabstand“ – längsseits = Entern (Nahkampf über die Reling), sonst gilt der Abstand für jeden Schuss von Schiff zu Schiff. An Bord gilt deine Zonen-Logik weiter (gleiches Deck = Nahkampf). Der SL schiebt statt 20 Figuren nur einen Regler.",
+        html: schiffe() },
+    ];
+    document.getElementById("raster").innerHTML = V.map((v) =>
+      `<div class="panel var${v.breit ? " breit" : ""}"><h2>${v.titel}</h2><div class="erkl">${v.erkl}</div>${v.html}</div>`).join("");
+  </script>
+</body>
+</html>

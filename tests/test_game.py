@@ -191,10 +191,12 @@ def test_kampfwerte_von_vorlage_bis_begegnung(fresh_game):
 
 def test_kampfhilfen_schalter_bleiben(fresh_game):
     assert fresh_game.snapshot()["schadenRechnen"] is False
-    for name in ("schadenRechnen", "spielerSchaden", "gruppenKarte"):
+    for name in ("schadenRechnen", "gruppenKarte"):
         fresh_game.apply({"type": "set_kampfhilfe", "name": name, "on": True})
     snap = fresh_game.snapshot()
-    assert snap["schadenRechnen"] and snap["spielerSchaden"] and snap["gruppenKarte"]
+    assert snap["schadenRechnen"] and snap["gruppenKarte"]
+    fresh_game.apply({"type": "set_kampfhilfe", "name": "spielerSchaden", "on": True})    # gibt es nicht mehr
+    assert "spielerSchaden" not in fresh_game.snapshot()
     fresh_game.apply({"type": "set_kampfhilfe", "name": "unsinn", "on": True})   # ignoriert
 
 
@@ -1390,3 +1392,62 @@ def test_sl_ansicht_verwirft_fortsetzen_nicht(fresh_game):
     assert neu.resume_available
     neu.apply({"type": "set_sl_ansicht", "werte": {"skin": "dark"}})
     assert neu.resume_available                                     # Fortsetzen geht noch
+
+
+# --- Angriff der Spieler: SL entscheidet, Spieler sieht nur das Ergebnis -----
+
+def _angriff_melden(g, angreifer, ziel):
+    detail = {"targetId": ziel["id"]}
+    g.apply({"type": "request", "combatantId": angreifer["id"], "kind": "attack", "detail": detail,
+             "label": "greift an"})
+    return g.requests[-1]
+
+
+def _held(g):
+    g.apply({"type": "add_npc", "name": "Held", "isWildCard": True, "ally": True})
+    h = g.combatants[-1]
+    h["playerId"] = "plr-test"      # wie ein Spieler (bekommt die Meldung)
+    return h
+
+
+def test_angriff_treffer_mit_steigerung_und_zugende(fresh_game):
+    g = fresh_game
+    held = _held(g)
+    ork = _add_npc(g, "Ork", wildcard=True)
+    g.apply({"type": "new_round"})
+    g.active_id = held["id"]
+    req = _angriff_melden(g, held, ork)
+    g.apply({"type": "resolve_attack", "id": req["id"], "ergebnis": "treffer", "steigerungen": 1, "zugEnde": True})
+    st = g._combatant(ork["id"])["status"]
+    assert st["shaken"] is True and st["wounds"] == 1
+    assert not g.requests
+    msg = g.messages[-1]
+    assert msg["target"] == "plr-test" and msg["sender"] == "kampf"
+    assert "Ork" in msg["text"] and "1 Wunde" in msg["text"]
+    assert g._combatant(held["id"])["done"] is True and g.active_id != held["id"]
+
+
+def test_angriff_daneben_und_verdeckter_name(fresh_game):
+    g = fresh_game
+    held = _held(g)
+    ork = _add_npc(g, "Geheimer Boss")
+    g.apply({"type": "set_anon", "id": ork["id"], "on": True})
+    req = _angriff_melden(g, held, ork)
+    g.apply({"type": "resolve_attack", "id": req["id"], "ergebnis": "daneben"})
+    st = g._combatant(ork["id"])["status"]
+    assert st["shaken"] is False and st["wounds"] == 0
+    assert "Daneben" in g.messages[-1]["text"]
+    assert "Geheimer Boss" not in g.messages[-1]["text"]     # nur Tarnname
+
+
+def test_angriff_kein_schaden_und_statist_raus(fresh_game):
+    g = fresh_game
+    held = _held(g)
+    a = _add_npc(g, "Ork")
+    req = _angriff_melden(g, held, a)
+    g.apply({"type": "resolve_attack", "id": req["id"], "ergebnis": "kein_schaden"})
+    assert g._combatant(a["id"])["status"]["shaken"] is False
+    req = _angriff_melden(g, held, a)
+    g.apply({"type": "resolve_attack", "id": req["id"], "ergebnis": "treffer", "steigerungen": 3})
+    assert g._combatant(a["id"])["status"]["out"] is True
+    assert "ausgeschaltet" in g.messages[-1]["text"]

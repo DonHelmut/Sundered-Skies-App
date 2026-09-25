@@ -47,6 +47,24 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.1 (25.09.2026): Spieler greifen selbst an
+
+- **Handy „⚔ Angreifen"** statt „Zug bestätigen" (der bleibt klein als
+  „Zug beenden"): Spieler wählt nur das ZIEL – Würfe/Schaden sagt er am Tisch an
+  (Stefan). Zielwahl nach **Reichweite** von nah nach fern (`reichweite()` = die
+  WEITERE der beiden Zonen, Stefans Logik), mit 😵/Wunden und Standort, verdeckte
+  Gegner mit Tarnnamen. Ohne Anfragen-System (abgeschaltet) wie früher.
+- **SL-Popup** (`angriffPopupHtml`): Daneben · Kein Schaden · Erfolg · +1/+2/+3,
+  Häkchen „Zug danach beenden", „Später" (bleibt unter Anfragen, „⚔ Entscheiden").
+  Mit Kampfhilfe „Schaden eintippen" ein Feld „Angesagter Schaden" + Vorschlag.
+- Server `resolve_attack`: trägt ein, schickt dem Angreifer NUR das Ergebnis als
+  Nachricht `sender: "kampf"` (Tarnname bei verdeckten Gegnern), beendet auf Wunsch
+  den Zug. Handy zeigt das als großen Toast (`showKampfToast`), nicht blockierend;
+  im SL-Verlauf ausgeblendet.
+- Kampfhilfe „Spieler geben Schaden an" wieder entfernt (Stefan: nur Ziel melden).
+- Versionen: nach 1.9 kommt 1.10, 1.11 … (kein Sprung auf 2.0).
+- Gemerkt, nicht gebaut: **Arena** (Zonen als Ringe) – Vorschau `_lab_ideen.html`.
+
 ## 1.0 (25.09.2026): erstes „richtiges" Release – SL-Pult
 
 Ab hier Versionsnummern 1.0, 1.1, … (bis v101 fortlaufend gezählt; Tags `v1.0` usw.).
@@ -326,8 +344,8 @@ Halten nicht scrollen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.0** (veröffentlicht; ab jetzt 1.1, 1.2 …).
-      Nächstes Release also 1.0 → 1.1 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.1** (veröffentlicht; weiter 1.2 … 1.9, 1.10 …).
+      Nächstes Release also 1.1 → 1.2 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.

@@ -185,15 +185,23 @@ Mehrere gleichnamige Gegner werden automatisch **durchnummeriert** („Ork 1",
 Unter **⚙ Kampf-Einstellungen** (untere Leiste), standardmäßig **aus** – der SL
 entscheidet:
 
-- **🎯 Schaden eintippen:** In der Treffer-Auswahl gibt es ein Schadensfeld. Die
-  App vergleicht mit der Robustheit des Ziels (Vorlage bzw. Charakterbogen):
-  darunter kein Schaden, ab Robustheit angeschlagen, je volle 4 darüber eine
-  Steigerung.
-- **⚔ Spieler geben beim Angriff ihren Schaden an:** Beim Melden eines Angriffs
-  fragt das Handy nach dem Schadenswurf; er steht dann schon in der Treffer-Auswahl.
+- **🎯 Schaden eintippen:** In der Treffer-Auswahl und im Angriffs-Fenster gibt
+  es ein Schadensfeld für den angesagten Wurf. Die App vergleicht mit der
+  Robustheit des Ziels (Vorlage bzw. Charakterbogen): darunter kein Schaden, ab
+  Robustheit angeschlagen, je volle 4 darüber eine Steigerung.
 - **🃏 Gleiche Statisten teilen sich eine Karte** (Savage-Worlds-Regel): alle
   „Ork 1…11" handeln gemeinsam auf einer Karte und stehen in der SL-Liste als
   eine aufklappbare Zeile „Ork ×11". Wild Cards bekommen immer eine eigene Karte.
+
+## Angriffe der Spieler
+
+Ist ein Spieler dran, heißt sein Hauptknopf **„⚔ Angreifen"**: Er wählt nur das
+Ziel – die Gegner stehen nach **Reichweite** sortiert (es zählt die weitere der
+beiden Zonen, Nahkampf nur, wenn beide in der Mitte stehen), mit 😵/Wunden und
+Standort. Würfe und Schaden sagt er am Tisch an. Beim SL öffnet sich ein Fenster:
+**Daneben · Kein Schaden · Erfolg · +1/+2/+3 Steigerungen**, auf Wunsch endet der
+Zug gleich mit. Der Spieler sieht nur das Ergebnis („⚔ Treffer! Ork 6 ist
+angeschlagen"), keine Werte des Gegners.
 
 ## Tastenkürzel (SL)
 
