@@ -119,9 +119,18 @@ damit auf einen Blick klar ist, wer zusammengehört. Ausgeschaltete und pausiert
 Mitglieder bleiben stehen. Eine Gruppe aufzulösen entfernt **nur** die Gruppe –
 die Figuren selbst bleiben im Kampf.
 
+Bedient wird das direkt **unter dem Zonen-Board**: kleine Gruppenfelder zum
+Draufziehen, „ohne Gruppe" zum Herauslösen und **„+ Neue Gruppe"** (Figur oder
+Strg-Auswahl draufziehen = neue Gruppe mit ihnen). Ein Klick auf ein Gruppenfeld
+öffnet Umbenennen / ganze Gruppe bewegen / Auflösen samt Mitgliederliste.
+
 ## Bibliotheken & Begegnungen
 
-Dauerhaft gespeichert in `data/`, unabhängig vom laufenden Kampf:
+Dauerhaft gespeichert in `data/`, unabhängig vom laufenden Kampf. In der
+SL-Ansicht stecken alle vier in **einem** Panel „Bibliothek" mit Reitern
+(Charaktere · Gegner · Verbündete · Begegnungen). Gegner- und Verbündeten-Vorlagen
+können **Parade, Robustheit und Panzer** tragen – die stehen dann in der
+Treffer-Auswahl, und mit der Kampfhilfe „Schaden eintippen" rechnet die App damit.
 
 - **🐉 Bestiarium** – Gegner-Vorlagen samt Bild. Einmal anlegen, immer wieder
   einsetzen.
@@ -150,16 +159,47 @@ Mehrere gleichnamige Gegner werden automatisch **durchnummeriert** („Ork 1",
   Karte + Badge; Wunden zeigen den Abzug (−1/−2/−3).
 - **Wild Card vs. Statist:** Wild Cards vertragen **3** Wunden (bei der 4. raus). Bei welcher Wunde Statisten raus sind (1., 2. oder 3.), stellt der SL unter ⚙ ein – Standard ist die 3. Wild Card kann der SL auch jedem Gegner geben.
   Eine Wunde darüber heißt **ausgeschaltet** (sofern Auto-K.O. eingeschaltet ist).
-- **Treffer ☠ / Heilung ✚ mit einem Klick:** Treffer macht *angeschlagen*, beim
-  nächsten Mal **+1 Wunde**. Heilung geht denselben Weg rückwärts (erst wieder
-  wach, dann Wunden abbauen, zuletzt „Angeschlagen" aufheben).
-- **Erholung** von „Angeschlagen" – entweder frei (bestandene Willenskraft-Probe
-  am Tisch) oder **per Benny**.
+- **🎯 Treffer** (untere Leiste, Taste **Z**): Wer dran ist, greift an – der SL
+  tippt nur das Ziel an, in der Auswahl **oder direkt im Zonen-Board**. Stärke
+  wählbar: **Erfolg** (angeschlagen, war schon angeschlagen: +1 Wunde) oder
+  **+1/+2/+3 Steigerungen** (angeschlagen + je eine Wunde). Tasten 0–3 wählen die
+  Stärke, Shift-Klick lässt die Auswahl für mehrere Ziele offen.
+- **Heilung** geht denselben Weg rückwärts (erst wieder wach, dann Wunden abbauen,
+  zuletzt „Angeschlagen" aufheben) – für den Aktiven in der Leiste bzw. Taste H,
+  für alle anderen im ⋯-Feld der Zeile.
+- **Zustands-Spalte** in der SL-Reihenfolge: 😵 angeschlagen, Wunden als Punkte
+  (● Wunde, ○ was die Figur noch aushält), ☠ raus – immer an derselben Stelle.
+- **Erholung** von „Angeschlagen" – entweder frei (bestandene Probe am Tisch,
+  Willenskraft oder Konstitution) oder **per Benny**. Steht für den Aktiven direkt
+  in der unteren Leiste; am Handy bekommt ein angeschlagener Spieler bei seinem
+  Zug einen deutlichen Hinweis mit Knöpfen. Gegner-Wild-Cards zahlen den Benny aus
+  dem **SL-Pool**.
 - **Bennies** (nur Wild Cards): SL stellt den Startwert ein, **Glück/Großes
   Glück** geben +1/+2. Jeder kann +/− (nie unter 0). **Auffrischen** setzt alle
   Wild Cards auf ihren Startwert (für Sitzungsbeginn). Extra: **SL-Benny-Pool**.
 - **Ausgeschaltete aufräumen** entfernt alle K.O.-Gegner auf einmal –
   Verbündete und Spielerfiguren bleiben stehen, auch wenn sie K.O. sind.
+
+## Optionale Kampfhilfen
+
+Unter **⚙ Kampf-Einstellungen** (untere Leiste), standardmäßig **aus** – der SL
+entscheidet:
+
+- **🎯 Schaden eintippen:** In der Treffer-Auswahl gibt es ein Schadensfeld. Die
+  App vergleicht mit der Robustheit des Ziels (Vorlage bzw. Charakterbogen):
+  darunter kein Schaden, ab Robustheit angeschlagen, je volle 4 darüber eine
+  Steigerung.
+- **⚔ Spieler geben beim Angriff ihren Schaden an:** Beim Melden eines Angriffs
+  fragt das Handy nach dem Schadenswurf; er steht dann schon in der Treffer-Auswahl.
+- **🃏 Gleiche Statisten teilen sich eine Karte** (Savage-Worlds-Regel): alle
+  „Ork 1…11" handeln gemeinsam auf einer Karte und stehen in der SL-Liste als
+  eine aufklappbare Zeile „Ork ×11". Wild Cards bekommen immer eine eigene Karte.
+
+## Tastenkürzel (SL)
+
+**?** zeigt alle: Leertaste/Enter freigeben bzw. bestätigen (am Rundenende: neue
+Runde), **W** weiter, **Z** Ziel treffen, **0–3** Stärke, **T/H** Treffer/Heilung
+für den Aktiven, **Strg-Klick** sammeln, **Esc** schließen.
 
 ## Spieler-Anfragen
 
@@ -205,6 +245,8 @@ abschalten** – dann sehen die Spieler den Knopf gar nicht erst.
   übernommen und was verworfen wurde. Eine kaputte oder fremde Datei füllt die
   Liste also nicht mit Müll.
 - **Bilder aufräumen** löscht hochgeladene Bilder, die niemand mehr benutzt.
+- Export, Import, Bilder aufräumen und der TV-Modus stecken in der SL-Ansicht im
+  Menü **☰ Mehr** oben rechts.
 
 ## Wenn das Netzwerk zickt
 

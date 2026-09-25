@@ -138,13 +138,108 @@ def test_recover_free_clears_shaken_only(fresh_game):
 
 
 def test_recover_with_benny_spends_one(fresh_game):
-    c = _add_npc(fresh_game, "Held", wildcard=True)
-    cid = c["id"]
+    """Verbündete (und Spieler) zahlen aus dem eigenen Vorrat."""
+    fresh_game.apply({"type": "add_npc", "name": "Held", "isWildCard": True, "ally": True})
+    cid = fresh_game.combatants[-1]["id"]
     fresh_game.apply({"type": "set_status", "id": cid, "shaken": True})
     b0 = fresh_game._combatant(cid)["bennies"]
     fresh_game.apply({"type": "recover", "id": cid, "benny": True})
     assert fresh_game._combatant(cid)["status"]["shaken"] is False
     assert fresh_game._combatant(cid)["bennies"] == b0 - 1
+
+
+def test_recover_gegner_wildcard_zahlt_aus_sl_pool(fresh_game):
+    c = _add_npc(fresh_game, "Boss", wildcard=True)
+    cid = c["id"]
+    fresh_game.apply({"type": "set_status", "id": cid, "shaken": True})
+    b0 = fresh_game._combatant(cid)["bennies"]
+    fresh_game.sl_bennies = 2
+    fresh_game.apply({"type": "recover", "id": cid, "benny": True})
+    assert fresh_game._combatant(cid)["status"]["shaken"] is False
+    assert fresh_game.sl_bennies == 1 and fresh_game._combatant(cid)["bennies"] == b0
+
+
+def test_recover_benny_nur_mit_vorrat_und_nur_wildcards(fresh_game):
+    boss = _add_npc(fresh_game, "Boss", wildcard=True)
+    fresh_game.apply({"type": "set_status", "id": boss["id"], "shaken": True})
+    fresh_game.sl_bennies = 0
+    fresh_game.apply({"type": "recover", "id": boss["id"], "benny": True})
+    assert fresh_game._combatant(boss["id"])["status"]["shaken"] is True    # Pool leer
+    ork = _add_npc(fresh_game, "Ork")
+    fresh_game.apply({"type": "set_status", "id": ork["id"], "shaken": True})
+    fresh_game.sl_bennies = 3
+    fresh_game.apply({"type": "recover", "id": ork["id"], "benny": True})
+    assert fresh_game._combatant(ork["id"])["status"]["shaken"] is True     # Statist: keine Bennies
+    assert fresh_game.sl_bennies == 3
+    fresh_game.apply({"type": "recover", "id": ork["id"]})                   # Willenskraft geschafft
+    assert fresh_game._combatant(ork["id"])["status"]["shaken"] is False
+
+
+def test_kampfwerte_von_vorlage_bis_begegnung(fresh_game):
+    fresh_game.apply({"type": "bestiary_upsert", "name": "Ork", "parade": "6", "robustheit": 8, "panzer": "2"})
+    vorlage = fresh_game.bestiary[-1]
+    assert (vorlage["parade"], vorlage["robustheit"], vorlage["panzer"]) == (6, 8, 2)
+    fresh_game.apply({"type": "add_npc_from_bestiary", "id": vorlage["id"], "count": 2})
+    ork = fresh_game.combatants[-1]
+    assert (ork["parade"], ork["robustheit"], ork["panzer"]) == (6, 8, 2)
+    fresh_game.apply({"type": "save_encounter", "name": "Hinterhalt"})
+    assert fresh_game.encounters[-1]["members"][0]["robustheit"] == 8
+    fresh_game.apply({"type": "edit_combatant", "id": ork["id"], "robustheit": "", "parade": "quatsch"})
+    assert fresh_game._combatant(ork["id"])["robustheit"] is None
+    assert fresh_game._combatant(ork["id"])["parade"] is None
+
+
+def test_kampfhilfen_schalter_bleiben(fresh_game):
+    assert fresh_game.snapshot()["schadenRechnen"] is False
+    for name in ("schadenRechnen", "spielerSchaden", "gruppenKarte"):
+        fresh_game.apply({"type": "set_kampfhilfe", "name": name, "on": True})
+    snap = fresh_game.snapshot()
+    assert snap["schadenRechnen"] and snap["spielerSchaden"] and snap["gruppenKarte"]
+    fresh_game.apply({"type": "set_kampfhilfe", "name": "unsinn", "on": True})   # ignoriert
+
+
+def test_gruppenkarte_gleiche_statisten_eine_karte(fresh_game):
+    fresh_game.apply({"type": "set_kampfhilfe", "name": "gruppenKarte", "on": True})
+    for _ in range(3):
+        _add_npc(fresh_game, "Ork")
+    boss = _add_npc(fresh_game, "Ork-Boss", wildcard=True)
+    fresh_game.apply({"type": "new_round"})
+    orks = [c for c in fresh_game.combatants if c["name"].startswith("Ork ") or c["name"] == "Ork"]
+    assert len(orks) == 3
+    assert len({c["card"]["id"] for c in orks}) == 1                 # eine Karte für alle
+    assert fresh_game._combatant(boss["id"])["card"]["id"] != orks[0]["card"]["id"]
+    # In der Reihenfolge direkt hintereinander
+    pos = [fresh_game.combatants.index(c) for c in orks]
+    assert pos == list(range(pos[0], pos[0] + 3))
+    # Zug beenden: die ganze Gruppe ist fertig
+    fresh_game.active_id = orks[0]["id"]
+    fresh_game.apply({"type": "confirm_turn"})
+    assert all(fresh_game._combatant(c["id"])["done"] for c in orks)
+    assert fresh_game.active_id not in {c["id"] for c in orks}
+    # Neue Runde: die Karte liegt nur EINMAL auf dem Ablagestapel
+    alle = len(fresh_game.deck) + len(fresh_game.discard) + sum(1 for c in fresh_game.combatants if c.get("card") and not c.get("karteGeteilt"))
+    fresh_game.apply({"type": "new_round"})
+    alle2 = len(fresh_game.deck) + len(fresh_game.discard) + sum(1 for c in fresh_game.combatants if c.get("card") and not c.get("karteGeteilt"))
+    assert alle == alle2 == 54
+
+
+def test_gruppenkarte_aus_jeder_eigene_karte(fresh_game):
+    for _ in range(3):
+        _add_npc(fresh_game, "Ork")
+    fresh_game.apply({"type": "new_round"})
+    assert len({c["card"]["id"] for c in fresh_game.combatants}) == 3
+
+
+def test_gruppenkarte_neu_ziehen_loest_aus_gruppe(fresh_game):
+    fresh_game.apply({"type": "set_kampfhilfe", "name": "gruppenKarte", "on": True})
+    for _ in range(3):
+        _add_npc(fresh_game, "Ork")
+    fresh_game.apply({"type": "new_round"})
+    zweiter = [c for c in fresh_game.combatants if c.get("karteGeteilt")][0]
+    fresh_game.apply({"type": "redraw", "id": zweiter["id"]})
+    c = fresh_game._combatant(zweiter["id"])
+    assert c["karteGeteilt"] is False
+    assert len(fresh_game.kartengruppe(c)) == 1
 
 
 def test_note_set_via_edit(fresh_game):
@@ -500,6 +595,30 @@ def test_apply_hit_chain_for_extra(fresh_game):
     fresh_game.apply({"type": "apply_hit", "id": cid})          # 3. -> ausgeschaltet
     st = fresh_game._combatant(cid)["status"]
     assert st["wounds"] == 2 and st["out"] is True
+
+
+def test_apply_hit_mit_steigerungen(fresh_game):
+    """Steigerung beim Schaden: angeschlagen UND je Steigerung eine Wunde -
+    auch wenn die Figur vorher unversehrt war."""
+    c = _add_npc(fresh_game, "Boss", wildcard=True)
+    cid = c["id"]
+    fresh_game.apply({"type": "apply_hit", "id": cid, "steigerungen": 1})
+    st = fresh_game._combatant(cid)["status"]
+    assert st["shaken"] is True and st["wounds"] == 1
+    fresh_game.apply({"type": "apply_hit", "id": cid, "steigerungen": 2})
+    st = fresh_game._combatant(cid)["status"]
+    assert st["wounds"] == 3 and st["out"] is False     # Wild Card hält 3 aus
+
+
+def test_apply_hit_steigerungen_hausregel_und_unsinn(fresh_game):
+    c = _add_npc(fresh_game, "Statist", wildcard=False)
+    cid = c["id"]
+    fresh_game.apply({"type": "apply_hit", "id": cid, "steigerungen": 3})   # 3. Wunde -> raus
+    assert fresh_game._combatant(cid)["status"]["out"] is True
+    d = _add_npc(fresh_game, "Statist2", wildcard=False)
+    fresh_game.apply({"type": "apply_hit", "id": d["id"], "steigerungen": "quatsch"})
+    st = fresh_game._combatant(d["id"])["status"]
+    assert st["shaken"] is True and st["wounds"] == 0    # wie ein normaler Erfolg
 
 
 def test_hold_allowed_for_everyone(fresh_game):

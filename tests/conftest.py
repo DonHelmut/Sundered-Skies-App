@@ -26,6 +26,9 @@ def fresh_game(tmp_path, monkeypatch):
     monkeypatch.setattr(gmod, "ROSTER_FILE", d / "roster.json")
     monkeypatch.setattr(gmod, "BESTIARY_FILE", d / "bestiary.json")
     monkeypatch.setattr(gmod, "ALLIES_FILE", d / "allies.json")
+    # Fehlte lange: gespeicherte Begegnungen landeten im gemeinsamen Ordner und
+    # tauchten im naechsten Test wieder auf.
+    monkeypatch.setattr(gmod, "ENCOUNTERS_FILE", d / "encounters.json")
     monkeypatch.setattr(gmod, "SESSION_FILE", d / "session.json")
     monkeypatch.setattr(gmod, "SETTINGS_FILE", d / "settings.json")
     monkeypatch.setattr(gmod, "UPLOAD_DIR", d / "uploads")

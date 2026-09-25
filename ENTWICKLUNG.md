@@ -47,6 +47,70 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.0 (25.09.2026): erstes „richtiges" Release – SL-Pult
+
+Ab hier Versionsnummern 1.0, 1.1, … (bis v101 fortlaufend gezählt; Tags `v1.0` usw.).
+
+**SL-Optik „Pult"** (nur Laptop, `body.sl-ansicht`; Handys unverändert)
+- Feste Kopfleiste (sticky, über die volle Breite, `.sl-kopf`) statt großer
+  Titelzeile; darin „Verbunden", ⚙ und das Menü **☰ Mehr** (TV-Modus, Sicherung
+  exportieren/importieren, Bilder aufräumen, Version, ⌨ Tastenkürzel).
+- Flache Panels mit farbigen Kapitälchen-Köpfen, Reihenfolge als durchgehende
+  Liste, Zonen nach Seite getönt, leere Zonen nur ein Strich.
+- Erklärtexte (Klasse `hilfe`) hinter einem **ⓘ** im Panel-Kopf (`App.hilfeOffen`).
+- Kampf-Knöpfe in EINER Zeile (↶ ⟲ 🧹 als Symbole).
+- **Ruhig beim Durchklicken:** alle Zeilen gleich hoch (nichts bricht um,
+  Abzeichen werden abgeschnitten, Zustände nie), aktive Zeile nur Farbe – keine
+  andere Größe; zweispaltig **spaltenweise** (`.order-raster`, `--zeilen`), damit
+  beim Ausblenden Erledigter nicht jede Figur die Spalte wechselt; Auto-Scroll zur
+  aktiven Zeile nur, wenn sie nicht sichtbar ist. Untere Leiste immer einzeilig
+  (71 px), fester Platz für 😵/Wunden, „(NSC)" raus (Gegnername rot).
+- **Zustands-Spalte** je Zeile: 😵, Wunden als Punkte ●○ (Grenze wie `max_wounds`),
+  ☠ raus. 💥/🩹 nicht mehr in jeder Zeile (im ⋯-Feld und in der Leiste).
+- Talente in der SL-Zeile nur als „✦ 3" (Tooltip), Spielername hinter dem Namen.
+
+**Verschlankt, ohne Funktion zu verlieren**
+- Charakterliste, Gegner, Verbündete, Begegnungen → EIN Panel „Bibliothek" mit
+  Reitern (`BIB_REITER`, gemerkt in `localStorage.bibReiter`).
+- Gruppen-Panel weg: Gruppenfelder direkt unter dem Zonen-Board (Drag&Drop,
+  „+ Neue Gruppe" als Ablage), Klick öffnet Umbenennen/Bewegen/Auflösen
+  (`gruppenMenueHtml`). Pausierte Figuren lassen sich dort nicht mehr gruppieren.
+- „Damit die Verbindung hält" als zugeklappte Checkliste im Beitritts-Panel
+  (`details[data-merk]`, offen/zu in `App.offeneUnter`).
+- Nachricht/Bild/Bennies in drei flachen Zeilen, Verlauf zugeklappt.
+
+**Panels verschieben:** beim Ziehen klappen alle auf ihre Überschrift zusammen
+(`panel-kompakt`), Rand-Scrollen beim Ziehen (auch Figuren) – Touchpad kann beim
+Halten nicht scrollen.
+
+**Treffer**
+- **🎯 Treffer** in der Leiste (Taste Z): Ziel antippen – in der Auswahl oder
+  direkt im Board (`body.ziel-modus`). Stärke Erfolg / +1…+3 Steigerungen (Tasten
+  0–3); Server `apply_hit` mit `steigerungen` (angeschlagen + je eine Wunde).
+- Angriffs-Meldung der Spieler: „💥 Treffer…" öffnet die Auswahl, Ziel golden.
+- **Kampfwerte** Parade/Robustheit/Panzer in Gegner-/Verbündeten-Vorlagen,
+  Begegnungen und pro Figur (`_kampfwerte`); Spieler aus dem Charakterbogen.
+- **Erholen** in der Leiste (✓ erholt / 🪙). Bennies nur für Wild Cards;
+  **Gegner-Wild-Cards zahlen aus dem SL-Pool** (`_do_recover`). Probe am Tisch:
+  Willenskraft oder Konstitution (Stefan).
+- Handy: angeschlagen und dran → deutlicher Hinweis mit Knöpfen (schon vor der
+  Freigabe).
+
+**Optionale Kampfhilfen** (⚙ Kampf-Einstellungen, Standard aus, `set_kampfhilfe`)
+- `schadenRechnen`: Schadensfeld in der Treffer-Auswahl, Steigerungen aus der
+  Robustheit (darunter kein Schaden, je volle 4 darüber eine Steigerung).
+- `spielerSchaden`: Spieler geben beim Angriff den Schadenswurf an (Prompt).
+- `gruppenKarte`: gleiche Statisten (Seite + `_grundname`) teilen EINE Karte
+  (`karteGeteilt` = Kopie, kommt nicht auf den Ablagestapel); gemeinsamer Zug
+  (`_zug_fertig`), in der SL-Liste eine aufklappbare Zeile „Ork ×11"
+  (`gruppenZeile`). Neu ziehen löst eine Figur aus der Gruppe.
+
+**Sonst**
+- Taste **?**: Übersicht aller Tastenkürzel.
+- Formulare: „Wild Card"-Häkchen wieder neben dem Text (`label.field.row`).
+- Tests: `ENCOUNTERS_FILE` wird im Test-Fixture jetzt auch umgeleitet (gespeicherte
+  Begegnungen leckten in den nächsten Test).
+
 ## v101 (25.09.2026): WLAN des Laptops sichtbar
 
 - Anlass: Bei einem Gastgeber kamen iPhones „manchmal" nicht rein (Seite lud gar
@@ -262,8 +326,8 @@ sich über **Export/Import** in der App umziehen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v101** (veröffentlicht).
-      Nächstes Release also 101 → 102 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.0** (veröffentlicht; ab jetzt 1.1, 1.2 …).
+      Nächstes Release also 1.0 → 1.1 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.

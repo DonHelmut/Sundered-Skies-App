@@ -1634,3 +1634,322 @@ body.panel-zieht .grid2 .sp.leer::after {
   width: min(80vw, 80vh); height: auto; }
 /* Adresse unter dem QR hell, damit man sie notfalls abtippen kann. */
 .overlay-img img[src^="/qr.png"] + .overlay-name { color: #fff; font-size: 1.15rem; }
+
+/* Beim Panel-Ziehen nur die Ueberschriften zeigen: die ganze Anordnung passt
+   dann auf einen Bildschirm (Touchpad kann beim Halten nicht scrollen). */
+body.panel-kompakt .grid2 details.section > .panel-body { display: none; }
+body.panel-kompakt .grid2 .sp { min-height: 60px; gap: 6px; }
+body.panel-kompakt .grid2 details.section { padding: 7px 14px; margin: 0; }
+body.panel-kompakt .grid2 details.section > summary .sec-caret { visibility: hidden; }
+/* Frisch abgelegtes Panel kurz markieren (Schatten statt Filter). */
+details.section.panel-abgelegt { animation: panelAbgelegt 1.2s ease-out; }
+@keyframes panelAbgelegt { 0%, 35% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* Gruppen-Ablage unter dem Zonen-Board: kleine Felder zum Draufziehen. */
+.grp-ablage-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.grp-ablage { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-size: 0.82rem;
+  border: 1px solid var(--line); border-left-width: 4px; border-radius: 999px; background: var(--panel2);
+  cursor: default; user-select: none; }
+.grp-ablage.grp-frei { border-style: dashed; border-left-width: 1px; color: var(--muted); }
+.grp-ablage.grp-neu { border-style: dashed; border-left-width: 1px; cursor: pointer; color: var(--muted); }
+.grp-ablage.grp-neu:hover { color: var(--text); border-color: var(--accent2); }
+.grp-ablage.ablage-aktiv { background: color-mix(in srgb, var(--accent2) 18%, var(--panel2)); color: var(--text); }
+/* Gruppenfarbe am Ablagefeld (der Rahmen oben ueberschreibt sonst .grpN). */
+.grp-ablage.grp1 { border-left-color: #e2703a; }
+.grp-ablage.grp2 { border-left-color: #4aa3df; }
+.grp-ablage.grp3 { border-left-color: #7cbf5a; }
+.grp-ablage.grp4 { border-left-color: #c46bd4; }
+.grp-ablage.grp5 { border-left-color: #d9b23c; }
+.grp-ablage.grp6 { border-left-color: #56c8bd; }
+
+/* SL-Kampfzeile: Talente als ein Zeichen, Spielername klein hinter dem Namen. */
+.tag.talent-kurz { cursor: help; }
+.combatant .name .spieler-name { font-weight: 400; font-size: 0.75rem; color: var(--muted); }
+
+/* ==========================================================================
+   SL-Optik „Pult" (v102): nur am Laptop (body.sl-ansicht), Handys unverändert.
+   Ziel: bei 1366x768 Zonen, Reihenfolge und Gruppen ohne Scrollen im Blick.
+   ========================================================================== */
+/* Kopfleiste statt großer Titelzeile - bleibt beim Scrollen stehen. Die
+   „Verbunden"-Pille und das Zahnrad (beide fixiert) sitzen darin. */
+body.sl-ansicht .wrap { padding-top: 0; }
+body.sl-ansicht .sl-kopf {
+  position: sticky; top: 0; z-index: 55; margin: 0 -16px 10px !important; padding: 7px 56px 7px 16px;
+  background: var(--panel); border-bottom: 2px solid var(--gold); box-shadow: 0 3px 12px rgba(0,0,0,0.12); }
+body.sl-ansicht .sl-kopf h1 { font-family: system-ui, "Segoe UI", sans-serif; font-size: 0.9rem;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+body.sl-ansicht .sl-kopf button { padding: 5px 10px; font-size: 0.85rem; }
+body.sl-ansicht .statusbar { top: 1px; pointer-events: none; }
+body.sl-ansicht .statusbar .pill { pointer-events: auto; }
+body.sl-ansicht #skinbar { top: 5px; }
+
+/* Panels flach, Kopf als farbiges Band in Kapitälchen */
+body.sl-ansicht .grid2, body.sl-ansicht .grid2 .sp { gap: 10px; }
+body.sl-ansicht .grid2 .panel { background: var(--panel); border-radius: 8px; box-shadow: none;
+  padding: 0 0 10px; margin-bottom: 0; overflow: hidden; }
+body.sl-ansicht .grid2 details.section:not([open]) { padding: 0; }
+body.sl-ansicht .grid2 details.section > .sec-head {
+  background: color-mix(in srgb, var(--accent2) 16%, var(--panel2));
+  padding: 7px 12px; border-bottom: 1px solid var(--line); box-shadow: inset 3px 0 0 var(--accent2); }
+body.sl-ansicht .grid2 details.section:not([open]) > .sec-head { border-bottom: none; }
+body.sl-ansicht .grid2 details.section > .sec-head .sec-title {
+  font-family: system-ui, "Segoe UI", sans-serif; font-size: 0.78rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.08em; }
+body.sl-ansicht .grid2 details.section > .panel-body { margin-top: 8px; padding: 0 12px; }
+body.sl-ansicht button { border-radius: 6px; }
+/* Anfragen bleiben auffällig (Warnfarbe am Kopf) */
+body.sl-ansicht .grid2 details.section[data-sec="requests"] > .sec-head { box-shadow: inset 3px 0 0 var(--warn); }
+/* Panel-Ziehen: zusammengeklappt ohne Innenabstand */
+body.sl-ansicht.panel-kompakt .grid2 details.section { padding: 0; }
+
+/* ⓘ: Erklärtexte erst auf Wunsch */
+body.sl-ansicht details.section:not(.hilfe-an) .hilfe { display: none; }
+.hilfe-knopf { padding: 0 6px; margin-right: 6px; font-size: 0.85rem; line-height: 1.4; border-radius: 999px;
+  background: transparent; border: 1px solid transparent; color: var(--muted); }
+.hilfe-knopf:hover, .hilfe-knopf.on { border-color: var(--accent2); color: var(--text); background: transparent; }
+
+/* Kampf-Knöpfe in einer Zeile */
+.kampf-knoepfe { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.kampf-knoepfe > button.primary { flex: 1; padding: 9px 14px; }
+.kampf-knoepfe-rest { display: flex; gap: 6px; margin-left: auto; }
+button.symbol { min-width: 34px; padding: 5px 8px; font-size: 1rem; line-height: 1; }
+body.sl-ansicht .combat-sep { margin: 8px 0 6px; }
+body.sl-ansicht .order-heading { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* Zonen: flacher, Seiten getönt, leere Zonen nur ein Strich */
+body.sl-ansicht .zone-band { min-height: 36px; padding: 3px 8px; gap: 8px; border-radius: 4px; }
+body.sl-ansicht .zone-band.empty { min-height: 22px; padding: 1px 8px; font-size: 0.8rem; }
+body.sl-ansicht .zone-band.melee { min-height: 38px; border-width: 2px; }
+body.sl-ansicht .zone-band.band-npc { background: color-mix(in srgb, var(--bad) 7%, transparent); }
+body.sl-ansicht .zone-band.band-player { background: color-mix(in srgb, var(--gold) 9%, transparent); }
+body.sl-ansicht .zone-band.band-npc:not(.empty) { background: color-mix(in srgb, var(--bad) 14%, var(--panel2)); }
+body.sl-ansicht .zone-band.band-player:not(.empty) { background: color-mix(in srgb, var(--gold) 16%, var(--panel2)); }
+
+/* Reihenfolge als durchgehende Liste, Zeilen flach */
+body.sl-ansicht .order { gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+body.sl-ansicht .combatant { padding: 3px 8px; border-radius: 0; border-width: 0 0 1px 0; box-shadow: none; background: transparent; }
+body.sl-ansicht .combatant:nth-child(even) { background: color-mix(in srgb, var(--panel2) 55%, transparent); }
+body.sl-ansicht .combatant.enemy { border-left: 3px solid var(--bad); }
+body.sl-ansicht .combatant.ally { border-left: 3px solid #35b57e; }
+body.sl-ansicht .combatant .mini { width: 30px; flex: 0 0 30px; }
+body.sl-ansicht .combatant .idx { font-size: 1.05rem; width: 20px; }
+body.sl-ansicht .combatant .avatar { width: 26px; height: 26px; flex-basis: 26px; }
+body.sl-ansicht .combatant .who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+body.sl-ansicht .combatant .badges { margin-top: 0; }
+body.sl-ansicht .combatant .actions button { padding: 4px 8px; }
+/* Wer dran ist: nur Farbe und goldene Kante - KEINE andere Größe. Eine
+   größere aktive Zeile schob beim Durchklicken jedes Mal das ganze Raster. */
+body.sl-ansicht .combatant.active { box-shadow: inset 4px 0 0 var(--gold);
+  background: color-mix(in srgb, var(--gold) 22%, transparent); }
+body.sl-ansicht .combatant.active .idx { color: var(--gold); }
+body.sl-ansicht .combatant.ausgewaehlt { box-shadow: inset 0 0 0 2px var(--auswahl); }
+
+/* Gruppen-Panel knapp: Kasten in einer Zeile, Auswahl nicht mehr volle Breite */
+body.sl-ansicht .grp-box { padding: 6px 10px; }
+body.sl-ansicht .grp-box select { width: auto; padding: 4px 8px; font-size: 0.85rem; }
+body.sl-ansicht .grp-box button.small { padding: 3px 8px; }
+
+/* Untere Leiste flach wie die Panel-Köpfe */
+body.sl-ansicht .aktionsleiste { box-shadow: none; padding-top: 6px; padding-bottom: 6px; }
+body.sl-ansicht .order-heading button { padding: 3px 9px; font-size: 0.78rem; text-transform: none; letter-spacing: 0; }
+
+/* Zugeklappte Unter-Abschnitte in einem Panel (z. B. Verbindungs-Checkliste). */
+details.unter-klapp { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 8px; }
+details.unter-klapp > summary { cursor: pointer; font-size: 0.88rem; color: var(--muted); list-style: none; }
+details.unter-klapp > summary::-webkit-details-marker { display: none; }
+details.unter-klapp > summary::before { content: "▸ "; }
+details.unter-klapp[open] > summary::before { content: "▾ "; }
+details.unter-klapp > summary:hover { color: var(--text); }
+/* Beim Hinspringen (aktive Figur, abgelegtes Panel) nicht unter der festen Kopfleiste verschwinden. */
+body.sl-ansicht details.section, body.sl-ansicht .combatant, body.sl-ansicht details.unter-klapp { scroll-margin-top: 52px; }
+
+/* Bibliothek: vier Sammlungen als Reiter in einem Panel */
+.bib-reiterleiste { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; border-bottom: 1px solid var(--line); }
+.bib-reiter { border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; background: transparent;
+  padding: 6px 12px; font-size: 0.88rem; margin-bottom: -1px; }
+.bib-reiter:hover { background: var(--panel2); border-color: transparent; }
+.bib-reiter.aktiv { background: var(--panel2); border-color: var(--line); font-weight: 700; color: var(--accent); }
+
+/* ☰-Menü in der Kopfleiste */
+.kopf-menue { position: relative; }
+.kopf-menue > summary { list-style: none; cursor: pointer; padding: 5px 10px; font-size: 0.85rem;
+  border: 1px solid var(--line); border-radius: 6px; user-select: none; }
+.kopf-menue > summary::-webkit-details-marker { display: none; }
+.kopf-menue[open] > summary, .kopf-menue > summary:hover { border-color: var(--accent); }
+.kopf-menue-inhalt { position: absolute; right: 0; top: calc(100% + 6px); z-index: 80; min-width: 250px;
+  display: flex; flex-direction: column; gap: 6px; padding: 10px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 28px rgba(0,0,0,0.3); }
+.kopf-menue-inhalt a, .kopf-menue-inhalt a button, .kopf-menue-inhalt > button { width: 100%; text-align: left; }
+.knopf-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 12px; }
+.knopf-label:hover, .knopf-label.on { border-color: var(--accent); }
+
+/* Gruppenfeld angeklickt: Menü darunter */
+.grp-ablage[data-act="gruppe-menue"] { cursor: pointer; }
+.grp-ablage.offen { background: var(--panel); box-shadow: 0 0 0 2px var(--accent2); }
+.grp-menue { margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line); border-left-width: 4px;
+  border-radius: 6px; background: var(--panel2); }
+.grp-menue select { width: auto; padding: 4px 8px; font-size: 0.85rem; }
+.grp-menue.grp1 { border-left-color: #e2703a; } .grp-menue.grp2 { border-left-color: #4aa3df; }
+.grp-menue.grp3 { border-left-color: #7cbf5a; } .grp-menue.grp4 { border-left-color: #c46bd4; }
+.grp-menue.grp5 { border-left-color: #d9b23c; } .grp-menue.grp6 { border-left-color: #56c8bd; }
+
+/* Nachricht: Empfänger + Benny, dann Text + Bild + Senden - je eine Zeile */
+.nachricht-zeile { display: flex; gap: 6px; align-items: stretch; margin-bottom: 6px; }
+.nachricht-zeile > select, .nachricht-zeile > input { flex: 1; min-width: 0; margin: 0; }
+.nachricht-zeile > .knopf-label { padding: 6px 10px; }
+.nachricht-zeile > select, .nachricht-zeile > input { padding: 6px 10px; font-size: 0.92rem; }
+.nachricht-zeile > button { padding: 6px 12px; font-size: 0.9rem; }
+body.sl-ansicht details[data-sec="message"] .row button.ghost.small { padding: 4px 9px; }
+body.sl-ansicht details[data-sec="bibliothek"] .field select,
+body.sl-ansicht details[data-sec="bibliothek"] .field input { padding: 5px 8px; font-size: 0.9rem; }
+body.sl-ansicht details[data-sec="bibliothek"] .panel-body > .row > button,
+body.sl-ansicht details[data-sec="bibliothek"] .feld-kasten { padding: 6px 10px; font-size: 0.9rem; }
+
+/* Ruhige Liste: alle Zeilen gleich hoch, nichts bricht um. Wird es eng,
+   schrumpfen die Abzeichen (abgeschnitten) - Zustände wie Angeschlagen/Wunden
+   bleiben immer ganz sichtbar. Nur das "⋯"-Feld darf eine Zeile aufklappen. */
+body.sl-ansicht .combatant { min-height: 46px; box-sizing: border-box; }
+body.sl-ansicht .combatant .who { flex-wrap: nowrap; overflow: hidden; }
+body.sl-ansicht .combatant .who .name { white-space: nowrap; flex-shrink: 0; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
+body.sl-ansicht .combatant .who .badges { flex-wrap: nowrap; flex-shrink: 1; min-width: 0; overflow: hidden; }
+body.sl-ansicht .combatant .who .badges > * { flex-shrink: 0; }
+body.sl-ansicht .combatant .who .status-badges { flex-shrink: 0; display: flex; gap: 4px; white-space: nowrap; }
+body.sl-ansicht .combatant .who .combatant-note { flex-shrink: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+body.sl-ansicht .combatant .who .spieler-name { white-space: nowrap; }
+body.sl-ansicht .combatant:has(.row-status) { flex-wrap: wrap; }
+
+/* Zwei Spalten, gelesen wie EINE Liste: links von oben nach unten, dann rechts.
+   Zeilenweise (1 2 / 3 4) wechselte beim Ausblenden einer erledigten Figur JEDE
+   Figur die Spalte - jetzt rückt alles nur eine Zeile hoch. */
+body.sl-ansicht .order-raster { display: flex; flex-direction: column; }
+@media (min-width: 1450px) {
+  body.sl-ansicht .grid2 .sp2 .order { display: block; }
+  body.sl-ansicht .grid2 .sp2 .order-raster { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px;
+    grid-template-rows: repeat(var(--zeilen), auto); grid-auto-flow: column; align-items: stretch; }
+}
+/* Kopfleiste auf breiten Schirmen über die GANZE Fensterbreite (der Inhalt
+   darunter bleibt auf 1800 px begrenzt): Hintergrund per Schatten nach links/
+   rechts verlängert, die Goldlinie per ::after. */
+body.sl-ansicht .sl-kopf { border-bottom: none; box-shadow: 0 0 0 100vmax var(--panel); clip-path: inset(0 -100vmax -3px); }
+body.sl-ansicht .sl-kopf::after { content: ""; position: absolute; left: -100vmax; right: -100vmax; bottom: -2px;
+  height: 2px; background: var(--gold); }
+
+/* Untere Leiste: IMMER eine Zeile, gleiche Höhe. Kam „Angeschlagen" dazu,
+   brach sie um (71 -> 113 px) und schob alles. Links schrumpft notfalls der
+   Text, Knöpfe und „Weiter" bleiben fest. */
+body.sl-ansicht .aktionsleiste { flex-wrap: nowrap; min-height: 58px; box-sizing: border-box; }
+body.sl-ansicht .aktionsleiste .al-wer { flex: 1 1 auto; flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+body.sl-ansicht .aktionsleiste .al-name { overflow: hidden; text-overflow: ellipsis; max-width: 16em; }
+body.sl-ansicht .aktionsleiste .al-knoepfe, body.sl-ansicht .aktionsleiste .al-haupt { flex: 0 0 auto; flex-wrap: nowrap; }
+body.sl-ansicht .aktionsleiste .al-haupt button { white-space: nowrap; }
+/* fester Platz für 😵 / Wunden - sonst rutscht „danach" seitlich */
+.al-zustand { display: inline-flex; gap: 4px; min-width: 5.2em; }
+
+/* 🎯 Treffer: Ziel-Wahl über der Leiste */
+.st-btn.treffer-knopf { font-weight: 700; }
+.al-treffer {
+  position: absolute; bottom: 100%; left: 12px; width: min(620px, 96vw); max-height: 55vh; overflow: auto;
+  background: var(--panel); border: 1px solid var(--accent2); border-radius: 12px 12px 0 0; border-bottom: none;
+  padding: 12px 14px; box-shadow: 0 -8px 26px rgba(0,0,0,0.4); }
+.treffer-gruppe { margin-bottom: 10px; }
+.treffer-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.treffer-ziel { padding: 6px 12px; font-size: 0.92rem; border-radius: 999px; border-left: 4px solid #35b57e; }
+.treffer-ziel.feind { border-left-color: var(--bad); }
+.treffer-ziel:hover { border-color: var(--accent); background: color-mix(in srgb, var(--bad) 14%, var(--panel2)); }
+.treffer-ziel.gemeldet { box-shadow: 0 0 0 2px var(--gold); font-weight: 700; }
+.treffer-wunden { color: var(--bad); font-weight: 700; }
+/* Die übers Fenster verlängerte Kopfleiste darf keine waagerechte
+   Scrollleiste erzeugen (clip statt hidden: sticky funktioniert weiter). */
+html:has(body.sl-ansicht), body.sl-ansicht { overflow-x: clip; }
+/* Enge Leiste: zuerst schrumpft „danach", der Name bleibt lesbar */
+body.sl-ansicht .aktionsleiste .al-name { flex-shrink: 1; min-width: 5em; }
+body.sl-ansicht .aktionsleiste .al-naechster { flex-shrink: 5; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Treffer-Stärke: Erfolg / +1 / +2 / +3 Steigerung */
+.treffer-staerke { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+.treffer-stufe { padding: 5px 10px; font-size: 0.85rem; border-radius: 6px; background: transparent; }
+.treffer-stufe small { color: var(--muted); margin-left: 3px; }
+.treffer-stufe.aktiv { background: color-mix(in srgb, var(--bad) 22%, var(--panel2)); border-color: var(--bad); font-weight: 700; }
+.treffer-stufe.aktiv small { color: var(--text); }
+
+/* Zustands-Spalte in der SL-Reihenfolge: feste Breite, immer an derselben Stelle */
+.zustand-zelle { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; width: 104px; justify-content: flex-start;
+  padding: 3px 8px; border-radius: 6px; background: transparent; border: 1px solid transparent; }
+.zustand-zelle:hover { border-color: var(--line); background: transparent; }
+/* Nicht angeschlagen: unsichtbar, aber der Platz bleibt - sonst rutschen die Wunden-Punkte. */
+.z-shaken { visibility: hidden; font-size: 1rem; line-height: 1; }
+.z-shaken.an { visibility: visible; }
+.z-wunden { display: inline-flex; gap: 3px; }
+.z-punkt { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--bad) 55%, transparent); display: inline-block; }
+.z-punkt.voll { background: var(--bad); border-color: var(--bad); }
+.z-abzug { color: var(--bad); font-size: 0.8rem; }
+.z-raus { color: var(--bad); font-weight: 800; font-size: 0.85rem; white-space: nowrap; }
+.combatant:has(.z-shaken.an) { box-shadow: inset 3px 0 0 var(--warn); }
+.combatant.active:has(.z-shaken.an) { box-shadow: inset 4px 0 0 var(--gold); }
+/* Gegner in der Leiste: roter Name wie in der Liste (statt des Zusatzes „(NSC)",
+   der bei enger Leiste zu „(N" abgeschnitten wurde). */
+.al-name.feind { color: var(--foe-name); }
+body.sl-ansicht .aktionsleiste .al-zustand { flex-shrink: 0; }
+/* Enge Leiste: „danach" steht als „↓ danach" auch in der Liste - hier weglassen,
+   bevor Name oder Zustand abgeschnitten werden. */
+@media (max-width: 1150px) {
+  body.sl-ansicht .aktionsleiste .al-naechster { display: none; }
+  body.sl-ansicht .aktionsleiste .al-zustand { min-width: 0; }
+}
+@media (max-width: 1150px) {
+  body.sl-ansicht .aktionsleiste .tk-text { display: none; }
+  body.sl-ansicht .aktionsleiste .al-name { min-width: 3em; }
+}
+
+/* Kampfwerte (Parade/Robustheit/Panzer) in Formularen, Bibliothek, Zielwahl */
+.kampfwerte-felder { gap: 8px; margin: 6px 0 8px; }
+.kampfwerte-felder .field.kampfwert { width: 110px; margin: 0; }
+.kampfwerte-felder input { padding: 5px 8px; }
+.tag.kampfwert-tag { color: var(--muted); }
+.treffer-werte { font-size: 0.75rem; color: var(--muted); margin-left: 4px; font-weight: 400; }
+.treffer-schaden { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 0.85rem; color: var(--muted); }
+.treffer-schaden input { width: 76px; padding: 4px 8px; font-size: 0.95rem; }
+
+/* Zielwahl rechts, damit das Zonen-Board links frei bleibt (dort kann man
+   ebenfalls ein Ziel antippen) */
+.al-treffer { left: auto; right: 12px; }
+body.ziel-modus .zone-token { cursor: crosshair; }
+body.ziel-modus .zone-token:hover .tdisc { box-shadow: 0 0 0 3px var(--bad); }
+
+/* Angeschlagen: Erholen direkt in der Leiste */
+.st-btn.erholt-knopf { border-color: var(--warn); color: var(--warn); font-weight: 700; }
+
+/* Optionale Kampfhilfen in den Kampf-Einstellungen */
+.kampfhilfen { padding-top: 10px; border-top: 1px dashed var(--line); }
+/* Einstellungsfeld nie höher als der Bildschirm - sonst war der obere Teil abgeschnitten */
+.al-einstellungen { max-height: calc(100vh - 110px); overflow: auto; }
+
+/* Gruppenkarte: eine Zeile für die ganze Gruppe, Mitglieder eingerückt */
+.gk-anzahl { font-weight: 800; color: var(--muted); font-size: 0.9em; }
+.zustand-zelle.gk-zustand { gap: 8px; font-size: 0.85rem; font-weight: 700; }
+.gk-wunden { color: var(--bad); }
+body.sl-ansicht .combatant.gk-mitglied { padding-left: 26px; background: color-mix(in srgb, var(--panel2) 70%, transparent); }
+body.sl-ansicht .combatant.gk-mitglied .idx { width: 0; overflow: hidden; }
+
+/* Spieler: angeschlagen und dran */
+.angeschlagen-hinweis { margin-top: 10px; padding: 10px 12px; border-radius: 10px; text-align: center;
+  border: 2px solid var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.angeschlagen-hinweis .ah-titel { font-weight: 800; font-size: 1.1rem; color: var(--warn); margin-bottom: 4px; }
+
+/* Tastenkürzel-Übersicht */
+.tasten-hilfe-hg { position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,0.45); display: flex;
+  align-items: center; justify-content: center; padding: 16px; }
+.tasten-hilfe { max-width: 560px; width: 100%; padding: 16px 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
+.tasten-hilfe table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+.tasten-hilfe td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tasten-hilfe td:first-child { white-space: nowrap; width: 1%; }
+kbd { display: inline-block; min-width: 1.6em; text-align: center; padding: 1px 6px; border: 1px solid var(--line);
+  border-bottom-width: 2px; border-radius: 5px; background: var(--panel2); font: 700 0.82rem system-ui, sans-serif; }
+/* „Wild Card"-Häkchen: label.field (Block) war stärker als .row - Kästchen und
+   Text standen untereinander. Hier wieder nebeneinander. */
+label.field.row { display: flex; gap: 6px; align-items: center; }
+label.field.row span { display: inline; margin: 0; font-size: 0.9rem; color: var(--text); }
+/* Formulare (Charakter, Gegner, Figur bearbeiten) in einem Panel: eigener
+   Innenabstand - die flache SL-Optik nahm allen .panel den Rand. */
+body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8px; }

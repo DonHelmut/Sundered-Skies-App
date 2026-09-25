@@ -12,10 +12,13 @@ Paket bauen:
      Firewall-*.bat und WLAN-Stromsparen-aus.bat in einen Ordner
      "SunderedSkies-App" legen
   3. Ordner als SunderedSkies-App.zip zippen, Tag setzen und pushen,
-     dann: gh release create vNN --verify-tag ... SunderedSkies-App.zip
+     dann: gh release create vX.Y --verify-tag ... SunderedSkies-App.zip
+
+Versionen: bis v101 fortlaufend gezaehlt, seit dem Release 1.0 (25.09.2026)
+als 1.1, 1.2, ... (grosse Umbauten: 2.0). Tags heissen v1.0, v1.1, ...
 
 Vor jedem Release die Version an DREI Stellen hochzaehlen:
   server/paths.py  APP_VERSION
   web/static/app.js  ASSET_VERSION
-  web/index.html + web/tv.html   ?v=NN
+  web/index.html + web/tv.html   ?v=X.Y
 und in paket/START-HIER.txt die Versionszeile oben.

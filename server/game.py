@@ -74,6 +74,21 @@ def default_status() -> dict:
     }
 
 
+def _kampfwert(v) -> Optional[int]:
+    """Parade/Robustheit/Panzer einer Vorlage: ganze Zahl 0..30 oder None
+    (leer = nicht eingetragen)."""
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return None
+    try:
+        return max(0, min(30, int(str(v).strip())))
+    except (TypeError, ValueError):
+        return None
+
+
+def _kampfwerte(quelle: dict) -> dict:
+    return {k: _kampfwert(quelle.get(k)) for k in ("parade", "robustheit", "panzer")}
+
+
 def max_wounds(c: dict, statisten_ko: int = 3) -> int:
     """Wie viele Wunden vertraegt die Figur? Wild Card 3 (bei der 4. raus).
     Statisten: am Tisch verschieden (Regelbuch 1., Hausregeln 2. oder 3.) -
@@ -262,6 +277,10 @@ class Game:
         self.statisten_ko: int = 3         # Statisten raus bei dieser Wunde (1-3)
         self.conditions_enabled: bool = True   # Zusatz-Zustaende ueberhaupt verwenden?
         self.requests_enabled: bool = True     # duerfen Spieler ueberhaupt anfragen?
+        # Optionale Kampfhilfen - der SL entscheidet (Stefan: „nur mit Option"):
+        self.schaden_rechnen: bool = False      # Schaden eintippen, App rechnet mit Robustheit
+        self.spieler_schaden: bool = False      # Spieler geben beim Angriff ihren Schaden an
+        self.gruppen_karte: bool = False        # gleiche Statisten teilen sich eine Karte
         self.benny_to_gm: bool = True      # Hausregel: Spieler-Benny -> SL-Pool
         self.auto_release: bool = False    # naechsten Zug ohne Klick freigeben
         # Gruppen: mehrere Figuren zusammenfassen und gemeinsam bewegen
@@ -290,6 +309,9 @@ class Game:
         self.conditions_enabled = bool(settings.get("conditionsEnabled", True))
         self.auto_release = bool(settings.get("autoRelease", False))
         self.requests_enabled = bool(settings.get("requestsEnabled", True))
+        self.schaden_rechnen = bool(settings.get("schadenRechnen", False))
+        self.spieler_schaden = bool(settings.get("spielerSchaden", False))
+        self.gruppen_karte = bool(settings.get("gruppenKarte", False))
         self.benny_to_gm = bool(settings.get("bennyToGm", True))
         # Ton-Schalter des SL: gehoert zu den Einstellungen, nicht zum Kampf.
         # Stand frueher nur in der Sitzung - nach „Verwerfen" war er wieder an.
@@ -357,6 +379,9 @@ class Game:
             "autoRelease": self.auto_release,
             "soundEnabled": self.sound_enabled,
             "slAnsicht": self.sl_ansicht,
+            "schadenRechnen": self.schaden_rechnen,
+            "spielerSchaden": self.spieler_schaden,
+            "gruppenKarte": self.gruppen_karte,
         })
 
     def export_data(self) -> dict:
@@ -534,6 +559,21 @@ class Game:
     def _starting_bennies(self, src: dict) -> int:
         return self.benny_start + self._edge_bonus(src)
 
+    def _gruppenschluessel(self, c: dict):
+        """Nur bei eingeschalteter Gruppenkarte: Statisten (keine Wild Cards)
+        derselben Seite mit gleichem Namen („Ork 1" … „Ork 11") gehören zusammen."""
+        if not self.gruppen_karte or c.get("kind") != "npc" or c.get("isWildCard"):
+            return None
+        return (bool(c.get("ally")), self._grundname(c.get("name", "")))
+
+    def kartengruppe(self, c: Optional[dict]) -> list:
+        """Alle Figuren, die mit ``c`` eine Gruppenkarte teilen (inkl. ``c``)."""
+        if not c or not c.get("card") or not self._gruppenschluessel(c):
+            return [c] if c else []
+        kid = c["card"].get("id")
+        return [x for x in self.combatants if x.get("card") and x["card"].get("id") == kid
+                and self._gruppenschluessel(x) == self._gruppenschluessel(c)]
+
     def _resort(self) -> None:
         order = engine.sort_order(self.combatants)
         pos = {cid: i for i, cid in enumerate(order)}
@@ -541,8 +581,11 @@ class Game:
 
     def _collect_cards(self) -> None:
         for c in self.combatants:
-            if c.get("card"):
+            # Mitglieder einer Gruppenkarte tragen nur eine KOPIE - die Karte
+            # liegt einmal beim ersten der Gruppe und kommt nur einmal auf den Stapel.
+            if c.get("card") and not c.get("karteGeteilt"):
                 self.discard.append(c["card"])
+            c["karteGeteilt"] = False
             c["card"] = None
             c["draw"] = None
             c["held"] = False
@@ -600,6 +643,9 @@ class Game:
             "conditionsEnabled": self.conditions_enabled,
             "requestsEnabled": self.requests_enabled,
             "autoRelease": self.auto_release,
+            "schadenRechnen": self.schaden_rechnen,
+            "spielerSchaden": self.spieler_schaden,
+            "gruppenKarte": self.gruppen_karte,
             "deckCount": len(self.deck),
             "hasSavedSession": self.resume_available,
             "canUndo": len(self._history) > 0,
@@ -740,6 +786,9 @@ class Game:
             "gluck": bool(a.get("gluck", False)),
             "grosses_gluck": bool(a.get("grosses_gluck", False)),
             "image": a.get("image", (prev or {}).get("image")),   # Bild beim Bearbeiten behalten
+            # Kampfwerte der Vorlage (Stefan: Standard-Gegner „quasi speichern") -
+            # stehen dann in der Treffer-Auswahl, statt im Regelbuch zu blättern.
+            **_kampfwerte(a),
         }
         for i, r in enumerate(self.bestiary):
             if r["id"] == entry["id"]:
@@ -768,6 +817,7 @@ class Game:
             "anon": a.get("anon", tmpl.get("anon", False)),
             "count": a.get("count", 1),
             "image": tmpl.get("image"),
+            **_kampfwerte(tmpl),
         })
 
     # Verbündeten-Bibliothek – wie das Bestiarium, aber auf Spielerseite --------
@@ -783,6 +833,7 @@ class Game:
             "gluck": bool(a.get("gluck", False)),
             "grosses_gluck": bool(a.get("grosses_gluck", False)),
             "image": a.get("image", (prev or {}).get("image")),
+            **_kampfwerte(a),
         }
         for i, r in enumerate(self.allies):
             if r["id"] == entry["id"]:
@@ -811,6 +862,7 @@ class Game:
             "image": tmpl.get("image"),
             "ally": True,
             "count": a.get("count", 1),
+            **_kampfwerte(tmpl),
         })
 
     # Begegnungen (gespeicherte Gegner-/Verbündeten-Gruppen) ------------------
@@ -833,6 +885,7 @@ class Game:
                 "ally": bool(c.get("ally", False)),
                 "image": c.get("image"),
                 "note": c.get("note", ""),
+                **_kampfwerte(c),
             })
         if not members:
             return
@@ -877,6 +930,7 @@ class Game:
                 "gluck": m.get("gluck", False),
                 "grosses_gluck": m.get("grosses_gluck", False),
                 "zone": m.get("zone"),
+                **_kampfwerte(m),
             })
             if self.combatants:
                 if m.get("ally"):
@@ -1034,6 +1088,7 @@ class Game:
             "image": a.get("image") or None,
             "status": default_status(),
             "createdAt": now_ms(),
+            **_kampfwerte(a),
         }
         self.combatants.append(c)
 
@@ -1045,6 +1100,9 @@ class Game:
             c["name"] = (a["name"] or c["name"]).strip() or c["name"]
         if "isWildCard" in a:
             c["isWildCard"] = bool(a["isWildCard"])
+        for feld in ("parade", "robustheit", "panzer"):
+            if feld in a:
+                c[feld] = _kampfwert(a[feld])
         if "talents" in a:
             c["talents"] = [t for t in a["talents"] if t in TALENTS]
         if "gluck" in a:
@@ -1247,16 +1305,25 @@ class Game:
 
     def _do_apply_hit(self, a: dict) -> None:
         """Ein Treffer nach Savage-Worlds-Logik in EINEM Klick:
-        nicht angeschlagen -> Angeschlagen; schon angeschlagen -> +1 Wunde
-        (Hausregel: Statisten bei der 3., Wild Cards bei der 4. Wunde automatisch
-        K.O., falls Auto-K.O. an - siehe max_wounds)."""
+        Erfolg: nicht angeschlagen -> Angeschlagen; schon angeschlagen -> +1 Wunde.
+        Mit Steigerungen (``steigerungen`` = 1..4): je Steigerung eine Wunde, und
+        angeschlagen ist die Figur dann auch (SWADE: „Angeschlagen plus eine Wunde
+        pro Steigerung"). Hausregel: Statisten bei der 3., Wild Cards bei der
+        4. Wunde automatisch K.O., falls Auto-K.O. an - siehe max_wounds."""
         c = self._combatant(a.get("id"))
         if not c:
             return
         st = c.setdefault("status", default_status())
         if st.get("out"):
             return
-        if not st.get("shaken"):
+        try:
+            steigerungen = max(0, min(4, int(a.get("steigerungen") or 0)))
+        except (TypeError, ValueError):
+            steigerungen = 0
+        if steigerungen:
+            st["shaken"] = True
+            self._do_set_status({"id": c["id"], "wounds": st.get("wounds", 0) + steigerungen})
+        elif not st.get("shaken"):
             st["shaken"] = True
         else:
             self._do_set_status({"id": c["id"], "wounds": st.get("wounds", 0) + 1})
@@ -1276,16 +1343,27 @@ class Game:
             st["shaken"] = False
 
     def _do_recover(self, a: dict) -> None:
-        """Erholung von „Angeschlagen": entweder frei (bestandene Willenskraft-
-        Probe am Tisch) oder per Benny (Wild Card gibt einen aus)."""
+        """Erholung von „Angeschlagen": entweder frei (bestandene Probe am Tisch -
+        Willenskraft oder Konstitution) oder per Benny (Wild Card gibt einen aus)."""
         c = self._combatant(a.get("id"))
         if not c:
             return
         st = c.setdefault("status", default_status())
         if not st.get("shaken"):
             return
-        if a.get("benny") and c.get("isWildCard") and c.get("bennies", 0) > 0:
-            c["bennies"] -= 1
+        if a.get("benny"):
+            # Nur Wild Cards haben Bennies. Gegner-Wild-Cards zahlen aus dem
+            # Pool des SL (Stefan), Spieler und Verbündete aus ihrem eigenen.
+            if not c.get("isWildCard"):
+                return
+            if c.get("kind") == "npc" and not c.get("ally"):
+                if self.sl_bennies <= 0:
+                    return
+                self.sl_bennies -= 1
+            else:
+                if c.get("bennies", 0) <= 0:
+                    return
+                c["bennies"] -= 1
         st["shaken"] = False
 
     def _do_remove_combatant(self, a: dict) -> None:
@@ -1361,13 +1439,26 @@ class Game:
             self.discard = []
             self.reshuffle_next = False
         dm = engine.DeckManager(self.deck, self.discard)
+        gruppen: dict = {}      # Gruppenkarte: (Seite, Basisname) -> Karte des Ersten
         for c in self.combatants:
             if c.get("benched"):
                 # Pausierte Figuren erhalten keine Karte (nehmen nicht am Kampf teil).
                 c["card"] = None
                 c["draw"] = None
                 continue
+            schluessel = self._gruppenschluessel(c)
+            if schluessel and schluessel in gruppen:
+                # Savage Worlds: gleiche Statisten handeln gemeinsam auf EINER Karte.
+                c["card"] = dict(gruppen[schluessel])
+                c["draw"] = None
+                c["karteGeteilt"] = True
+                c["revealed"] = True
+                c["ran"] = False
+                c["moved"] = False
+                continue
             kept, seq = engine.deal_one_combatant(dm, c.get("talents", []))
+            if schluessel:
+                gruppen[schluessel] = kept
             c["card"] = kept
             # Ziehsequenz für die schrittweise Aufdeck-Animation (nur bei Talent).
             c["draw"] = seq if len(seq) > 1 else None
@@ -1482,8 +1573,9 @@ class Game:
         c = self._combatant(a.get("id"))
         if not c:
             return
-        if c.get("card"):
+        if c.get("card") and not c.get("karteGeteilt"):
             self.discard.append(c["card"])
+        c["karteGeteilt"] = False       # eigene Karte -> gehört nicht mehr zur Gruppe
         dm = engine.DeckManager(self.deck, self.discard)
         kept, seq = engine.deal_one_combatant(dm, c.get("talents", []))
         c["card"] = kept
@@ -1546,19 +1638,24 @@ class Game:
             self.phase = "gate"
             self.timer_ends_at = None
 
-    def _do_confirm_turn(self, a: dict) -> None:
-        """Aktueller Akteur (oder SL) bestätigt den Zug -> Freigabe-Gate."""
+    def _zug_fertig(self) -> None:
+        """Aktueller Zug ist durch. Bei einer Gruppenkarte ist es der Zug der
+        GANZEN Gruppe - alle fertig, weiter geht es nach dem letzten von ihnen."""
         cur = self._combatant(self.active_id) if self.active_id else None
         if cur:
-            cur["done"] = True
+            gruppe = self.kartengruppe(cur)
+            for x in gruppe:
+                x["done"] = True
+            self.active_id = gruppe[-1]["id"]
         self._weiter_nach_zug()
+
+    def _do_confirm_turn(self, a: dict) -> None:
+        """Aktueller Akteur (oder SL) bestätigt den Zug -> Freigabe-Gate."""
+        self._zug_fertig()
 
     def _do_timeout(self, a: dict) -> None:
         """Timer ausgelaufen: Zug endet."""
-        cur = self._combatant(self.active_id) if self.active_id else None
-        if cur:
-            cur["done"] = True
-        self._weiter_nach_zug()
+        self._zug_fertig()
 
     def benutzte_bilder(self) -> set[str]:
         """Alle Bild-Dateinamen, die irgendwo noch gebraucht werden."""
@@ -1749,6 +1846,15 @@ class Game:
         except (TypeError, ValueError):
             pass
         self.save_settings()   # letzter Wert bleibt Default
+
+    def _do_set_kampfhilfe(self, a: dict) -> None:
+        """Optionale Kampfhilfen an/aus (Schaden rechnen, Spieler-Schaden,
+        Gruppenkarte). Gilt dauerhaft wie die übrigen Einstellungen."""
+        feld = {"schadenRechnen": "schaden_rechnen", "spielerSchaden": "spieler_schaden",
+                "gruppenKarte": "gruppen_karte"}.get(a.get("name"))
+        if feld:
+            setattr(self, feld, bool(a.get("on")))
+            self.save_settings()
 
     def _do_set_requests_enabled(self, a: dict) -> None:
         """Anfragen der Spieler ganz abschalten (dann sehen sie den Knopf nicht)."""
