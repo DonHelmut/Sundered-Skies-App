@@ -47,7 +47,7 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
-## Nach v100 (24.09.2026, noch ohne Versionssprung): WLAN des Laptops sichtbar
+## v101 (25.09.2026): WLAN des Laptops sichtbar
 
 - Anlass: Bei einem Gastgeber kamen iPhones „manchmal" nicht rein (Seite lud gar
   nicht, nichts im Log), zu Hause nie. Befund vor Ort: zwei WLANs aus demselben
@@ -262,8 +262,8 @@ sich über **Export/Import** in der App umziehen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v100** (veröffentlicht).
-      Nächstes Release also 100 → 101 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist v101** (veröffentlicht).
+      Nächstes Release also 101 → 102 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.
