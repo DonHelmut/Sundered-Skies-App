@@ -1991,3 +1991,70 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
 .aw-ziel .aw-wunden { color: var(--bad); font-weight: 700; }
 .aw-ziel .aw-ort { font-size: 0.72rem; color: var(--muted); }
 .aw-ziel.angeschlagen { border-color: var(--warn); }
+
+/* --- Spieler: Daumen-Knopf ----------------------------------------------
+   Ein großer Knopf unten, immer an derselben Stelle (Aufdecken, Erholen,
+   Angreifen, Eingreifen). Kleine Neben-Knöpfe (Zug beenden, Abwarten, Benny)
+   rechts daneben bzw. auf schmalen Handys darunter. */
+.daumen-leiste { gap: 8px; flex-wrap: nowrap; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.dl-haupt { flex: 1 1 auto; min-width: 0; display: flex; }
+.dl-haupt > * { flex: 1; margin: 0; }
+.dl-haupt button.big { padding: 15px 14px; font-size: 1.15rem; }
+.dl-haupt .angriff-wartet { margin: 0; text-align: center; }
+.dl-neben { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
+.dl-neben button { padding: 7px 10px; font-size: 0.85rem; white-space: nowrap; }
+.dl-neben button.big { padding: 7px 10px; font-size: 0.85rem; }
+
+/* --- Beitritt in einem Tippen -------------------------------------------- */
+.join-weiter { width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.join-weiter b { font-size: 1.2rem; }
+.join-av { width: 40px; height: 40px; flex: 0 0 40px; font-size: 0.9rem; }
+.join-weiter .join-av { border-color: var(--on-accent); }
+.join-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.join-char {
+  display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 58px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+  color: var(--text); text-align: left; font-weight: 700;
+}
+.join-char.zuletzt { border-color: var(--gold); }
+.join-char.join-neu { border-style: dashed; color: var(--muted); }
+.join-char-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.2; }
+.join-spieler { margin-top: 12px; }
+.join-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.join-links:has(> :only-child) { justify-content: center; }
+
+/* Spieler ist dran: goldener Rand blitzt dreimal (Ersatz für die Vibration,
+   die das iPhone im Browser nicht kann). Nur Deckkraft animiert. */
+.dran-blitz {
+  position: fixed; inset: 0; z-index: 300; pointer-events: none;
+  box-shadow: inset 0 0 0 6px var(--gold), inset 0 0 70px color-mix(in srgb, var(--gold) 55%, transparent);
+  animation: dranBlitz 1.7s ease-out forwards;
+}
+@keyframes dranBlitz {
+  0%, 26%, 52% { opacity: 1; } 13%, 39% { opacity: 0.2; } 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .dran-blitz { animation-duration: 2.4s; } }
+
+/* --- SL: Rechtsklick-Menü auf einer Figur ------------------------------- */
+.kontext-menue {
+  position: fixed; z-index: 250; min-width: 230px; max-width: 320px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); padding: 6px;
+  display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem;
+}
+.km-kopf { display: flex; align-items: baseline; gap: 8px; padding: 4px 6px 6px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+.km-kopf b { color: var(--gold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.km-kopf b.km-feind { color: var(--foe-name); }
+.km-werte { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+.km-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.km-label { color: var(--muted); font-size: 0.8rem; min-width: 70px; }
+.km-zahl { min-width: 22px; text-align: center; font-weight: 700; }
+.km-btn {
+  background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+  border-radius: 7px; padding: 5px 9px; font-size: 0.85rem; cursor: pointer;
+}
+.km-btn:hover { border-color: var(--accent); }
+.km-btn.on { border-color: var(--warn); color: var(--warn); }
+.kontext-menue .km-btn.bad { background: var(--panel2); border-color: var(--line); color: var(--bad); }
+.km-treffer { font-weight: 700; }
+.km-klein .km-btn { font-size: 0.78rem; padding: 4px 7px; }

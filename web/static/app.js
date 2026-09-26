@@ -34,6 +34,8 @@ const App = {
   collapsed: (() => { try { return JSON.parse(localStorage.getItem("collapsed") || "{}"); } catch { return {}; } })(),
   rowStatusOpen: new Set(),  // Reihenfolge: pro Zeile aufgeklappte Zustands-Leiste (übersteht Re-Render)
   reqMode: false,            // Spieler: Anfrage-Modus (ein Umschalter für ALLE Meldungen)
+  // Beitrittsseite: Ansicht (weiter/liste/neu) und Getipptes - übersteht Server-Updates.
+  joinEntwurf: { modus: null, neuName: "", spielerName: (() => { try { return localStorage.getItem("spielerName") ?? localStorage.getItem("playerName") ?? ""; } catch { return ""; } })() },
 };
 
 // --- Ansicht des SL-Laptops zusätzlich auf dem Laptop sichern ---------------
@@ -270,6 +272,31 @@ function playBeep(freq, ms) {
     o.start(t); o.stop(t + (ms || 120) / 1000);
   } catch { /* Audio ohne Nutzergeste evtl. blockiert – egal */ }
 }
+// iPhone: Ton gibt es nur, wenn der AudioContext bei einer BERÜHRUNG geweckt
+// wurde. Bisher entstand er erst beim „Du bist dran" - ohne Berührung - und
+// blieb auf iPhones stumm. Darum bei jedem Antippen wecken (kostet nichts,
+// wenn er schon läuft); iOS legt ihn nach Sperrbildschirm wieder schlafen.
+// pointerdown zählt auf Touch-Geräten nicht als Geste, pointerup/touchend schon.
+function tonWecken() {
+  try {
+    _actx = _actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (_actx.state === "running") return;
+    _actx.resume();
+    const q = _actx.createBufferSource();          // stiller Mini-Ton schaltet iOS frei
+    q.buffer = _actx.createBuffer(1, 1, 22050);
+    q.connect(_actx.destination); q.start(0);
+  } catch { /* ohne Web Audio eben ohne Ton */ }
+}
+["pointerup", "touchend", "keydown"].forEach((ev) => document.addEventListener(ev, tonWecken, { capture: true, passive: true }));
+// Vibration kann das iPhone im Browser gar nicht (navigator.vibrate fehlt).
+const kannVibrieren = typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
+// Ersatz, den jeder sieht: der Bildschirmrand blitzt golden auf.
+function dranBlitz() {
+  document.querySelectorAll(".dran-blitz").forEach((n) => n.remove());
+  const n = el(`<div class="dran-blitz" aria-hidden="true"></div>`);
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 1800);
+}
 
 // SL: kurzer Doppelton, wenn eine NEUE Spieler-Anfrage eintrifft (nichts verpassen).
 function checkRequestAlert() {
@@ -390,6 +417,7 @@ function checkTurnNotify() {
   // gerade gescrollt wurde. Läuft unabhängig vom Ton/Vibration - die kann man
   // abschalten, verpassen darf man seinen Zug trotzdem nicht.
   if (myTurn && !App._prevMyTurn && App._turnInit) {   // (Spieler-Ansicht)
+    dranBlitz();
     // Erst nach dem Neuzeichnen springen, sonst zielt es auf die alte Seite.
     setTimeout(() => {
       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* s. u. */ }
@@ -1522,7 +1550,7 @@ function render() {
   }
   Cards.renderStart();
   let html;
-  try { html = (App.role === "gm" ? renderGM() : renderPlayer()) + renderTokenPopupOverlay(); }
+  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay(); }
   finally { Cards.renderEnde(); }
   // Unveraendert? Dann den Bildschirm NICHT neu aufbauen. Jeder Neuaufbau ersetzt
   // alle Karten: laufende Animationen (Joker, Glanz, Glimmen) starten von vorn,
@@ -1536,6 +1564,7 @@ function render() {
     // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
     document.body.classList.toggle("hat-leiste", !!root.querySelector(".aktionsleiste"));
     document.body.classList.toggle("ziel-modus", App.role === "gm" && !!App.trefferWahl);
+    kontextMenueEinpassen();
     runReveals();
     playFlip(prevRects);
     playTokens(prevTokens);
@@ -2466,6 +2495,7 @@ function tastenHilfeHtml() {
         ${zeile(["T"], "Der Aktive selbst wird getroffen (angeschlagen bzw. +1 Wunde)")}
         ${zeile(["H"], "Der Aktive wird geheilt")}
         ${zeile(["Strg", "Klick"], "Figuren sammeln (Board oder Liste), dann gemeinsam ziehen")}
+        ${zeile(["Rechtsklick"], "auf Figur (Liste oder Board): Treffer, Heilen, Zustand, Bennies … direkt an der Maus")}
         ${zeile(["Esc"], "Zielwahl schließen · Strg-Auswahl aufheben · dieses Fenster schließen")}
         ${zeile(["?"], "Diese Übersicht")}
       </table>
@@ -2826,6 +2856,78 @@ function combatantRow(c, num, isGM, isOpen) {
     ${isGM && App.editCombatantId === c.id ? `<div style="flex-basis:100%">${combatantEditor(c)}</div>` : ""}
   </div>`;
 }
+
+// --- SL: Rechtsklick-Menü auf eine Figur -----------------------------------
+// Rechtsklick auf Zeile oder Token: alles, was man mit der Figur tun kann, an
+// der Maus - statt erst „⋯" aufklappen und in der Zeile suchen. Die Knöpfe
+// sind dieselben (data-act) wie im ⋯-Feld; nach einem Klick geht das Menü zu,
+// außer bei Dingen, die man oft mehrfach klickt (Bennies, Zustände).
+function kontextMenueHtml() {
+  const k = App.kontextMenue;
+  const c = k && findCombatant(k.id);
+  if (!c) { App.kontextMenue = null; return ""; }
+  const st = c.status || {};
+  const conds = (App.state && App.state.conditions) || {};
+  const b = (act, text, extra = "", titel = "") =>
+    `<button class="km-btn${extra ? " " + extra : ""}" data-act="${act}" data-id="${c.id}"${titel ? ` title="${esc(titel)}"` : ""}>${text}</button>`;
+  const treffer = st.out ? "" : `<div class="km-zeile"><span class="km-label">💥 Treffer</span>
+      ${[0, 1, 2, 3].map((n) => `<button class="km-btn km-treffer" data-act="km-treffer" data-id="${c.id}" data-n="${n}"
+        title="${n ? `Angeschlagen + ${n} Wunde${n > 1 ? "n" : ""}` : "Angeschlagen (bzw. +1 Wunde, wenn schon angeschlagen)"}">${n ? `+${n}` : "Erfolg"}</button>`).join("")}</div>`;
+  const zustand = `<div class="km-zeile">
+      ${b("apply-heal", "🩹 Heilen")}
+      ${b("st-shaken", "😵 Angeschlagen", (st.shaken ? "on " : "") + "km-bleibt")}
+      ${b("st-out", st.out ? "☠ Wieder wach" : "☠ K.O.", st.out ? "on" : "")}
+    </div>`;
+  const zustaende = Object.keys(conds).length ? `<div class="km-zeile km-klein">${Object.keys(conds).map((key) =>
+      `<button class="km-btn km-bleibt${st[key] ? " on" : ""}" data-act="st-cond" data-id="${c.id}" data-cond="${key}">${esc(conds[key])}</button>`).join("")}</div>` : "";
+  const bennies = c.isWildCard ? `<div class="km-zeile"><span class="km-label">🪙 Bennies</span>
+      ${b("benny-minus", "–", "km-bleibt")}<span class="km-zahl">${c.bennies || 0}</span>${b("benny-plus", "+", "km-bleibt")}</div>` : "";
+  const zug = `<div class="km-zeile">
+      ${c.id === App.state.activeId ? "" : b("set-active", "▶ Aktiv setzen")}
+      ${c.card && !st.out ? b(c.held ? "intervene" : "hold", c.held ? "⚡ Eingreifen" : "⏸ Abwarten") : ""}
+      ${b("redraw", "🔄 Neu ziehen")}
+    </div>`;
+  const verwalten = `<div class="km-zeile km-klein">
+      ${b("edit-combatant", "✎ Bearbeiten")}
+      ${c.kind === "npc" && !c.ally ? `<button class="km-btn${c.anon ? " on" : ""}" data-act="set-anon" data-id="${c.id}" data-on="${c.anon ? 0 : 1}">${c.anon ? "🫥 Aufdecken" : "👁 Verdecken"}</button>` : ""}
+      <button class="km-btn" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}">${c.benched ? "▶️ Wieder rein" : "⏸ Pausieren"}</button>
+      ${b("remove-combatant", "✕ Entfernen", "bad")}
+    </div>`;
+  const werte = kampfwerteText(c);
+  return `<div class="kontext-menue" style="left:${k.x}px; top:${k.y}px" role="menu">
+    <div class="km-kopf"><b class="${c.kind === "npc" && !c.ally ? "km-feind" : ""}">${esc(c.name)}</b>${
+      werte ? `<span class="km-werte">${esc(werte)}</span>` : ""}${
+      st.wounds ? `<span class="km-werte">🩸 ${st.wounds}</span>` : ""}</div>
+    ${treffer}${zustand}${zustaende}${bennies}${zug}${verwalten}
+  </div>`;
+}
+// Am Bildschirmrand nach innen schieben (Rechtsklick ganz unten/rechts).
+function kontextMenueEinpassen() {
+  const m = document.querySelector(".kontext-menue");
+  if (!m) return;
+  const r = m.getBoundingClientRect();
+  const x = Math.max(6, Math.min(r.left, window.innerWidth - r.width - 6));
+  const y = Math.max(6, Math.min(r.top, window.innerHeight - r.height - 6));
+  if (x !== r.left) m.style.left = x + "px";
+  if (y !== r.top) m.style.top = y + "px";
+}
+function kontextMenueZu() {
+  if (!App.kontextMenue) return false;
+  App.kontextMenue = null; render();
+  return true;
+}
+document.addEventListener("contextmenu", (e) => {
+  if (App.role !== "gm" || !App.state || e.shiftKey) return;   // Shift: Browser-Menü wie gewohnt
+  if (e.target.closest("input, textarea, select, .kontext-menue")) return;
+  const zeile = e.target.closest(".combatant[data-cid], .zone-token[data-drag-id]");
+  if (!zeile) { kontextMenueZu(); return; }
+  e.preventDefault();
+  App.kontextMenue = { id: zeile.getAttribute("data-cid") || zeile.getAttribute("data-drag-id"), x: e.clientX, y: e.clientY };
+  render();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && App.kontextMenue) { e.stopImmediatePropagation(); kontextMenueZu(); } }, true);
+// Scrollen löst das Menü von seiner Figur - dann lieber zu.
+window.addEventListener("scroll", () => { if (App.kontextMenue) kontextMenueZu(); }, { passive: true });
 
 function combatantEditor(c) {
   return `<div class="panel" style="margin:6px 0 0">
@@ -3454,10 +3556,14 @@ function tipptImBogen() {
   const a = document.activeElement;
   // Auch das Schadensfeld der Treffer-Auswahl (SL): sonst wäre die Eingabe
   // bei jedem Server-Update weg.
-  return !!(a && a.closest && a.closest(".bogen-form, .al-treffer, .angriff-popup") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  // Und die Beitrittsseite: kam dort ein Update (jemand anderes trat bei),
+  // verlor man mitten im Tippen Fokus und Tastatur.
+  return !!(a && a.closest && a.closest(".bogen-form, .al-treffer, .angriff-popup, .join-form") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
 }
 document.addEventListener("input", (e) => {
   if (e.target && e.target.id === "treffer-schaden") App.trefferSchaden = e.target.value;
+  if (e.target && e.target.id === "joinneu") App.joinEntwurf.neuName = e.target.value;
+  if (e.target && e.target.id === "joinname") App.joinEntwurf.spielerName = e.target.value;
   // Angriffs-Fenster: Vorschlag sofort neu rechnen (einmal neu zeichnen, Fokus
   // und Cursor danach wiederherstellen).
   if (e.target && e.target.id === "angriff-schaden") {
@@ -3477,6 +3583,10 @@ function bogenNachholen() {
   if (App.bogenWartet && !tipptImBogen() && !zeigerUnten) { App.bogenWartet = false; render(); }
 }
 document.addEventListener("pointerdown", () => { zeigerUnten = true; }, true);
+// Beitritt: „Los" auf der Handy-Tastatur tritt direkt bei.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target && e.target.id === "joinneu") { e.preventDefault(); e.target.blur(); doJoin(null, true); }
+});
 const zeigerOben = () => { zeigerUnten = false; setTimeout(bogenNachholen, 60); };
 document.addEventListener("pointerup", zeigerOben, true);
 document.addEventListener("pointercancel", zeigerOben, true);
@@ -3489,6 +3599,11 @@ function renderPlayer() {
   const mine = s.combatants.find((c) => c.playerId === App.myPlayerId);
 
   if (!App.joined || !mine) return renderJoin();
+  // Für „Weiter als …" beim nächsten Beitritt (auch nach „Verlassen").
+  if (mine.characterId && App._gemerkterChar !== mine.characterId) {
+    App._gemerkterChar = mine.characterId;
+    merkeLetztenCharakter(mine.characterId, mine.name);
+  }
 
   const isMyTurn = s.activeId === mine.id && s.phase === "running";
   const banner = isMyTurn ? `<div class="myturn-banner">Du bist dran!</div>` : "";
@@ -3546,7 +3661,6 @@ function renderPlayer() {
   const recoverBennyBtn = (canRecover && mine.isWildCard && (mine.bennies || 0) > 0)
     ? `<button class="good big" data-act="player-request" data-kind="recover" data-detail='{"benny":true}' data-label="gibt einen Benny aus und ist erholt">🪙➜✓ Benny ausgeben</button>`
     : "";
-  const recoverBtn = recoverFreeBtn + recoverBennyBtn;
   const recoverGemeldet = (s.requests || []).some((r) => r.combatantId === mine.id && (r.kind === "recover" || (r.kind === "status" && (r.detail || {}).shaken === false)));
   const angeschlagenHinweis = binDran && mySt.shaken && !mySt.out ? `<div class="angeschlagen-hinweis">
       <div class="ah-titel">😵 Du bist angeschlagen</div>
@@ -3590,9 +3704,6 @@ function renderPlayer() {
       ${hints ? `<div class="center" style="margin-top:6px">${hints}</div>` : ""}
       ${s.phase !== "idle" ? `<div style="margin-top:8px">${timer}</div>` : ""}
       ${angeschlagenHinweis}
-      ${recoverBtn && !recoverGemeldet ? `<div class="row" style="justify-content:center; margin-top:10px">${recoverBtn}</div>` : ""}
-      ${angriffBtn ? `<div class="row" style="justify-content:center; margin-top:10px">${angriffBtn}</div>` : ""}
-      <div class="row" style="justify-content:center; margin-top:10px">${confirmBtn}${holdBtn}</div>
       ${App.angriffWahl && angriffMoeglich && !meinAngriff ? angriffWahlHtml(mine) : ""}
       ${playerQuickControls(mine)}
     </div>`;
@@ -3616,6 +3727,13 @@ function renderPlayer() {
     ? `<div class="dran-leiste${isMyTurn ? " ich" : ""}">${isMyTurn ? "▶ Du bist dran!" : esc(werDran)}${
         binNaechster && !isMyTurn ? " · du kommst als Nächstes" : ""}</div>`
     : "";
+
+  // Der Daumen-Knopf: EIN großer Knopf unten, immer an derselben Stelle, der
+  // das anbietet, was gerade dran ist - Karte aufdecken, erholen, angreifen,
+  // eingreifen. Vorher standen bis zu fünf Knöpfe in der Karte verteilt, und
+  // wer weiter unten im Bogen war, musste erst zurückscrollen.
+  const daumen = daumenKnopf({ mine, isMyTurn, angriffMoeglich, meinAngriff, angriffZiel,
+    canRecover: canRecover && !recoverGemeldet, recoverFreeBtn, recoverBennyBtn, confirmBtn, holdBtn, angriffBtn });
 
   const wuerfelListe = `<datalist id="wuerfel-vorschlaege">${WUERFEL.map((w) => `<option value="${w}">`).join("")}</datalist>`;
 
@@ -3643,30 +3761,112 @@ function renderPlayer() {
     ${mine.benched ? "" : renderZonesPanel()}
     <label class="row tight" style="align-items:center; justify-content:center; margin-top:10px; cursor:pointer">
       <input type="checkbox" data-act="toggle-notify" ${localStorage.getItem("notifyTurn") !== "off" ? "checked" : ""} style="width:auto">
-      <span class="small muted">🔔 Vibration/Ton, wenn ich dran bin</span>
+      <span class="small muted">🔔 ${kannVibrieren ? "Vibration/Ton" : "Ton"}, wenn ich dran bin</span>
+      <button class="ghost small" data-act="ton-testen" title="Lautstärke prüfen – am iPhone muss der Lautlos-Schalter aus sein">▶ Test</button>
     </label>
     ${msgs ? `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs}</div>` : ""}
+    ${daumen}
   `;
+}
+
+// Was der große Knopf unten gerade anbietet - in dieser Reihenfolge: wer
+// abwartet, will eingreifen; angeschlagen heißt erst erholen; dann der Zug
+// selbst; ansonsten die eigene Karte aufdecken. Nichts zu tun: keine Leiste.
+function daumenKnopf(o) {
+  const { mine, isMyTurn, angriffMoeglich, meinAngriff, angriffZiel } = o;
+  let haupt = "", neben = "";
+  if (mine.held) {
+    haupt = o.holdBtn;                                  // „Jetzt eingreifen! ⚡"
+  } else if (o.canRecover) {
+    haupt = o.recoverFreeBtn; neben = o.recoverBennyBtn;
+  } else if (isMyTurn && meinAngriff) {
+    // Kein „Zug beenden" daneben: sonst endet der Zug, bevor der SL entschieden hat.
+    haupt = `<div class="angriff-wartet">⚔ Angriff auf <b>${esc(angriffZiel ? angriffZiel.name : "?")}</b> – der Spielleiter entscheidet ⏳</div>`;
+  } else if (isMyTurn && angriffMoeglich) {
+    haupt = App.angriffWahl
+      ? `<button class="ghost big" data-act="angriff-waehlen">✕ Angriff abbrechen</button>`
+      : o.angriffBtn;
+    neben = o.confirmBtn + o.holdBtn;
+  } else if (isMyTurn) {
+    haupt = o.confirmBtn; neben = o.holdBtn;
+  } else if (mine.card && !mine.revealed && !mine.benched) {
+    haupt = `<button class="primary big" data-act="daumen-aufdecken">🂠 Karte aufdecken</button>`;
+  }
+  if (!haupt) return "";
+  return `<div class="aktionsleiste daumen-leiste">
+    <div class="dl-haupt">${haupt}</div>${neben ? `<div class="dl-neben">${neben}</div>` : ""}
+  </div>`;
+}
+
+// Beitritt in EINEM Tippen. Wer hier schon mal gespielt hat, bekommt seinen
+// Charakter groß vorgeschlagen; sonst eine Liste großer Knöpfe (antippen =
+// beigetreten). Früher: Auswahlliste + zwei Namensfelder - der Name des neuen
+// Charakters landete gern im falschen Feld, dann kam nur ein alert() und
+// nichts beim Server an („konnte keinen neuen Char erstellen", 1.1). Was
+// getippt ist, steht in App.joinEntwurf und übersteht jedes Neuzeichnen.
+function letzterCharakter() {
+  const roster = (App.state && App.state.roster) || [];
+  let m = null;
+  try { m = JSON.parse(localStorage.getItem("letzterCharakter") || "null"); } catch { /* egal */ }
+  const id = (m && m.id) || App.myCharacterId;
+  return roster.find((r) => r.id === id)
+    // ID weg (Sicherung eingespielt, Charakter neu angelegt): am Namen erkennen.
+    || (m && m.name && roster.find((r) => (r.name || "").trim().toLowerCase() === m.name.trim().toLowerCase()))
+    || null;
+}
+function merkeLetztenCharakter(id, name) {
+  try { localStorage.setItem("letzterCharakter", JSON.stringify({ id: id || null, name: name || "" })); } catch { /* egal */ }
+}
+function joinAvatar(r) {
+  const k = zoneInitials(r.name);
+  return `<span class="avatar join-av">${r.image ? `<img src="${esc(r.image)}" alt="">`
+    : `<span class="av-init${k.length > 2 ? " eng" : ""}">${esc(k)}</span>`}</span>`;
 }
 
 function renderJoin() {
   const s = App.state;
-  const chars = s.roster.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
+  const E = App.joinEntwurf;
   const fehler = App.joinFehler
     ? `<div class="pill bad" style="display:block; line-height:1.5; margin-bottom:10px">${esc(App.joinFehler)}</div>`
     : "";
+  const letzter = letzterCharakter();
+  // Ohne Charakterliste (erster Abend) gleich das Namensfeld.
+  const modus = !s.roster.length ? "neu" : (E.modus || (letzter ? "weiter" : "liste"));
+  const spielerFeld = `<label class="field join-spieler"><span>Dein Name <small class="muted">(optional)</small></span>
+      <input id="joinname" value="${esc(E.spielerName)}" placeholder="z. B. Stefan" maxlength="40" autocomplete="off"></label>`;
+
+  let inhalt;
+  if (modus === "weiter") {
+    inhalt = `
+      <button class="primary big join-weiter" data-act="join-als" data-id="${letzter.id}">
+        ${joinAvatar(letzter)}<span>Weiter als <b>${esc(letzter.name)}</b></span></button>
+      <div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="liste">Anderer Charakter …</button></div>`;
+  } else if (modus === "liste") {
+    const knoepfe = s.roster.map((r) => `<button class="join-char${letzter && letzter.id === r.id ? " zuletzt" : ""}" data-act="join-als" data-id="${r.id}">
+        ${joinAvatar(r)}<span class="join-char-name">${esc(r.name)}</span></button>`).join("");
+    inhalt = `
+      <div class="muted small" style="margin-bottom:8px">Antippen – schon bist du drin.</div>
+      <div class="join-liste">${knoepfe}
+        <button class="join-char join-neu" data-act="join-modus" data-modus="neu"><span class="avatar join-av">➕</span><span class="join-char-name">Neuer Charakter</span></button>
+      </div>
+      ${spielerFeld}
+      <div class="join-links">
+        ${letzter ? `<button class="ghost small" data-act="join-modus" data-modus="weiter">← zurück</button>` : ""}
+        <button class="ghost small" data-act="join-als" data-id="" title="Ohne eigene Figur mitschauen">👁 Nur zuschauen</button>
+      </div>`;
+  } else {
+    inhalt = `
+      <label class="field"><span>Wie heißt dein Charakter?</span>
+        <input id="joinneu" value="${esc(E.neuName)}" placeholder="z. B. Tessa" maxlength="40" autocomplete="off" enterkeyhint="go"></label>
+      ${spielerFeld}
+      <button class="primary big" data-act="join-neu" style="width:100%">Beitreten</button>
+      ${s.roster.length ? `<div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="liste">← zur Liste</button></div>` : ""}`;
+  }
   return `
     <h1 class="center">Sundered Skies · Beitreten</h1>
-    <div class="panel">
+    <div class="panel join-form">
       ${fehler}
-      ${s.roster.length ? `<label class="field"><span>Charakter wählen</span>
-        <select id="joinchar" data-act="join-char-wahl"><option value="">– Gast (ohne Charakter) –</option>${chars}<option value="neu">➕ Neuen Charakter anlegen …</option></select></label>` : ""}
-      <label class="field" id="neu-char-feld" style="display:${s.roster.length ? "none" : "block"}">
-        <span>Name des Charakters</span>
-        <input id="joinneu" placeholder="z. B. Tessa" maxlength="40"></label>
-      <label class="field"><span>Dein Name (Spieler)${s.roster.length ? " – optional bei Charakterwahl" : ""}</span>
-        <input id="joinname" value="${esc(App.myName)}" placeholder="z. B. Stefan"></label>
-      <button class="primary big" data-act="join" style="width:100%">Beitreten</button>
+      ${inhalt}
     </div>
     ${handyTipp()}
     <div class="center muted small">Nichts zu installieren – läuft direkt im Browser.</div>
@@ -3806,7 +4006,12 @@ document.addEventListener("click", (e) => {
     "req-apply": () => gmAction({ type: "resolve_request", id, apply: true }),
     "req-dismiss": () => gmAction({ type: "resolve_request", id, apply: false }),
     // Spieler
-    "join": doJoin,
+    "join-als": () => doJoin(id || null, false),
+    "join-neu": () => doJoin(null, true),
+    "join-modus": () => {
+      App.joinEntwurf.modus = target.dataset.modus; App.joinFehler = null; render();
+      if (target.dataset.modus === "neu") { const f = $("joinneu"); if (f) f.focus(); }
+    },
     "leave": doLeave,
     "hold": () => gmActionOrPlayer({ type: "hold", id }),
     "intervene": () => gmActionOrPlayer({ type: "intervene", id }),
@@ -3958,7 +4163,27 @@ Abbrechen = Begegnung zusätzlich dazustellen.`);
       render();
     },
     "tasten-hilfe": () => { App.tastenHilfe = !App.tastenHilfe; render(); },
-    "angriff-waehlen": () => { App.angriffWahl = !App.angriffWahl; render(); },
+    "ton-testen": () => {
+      e.preventDefault();   // sitzt im <label> - sonst schaltet der Klick das Häkchen um
+      tonWecken(); playBeep(660, 150); setTimeout(() => playBeep(990, 170), 170);
+      try { if (kannVibrieren) navigator.vibrate([130, 70, 130]); } catch { /* egal */ }
+      dranBlitz();
+    },
+    "km-treffer": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; App.trefferSchaden = ""; trefferAuf(id); },
+    "angriff-waehlen": () => {
+      App.angriffWahl = !App.angriffWahl; render();
+      // Der Knopf sitzt unten, die Zielliste in der Karte - hinscrollen.
+      const liste = App.angriffWahl && document.querySelector(".angriff-wahl");
+      if (liste) try { liste.scrollIntoView({ behavior: "smooth", block: "center" }); } catch { /* alt */ }
+    },
+    "daumen-aufdecken": () => {
+      const karte = document.querySelector('#bigcard [data-act="reveal-card"]');
+      if (!karte) return;
+      // Erst nach oben, sonst dreht sich die Karte außer Sicht.
+      const oben = window.scrollY < 40;
+      if (!oben) try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); }
+      setTimeout(() => revealBigCard(karte), oben ? 0 : 350);
+    },
     "angriff-auf": () => { if (angriffMelden(id)) { App.angriffWahl = false; render(); } },
     // SL: Angriffs-Fenster wieder hervorholen bzw. auf später schieben
     "angriff-oeffnen": () => { App.angriffSpaeter.delete(id); render(); },
@@ -4010,7 +4235,13 @@ Abbrechen = Begegnung zusätzlich dazustellen.`);
     "sl-benny-minus": () => gmAction({ type: "sl_benny_adjust", delta: -1 }),
   };
   if (handlers[act]) { e.preventDefault(); handlers[act](); }
+  // Rechtsklick-Menü: nach der Aktion zu (außer „bleibt"-Knöpfe).
+  if (App.kontextMenue && target.closest(".kontext-menue") && !target.classList.contains("km-bleibt")) kontextMenueZu();
 });
+// Klick irgendwo daneben schließt das Menü (vor allen anderen Klick-Handlern).
+document.addEventListener("click", (e) => {
+  if (App.kontextMenue && !e.target.closest(".kontext-menue")) kontextMenueZu();
+}, true);
 
 // Tastatur für den SL: bei 25 Figuren ist jeder gesparte Mausweg spürbar.
 //   Leertaste / Enter → freigeben bzw. Zug bestätigen (der jeweils passende Schritt)
@@ -4205,10 +4436,6 @@ document.addEventListener("change", (e) => {
   } else if (act === "remember-player-zone") {
     const v = parseInt(t.value, 10);
     if (!isNaN(v)) { try { localStorage.setItem("lastZonePlayer", String(v)); } catch {} }
-  } else if (act === "join-char-wahl") {
-    const feld = $("neu-char-feld");
-    if (feld) feld.style.display = t.value === "neu" ? "block" : "none";
-    if (t.value === "neu" && $("joinneu")) $("joinneu").focus();
   } else if (act === "set-statisten-ko") {
     gmAction({ type: "set_statisten_ko", value: parseInt(t.value, 10) });
   } else if (act === "toggle-auto-incap") {
@@ -4393,31 +4620,37 @@ function sendMessage() {
   App.pendingImageUrl = null;
 }
 
-function doJoin() {
-  const charSel = $("joinchar");
-  let characterId = charSel ? (charSel.value || null) : null;
-  // „Neuen Charakter anlegen": der Server legt ihn beim Beitritt an. Ohne
-  // Charakterliste (erster Abend) gibt es das Feld sofort.
-  const neuFeld = $("joinneu");
-  const neuerCharakter = (characterId === "neu" || !charSel) && neuFeld ? neuFeld.value.trim() : "";
-  if (characterId === "neu") {
-    characterId = null;
-    if (!neuerCharakter) { alert("Bitte einen Namen für den neuen Charakter eingeben."); return; }
+// characterId: Charakter aus der Liste ("" = nur zuschauen); neu = true: der
+// Server legt den Charakter aus dem Namensfeld an.
+function doJoin(characterId, neu) {
+  const E = App.joinEntwurf;
+  const roster = App.state.roster || [];
+  const gleich = (a, b) => (a || "").trim().toLowerCase() === (b || "").trim().toLowerCase();
+  const neuerCharakter = neu ? (E.neuName || "").trim() : "";
+  if (neu && !neuerCharakter) {
+    // Kein alert(): der verschluckte auf manchen Handys den Beitritt ganz.
+    App.joinFehler = "Wie heißt dein Charakter? Oben den Namen eintragen.";
+    render();
+    const f = $("joinneu"); if (f) f.focus();
+    return;
   }
-  let name = $("joinname").value.trim();   // Spielername (Person)
-  // Charakter gewählt, aber kein Name getippt -> Charaktername als Fallback.
-  if (characterId && !name) {
-    const c = App.state.roster.find((r) => r.id === characterId);
-    name = c ? c.name : name;
-  }
-  if (!name) name = neuerCharakter;        // nur Charaktername getippt -> reicht
-  if (!name) { alert("Bitte einen Charakter wählen oder deinen Namen eingeben."); return; }
+  const char = characterId ? roster.find((r) => r.id === characterId) : null;
+  let spieler = (E.spielerName || "").trim();
+  // Früher wurde der Charaktername als „Spielername" gemerkt. Steht da noch
+  // ein ANDERER Charakter, wäre man „Korgo, gespielt von Tessa".
+  if (spieler && roster.some((r) => gleich(r.name, spieler)) && !gleich(spieler, char ? char.name : neuerCharakter)) spieler = "";
+  const name = spieler || (char && char.name) || neuerCharakter || "Gast";
   App.joinFehler = null;              // alte Meldung verwerfen
-  App.myName = name; App.myCharacterId = characterId;
-  localStorage.setItem("playerName", name);
-  if (characterId) localStorage.setItem("characterId", characterId); else localStorage.removeItem("characterId");
-  wsSend({ type: "join", name, characterId, neuerCharakter, playerId: App.myPlayerId });
+  App.myName = name; App.myCharacterId = char ? char.id : null;
+  try {
+    localStorage.setItem("playerName", name);
+    localStorage.setItem("spielerName", spieler);
+    if (char) localStorage.setItem("characterId", char.id); else localStorage.removeItem("characterId");
+  } catch { /* privates Fenster */ }
+  if (char || neuerCharakter) merkeLetztenCharakter(char ? char.id : null, char ? char.name : neuerCharakter);
+  wsSend({ type: "join", name, characterId: App.myCharacterId, neuerCharakter, playerId: App.myPlayerId });
   App.joined = true;
+  E.modus = null; E.neuName = "";
 }
 
 function doLeave() {

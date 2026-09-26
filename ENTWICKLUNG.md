@@ -47,6 +47,32 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## In Arbeit (nach 1.1, noch ohne Versionssprung)
+
+- **Beitritt in einem Tippen** (`renderJoin`, `doJoin(characterId, neu)`):
+  „Weiter als Tessa" groß (gemerkt in `localStorage.letzterCharakter`, übersteht
+  „Verlassen"), sonst Kacheln je Charakter (antippen = drin), „➕ Neuer
+  Charakter", „👁 Nur zuschauen". Spielername optional (`spielerName`).
+  Anlass: Neuer Charakter ging „manchmal" nicht – Server-Update während des
+  Tippens baute die Seite neu, Auswahl und Name waren weg; bzw. Name im falschen
+  der zwei Felder → alert, nichts gesendet. Jetzt `App.joinEntwurf` +
+  `.join-form` in `tipptImBogen`.
+- **Daumen-Knopf** am Handy (`daumenKnopf`): EIN großer Knopf unten, je nach
+  Lage Eingreifen → Erholen → Angreifen/Zug bestätigen → Karte aufdecken; Zug
+  beenden/Abwarten/Benny klein daneben. Während ein Angriff beim SL liegt, kein
+  „Zug beenden".
+- **SL: Rechtsklick auf Figur** (Zeile oder Token): Menü mit Treffer
+  Erfolg/+1/+2/+3, Heilen, Angeschlagen, K.O., Zustände, Bennies, Aktiv setzen,
+  Abwarten, Neu ziehen, Bearbeiten, Verdecken, Pausieren, Entfernen
+  (`kontextMenueHtml`). Shift+Rechtsklick = Browser-Menü. Esc/Scrollen schließt.
+- **iPhone:** Ton wird bei jeder Berührung freigeschaltet (`tonWecken`) – vorher
+  entstand der AudioContext ohne Geste und blieb stumm. Vibration kann iOS im
+  Browser nicht → stattdessen blitzt der Bildschirmrand golden (`dranBlitz`,
+  für alle). „▶ Test"-Knopf neben dem Glocken-Häkchen. Lautlos-Schalter am
+  iPhone schaltet Web-Töne weiterhin stumm.
+- Noch auf echtem iPhone prüfen: Ton nach Sperrbildschirm, Blitz, Daumen-Leiste
+  über der Safari-Leiste.
+
 ## 1.1 (25.09.2026): Spieler greifen selbst an
 
 - **Handy „⚔ Angreifen"** statt „Zug bestätigen" (der bleibt klein als
