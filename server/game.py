@@ -1838,6 +1838,25 @@ class Game:
         c = self._combatant(cid)
         if not c:
             return
+        # Erholen (Probe geschafft oder Benny) gilt SOFORT - der SL muss nichts
+        # bestätigen, bekommt aber eine kurze Einblendung (Stefan). Vorher lag
+        # es als Anfrage beim SL, und der Spieler hing so lange angeschlagen fest.
+        kind = a.get("kind")
+        detail = a.get("detail") or {}
+        if kind == "recover" or (kind == "status" and detail == {"shaken": False}):
+            if not (c.get("status") or {}).get("shaken"):
+                return
+            mit_benny = kind == "recover" and bool(detail.get("benny"))
+            self._do_recover({"id": cid, "benny": mit_benny})
+            if (c.get("status") or {}).get("shaken"):
+                return                  # Benny fehlte - nichts passiert
+            self.effekt_meldungen.append({
+                "id": _new_id("em"), "icon": "🪙" if mit_benny else "✓",
+                "text": f"{c.get('name', '?')} gibt einen Benny aus und ist erholt" if mit_benny
+                        else f"{c.get('name', '?')} hat sich erholt (Probe geschafft)",
+            })
+            self.effekt_meldungen = self.effekt_meldungen[-10:]
+            return
         # Doppelte gleiche Anfrage vermeiden.
         for r in self.requests:
             if r["combatantId"] == cid and r["kind"] == a.get("kind") and r.get("detail") == a.get("detail"):

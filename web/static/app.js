@@ -397,7 +397,7 @@ function checkEffektMeldungen() {
   const gesehen = App._effektGesehen || new Set();
   if (App._effektInit) {
     liste.filter((m) => !gesehen.has(m.id)).forEach((m, i) =>
-      setTimeout(() => toast("⏱ " + m.text), i * 1600));
+      setTimeout(() => toast((m.icon || "⏱") + " " + m.text), i * 1600));
   }
   App._effektGesehen = new Set(liste.map((m) => m.id));
   App._effektInit = true;
@@ -557,6 +557,7 @@ function connect() {
       // auf die Beitrittsseite, mit Erklärung.
       App.joined = false;
       App.joinFehler = msg.message;
+      if (App.state && (App.state.roster || []).length) App.joinEntwurf.modus = "liste";
       if (msg.grund === "charakter-unbekannt") {
         // Veraltete ID aus einer früheren Runde vergessen - sonst meldet sich
         // das Handy beim nächsten Laden automatisch wieder damit an.
@@ -1563,6 +1564,9 @@ function render() {
     // Platz für die fixierte Steuerleiste schaffen - über eine Klasse statt über
     // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
     document.body.classList.toggle("hat-leiste", !!root.querySelector(".aktionsleiste"));
+    const dh = root.querySelector(".daumen-leiste .dl-haupt");
+    const dSig = dh ? dh.innerHTML : "";
+    if (dSig !== App._daumenSig) { App._daumenSig = dSig; App._daumenSeit = Date.now(); }
     document.body.classList.toggle("ziel-modus", App.role === "gm" && !!App.trefferWahl);
     kontextMenueEinpassen();
     runReveals();
@@ -3710,7 +3714,6 @@ function renderPlayer() {
       ${hints ? `<div class="center" style="margin-top:6px">${hints}</div>` : ""}
       ${s.phase !== "idle" ? `<div style="margin-top:8px">${timer}</div>` : ""}
       ${angeschlagenHinweis}
-      ${App.angriffWahl && angriffMoeglich && !meinAngriff ? angriffWahlHtml(mine) : ""}
       ${playerQuickControls(mine)}
     </div>`;
 
@@ -3780,9 +3783,15 @@ function renderPlayer() {
 // selbst; ansonsten die eigene Karte aufdecken. Nichts zu tun: keine Leiste.
 function daumenKnopf(o) {
   const { mine, isMyTurn, angriffMoeglich, meinAngriff, angriffZiel } = o;
-  let haupt = "", neben = "";
+  let haupt = "", neben = "", blatt = "";
+  // Sofort zeigen, dass „Erholt" angekommen ist - nicht erst, wenn der Server
+  // antwortet. Vorher blieb der Knopf kurz unverändert, dann stand an GENAU
+  // der Stelle „Angreifen": wer nochmal tippte, griff ungewollt an.
+  const erholWartet = App.erholGetippt && App.erholGetippt.id === mine.id && Date.now() - App.erholGetippt.t < 4000;
   if (mine.held) {
     haupt = o.holdBtn;                                  // „Jetzt eingreifen! ⚡"
+  } else if (o.canRecover && erholWartet) {
+    haupt = `<div class="angriff-wartet">✓ Erholung gemeldet ⏳</div>`;
   } else if (o.canRecover) {
     haupt = o.recoverFreeBtn; neben = o.recoverBennyBtn;
   } else if (isMyTurn && meinAngriff) {
@@ -3792,15 +3801,18 @@ function daumenKnopf(o) {
     haupt = App.angriffWahl
       ? `<button class="ghost big" data-act="angriff-waehlen">✕ Angriff abbrechen</button>`
       : o.angriffBtn;
-    neben = o.confirmBtn + o.holdBtn;
+    neben = App.angriffWahl ? "" : o.confirmBtn + o.holdBtn;
+    // Die Ziele direkt über dem Daumen - vorher standen sie oben in der Karte,
+    // und das Hinscrollen klappte am Handy nicht immer.
+    if (App.angriffWahl) blatt = `<div class="dl-blatt">${angriffWahlHtml(mine)}</div>`;
   } else if (isMyTurn) {
     haupt = o.confirmBtn; neben = o.holdBtn;
   } else if (mine.card && !mine.revealed && !mine.benched) {
     haupt = `<button class="primary big" data-act="daumen-aufdecken">🂠 Karte aufdecken</button>`;
   }
   if (!haupt) return "";
-  return `<div class="aktionsleiste daumen-leiste">
-    <div class="dl-haupt">${haupt}</div>${neben ? `<div class="dl-neben">${neben}</div>` : ""}
+  return `<div class="aktionsleiste daumen-leiste${blatt ? " mit-blatt" : ""}">
+    ${blatt}<div class="dl-haupt">${haupt}</div>${neben ? `<div class="dl-neben">${neben}</div>` : ""}
   </div>`;
 }
 
@@ -3820,6 +3832,14 @@ function letzterCharakter() {
     || (m && m.name && roster.find((r) => (r.name || "").trim().toLowerCase() === m.name.trim().toLowerCase()))
     || null;
 }
+// Spielt diesen Charakter gerade jemand anderes (verbundenes Gerät)? Dann nicht
+// anbieten - der Server lehnt den Beitritt sonst ab (wie charakter_aktiv_belegt).
+function charakterBelegt(charId) {
+  const s = App.state || {};
+  const c = (s.combatants || []).find((x) => x.characterId === charId && x.playerId && x.playerId !== App.myPlayerId);
+  const p = c && (s.players || []).find((x) => x.id === c.playerId);
+  return !!(p && p.connected);
+}
 function merkeLetztenCharakter(id, name) {
   try { localStorage.setItem("letzterCharakter", JSON.stringify({ id: id || null, name: name || "" })); } catch { /* egal */ }
 }
@@ -3835,9 +3855,11 @@ function renderJoin() {
   const fehler = App.joinFehler
     ? `<div class="pill bad" style="display:block; line-height:1.5; margin-bottom:10px">${esc(App.joinFehler)}</div>`
     : "";
-  const letzter = letzterCharakter();
+  let letzter = letzterCharakter();
+  if (letzter && charakterBelegt(letzter.id)) letzter = null;   // gerade woanders im Spiel
   // Ohne Charakterliste (erster Abend) gleich das Namensfeld.
-  const modus = !s.roster.length ? "neu" : (E.modus || (letzter ? "weiter" : "liste"));
+  let modus = !s.roster.length ? "neu" : (E.modus || (letzter ? "weiter" : "liste"));
+  if (modus === "weiter" && !letzter) modus = "liste";
   const spielerFeld = `<label class="field join-spieler"><span>Dein Name <small class="muted">(optional)</small></span>
       <input id="joinname" value="${esc(E.spielerName)}" placeholder="z. B. Stefan" maxlength="40" autocomplete="off"></label>`;
 
@@ -3846,12 +3868,18 @@ function renderJoin() {
     inhalt = `
       <button class="primary big join-weiter" data-act="join-als" data-id="${letzter.id}">
         ${joinAvatar(letzter)}<span>Weiter als <b>${esc(letzter.name)}</b></span></button>
-      <div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="liste">Anderer Charakter …</button></div>`;
+      <div class="join-links">
+        <button class="ghost small" data-act="join-modus" data-modus="liste">Anderer Charakter …</button>
+        <button class="ghost small" data-act="join-modus" data-modus="neu">➕ Neuer Charakter</button>
+      </div>`;
   } else if (modus === "liste") {
-    const knoepfe = s.roster.map((r) => `<button class="join-char${letzter && letzter.id === r.id ? " zuletzt" : ""}" data-act="join-als" data-id="${r.id}">
+    const knoepfe = s.roster.map((r) => charakterBelegt(r.id)
+      ? `<div class="join-char belegt" title="Spielt gerade jemand anderes">${joinAvatar(r)}<span class="join-char-name">${esc(r.name)}<small>wird gespielt</small></span></div>`
+      : `<button class="join-char${letzter && letzter.id === r.id ? " zuletzt" : ""}" data-act="join-als" data-id="${r.id}">
         ${joinAvatar(r)}<span class="join-char-name">${esc(r.name)}</span></button>`).join("");
+    const frei = s.roster.some((r) => !charakterBelegt(r.id));
     inhalt = `
-      <div class="muted small" style="margin-bottom:8px">Antippen – schon bist du drin.</div>
+      <div class="muted small" style="margin-bottom:8px">${frei ? "Antippen – schon bist du drin." : "Alle Charaktere sind vergeben – leg dir einen neuen an."}</div>
       <div class="join-liste">${knoepfe}
         <button class="join-char join-neu" data-act="join-modus" data-modus="neu"><span class="avatar join-av">➕</span><span class="join-char-name">Neuer Charakter</span></button>
       </div>
@@ -3904,6 +3932,11 @@ document.addEventListener("click", (e) => {
   }
   const target = e.target.closest("[data-act]");
   if (!target) return;
+  // Daumen-Knopf gerade gewechselt? Dann galt der Tipp noch dem alten Knopf
+  // (Doppeltipp, weil der erste scheinbar nicht ankam) - nicht auslösen.
+  if (target.closest(".daumen-leiste .dl-haupt, .daumen-leiste .dl-neben") && Date.now() - (App._daumenSeit || 0) < 700) {
+    e.preventDefault(); return;
+  }
   const act = target.getAttribute("data-act");
   const id = target.getAttribute("data-id");
   const S = App.state;
@@ -4003,6 +4036,12 @@ document.addEventListener("click", (e) => {
     // Spieler-Anfragen
     "toggle-req-mode": () => { App.reqMode = !App.reqMode; render(); },
     "player-request": () => {
+      const k = target.getAttribute("data-kind");
+      if (target.closest(".daumen-leiste") && (k === "recover" || k === "status")) {
+        const m = myCombatant();
+        if (m) App.erholGetippt = { id: m.id, t: Date.now() };
+        setTimeout(render, 4100);     // falls der Server schweigt: Knopf wieder zeigen
+      }
       let detail = {};
       try { detail = JSON.parse(target.getAttribute("data-detail") || "{}"); } catch { /* ignore */ }
       gmActionOrPlayer({ type: "request", kind: target.getAttribute("data-kind"), detail, label: target.getAttribute("data-label") });
@@ -4176,12 +4215,7 @@ Abbrechen = Begegnung zusätzlich dazustellen.`);
       dranBlitz();
     },
     "km-treffer": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; App.trefferSchaden = ""; trefferAuf(id); },
-    "angriff-waehlen": () => {
-      App.angriffWahl = !App.angriffWahl; render();
-      // Der Knopf sitzt unten, die Zielliste in der Karte - hinscrollen.
-      const liste = App.angriffWahl && document.querySelector(".angriff-wahl");
-      if (liste) try { liste.scrollIntoView({ behavior: "smooth", block: "center" }); } catch { /* alt */ }
-    },
+    "angriff-waehlen": () => { App.angriffWahl = !App.angriffWahl; render(); },
     "daumen-aufdecken": () => {
       const karte = document.querySelector('#bigcard [data-act="reveal-card"]');
       if (!karte) return;

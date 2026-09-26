@@ -1814,6 +1814,10 @@ body.sl-ansicht .combatant .who { flex-wrap: nowrap; overflow: hidden; }
 body.sl-ansicht .combatant .who .name { white-space: nowrap; flex-shrink: 0; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
 body.sl-ansicht .combatant .who .badges { flex-wrap: nowrap; flex-shrink: 1; min-width: 0; overflow: hidden; }
 body.sl-ansicht .combatant .who .badges > * { flex-shrink: 0; }
+/* Wird es eng, gibt zuerst die Zone nach („👣 Nahb…" bis nur 👣 - steht auch
+   im Board), dann „↓ danach" (die Zeile ist ohnehin markiert). Sonst wurden WC, Talente und Bennies hinten abgeschnitten. */
+body.sl-ansicht .combatant .who .badges > .zone-chip,
+body.sl-ansicht .combatant .who .badges > .naechster-tag { flex-shrink: 1; min-width: 27px; }
 body.sl-ansicht .combatant .who .status-badges { flex-shrink: 0; display: flex; gap: 4px; white-space: nowrap; }
 body.sl-ansicht .combatant .who .combatant-note { flex-shrink: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
 body.sl-ansicht .combatant .who .spieler-name { white-space: nowrap; }
@@ -2069,3 +2073,11 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
 .ap-wert b { font-size: 1.7rem; line-height: 1.1; color: var(--gold); }
 .ap-wert small { font-size: 0.72rem; color: var(--muted); }
 .ap-infos:not(:has(*)) { display: none; }
+
+/* Zielwahl als Blatt direkt über dem Daumen-Knopf (statt oben in der Karte). */
+.daumen-leiste.mit-blatt { flex-wrap: wrap; }
+.dl-blatt { flex: 0 0 100%; max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; }
+.dl-blatt .angriff-wahl { margin-top: 0; }
+.dl-blatt .angriff-wahl [data-act="angriff-waehlen"] { display: none; }   /* „Abbrechen" ist der Daumen-Knopf */
+.join-char.belegt { opacity: 0.5; cursor: default; }
+.join-char.belegt small { display: block; font-weight: 400; font-size: 0.72rem; color: var(--muted); }

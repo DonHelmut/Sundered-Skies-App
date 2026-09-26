@@ -548,6 +548,31 @@ def test_undo_restores_previous_state(fresh_game):
     assert len(fresh_game.combatants) == 1
 
 
+def test_erholen_vom_handy_gilt_sofort(fresh_game):
+    """Probe geschafft / Benny: ohne Bestätigung durch den SL, er bekommt nur
+    eine Einblendung."""
+    fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    fresh_game.apply({"type": "add_from_roster", "id": fresh_game.roster[-1]["id"]})
+    c = fresh_game.combatants[-1]
+    c["bennies"] = 2
+    fresh_game.apply({"type": "set_status", "id": c["id"], "shaken": True})
+    fresh_game.apply({"type": "request", "combatantId": c["id"], "kind": "status", "detail": {"shaken": False}})
+    assert c["status"]["shaken"] is False and fresh_game.requests == []
+    assert "erholt" in fresh_game.effekt_meldungen[-1]["text"]
+
+    fresh_game.apply({"type": "set_status", "id": c["id"], "shaken": True})
+    fresh_game.apply({"type": "request", "combatantId": c["id"], "kind": "recover", "detail": {"benny": True}})
+    assert c["status"]["shaken"] is False and c["bennies"] == 1
+    assert fresh_game.effekt_meldungen[-1]["icon"] == "🪙"
+
+    # Ohne Benny passiert beim Benny-Weg nichts (und keine Meldung).
+    c["bennies"] = 0
+    fresh_game.apply({"type": "set_status", "id": c["id"], "shaken": True})
+    anzahl = len(fresh_game.effekt_meldungen)
+    fresh_game.apply({"type": "request", "combatantId": c["id"], "kind": "recover", "detail": {"benny": True}})
+    assert c["status"]["shaken"] is True and len(fresh_game.effekt_meldungen) == anzahl
+
+
 def test_status_request_wounds_delta_applies(fresh_game):
     # Spieler mit Anfrage „Wunde +1" -> nach Freigabe genau +1.
     fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})

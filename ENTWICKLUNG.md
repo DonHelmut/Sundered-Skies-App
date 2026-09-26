@@ -77,6 +77,21 @@ sich über **Export/Import** in der App umziehen.
 - **Angriffs-Fenster (SL):** Parade und Robustheit des Ziels groß als zwei
   Kästen (Robustheit mit „davon X Panzer"), nur wenn eingetragen – vorher nur
   ein kleines „P 6 · R 8(2)".
+- **Erholen gilt sofort** (Probe geschafft oder Benny, `_do_request`): keine
+  Anfrage mehr, der SL bekommt nur eine Einblendung (`effekt_meldungen` mit
+  `icon`). Andere Anfragen laufen weiter über den SL.
+- **Daumen-Knopf gegen Doppeltipp:** nach „Erholt" sofort „✓ Erholung gemeldet
+  ⏳" (`App.erholGetippt`); wechselt der Knopf, zählt ein Tipp in den ersten
+  0,7 s nicht (`App._daumenSeit`). Anlass: Knopf blieb kurz gleich, dann stand
+  an derselben Stelle „Angreifen" – zweiter Tipp griff ungewollt an.
+- **Zielwahl als Blatt über dem Daumen-Knopf** (`.dl-blatt`) statt oben in der
+  Karte – das Hinscrollen klappte am Handy nicht.
+- **Beitritt:** Charaktere, die gerade ein anderes verbundenes Gerät spielt,
+  sind ausgegraut „wird gespielt" (`charakterBelegt`); „Weiter als …" nur, wenn
+  frei. „➕ Neuer Charakter" auch direkt unter „Weiter als …". Nach Ablehnung
+  durch den Server zeigt die Seite die Liste.
+- **SL-Zeile:** Wird es eng, kürzen sich Zone und „↓ danach" – WC, Talente und
+  Bennies wurden vorher hinten abgeschnitten. Zeilenhöhe unverändert.
 - Noch auf echtem iPhone prüfen: Ton nach Sperrbildschirm, Blitz, Daumen-Leiste
   über der Safari-Leiste.
 
