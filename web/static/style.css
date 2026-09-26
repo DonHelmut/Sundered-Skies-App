@@ -2058,3 +2058,14 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
 .kontext-menue .km-btn.bad { background: var(--panel2); border-color: var(--line); color: var(--bad); }
 .km-treffer { font-weight: 700; }
 .km-klein .km-btn { font-size: 0.78rem; padding: 4px 7px; }
+
+/* Angriffs-Fenster: Parade/Robustheit des Ziels groß (nur wenn eingetragen). */
+.ap-werte { display: flex; gap: 8px; margin: 8px 0 4px; }
+.ap-wert {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2);
+}
+.ap-wert-titel { font-size: 0.78rem; color: var(--muted); }
+.ap-wert b { font-size: 1.7rem; line-height: 1.1; color: var(--gold); }
+.ap-wert small { font-size: 0.72rem; color: var(--muted); }
+.ap-infos:not(:has(*)) { display: none; }

@@ -352,6 +352,30 @@ def test_clear_defeated_removes_only_enemies(fresh_game):
     assert "Held" in names               # Spieler bleibt
 
 
+def test_neue_runde_entfernt_ausgeschaltete_gegner(fresh_game):
+    """Ausgeschaltete Gegner bekommen keine Karte mehr, sondern verschwinden
+    beim Austeilen aus dem Kampf. Verbündete und Spieler bleiben."""
+    enemy = _add_npc(fresh_game, "Feind")
+    stehend = _add_npc(fresh_game, "Stehend")
+    fresh_game.apply({"type": "ally_upsert", "name": "Freund"})
+    fresh_game.apply({"type": "add_ally_from_library", "id": fresh_game.allies[-1]["id"]})
+    ally = fresh_game.combatants[-1]
+    fresh_game.apply({"type": "new_round"})
+    for c in (enemy, ally):
+        fresh_game.apply({"type": "set_status", "id": c["id"], "out": True})
+    # Bis zur nächsten Runde bleiben sie sichtbar.
+    assert "Feind" in [c["name"] for c in fresh_game.combatants]
+
+    fresh_game.apply({"type": "new_round"})
+    namen = {c["name"]: c for c in fresh_game.combatants}
+    assert "Feind" not in namen
+    assert namen["Stehend"]["card"] is not None
+    assert "Freund" in namen
+    # Karten gehen nicht verloren: Deck + Ablage + ausgeteilt = 54.
+    ausgeteilt = sum(1 for c in fresh_game.combatants if c.get("card") and not c.get("karteGeteilt"))
+    assert len(fresh_game.deck) + len(fresh_game.discard) + ausgeteilt == 54
+
+
 def test_clear_all_removes_npcs_and_benches_players(fresh_game):
     enemy = _add_npc(fresh_game, "Feind")
     fresh_game.apply({"type": "group_create", "name": "Bande", "ids": [enemy["id"]]})

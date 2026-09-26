@@ -1428,6 +1428,11 @@ class Game:
     # Karten austeilen --------------------------------------------------------
 
     def _deal(self, new_round: bool) -> None:
+        # Ausgeschaltete GEGNER sind raus aus dem Kampf: keine Karte, weg aus
+        # Liste und Board (Stefan). Bis zum Austeilen bleiben sie stehen - so
+        # sieht man sie fallen und kann einen Fehlklick noch heilen/rückgängig
+        # machen. Verbündete und Spieler bleiben wie gehabt.
+        self._do_clear_defeated({})
         self._collect_cards()
         # Regelkonform: wurde letzte Runde ein Joker gezogen, jetzt komplett mischen.
         if self.reshuffle_next:

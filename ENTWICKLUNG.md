@@ -70,6 +70,13 @@ sich über **Export/Import** in der App umziehen.
   Browser nicht → stattdessen blitzt der Bildschirmrand golden (`dranBlitz`,
   für alle). „▶ Test"-Knopf neben dem Glocken-Häkchen. Lautlos-Schalter am
   iPhone schaltet Web-Töne weiterhin stumm.
+- **Ausgeschaltete Gegner** bekommen beim Austeilen keine Karte mehr, sondern
+  verschwinden aus dem Kampf (`_deal` ruft `_do_clear_defeated`). Bis dahin
+  bleiben sie sichtbar (Fehlklick heilen / ↶). Verbündete und Spieler bleiben.
+  Der Knopf „🧹 … entfernen" räumt weiterhin sofort ab.
+- **Angriffs-Fenster (SL):** Parade und Robustheit des Ziels groß als zwei
+  Kästen (Robustheit mit „davon X Panzer"), nur wenn eingetragen – vorher nur
+  ein kleines „P 6 · R 8(2)".
 - Noch auf echtem iPhone prüfen: Ton nach Sperrbildschirm, Blitz, Daumen-Leiste
   über der Safari-Leiste.
 

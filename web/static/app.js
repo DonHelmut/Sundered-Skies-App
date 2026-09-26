@@ -2203,7 +2203,7 @@ function renderControlBody() {
   // Aufräum-Knopf nur zeigen, wenn es ausgeschaltete Gegner gibt (kein Dauer-Clutter).
   const defeated = s.combatants.filter((c) => c.kind === "npc" && !c.ally && (c.status || {}).out);
   const cleanupRow = defeated.length
-    ? `<div class="row" style="margin-bottom:8px"><button class="ghost bad" data-act="clear-defeated" data-n="${defeated.length}">🧹 ${defeated.length} ausgeschaltete${defeated.length === 1 ? "n Gegner" : " Gegner"} entfernen</button></div>`
+    ? `<div class="row" style="margin-bottom:8px"><button class="ghost bad" data-act="clear-defeated" data-n="${defeated.length}" title="Sofort entfernen – spätestens bei der nächsten Runde verschwinden sie von selbst (keine Karte mehr)">🧹 ${defeated.length} ausgeschaltete${defeated.length === 1 ? "n Gegner" : " Gegner"} entfernen</button></div>`
     : "";
   // Alles in EINER Zeile: Austeilen (am Rundenende gross), dahinter kleine
   // Symbol-Knoepfe. Vorher zwei Zeilen mit breiten Text-Knoepfen - rund 80 px,
@@ -2427,7 +2427,13 @@ function angriffPopupHtml() {
   // hier ein und bekommt den Vorschlag (Feld überlebt das Neuzeichnen).
   const schadenRoh = s.schadenRechnen ? parseInt(App.angriffSchaden, 10) : NaN;
   const schaden = isNaN(schadenRoh) ? null : schadenRoh;
-  const werte = ziel ? kampfwerteText(ziel) : "";
+  // Parade/Robustheit groß, damit der SL den Wurf sofort vergleichen kann
+  // (vorher nur ein kleines „P 6 · R 8(2)"). Nur was eingetragen ist.
+  const kw = ziel ? kampfwerte(ziel) : {};
+  const wertKasten = (titel, zahl, zusatz) => zahl == null ? ""
+    : `<div class="ap-wert"><span class="ap-wert-titel">${titel}</span><b>${zahl}</b>${zusatz ? `<small>${zusatz}</small>` : ""}</div>`;
+  const werte = wertKasten("🛡 Parade", kw.p, "")
+    + wertKasten("💪 Robustheit", kw.r, kw.panzer ? `davon ${kw.panzer} Panzer` : "");
   const zst = ziel ? (ziel.status || {}) : {};
   // Vorschlag aus gemeldetem Schaden gegen die Robustheit (nur mit Kampfhilfe)
   let vorschlag = null, vorschlagText = "";
@@ -2450,8 +2456,8 @@ function angriffPopupHtml() {
     <div class="angriff-popup panel">
       <div class="ap-titel">⚔ Angriff${weitere > 0 ? ` <span class="muted small">(+${weitere} weitere)</span>` : ""}</div>
       <div class="ap-wer"><b>${esc(angreifer ? angreifer.name : r.name)}</b> greift <b class="ap-ziel">${esc(ziel ? ziel.name : "?")}</b> an</div>
+      ${werte ? `<div class="ap-werte">${werte}</div>` : ""}
       <div class="ap-infos">
-        ${werte ? `<span class="tag">${werte}</span>` : ""}
         ${zst.shaken ? `<span class="tag" style="color:var(--warn);border-color:var(--warn)">😵 angeschlagen</span>` : ""}
         ${zst.wounds ? `<span class="tag" style="color:var(--bad);border-color:var(--bad)">${zst.wounds} 🩸</span>` : ""}
       </div>
