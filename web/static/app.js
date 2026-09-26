@@ -2297,6 +2297,9 @@ function renderAktionsleiste() {
   // Countdown kompakt in der Leiste - er saß vorher im Panel, das jetzt schlank ist.
   const uhr = s.phase === "running" && s.timerEndsAt
     ? `<span class="al-uhr" id="al-uhr">–</span>`
+    // Angehalten (Spieler greift an/erholt sich und würfelt): zeigen, warum
+    // nichts mehr herunterzählt. Ohne id - die Uhr-Schleife leert sonst den Text.
+    : s.phase === "running" ? `<span class="al-uhr" title="Uhr angehalten – der Spieler würfelt. Weiter mit „Weiter“.">⏸</span>`
     : "";
 
   return `<div class="aktionsleiste">
@@ -2565,6 +2568,8 @@ function leisteEinstellungenHtml() {
       <div class="muted small" style="margin-bottom:2px">Optionale Kampfhilfen</div>
       ${hilfe("schadenRechnen", s.schadenRechnen, "🎯 Schaden eintippen – App rechnet mit der Robustheit",
         "In der Treffer-Auswahl und im Angriffs-Fenster gibt es ein Schadensfeld; Steigerungen rechnet die App aus der Robustheit der Vorlage bzw. dem Charakterbogen")}
+      ${hilfe("spielerAngriff", s.spielerAngriff !== false, "⚔ Spieler greifen am Handy selbst an (Ziel wählen, SL entscheidet)",
+        "Der Spieler tippt „Angreifen“ und wählt das Ziel; beim SL öffnet sich das Angriffs-Fenster. Aus: Handy zeigt nur „Zug bestätigen“")}
       ${hilfe("gruppenKarte", s.gruppenKarte, "🃏 Gleiche Statisten teilen sich eine Karte",
         "Savage Worlds: z. B. alle Orks handeln gemeinsam auf einer Karte (ab der nächsten Runde). Wild Cards bekommen immer eine eigene")}
     </div>
@@ -3628,7 +3633,8 @@ function renderPlayer() {
   const vorwarnung = binNaechster && s.phase !== "idle"
     ? `<div class="gleich-dran">⏳ Gleich bist du dran – mach dich bereit!</div>` : "";
   const timer = s.phase === "running"
-    ? (isMyTurn ? timerRing() : `${vorwarnung}<div class="center muted small">${werDran}</div>`)
+    ? (isMyTurn ? (s.timerEndsAt ? timerRing() : `<div class="timer-halt">⏸ Uhr angehalten – würfle in Ruhe</div>`)
+      : `${vorwarnung}<div class="center muted small">${werDran}</div>`)
     : (s.phase === "gate" ? `${vorwarnung}<div class="center muted small">Warte auf Freigabe durch den Spielleiter…</div>` : "");
 
   // Karten-Hinweise („Joker: +2 …", „Berechnend" bei niedriger Karte) erst,
@@ -3646,7 +3652,8 @@ function renderPlayer() {
   // man sieht nur das Ergebnis). „Zug beenden" bleibt klein daneben - für Züge
   // ohne Angriff. Ohne Anfragen-System (SL hat es abgeschaltet) wie früher.
   const meinAngriff = (s.requests || []).find((r) => r.kind === "attack" && r.combatantId === mine.id);
-  const angriffMoeglich = isMyTurn && s.requestsEnabled !== false;
+  // Eigener Schalter (Kampf-Einstellungen), unabhängig vom Anfragen-System.
+  const angriffMoeglich = isMyTurn && s.spielerAngriff !== false;
   const angriffZiel = meinAngriff && s.combatants.find((c) => c.id === (meinAngriff.detail || {}).targetId);
   const angriffBtn = !angriffMoeglich ? ""
     : meinAngriff
@@ -3664,7 +3671,8 @@ function renderPlayer() {
   // Angeschlagen heißt, der Zug beginnt mit der Erholungs-Probe (Willenskraft
   // oder Konstitution - Stefan: am Tisch geht beides).
   const binDran = s.activeId === mine.id;
-  const canRecover = binDran && mySt.shaken && !mySt.out && s.requestsEnabled !== false;
+  // Erholen ist keine Anfrage mehr (gilt sofort) - geht auch ohne Anfragen.
+  const canRecover = binDran && mySt.shaken && !mySt.out;
   const recoverFreeBtn = canRecover
     ? `<button class="primary big" data-act="player-request" data-kind="status" data-detail='{"shaken":false}' data-label="ist nicht mehr angeschlagen">😵➜✓ Erholt (Probe geschafft)</button>`
     : "";
@@ -4222,7 +4230,12 @@ Abbrechen = Begegnung zusätzlich dazustellen.`);
       dranBlitz();
     },
     "km-treffer": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; App.trefferSchaden = ""; trefferAuf(id); },
-    "angriff-waehlen": () => { App.angriffWahl = !App.angriffWahl; render(); },
+    "angriff-waehlen": () => {
+      App.angriffWahl = !App.angriffWahl;
+      // Wer angreift, muss würfeln: Zug-Uhr sofort anhalten (Stefan: 6 s zu hart).
+      if (App.angriffWahl && App.role !== "gm") { const m = myCombatant(); if (m) gmActionOrPlayer({ type: "timer_halt", id: m.id }); }
+      render();
+    },
     "daumen-aufdecken": () => {
       const karte = document.querySelector('#bigcard [data-act="reveal-card"]');
       if (!karte) return;

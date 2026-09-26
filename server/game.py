@@ -280,6 +280,7 @@ class Game:
         # Optionale Kampfhilfen - der SL entscheidet (Stefan: „nur mit Option"):
         self.schaden_rechnen: bool = False      # Schaden eintippen, App rechnet mit Robustheit
         self.gruppen_karte: bool = False        # gleiche Statisten teilen sich eine Karte
+        self.spieler_angriff: bool = True       # Spieler wählen am Handy selbst ihr Ziel (Probe)
         self.benny_to_gm: bool = True      # Hausregel: Spieler-Benny -> SL-Pool
         self.auto_release: bool = False    # naechsten Zug ohne Klick freigeben
         # Gruppen: mehrere Figuren zusammenfassen und gemeinsam bewegen
@@ -310,6 +311,7 @@ class Game:
         self.requests_enabled = bool(settings.get("requestsEnabled", True))
         self.schaden_rechnen = bool(settings.get("schadenRechnen", False))
         self.gruppen_karte = bool(settings.get("gruppenKarte", False))
+        self.spieler_angriff = bool(settings.get("spielerAngriff", True))
         self.benny_to_gm = bool(settings.get("bennyToGm", True))
         # Ton-Schalter des SL: gehoert zu den Einstellungen, nicht zum Kampf.
         # Stand frueher nur in der Sitzung - nach „Verwerfen" war er wieder an.
@@ -379,6 +381,7 @@ class Game:
             "slAnsicht": self.sl_ansicht,
             "schadenRechnen": self.schaden_rechnen,
             "gruppenKarte": self.gruppen_karte,
+            "spielerAngriff": self.spieler_angriff,
         })
 
     def export_data(self) -> dict:
@@ -642,6 +645,7 @@ class Game:
             "autoRelease": self.auto_release,
             "schadenRechnen": self.schaden_rechnen,
             "gruppenKarte": self.gruppen_karte,
+            "spielerAngriff": self.spieler_angriff,
             "deckCount": len(self.deck),
             "hasSavedSession": self.resume_available,
             "canUndo": len(self._history) > 0,
@@ -687,6 +691,13 @@ class Game:
             if c and c.get("card") and not c.get("revealed"):
                 c["revealed"] = True
                 self.save_session()
+            return
+
+        # Zug-Timer anhalten (Spieler tippt „Angreifen"): kein Undo-Ziel - das ↶
+        # des SL soll nicht zuerst eine angehaltene Uhr zurückdrehen.
+        if t == "timer_halt":
+            self._timer_anhalten(action.get("id"))
+            self.save_session()
             return
 
         # Charakterbogen (Spickzettel): pflegt der SPIELER selbst. Bewusst kein
@@ -1627,6 +1638,13 @@ class Game:
         self.phase = "running"
         self.timer_ends_at = now_ms() + self.timer_seconds * 1000
 
+    def _timer_anhalten(self, cid) -> None:
+        """Der Aktive handelt (greift an, erholt sich): Uhr anhalten, damit er in
+        Ruhe würfeln kann (Stefan: 6 s waren dafür zu hart). Der Zug endet dann
+        mit „Zug beenden", über den SL oder nach dem Angriff."""
+        if cid and cid == self.active_id and self.phase == "running":
+            self.timer_ends_at = None
+
     def _weiter_nach_zug(self) -> None:
         """Nach einem beendeten Zug: normal wartet die Runde auf die Freigabe
         durch den SL. Ist die Auto-Freigabe an, laeuft der naechste Zug sofort
@@ -1832,24 +1850,32 @@ class Game:
     # Spieler-Anfragen (Spieler ändern nichts selbst, sondern fragen an) -------
 
     def _do_request(self, a: dict) -> None:
-        if not self.requests_enabled:
-            return                      # Anfragen sind abgeschaltet
         cid = a.get("combatantId")
         c = self._combatant(cid)
         if not c:
             return
+        kind = a.get("kind")
+        detail = a.get("detail") or {}
+        erholen = kind == "recover" or (kind == "status" and detail == {"shaken": False})
+        # Drei Schalter, getrennt: Angreifen hat einen eigenen (Stefan will ihn
+        # ausprobieren, ohne das ganze Anfragen-System einzuschalten); Erholen
+        # ist keine Anfrage mehr und geht immer; der Rest nur mit Anfragen an.
+        if kind == "attack":
+            if not self.spieler_angriff:
+                return
+        elif not erholen and not self.requests_enabled:
+            return                      # Anfragen sind abgeschaltet
         # Erholen (Probe geschafft oder Benny) gilt SOFORT - der SL muss nichts
         # bestätigen, bekommt aber eine kurze Einblendung (Stefan). Vorher lag
         # es als Anfrage beim SL, und der Spieler hing so lange angeschlagen fest.
-        kind = a.get("kind")
-        detail = a.get("detail") or {}
-        if kind == "recover" or (kind == "status" and detail == {"shaken": False}):
+        if erholen:
             if not (c.get("status") or {}).get("shaken"):
                 return
             mit_benny = kind == "recover" and bool(detail.get("benny"))
             self._do_recover({"id": cid, "benny": mit_benny})
             if (c.get("status") or {}).get("shaken"):
                 return                  # Benny fehlte - nichts passiert
+            self._timer_anhalten(cid)
             self.effekt_meldungen.append({
                 "id": _new_id("em"), "icon": "🪙" if mit_benny else "✓",
                 "text": f"{c.get('name', '?')} gibt einen Benny aus und ist erholt" if mit_benny
@@ -1857,6 +1883,8 @@ class Game:
             })
             self.effekt_meldungen = self.effekt_meldungen[-10:]
             return
+        if kind == "attack":
+            self._timer_anhalten(cid)
         # Doppelte gleiche Anfrage vermeiden.
         for r in self.requests:
             if r["combatantId"] == cid and r["kind"] == a.get("kind") and r.get("detail") == a.get("detail"):
@@ -1909,16 +1937,20 @@ class Game:
         """Optionale Kampfhilfen an/aus (Schaden rechnen, Gruppenkarte). Gilt
         dauerhaft wie die übrigen Einstellungen. (Spieler geben keinen Schaden
         mehr ein - Stefan: das sagen sie am Tisch an.)"""
-        feld = {"schadenRechnen": "schaden_rechnen", "gruppenKarte": "gruppen_karte"}.get(a.get("name"))
+        feld = {"schadenRechnen": "schaden_rechnen", "gruppenKarte": "gruppen_karte",
+                "spielerAngriff": "spieler_angriff"}.get(a.get("name"))
         if feld:
             setattr(self, feld, bool(a.get("on")))
+            if feld == "spieler_angriff" and not self.spieler_angriff:
+                self.requests = [r for r in self.requests if r.get("kind") != "attack"]
             self.save_settings()
 
     def _do_set_requests_enabled(self, a: dict) -> None:
         """Anfragen der Spieler ganz abschalten (dann sehen sie den Knopf nicht)."""
         self.requests_enabled = bool(a.get("on", True))
         if not self.requests_enabled:
-            self.requests = []          # offene Anfragen wegraeumen
+            # offene Anfragen wegräumen - Angriffe haben ihren eigenen Schalter
+            self.requests = [r for r in self.requests if r.get("kind") == "attack"]
         self.save_settings()
 
     def _do_set_anon(self, a: dict) -> None:

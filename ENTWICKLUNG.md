@@ -97,6 +97,15 @@ sich über **Export/Import** in der App umziehen.
   Liste); die Erstell-Seite heißt „➕ Neuen Charakter erstellen", Knopf
   „Charakter erstellen & beitreten" (vorher nur „Beitreten" – las sich beim
   ersten Start, als fehle etwas).
+- **Zug-Uhr hält an**, sobald der Spieler „⚔ Angreifen" tippt (Aktion
+  `timer_halt`, kein Undo-Schritt), einen Angriff meldet oder sich erholt
+  (`_timer_anhalten`) – er muss ja würfeln. Handy zeigt „⏸ Uhr angehalten",
+  SL-Leiste „⏸". Der Zug endet mit „Zug beenden", über den SL oder nach dem
+  Angriff. 6 s bleiben Standard (Stefan).
+- **Eigener Haken „⚔ Spieler greifen am Handy selbst an"** unter Optionale
+  Kampfhilfen (`spielerAngriff`, Standard an) – unabhängig von „Spieler dürfen
+  anfragen". Stefan probiert aus, ob er es behält. Erholen ist keine Anfrage
+  mehr und geht immer.
 - Noch auf echtem iPhone prüfen: Ton nach Sperrbildschirm, Blitz, Daumen-Leiste
   über der Safari-Leiste.
 

@@ -2095,3 +2095,4 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
   width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
   background: var(--good); color: var(--bg); font-size: 1.2rem; font-weight: 800; line-height: 1;
 }
+.timer-halt { text-align: center; font-weight: 700; color: var(--good); padding: 8px; border: 1px dashed var(--good); border-radius: 10px; }

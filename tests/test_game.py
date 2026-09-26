@@ -573,6 +573,63 @@ def test_erholen_vom_handy_gilt_sofort(fresh_game):
     assert c["status"]["shaken"] is True and len(fresh_game.effekt_meldungen) == anzahl
 
 
+def test_timer_haelt_bei_angriff_und_erholen(fresh_game):
+    """Wer angreift oder sich erholt, muss würfeln - die Zug-Uhr hält an."""
+    fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    fresh_game.apply({"type": "add_from_roster", "id": fresh_game.roster[-1]["id"]})
+    held = fresh_game.combatants[-1]
+    feind = _add_npc(fresh_game, "Feind")
+    fresh_game.apply({"type": "new_round"})
+
+    def dran_mit_uhr():
+        fresh_game.apply({"type": "set_active", "id": held["id"]})
+        fresh_game.apply({"type": "release"})
+        assert fresh_game.timer_ends_at is not None
+
+    dran_mit_uhr()
+    fresh_game.apply({"type": "timer_halt", "id": held["id"]})
+    assert fresh_game.timer_ends_at is None and fresh_game.phase == "running"
+
+    dran_mit_uhr()
+    fresh_game.apply({"type": "request", "combatantId": held["id"], "kind": "attack",
+                      "detail": {"targetId": feind["id"]}})
+    assert fresh_game.timer_ends_at is None
+
+    dran_mit_uhr()
+    fresh_game.apply({"type": "set_status", "id": held["id"], "shaken": True})
+    fresh_game.apply({"type": "request", "combatantId": held["id"], "kind": "status", "detail": {"shaken": False}})
+    assert fresh_game.timer_ends_at is None
+
+    # Wer NICHT dran ist, hält fremde Uhren nicht an.
+    dran_mit_uhr()
+    fresh_game.apply({"type": "timer_halt", "id": feind["id"]})
+    assert fresh_game.timer_ends_at is not None
+
+
+def test_spieler_angriff_eigener_schalter(fresh_game):
+    """Angreifen hat einen eigenen Schalter - unabhängig von den Anfragen.
+    Erholen geht immer (keine Anfrage mehr)."""
+    fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    fresh_game.apply({"type": "add_from_roster", "id": fresh_game.roster[-1]["id"]})
+    held = fresh_game.combatants[-1]
+    feind = _add_npc(fresh_game, "Feind")
+    angriff = {"type": "request", "combatantId": held["id"], "kind": "attack", "detail": {"targetId": feind["id"]}}
+
+    fresh_game.apply({"type": "set_requests_enabled", "on": False})
+    assert fresh_game.snapshot()["spielerAngriff"] is True
+    fresh_game.apply(angriff)
+    assert [r["kind"] for r in fresh_game.requests] == ["attack"]   # trotz Anfragen aus
+
+    fresh_game.apply({"type": "set_status", "id": held["id"], "shaken": True})
+    fresh_game.apply({"type": "request", "combatantId": held["id"], "kind": "status", "detail": {"shaken": False}})
+    assert held["status"]["shaken"] is False                        # Erholen geht immer
+
+    fresh_game.apply({"type": "set_kampfhilfe", "name": "spielerAngriff", "on": False})
+    assert fresh_game.requests == []                                # offener Angriff weg
+    fresh_game.apply(angriff)
+    assert fresh_game.requests == []                                # und kein neuer
+
+
 def test_status_request_wounds_delta_applies(fresh_game):
     # Spieler mit Anfrage „Wunde +1" -> nach Freigabe genau +1.
     fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
