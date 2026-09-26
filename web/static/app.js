@@ -3863,15 +3863,18 @@ function renderJoin() {
   const spielerFeld = `<label class="field join-spieler"><span>Dein Name <small class="muted">(optional)</small></span>
       <input id="joinname" value="${esc(E.spielerName)}" placeholder="z. B. Stefan" maxlength="40" autocomplete="off"></label>`;
 
+  // Neuen Charakter erstellen: ein eigener, großer Knopf unter der Auswahl -
+  // als kleiner Link bzw. gestrichelte Kachel wurde er übersehen (Stefan).
+  const neuKnopf = `<div class="join-oder"><span>oder</span></div>
+      <button class="big join-erstellen" data-act="join-modus" data-modus="neu">
+        <span class="join-plus">＋</span><span>Neuen Charakter erstellen</span></button>`;
   let inhalt;
   if (modus === "weiter") {
     inhalt = `
       <button class="primary big join-weiter" data-act="join-als" data-id="${letzter.id}">
         ${joinAvatar(letzter)}<span>Weiter als <b>${esc(letzter.name)}</b></span></button>
-      <div class="join-links">
-        <button class="ghost small" data-act="join-modus" data-modus="liste">Anderer Charakter …</button>
-        <button class="ghost small" data-act="join-modus" data-modus="neu">➕ Neuer Charakter</button>
-      </div>`;
+      <div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="liste">Anderen Charakter wählen …</button></div>
+      ${neuKnopf}`;
   } else if (modus === "liste") {
     const knoepfe = s.roster.map((r) => charakterBelegt(r.id)
       ? `<div class="join-char belegt" title="Spielt gerade jemand anderes">${joinAvatar(r)}<span class="join-char-name">${esc(r.name)}<small>wird gespielt</small></span></div>`
@@ -3879,21 +3882,25 @@ function renderJoin() {
         ${joinAvatar(r)}<span class="join-char-name">${esc(r.name)}</span></button>`).join("");
     const frei = s.roster.some((r) => !charakterBelegt(r.id));
     inhalt = `
-      <div class="muted small" style="margin-bottom:8px">${frei ? "Antippen – schon bist du drin." : "Alle Charaktere sind vergeben – leg dir einen neuen an."}</div>
-      <div class="join-liste">${knoepfe}
-        <button class="join-char join-neu" data-act="join-modus" data-modus="neu"><span class="avatar join-av">➕</span><span class="join-char-name">Neuer Charakter</span></button>
-      </div>
+      <div class="join-titel">Charakter wählen</div>
+      <div class="muted small" style="margin-bottom:8px">${frei ? "Antippen – schon bist du drin." : "Alle Charaktere sind vergeben – erstell dir einen neuen."}</div>
+      <div class="join-liste">${knoepfe}</div>
+      ${neuKnopf}
       ${spielerFeld}
       <div class="join-links">
         ${letzter ? `<button class="ghost small" data-act="join-modus" data-modus="weiter">← zurück</button>` : ""}
         <button class="ghost small" data-act="join-als" data-id="" title="Ohne eigene Figur mitschauen">👁 Nur zuschauen</button>
       </div>`;
   } else {
+    // Klar sagen, dass hier ein Charakter ENTSTEHT - „Beitreten" allein las
+    // sich beim ersten Start, als fehle die Charakterwahl (Stefan).
     inhalt = `
-      <label class="field"><span>Wie heißt dein Charakter?</span>
+      <div class="join-titel">➕ Neuen Charakter erstellen</div>
+      ${s.roster.length ? "" : `<div class="muted small" style="margin-bottom:8px">Noch keine Charaktere da – leg deinen an. Werte trägst du danach im Charakterbogen ein.</div>`}
+      <label class="field"><span>Name des Charakters</span>
         <input id="joinneu" value="${esc(E.neuName)}" placeholder="z. B. Tessa" maxlength="40" autocomplete="off" enterkeyhint="go"></label>
       ${spielerFeld}
-      <button class="primary big" data-act="join-neu" style="width:100%">Beitreten</button>
+      <button class="primary big" data-act="join-neu" style="width:100%">Charakter erstellen &amp; beitreten</button>
       ${s.roster.length ? `<div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="liste">← zur Liste</button></div>` : ""}`;
   }
   return `

@@ -2081,3 +2081,17 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
 .dl-blatt .angriff-wahl [data-act="angriff-waehlen"] { display: none; }   /* „Abbrechen" ist der Daumen-Knopf */
 .join-char.belegt { opacity: 0.5; cursor: default; }
 .join-char.belegt small { display: block; font-weight: 400; font-size: 0.72rem; color: var(--muted); }
+.join-titel { font-weight: 800; font-size: 1.1rem; margin-bottom: 6px; }
+/* „Neuen Charakter erstellen" - eigener großer Knopf, gut sichtbar abgesetzt. */
+.join-oder { display: flex; align-items: center; gap: 10px; margin: 14px 0 10px; color: var(--muted); font-size: 0.8rem; }
+.join-oder::before, .join-oder::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.join-erstellen {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: color-mix(in srgb, var(--good) 16%, var(--panel)); color: var(--text);
+  border: 2px solid var(--good); font-weight: 800;
+}
+.join-erstellen:hover { background: color-mix(in srgb, var(--good) 26%, var(--panel)); }
+.join-plus {
+  width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--good); color: var(--bg); font-size: 1.2rem; font-weight: 800; line-height: 1;
+}

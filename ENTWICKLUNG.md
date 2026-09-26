@@ -92,6 +92,11 @@ sich über **Export/Import** in der App umziehen.
   durch den Server zeigt die Seite die Liste.
 - **SL-Zeile:** Wird es eng, kürzen sich Zone und „↓ danach" – WC, Talente und
   Bennies wurden vorher hinten abgeschnitten. Zeilenhöhe unverändert.
+- **Charakter erstellen gut sichtbar:** eigener großer grüner Knopf „＋ Neuen
+  Charakter erstellen" unter einer „oder"-Linie (in „Weiter als …" und in der
+  Liste); die Erstell-Seite heißt „➕ Neuen Charakter erstellen", Knopf
+  „Charakter erstellen & beitreten" (vorher nur „Beitreten" – las sich beim
+  ersten Start, als fehle etwas).
 - Noch auf echtem iPhone prüfen: Ton nach Sperrbildschirm, Blitz, Daumen-Leiste
   über der Safari-Leiste.
 
