@@ -1557,3 +1557,29 @@ def test_angriff_kein_schaden_und_statist_raus(fresh_game):
     g.apply({"type": "resolve_attack", "id": req["id"], "ergebnis": "treffer", "steigerungen": 3})
     assert g._combatant(a["id"])["status"]["out"] is True
     assert "ausgeschaltet" in g.messages[-1]["text"]
+
+
+def test_gruppenkarte_kopie_entfernen_verdoppelt_keine_karte(fresh_game):
+    """Mitglieder einer Gruppenkarte tragen nur eine Kopie. Fällt so ein Ork
+    (und wird beim Austeilen weggeräumt) oder wird er entfernt, darf die Karte
+    nicht ein zweites Mal auf den Ablagestapel - sonst ist sie doppelt im Deck."""
+    g = fresh_game
+    g.apply({"type": "set_kampfhilfe", "name": "gruppenKarte", "on": True})
+    for _ in range(4):
+        _add_npc(g, "Ork")
+    g.apply({"type": "new_round"})
+
+    def karten_gesamt():
+        im_spiel = [c["card"]["id"] for c in g.combatants if c.get("card") and not c.get("karteGeteilt")]
+        alle = [k["id"] for k in g.deck] + [k["id"] for k in g.discard] + im_spiel
+        return len(alle), len(set(alle))
+
+    assert karten_gesamt() == (54, 54)
+    kopien = [c for c in g.combatants if c.get("karteGeteilt")]
+    g.apply({"type": "set_status", "id": kopien[0]["id"], "out": True})
+    g.apply({"type": "new_round"})                    # räumt den Ausgeschalteten weg
+    assert karten_gesamt() == (54, 54)
+    kopie = [c for c in g.combatants if c.get("karteGeteilt")][0]
+    g.apply({"type": "remove_combatant", "id": kopie["id"]})
+    g.apply({"type": "new_round"})
+    assert karten_gesamt() == (54, 54)

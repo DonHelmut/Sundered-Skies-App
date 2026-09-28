@@ -47,7 +47,7 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
-## In Arbeit (nach 1.1, noch ohne Versionssprung)
+## 1.2 (28.09.2026): Handy-Daumen-Knopf, Beitritt in einem Tippen, SL-Rechtsklick
 
 - **Beitritt in einem Tippen** (`renderJoin`, `doJoin(characterId, neu)`):
   „Weiter als Tessa" groß (gemerkt in `localStorage.letzterCharakter`, übersteht
@@ -108,6 +108,15 @@ sich über **Export/Import** in der App umziehen.
   mehr und geht immer.
 - Noch auf echtem iPhone prüfen: Ton nach Sperrbildschirm, Blitz, Daumen-Leiste
   über der Safari-Leiste.
+
+- **Korrektur (Durchsicht 28.09.): Gruppenkarte doppelt im Deck.** Mitglieder
+  einer Gruppenkarte tragen nur eine Kopie – Entfernen, Pausieren, „Ausgeschaltete
+  entfernen" (jetzt auch automatisch beim Austeilen) und Begegnung ersetzen legten
+  auch die Kopie ab, dann lag die Karte zweimal im Deck (55 Karten). Jetzt alles
+  über `_karte_ablegen`. Test: `test_gruppenkarte_kopie_entfernen_verdoppelt_keine_karte`.
+- **Korrektur: Rechtsklick auf „Ork ×10"** (Gruppenkarten-Zeile) öffnete das Menü
+  nur für den ersten Ork – ein „+1"/„Entfernen" traf still nur ihn. Jetzt klappt
+  der Rechtsklick die Gruppe auf („Rechtsklick auf den gewünschten Ork").
 
 ## 1.1 (25.09.2026): Spieler greifen selbst an
 
@@ -406,8 +415,8 @@ Halten nicht scrollen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.1** (veröffentlicht; weiter 1.2 … 1.9, 1.10 …).
-      Nächstes Release also 1.1 → 1.2 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.2** (veröffentlicht; weiter 1.3 … 1.9, 1.10 …).
+      Nächstes Release also 1.2 → 1.3 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.

@@ -579,6 +579,15 @@ class Game:
         pos = {cid: i for i, cid in enumerate(order)}
         self.combatants.sort(key=lambda c: pos[c["id"]])
 
+    def _karte_ablegen(self, c: dict) -> None:
+        """Karte einer Figur auf den Ablagestapel. Nicht bei einer Gruppenkarten-
+        KOPIE: die Karte liegt einmal beim Ersten der Gruppe - zweimal abgelegt
+        waere sie doppelt im Deck (fiel auf, als ausgeschaltete Gegner beim
+        Austeilen automatisch verschwanden)."""
+        if c.get("card") and not c.get("karteGeteilt"):
+            self.discard.append(c["card"])
+        c["karteGeteilt"] = False
+
     def _collect_cards(self) -> None:
         for c in self.combatants:
             # Mitglieder einer Gruppenkarte tragen nur eine KOPIE - die Karte
@@ -914,8 +923,8 @@ class Game:
         if a.get("ersetzen"):
             weg = {c["id"] for c in self.combatants if c.get("kind") == "npc"}
             for c in self.combatants:
-                if c["id"] in weg and c.get("card"):
-                    self.discard.append(c["card"])
+                if c["id"] in weg:
+                    self._karte_ablegen(c)
             self.combatants = [c for c in self.combatants if c["id"] not in weg]
             self.requests = [r for r in self.requests if r.get("combatantId") not in weg]
             self.groups = []
@@ -1273,8 +1282,7 @@ class Game:
         on = bool(a.get("on", True))
         c["benched"] = on
         if on:
-            if c.get("card"):
-                self.discard.append(c["card"])
+            self._karte_ablegen(c)
             c["card"] = None
             c["draw"] = None
             # War die pausierte Figur gerade dran, zum nächsten weiterrücken.
@@ -1376,8 +1384,8 @@ class Game:
     def _do_remove_combatant(self, a: dict) -> None:
         rid = a.get("id")
         c = self._combatant(rid)
-        if c and c.get("card"):
-            self.discard.append(c["card"])
+        if c:
+            self._karte_ablegen(c)
         # Ist es ein Spieler, auch seinen Spieler-Eintrag entfernen (Kick).
         pid = c.get("playerId") if c else None
         # Wird der aktive Akteur entfernt, zum nächsten weiterrücken.
@@ -1403,8 +1411,8 @@ class Game:
         if not vids:
             return
         for c in self.combatants:
-            if c["id"] in vids and c.get("card"):
-                self.discard.append(c["card"])
+            if c["id"] in vids:
+                self._karte_ablegen(c)
         # War der aktive Akteur dabei, zum nächsten verbleibenden weiterrücken.
         if self.active_id in vids:
             order = [x["id"] for x in self.combatants]

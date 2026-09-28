@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.1";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.2";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -2937,6 +2937,17 @@ document.addEventListener("contextmenu", (e) => {
   const zeile = e.target.closest(".combatant[data-cid], .zone-token[data-drag-id]");
   if (!zeile) { kontextMenueZu(); return; }
   e.preventDefault();
+  // Gruppenkarten-Zeile („Ork ×10"): sie trägt die ID des ERSTEN Orks - ein
+  // Menü hier hätte still nur ihn getroffen (oder entfernt). Stattdessen die
+  // Gruppe aufklappen, dann den gewünschten Ork anklicken.
+  const gruppe = zeile.getAttribute("data-gruppe");
+  if (gruppe) {
+    App.kontextMenue = null;
+    App.gruppeOffen.add(gruppe);
+    render();
+    toast("Gruppe aufgeklappt – Rechtsklick auf den gewünschten Ork");
+    return;
+  }
   App.kontextMenue = { id: zeile.getAttribute("data-cid") || zeile.getAttribute("data-drag-id"), x: e.clientX, y: e.clientY };
   render();
 });
