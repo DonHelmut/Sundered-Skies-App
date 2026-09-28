@@ -1583,3 +1583,87 @@ def test_gruppenkarte_kopie_entfernen_verdoppelt_keine_karte(fresh_game):
     g.apply({"type": "remove_combatant", "id": kopie["id"]})
     g.apply({"type": "new_round"})
     assert karten_gesamt() == (54, 54)
+
+
+def test_spieler_stand_verraet_keine_sl_vorbereitung(fresh_game):
+    """Begegnungen und Verbündeten-Bibliothek sind SL-Vorbereitung - im Stand
+    für die Handys stehen sie nicht (sonst: geplante Kämpfe und echte Namen
+    verdeckter Gegner lesbar)."""
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Geheimboss", "isWildCard": True, "anon": True})
+    g.apply({"type": "ally_upsert", "name": "Doppelagent"})
+    g.apply({"type": "save_encounter", "name": "Hinterhalt"})
+    import json
+    spieler = json.dumps(g.snapshot(fuer_spieler=True), ensure_ascii=False)
+    assert "Geheimboss" not in spieler and "Doppelagent" not in spieler and "Hinterhalt" not in spieler
+    sl = g.snapshot()
+    assert sl["encounters"] and sl["allies"]
+
+
+def test_begegnung_merkt_verdeckt_und_ersetzen_raeumt_gruppen(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Geheimboss", "isWildCard": True, "anon": True})
+    g.apply({"type": "add_npc", "name": "Ork"})
+    g.apply({"type": "save_encounter", "name": "Hinterhalt"})
+    enc = g.encounters[-1]["id"]
+    g.apply({"type": "roster_upsert", "name": "Kumpel", "isWildCard": True})
+    held = g.add_combatant_from_character(g.roster[-1], "plr-1", "Kumpel")
+    g.apply({"type": "group_create", "name": "Wir", "ids": [held["id"]]})
+    g.apply({"type": "start_encounter", "id": enc, "ersetzen": True})
+    boss = next(c for c in g.combatants if c["name"].startswith("Geheimboss"))
+    assert boss["anon"] is True                                   # bleibt verdeckt
+    assert g._combatant(held["id"])["groupId"] is None            # kein Verweis ins Leere
+    assert not g.groups
+
+
+def test_deck_heilt_sich_nach_zu_vielen_figuren(fresh_game):
+    """Mehr Figuren als Karten: ein zweites Deck wird angebrochen. Sind die
+    Figuren wieder weg, spielt die nächste Runde mit genau 54 Karten weiter."""
+    g = fresh_game
+    for _ in range(3):
+        g.apply({"type": "add_npc", "name": "Ork", "count": 20})
+    g.apply({"type": "new_round"})                      # 60 Figuren -> zweites Deck
+    for c in [c for c in g.combatants][:50]:
+        g.apply({"type": "remove_combatant", "id": c["id"]})
+    g.apply({"type": "new_round"})
+    im_spiel = [c["card"]["id"] for c in g.combatants if c.get("card") and not c.get("karteGeteilt")]
+    alle = [k["id"] for k in g.deck] + [k["id"] for k in g.discard] + im_spiel
+    assert len(alle) == 54 and len(set(alle)) == 54
+
+
+def test_undo_ueber_wiederbeitritt_sperrt_spieler_nicht_aus(fresh_game):
+    """Handy verliert seine Spieler-ID, tritt mit neuer ID wieder bei, dann macht
+    der SL Undo bis vor den Wiederbeitritt. Früher kam die ALTE ID samt
+    „verbunden" zurück - der Spieler sah seinen Charakter als „wird gespielt"
+    und kam nicht mehr hinein."""
+    fresh_game.apply({"type": "roster_upsert", "name": "Kumpel", "isWildCard": True})
+    char = fresh_game.roster[-1]["id"]
+    alt = fresh_game.register_player("Kumpel", char, None)["id"]
+    _add_npc(fresh_game, "Ork")
+    fresh_game.apply({"type": "new_round"})              # Stand mit alter ID
+    fresh_game.set_player_connected(alt, False)          # Handy weg ...
+    neu = fresh_game.register_player("Kumpel", char, None)["id"]   # ... neue ID
+    assert neu != alt
+    fresh_game.apply({"type": "undo"})                    # vor die Runde zurück
+
+    assert fresh_game.charakter_aktiv_belegt(char, neu) is None   # darf übernehmen
+    assert next(p for p in fresh_game.players if p["id"] == neu)["connected"]
+    fresh_game.register_player("Kumpel", char, neu)
+    kumpel = [c for c in fresh_game.combatants if c.get("characterId") == char]
+    assert len(kumpel) == 1 and kumpel[0]["playerId"] == neu
+
+
+def test_fortsetzen_behaelt_schon_verbundene_handys(fresh_game):
+    """Handy meldet sich nach dem Neustart VOR dem „Fortsetzen" wieder an - es
+    muss danach weiter als verbunden gelten (sonst könnte ein anderes Gerät
+    den Charakter übernehmen)."""
+    from server import game as game_mod
+    fresh_game.apply({"type": "roster_upsert", "name": "Tessa", "isWildCard": True})
+    char = fresh_game.roster[-1]["id"]
+    pid = fresh_game.register_player("Stefan", char, None)["id"]
+    fresh_game.apply({"type": "new_round"})
+    neu = game_mod.Game()
+    neu.register_player("Stefan", char, pid)
+    assert neu.resume_session()
+    assert next(p for p in neu.players if p["id"] == pid)["connected"]
+    assert neu.charakter_aktiv_belegt(char, "plr-fremd") == "Tessa"

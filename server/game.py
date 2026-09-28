@@ -344,8 +344,20 @@ class Game:
         return {f: copy.deepcopy(getattr(self, f)) for f in self._SNAPSHOT_FIELDS}
 
     def _restore(self, snap: dict) -> None:
+        # Wer JETZT verbunden ist, ist keine Spielhandlung - das darf Undo nicht
+        # zurückdrehen. Sonst galt nach einem Undo über einen Wiederbeitritt
+        # hinweg die alte, längst getrennte Spieler-ID als „verbunden", und der
+        # Spieler stand vor seinem eigenen Charakter mit „wird gespielt".
+        jetzt = {p["id"]: p for p in self.players}
         for f, v in snap.items():
             setattr(self, f, copy.deepcopy(v))
+        for p in self.players:
+            p["connected"] = bool(jetzt.get(p["id"], {}).get("connected"))
+        # Verbundene Geräte, die es im alten Stand noch nicht gab, bleiben
+        # angemeldet (ohne Figur) - sie wählen ihren Charakter einfach neu.
+        bekannt = {p["id"] for p in self.players}
+        self.players += [copy.deepcopy(p) for pid, p in jetzt.items()
+                         if pid not in bekannt and p.get("connected")]
 
     def _push_history(self) -> None:
         self._history.append(self._capture())
@@ -511,7 +523,15 @@ class Game:
         for c in self.combatants:
             if c.get("groupId") not in gueltig:
                 c["groupId"] = None
+        # Handys, die sich vor dem „Fortsetzen" schon wieder angemeldet haben,
+        # bleiben verbunden - sonst galten sie als weg, und ihr Charakter war
+        # für jedes andere Gerät frei zum Übernehmen.
+        jetzt = {p["id"]: p for p in self.players if p.get("connected")}
         self.players = data.get("players", [])
+        for p in self.players:
+            p["connected"] = p["id"] in jetzt
+        bekannt = {p["id"] for p in self.players}
+        self.players += [p for pid, p in jetzt.items() if pid not in bekannt]
         self.requests = data.get("requests", [])
         self.tv_image = data.get("tvImage")
         self.messages = data.get("messages", [])
@@ -660,8 +680,11 @@ class Game:
             "canUndo": len(self._history) > 0,
             "roster": self.roster,
             "bestiary": [] if fuer_spieler else self.bestiary,
-            "allies": self.allies,
-            "encounters": self.encounters,
+            # Vorbereitung des SL geht die Handys nichts an: gespeicherte
+            # Begegnungen verrieten sonst geplante Kämpfe samt echter Namen
+            # verdeckter Gegner (fiel im Stresstest auf).
+            "allies": [] if fuer_spieler else self.allies,
+            "encounters": [] if fuer_spieler else self.encounters,
             "players": self.players,
             "groups": self.groups,
             "effektMeldungen": [] if fuer_spieler else self.effekt_meldungen,
@@ -901,6 +924,9 @@ class Game:
                 "ally": bool(c.get("ally", False)),
                 "image": c.get("image"),
                 "note": c.get("note", ""),
+                # Verdeckt bleibt verdeckt - sonst stand der geheime Boss beim
+                # erneuten Einsetzen mit echtem Namen auf den Handys.
+                "anon": bool(c.get("anon", False)),
                 **_kampfwerte(c),
             })
         if not members:
@@ -928,6 +954,10 @@ class Game:
             self.combatants = [c for c in self.combatants if c["id"] not in weg]
             self.requests = [r for r in self.requests if r.get("combatantId") not in weg]
             self.groups = []
+            # Spieler/Verbündete, die in einer (jetzt gelöschten) Gruppe waren,
+            # nicht mit einem Verweis ins Leere zurücklassen (fiel im Stresstest auf).
+            for c in self.combatants:
+                c["groupId"] = None
         self._do_add_encounter(a)
         for c in self.combatants:
             c["benched"] = False
@@ -946,6 +976,7 @@ class Game:
                 "gluck": m.get("gluck", False),
                 "grosses_gluck": m.get("grosses_gluck", False),
                 "zone": m.get("zone"),
+                "anon": bool(m.get("anon", False)) and not m.get("ally"),
                 **_kampfwerte(m),
             })
             if self.combatants:
@@ -1453,6 +1484,14 @@ class Game:
         # machen. Verbündete und Spieler bleiben wie gehabt.
         self._do_clear_defeated({})
         self._collect_cards()
+        # Selbstheilung: Waren mehr Figuren im Kampf als Karten, hat der
+        # DeckManager ein zweites Deck angebrochen - danach lag jede Karte doppelt
+        # im Stapel, auch wenn die Horde längst weg war. Nach dem Einsammeln
+        # müssen es genau 54 verschiedene sein, sonst frisch mischen.
+        ids = [k.get("id") for k in self.deck + self.discard]
+        if len(ids) != 54 or len(set(ids)) != 54:
+            self.deck = engine.shuffle(engine.full_deck())
+            self.discard = []
         # Regelkonform: wurde letzte Runde ein Joker gezogen, jetzt komplett mischen.
         if self.reshuffle_next:
             self.deck = engine.shuffle(self.deck + self.discard)

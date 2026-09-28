@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.2";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.3";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -550,7 +550,7 @@ function connect() {
       // Neuesten Zustand nur merken und direkt nach der Animation einmal anwenden.
       if (App.revealLockUntil && Date.now() < App.revealLockUntil) { App.pendingRender = true; return; }
       // Spieler tippt gerade im Charakterbogen -> nach dem Feld nachholen.
-      if (tipptImBogen()) { App.bogenWartet = true; return; }
+      if (tipptImBogen() || blattScrollt()) { App.bogenWartet = true; if (blattScrollt()) setTimeout(bogenNachholen, 800); return; }
       render();
     } else if (msg.type === "joinError") {
       // Charakter wird gerade woanders gespielt oder ist unbekannt -> zurück
@@ -1352,39 +1352,78 @@ function renderTokenPopupOverlay() {
 
 // --- Joker-Vollbild-Moment --------------------------------------------------
 
-// Reichweite zwischen zwei Figuren auf dem Board: Jede Seite zählt ihre Zonen
-// von der Mitte aus (0 = Nahkampf … 4 = außer Reichweite). Es gilt die WEITERE
-// der beiden Zonen (Stefan): beide im Fernbereich = Fernkampf, ich nah und der
-// Gegner fern = Fernkampf, Nahkampf nur, wenn beide in der Mitte stehen.
-function reichweite(a, b) {
-  return Math.max(Zones.zoneOf(a), Zones.zoneOf(b));
-}
 
 // Spieler: Wen greifst du an? Gegner nach Reichweite von nah nach fern, mit
 // Zustand (angeschlagen/Wunden) und Standort. Verdeckte Gegner tragen ihren
 // Tarnnamen (kommt so vom Server).
+// Was gilt für MICH gegen dieses Ziel? Nahkampf nur, wenn beide im Getümmel
+// stehen. Fernkampf nach Stefans Tischregel: Der Fernbereich ist der Platz der
+// Fernkämpfer - bis dorthin (Nahkampf, Nahbereich, Fernbereich, egal auf
+// welcher Seite) OHNE Abzug; steht einer von beiden im Weitbereich −2, stehen
+// BEIDE im Weitbereich −4; außer Reichweite geht nichts.
+function fernkampfAbzug(a, b) {
+  const weiter = Math.max(a, b);
+  if (weiter >= 4) return null;
+  if (weiter <= 2) return 0;
+  return a === 3 && b === 3 ? -4 : -2;
+}
+function angriffsArt(mine, ziel) {
+  const ich = Zones.zoneOf(mine), er = Zones.zoneOf(ziel);
+  if (ich === 0 && er === 0) return { art: "nah", text: "⚔ Nahkampf", titel: "Kämpfen gegen Parade" };
+  const abzug = fernkampfAbzug(ich, er);
+  if (abzug === null) return { art: "weg", text: "✗ zu weit", titel: "Außer Reichweite" };
+  const t = abzug ? `−${-abzug}` : "±0";
+  return { art: "fern", text: `🏹 ${t}`, titel: `Fernkampf ${abzug ? `mit ${t}` : "ohne Abzug"}` };
+}
+// Emoji bzw. Name einer Zone einzeln (zoneLabel liefert beides zusammen).
+function zoneTeil(z, teil) {
+  const zs = (App.state && App.state.zones) || (window.Zones && Zones.LABELS) || [];
+  return (zs[z] && zs[z][teil]) || "";
+}
+
+// Spieler: Wen greifst du an? Gruppiert danach, wo die Gegner STEHEN (wie auf
+// dem Board), von nah nach fern. An jedem Ziel steht, was für MICH gilt
+// (Nahkampf, Fernkampf-Abzug oder zu weit) - vorher war nach Reichweite
+// gruppiert, und aus dem Fernbereich standen Gegner im Getümmel unter
+// „Fernbereich". Eigene Seite abgetrennt und zugeklappt.
 function angriffWahlHtml(mine) {
   const s = App.state;
-  const ziele = s.combatants.filter((c) => c.kind === "npc" && !c.ally && !c.benched && !(c.status || {}).out)
-    .map((c) => ({ c, rw: reichweite(mine, c) }))
-    .sort((x, y) => x.rw - y.rw || Zones.zoneOf(x.c) - Zones.zoneOf(y.c) || String(x.c.name).localeCompare(String(y.c.name), "de", { numeric: true }));
-  const stufen = [...new Set(ziele.map((x) => x.rw))];
-  const chip = ({ c }) => {
+  const ich = Zones.zoneOf(mine);
+  const lebt = (c) => !c.benched && !(c.status || {}).out;
+  const nachOrt = (liste) => liste.slice().sort((x, y) => Zones.zoneOf(x) - Zones.zoneOf(y)
+    || String(x.name).localeCompare(String(y.name), "de", { numeric: true }));
+  const gegner = nachOrt(s.combatants.filter((c) => c.kind === "npc" && !c.ally && lebt(c)));
+  const eigene = nachOrt(s.combatants.filter((c) => c.id !== mine.id && !(c.kind === "npc" && !c.ally) && lebt(c)));
+  const chip = (c, freund) => {
     const st = c.status || {};
-    return `<button type="button" class="aw-ziel${st.shaken ? " angeschlagen" : ""}" data-act="angriff-auf" data-id="${c.id}">
-      <span class="aw-name">${esc(c.name)}</span>
-      <span class="aw-zustand">${st.shaken ? `<span title="angeschlagen">😵</span>` : ""}${st.wounds ? `<span class="aw-wunden" title="Wunden">🩸${st.wounds}</span>` : ""}</span>
-      <span class="aw-ort">steht: ${esc(zoneLabel(Zones.zoneOf(c)))}</span></button>`;
+    const a = angriffsArt(mine, c);
+    // Ins Getümmel schießen: bei einer 1 auf dem Fertigkeitswürfel trifft man
+    // einen Nachbarn (Savage Worlds, „Unschuldige Umstehende").
+    const getuemmel = a.art === "fern" && Zones.zoneOf(c) === 0;
+    return `<button type="button" class="aw-ziel${st.shaken ? " angeschlagen" : ""}${freund ? " freund" : ""}${a.art === "weg" ? " zu-weit" : ""}"
+        data-act="angriff-auf" data-id="${c.id}" title="${esc(a.titel)}">
+      <span class="aw-oben"><span class="aw-name">${esc(c.name)}</span><span class="aw-art aw-${a.art}">${a.text}</span></span>
+      <span class="aw-zustand">${st.shaken ? `<span title="angeschlagen">😵</span>` : ""}${st.wounds ? `<span class="aw-wunden" title="Wunden">🩸${st.wounds}</span>` : ""}${
+        getuemmel ? `<span class="aw-warn" title="Bei einer 1 auf dem Fertigkeitswürfel trifft der Schuss jemanden daneben">⚠ ins Getümmel</span>` : ""}</span>
+    </button>`;
   };
-  const inhalt = stufen.map((rw) => `<div class="aw-zone"><div class="aw-reichweite">${rw === 0 ? "⚔️ Nahkampf" : `${esc(zoneLabel(rw))}`}${rw === 4 ? "" : " – in Reichweite"}</div>
-      <div class="aw-ziele">${ziele.filter((x) => x.rw === rw).map(chip).join("")}</div></div>`).join("");
+  const gruppen = (liste, freund) => [...new Set(liste.map((c) => Zones.zoneOf(c)))].map((z) => `<div class="aw-zone">
+      <div class="aw-reichweite">${z === 4 ? `${zoneTeil(z, "emoji")} Außer Reichweite` : `${zoneTeil(z, "emoji")} Im ${esc(zoneTeil(z, "label"))}`}</div>
+      <div class="aw-ziele">${liste.filter((c) => Zones.zoneOf(c) === z).map((c) => chip(c, freund)).join("")}</div></div>`).join("");
+  const eigeneHtml = eigene.length ? `<div class="aw-eigene">
+      <button type="button" class="aw-eigene-kopf" data-act="angriff-eigene">${App.angriffEigene ? "▾" : "▸"} Eigene Seite angreifen <span class="muted">(${eigene.length})</span></button>
+      ${App.angriffEigene ? gruppen(eigene, true) : ""}</div>` : "";
+  // Was geht von meinem Platz aus? (Regel siehe fernkampfAbzug)
+  const moeglich = ich >= 4 ? "Von hier erreichst du niemanden – erst näher ran"
+    : ich === 3 ? "Fernkampf −2, auf Gegner im Weitbereich −4 · Nahkampf erst im Getümmel"
+    : `${ich === 0 ? "Nahkampf gegen alle im Getümmel · " : ""}Fernkampf ohne Abzug bis Fernbereich, Weitbereich −2${ich === 0 ? "" : " · Nahkampf erst im Getümmel"}`;
   return `<div class="angriff-wahl">
-    <div class="row spread" style="align-items:center; margin-bottom:2px">
+    <div class="aw-kopf">
       <strong>⚔ Wen greifst du an?</strong>
-      <button class="ghost small" data-act="angriff-waehlen">Abbrechen</button>
+      <div class="muted small">Du stehst ${ich === 4 ? "außer Reichweite" : `im ${esc(zoneTeil(ich, "label"))}`} · ${moeglich}</div>
     </div>
-    <div class="muted small">Du stehst: ${esc(zoneLabel(Zones.zoneOf(mine)))} · von nah nach fern</div>
-    ${inhalt || `<div class="muted small" style="margin-top:6px">Kein Gegner in Sicht.</div>`}
+    ${gruppen(gegner, false) || `<div class="muted small" style="margin-top:6px">Kein Gegner in Sicht.</div>`}
+    ${eigeneHtml}
   </div>`;
 }
 function angriffMelden(id) {
@@ -1560,7 +1599,15 @@ function render() {
   // (Das Bild-Overlay unten haengt an <body> und wird trotzdem abgeglichen.)
   if (html !== App._letztesHtml || !root.firstChild) {
     App._letztesHtml = html;
+    // Scrollbare Blätter (Zielwahl) behalten ihre Position - sonst sprang die
+    // Liste bei jedem Server-Update nach oben.
+    const scrollMerk = {};
+    root.querySelectorAll("[data-scroll-merk]").forEach((e) => { scrollMerk[e.dataset.scrollMerk] = e.scrollTop; });
     root.innerHTML = html;
+    root.querySelectorAll("[data-scroll-merk]").forEach((e) => {
+      if (scrollMerk[e.dataset.scrollMerk]) e.scrollTop = scrollMerk[e.dataset.scrollMerk];
+    });
+    document.body.classList.toggle("blatt-offen", !!root.querySelector(".angriff-blatt"));
     // Platz für die fixierte Steuerleiste schaffen - über eine Klasse statt über
     // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
     document.body.classList.toggle("hat-leiste", !!root.querySelector(".aktionsleiste"));
@@ -3606,8 +3653,16 @@ document.addEventListener("input", (e) => {
 // dem Finger aus - der Klick ging ins Leere. Darum erst nach dem Loslassen.
 let zeigerUnten = false;
 function bogenNachholen() {
-  if (App.bogenWartet && !tipptImBogen() && !zeigerUnten) { App.bogenWartet = false; render(); }
+  if (App.bogenWartet && !tipptImBogen() && !zeigerUnten && !blattScrollt()) { App.bogenWartet = false; render(); }
 }
+// Scrollt der Spieler gerade in der Zielwahl? Dann nicht neu aufbauen - ein
+// Neuaufbau mitten im Schwung stoppt das Scrollen (das „Hängen").
+function blattScrollt() {
+  return !!(App._blattScrollZeit && Date.now() - App._blattScrollZeit < 700);
+}
+document.addEventListener("scroll", (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains("angriff-blatt")) App._blattScrollZeit = Date.now();
+}, true);
 document.addEventListener("pointerdown", () => { zeigerUnten = true; }, true);
 // Beitritt: „Los" auf der Handy-Tastatur tritt direkt bei.
 document.addEventListener("keydown", (e) => {
@@ -3823,15 +3878,18 @@ function daumenKnopf(o) {
     neben = App.angriffWahl ? "" : o.confirmBtn + o.holdBtn;
     // Die Ziele direkt über dem Daumen - vorher standen sie oben in der Karte,
     // und das Hinscrollen klappte am Handy nicht immer.
-    if (App.angriffWahl) blatt = `<div class="dl-blatt">${angriffWahlHtml(mine)}</div>`;
+    // Beim Angreifen gehört der ganze Bildschirm der Zielwahl (Stefan): im
+    // halbhohen Streifen über dem Daumen scrollte bei vielen Figuren die Seite
+    // mit den Zonen dahinter mit, und es hakte.
+    if (App.angriffWahl) blatt = `<div class="angriff-blatt" data-scroll-merk="angriff">${angriffWahlHtml(mine)}</div>`;
   } else if (isMyTurn) {
     haupt = o.confirmBtn; neben = o.holdBtn;
   } else if (mine.card && !mine.revealed && !mine.benched) {
     haupt = `<button class="primary big" data-act="daumen-aufdecken">🂠 Karte aufdecken</button>`;
   }
   if (!haupt) return "";
-  return `<div class="aktionsleiste daumen-leiste${blatt ? " mit-blatt" : ""}">
-    ${blatt}<div class="dl-haupt">${haupt}</div>${neben ? `<div class="dl-neben">${neben}</div>` : ""}
+  return `${blatt}<div class="aktionsleiste daumen-leiste">
+    <div class="dl-haupt">${haupt}</div>${neben ? `<div class="dl-neben">${neben}</div>` : ""}
   </div>`;
 }
 
@@ -4241,8 +4299,10 @@ Abbrechen = Begegnung zusätzlich dazustellen.`);
       dranBlitz();
     },
     "km-treffer": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; App.trefferSchaden = ""; trefferAuf(id); },
+    "angriff-eigene": () => { App.angriffEigene = !App.angriffEigene; render(); },
     "angriff-waehlen": () => {
       App.angriffWahl = !App.angriffWahl;
+      App.angriffEigene = false;
       // Wer angreift, muss würfeln: Zug-Uhr sofort anhalten (Stefan: 6 s zu hart).
       if (App.angriffWahl && App.role !== "gm") { const m = myCombatant(); if (m) gmActionOrPlayer({ type: "timer_halt", id: m.id }); }
       render();
@@ -4396,6 +4456,9 @@ document.addEventListener("pointerdown", (e) => {
 }, true);
 
 document.addEventListener("pointerdown", (e) => {
+  // Nur die linke Taste bzw. der Finger. Ein Rechtsklick öffnete sonst beim
+  // Loslassen das Info-Fenster über dem Rechtsklick-Menü (Stresstest 28.09.).
+  if (e.button !== 0) { tippStart = null; return; }
   const t = e.target.closest('[data-act="token-info"], [data-act="zone-goto"]');
   if (!t) {
     tippStart = null;
@@ -4437,6 +4500,13 @@ document.addEventListener("pointerup", (e) => {
   if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 10) return;    // gewischt/gescrollt
   schluckNaechstenKlick();
   if (s.act === "token-info") {
+    // Ist „🎯 Treffer" offen, ist die angetippte Figur das Ziel. (Der Weg über
+    // den Klick-Handler kam nie an: der Klick wird oben geschluckt - mit der
+    // Maus öffnete sich darum nur das Info-Fenster.)
+    if (App.role === "gm" && App.trefferWahl && App.state && s.id !== App.state.activeId) {
+      trefferAuf(s.id, e.shiftKey);
+      return;
+    }
     App.tokenPopupId = s.id;
     render();
   } else {

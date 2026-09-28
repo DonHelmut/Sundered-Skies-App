@@ -47,6 +47,30 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.3 (28.09.2026): Zielwahl nach Standort, Fernkampf-Regel, Fehler aus dem Großtest
+
+- **Zielwahl am Handy** (`angriffWahlHtml`): eigenes Vollbild-Blatt
+  (`.angriff-blatt`) statt Liste über den Zonen – vorher hakte das Scrollen bei
+  vielen Gegnern und überlagerte die Zonen. Gegner gruppiert danach, wo sie
+  STEHEN (nah → fern), eigene Seite abgetrennt und zugeklappt. Scroll-Stand
+  übersteht Server-Updates (`data-scroll-merk`, `blattScrollt`).
+- **Stefans Fernkampf-Regel** (`fernkampfAbzug`, `angriffsArt`): Nahkampf nur,
+  wenn beide in der Mitte. Fernkampf: stehen beide höchstens im Fernbereich
+  (egal welche Seite) ±0 – der Fernbereich ist der Platz der Fernkämpfer; einer
+  im Weitbereich −2, beide −4, außer Reichweite ✗. Schuss ins Getümmel: ⚠.
+- **Großtest** (Zufalls-Stresstest + Szenarien im Browser) – behoben:
+  - Gruppenkarte: Entfernen einer Kopie legte die Karte doppelt ab (55 Karten).
+  - Stapel blieb nach der „zweites Deck"-Notlösung doppelt → `_deal` heilt ihn.
+  - Handys bekamen Begegnungen und Verbündeten-Bibliothek mit (Leck).
+  - Begegnung „ersetzen" ließ Gruppen-Zuordnungen hängen; gespeicherte
+    Begegnungen vergaßen „verdeckt".
+  - Rechtsklick auf Gruppenzeile traf nur die erste Figur (klappt jetzt auf);
+    Rechtsklick auf Board-Token öffnete zusätzlich das Info-Fenster; „Treffer" →
+    Ziel auf dem Board anklicken ging mit echter Maus nie.
+  - Undo über einen Wiederbeitritt holte den alten Verbindungsstatus zurück →
+    Spieler sah den eigenen Charakter als „wird gespielt". `_restore` behält
+    jetzt, wer gerade verbunden ist; ebenso `resume_session` („Fortsetzen").
+
 ## 1.2 (28.09.2026): Handy-Daumen-Knopf, Beitritt in einem Tippen, SL-Rechtsklick
 
 - **Beitritt in einem Tippen** (`renderJoin`, `doJoin(characterId, neu)`):
@@ -415,8 +439,8 @@ Halten nicht scrollen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.2** (veröffentlicht; weiter 1.3 … 1.9, 1.10 …).
-      Nächstes Release also 1.2 → 1.3 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.3** (veröffentlicht; weiter 1.4 … 1.9, 1.10 …).
+      Nächstes Release also 1.3 → 1.4 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
       (war es vorher auch) – Vorschlag: dort ausblenden.

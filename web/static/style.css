@@ -2075,10 +2075,20 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
 .ap-infos:not(:has(*)) { display: none; }
 
 /* Zielwahl als Blatt direkt über dem Daumen-Knopf (statt oben in der Karte). */
-.daumen-leiste.mit-blatt { flex-wrap: wrap; }
-.dl-blatt { flex: 0 0 100%; max-height: 55vh; overflow-y: auto; overscroll-behavior: contain; }
-.dl-blatt .angriff-wahl { margin-top: 0; }
-.dl-blatt .angriff-wahl [data-act="angriff-waehlen"] { display: none; }   /* „Abbrechen" ist der Daumen-Knopf */
+/* Zielwahl beim Angreifen: ganzer Bildschirm über der Seite, eigener Scroll,
+   die Seite dahinter bleibt stehen. Unten bleibt der Daumen („Abbrechen"). */
+.angriff-blatt { position: fixed; left: 0; right: 0; top: 36px; bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+  z-index: 95; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  background: var(--bg); padding: 0 12px 16px; }
+.angriff-blatt .angriff-wahl { margin: 0 auto; max-width: 640px; border: none; background: transparent; padding: 0; }
+.aw-kopf { position: sticky; top: 0; z-index: 1; background: var(--bg); padding: 10px 0 8px; border-bottom: 2px solid var(--bad); }
+.aw-kopf strong { font-size: 1.1rem; }
+.angriff-blatt .aw-ziele { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.angriff-blatt .aw-ziel { min-width: 0; width: 100%; padding: 10px 10px; }
+.aw-ziel.freund { border-left-color: #35b57e; }
+.aw-eigene { margin-top: 18px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.aw-eigene-kopf { width: 100%; text-align: left; background: transparent; font-weight: 700; }
+body.blatt-offen { overflow: hidden; }
 .join-char.belegt { opacity: 0.5; cursor: default; }
 .join-char.belegt small { display: block; font-weight: 400; font-size: 0.72rem; color: var(--muted); }
 .join-titel { font-weight: 800; font-size: 1.1rem; margin-bottom: 6px; }
@@ -2096,3 +2106,12 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
   background: var(--good); color: var(--bg); font-size: 1.2rem; font-weight: 800; line-height: 1;
 }
 .timer-halt { text-align: center; font-weight: 700; color: var(--good); padding: 8px; border: 1px dashed var(--good); border-radius: 10px; }
+
+/* Zielwahl: je Ziel, was für mich gilt (Nahkampf / Fernkampf-Abzug / zu weit) */
+.aw-ziel .aw-oben { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; width: 100%; }
+.aw-art { font-size: 0.78rem; font-weight: 800; white-space: nowrap; }
+.aw-art.aw-nah { color: var(--bad); }
+.aw-art.aw-fern { color: var(--accent); }
+.aw-art.aw-weg { color: var(--muted); }
+.aw-ziel.zu-weit { opacity: 0.55; }
+.aw-warn { font-size: 0.72rem; font-weight: 700; color: var(--warn); }
