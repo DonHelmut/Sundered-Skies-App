@@ -32,6 +32,8 @@ LAN-Adresse.
 
 - Kommentare erklären das **Warum**, oft mit der Vorgeschichte („sonst …").
   Diesen Stil beibehalten.
+- Keine Browser-Dialoge (`confirm`/`alert`/`prompt`) – der Browser lässt sie sperren;
+  stattdessen `frage`/`hinweis`/`eingabe` aus `app.js`.
 - Kein animierter CSS-`filter` auf Karten (ruckelt beim Drehen); Leuchten wird
   mit Verläufen/`box-shadow` gemalt.
 - Joker: `cards.js` (`JOKER_STILE`, `JOKER_NAMEN`, `JOKER_BAU`). Geparkte Stile

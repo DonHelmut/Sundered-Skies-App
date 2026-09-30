@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.4.4";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.4.5";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -733,6 +733,69 @@ function wsSend(obj) {
   merkeFuerSpaeter(obj);
   return false;
 }
+
+// --- Eigene Rückfragen statt confirm()/alert()/prompt() ---------------------
+// Nach ein paar Browser-Dialogen bietet der Browser „weitere Dialoge von
+// localhost:8000 unterbinden" an. Wer das anklickt, bekommt auf jedes
+// confirm() sofort still „Abbrechen" - Entfernen, Abräumen, Löschen taten
+// dann einfach nichts mehr (Stefan: „die Steuerung ist bricked"). Eigene
+// Dialoge kann der Browser nicht sperren. Sie hängen an <body>, nicht an
+// #app - render() würde sie sonst mitten in der Frage wegwischen.
+let _dialogZu = null;
+function dialog({ text, knoepfe, eingabe = null }) {
+  return new Promise((fertig) => {
+    if (_dialogZu) _dialogZu(null);                // höchstens einer offen
+    const box = el(`<div class="app-dialog-hg" role="dialog" aria-modal="true">
+      <div class="app-dialog panel">
+        <div class="app-dialog-text">${esc(text).replace(/\n/g, "<br>")}</div>
+        ${eingabe ? `<input class="app-dialog-eingabe" maxlength="60" value="${esc(eingabe.vorgabe || "")}">` : ""}
+        <div class="app-dialog-knoepfe">${knoepfe.map((k, i) =>
+          `<button type="button" class="${k.art || "ghost"}" data-i="${i}">${esc(k.text)}</button>`).join("")}</div>
+      </div></div>`);
+    const feld = box.querySelector("input");
+    const standard = knoepfe.findIndex((k) => k.standard);
+    const abbruch = knoepfe.findIndex((k) => k.abbruch);
+    const wertVon = (i) => {
+      const k = knoepfe[i];
+      if (!k) return null;
+      if (feld && !k.abbruch) return feld.value.trim() || null;
+      return k.wert;
+    };
+    const zu = (wert) => {
+      box.remove();
+      document.removeEventListener("keydown", taste, true);
+      _dialogZu = null;
+      fertig(wert);
+    };
+    const abbrechen = () => zu(abbruch >= 0 ? knoepfe[abbruch].wert : null);
+    function taste(e) {
+      // Solange der Dialog offen ist, bekommt die SL-Steuerung keine Tasten
+      // (sonst gäbe die Leertaste nebenbei den nächsten Zug frei).
+      e.stopImmediatePropagation();
+      if (e.key === "Escape") { e.preventDefault(); abbrechen(); }
+      else if (e.key === "Enter" && standard >= 0) { e.preventDefault(); zu(wertVon(standard)); }
+    }
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-i]");
+      if (b) { e.stopPropagation(); zu(wertVon(Number(b.dataset.i))); }
+      else if (e.target === box) abbrechen();       // Klick daneben = Abbrechen
+    });
+    document.addEventListener("keydown", taste, true);
+    _dialogZu = zu;
+    document.body.appendChild(box);
+    if (feld) { feld.focus(); feld.select(); }
+    else { const b = box.querySelector(`button[data-i="${standard >= 0 ? standard : 0}"]`); if (b) b.focus(); }
+  });
+}
+// Ja/Nein -> true/false. gefahr: roter Knopf (Löschen, Entfernen …).
+const frage = (text, ja = "OK", gefahr = false) => dialog({ text, knoepfe: [
+  { text: "Abbrechen", wert: false, abbruch: true },
+  { text: ja, wert: true, art: gefahr ? "bad" : "primary", standard: true }] });
+const hinweis = (text) => dialog({ text, knoepfe: [{ text: "OK", wert: true, art: "primary", standard: true, abbruch: true }] });
+// Texteingabe -> getrimmter Text oder null (Abbrechen/leer).
+const eingabe = (text, vorgabe = "", ja = "OK") => dialog({ text, eingabe: { vorgabe }, knoepfe: [
+  { text: "Abbrechen", wert: null, abbruch: true },
+  { text: ja, art: "primary", standard: true }] });
 
 // Nach einem Update laufen offene Tabs (Laptop, Handys, Beamer) mit dem ALTEN
 // Seiten-Code weiter und verbinden sich einfach neu - mit alter Logik. So kam
@@ -1990,9 +2053,9 @@ document.addEventListener("drop", (e) => {
     const ids = (App.auswahl.size && App.auswahl.has(id)) ? [...App.auswahl] : [id];
     gezogeneId = null;
     // Name erst nach dem Ablegen fragen - ein prompt() mitten im Ziehen blockiert.
-    setTimeout(() => {
-      const name = prompt(`Name der neuen Gruppe? (${ids.length} ${ids.length === 1 ? "Figur" : "Figuren"})`, "Trupp");
-      if (!name || !name.trim()) return;
+    setTimeout(async () => {
+      const name = await eingabe(`Name der neuen Gruppe? (${ids.length} ${ids.length === 1 ? "Figur" : "Figuren"})`, "Trupp", "Gruppe anlegen");
+      if (!name) return;
       gmAction({ type: "group_create", name: name.trim(), ids });
       App.auswahl.clear();
     }, 0);
@@ -4056,10 +4119,10 @@ document.addEventListener("click", (e) => {
     // SL – Kampf
     "new-round": () => gmAction({ type: "new_round" }),
     "alle-wieder-rein": () => gmAction({ type: "unbench_all" }),
-    "clear-all": () => {
-      if (confirm("Kampf abräumen?\n\nAlle Gegner und Verbündeten werden entfernt, die Spieler pausiert (sie bleiben verbunden und behalten ihren Charakter). Die Zonen sind danach leer.\n\nRückgängig geht mit ↶.")) gmAction({ type: "clear_all" });
+    "clear-all": async () => {
+      if (await frage("Kampf abräumen?\n\nAlle Gegner und Verbündeten werden entfernt, die Spieler pausiert (sie bleiben verbunden und behalten ihren Charakter). Die Zonen sind danach leer.\n\nRückgängig geht mit ↶.", "Abräumen", true)) gmAction({ type: "clear_all" });
     },
-    "reset": () => { if (confirm("Initiative komplett zurücksetzen?")) gmAction({ type: "reset" }); },
+    "reset": async () => { if (await frage("Initiative komplett zurücksetzen?", "Zurücksetzen", true)) gmAction({ type: "reset" }); },
     "release": () => gmAction({ type: "release" }),
     "confirm-turn": () => gmActionOrPlayer({ type: "confirm_turn" }),
     "skip-turn": () => gmAction({ type: "confirm_turn" }),   // ohne Timer zum nächsten
@@ -4068,14 +4131,14 @@ document.addEventListener("click", (e) => {
     "edit-combatant": () => { App.editCombatantId = App.editCombatantId === id ? null : id; render(); },
     "save-combatant": () => saveCombatant(id),
     "cancel-edit-combatant": () => { App.editCombatantId = null; render(); },
-    "bild-entfernen": () => {
-      if (confirm("Porträt dieser Figur entfernen?")) gmAction({ type: "set_image", id, url: null });
+    "bild-entfernen": async () => {
+      if (await frage("Porträt dieser Figur entfernen?", "Entfernen", true)) gmAction({ type: "set_image", id, url: null });
     },
     "bench": () => gmAction({ type: "bench", id, on: target.getAttribute("data-on") === "1" }),
-    "remove-combatant": () => {
+    "remove-combatant": async () => {
       const c = findCombatant(id);
-      const msg = c && c.playerId ? `Spieler "${c.name}" endgültig entfernen (Kick)?` : "Teilnehmer entfernen?";
-      if (confirm(msg)) gmAction({ type: "remove_combatant", id });
+      const msg = c && c.playerId ? `Spieler "${c.name}" endgültig entfernen (Kick)?` : `${c ? c.name : "Teilnehmer"} entfernen?`;
+      if (await frage(msg, "Entfernen", true)) gmAction({ type: "remove_combatant", id });
     },
     "resume": () => gmAction({ type: "resume_session" }),
     "discard-session": () => gmAction({ type: "discard_session" }),
@@ -4088,13 +4151,13 @@ document.addEventListener("click", (e) => {
     "edit-char": () => renderCharForm(S.roster.find((r) => r.id === id)),
     "cancel-char": () => { const h = $("charform"); if (h) h.innerHTML = ""; },
     "save-char": saveChar,
-    "delete-char": () => { if (confirm("Charakter löschen?")) gmAction({ type: "roster_delete", id }); },
+    "delete-char": async () => { if (await frage("Charakter löschen?", "Löschen", true)) gmAction({ type: "roster_delete", id }); },
     // SL – Gegner-Bibliothek
     "bestiary-new": () => renderBestiaryForm(null),
     "bestiary-edit": () => renderBestiaryForm((S.bestiary || []).find((r) => r.id === id)),
     "bestiary-save": saveBestiary,
     "bestiary-cancel": () => { const h = $("bestiaryform"); if (h) h.innerHTML = ""; },
-    "bestiary-delete": () => { if (confirm("Gegner-Typ löschen?")) gmAction({ type: "bestiary_delete", id }); },
+    "bestiary-delete": async () => { if (await frage("Gegner-Typ löschen?", "Löschen", true)) gmAction({ type: "bestiary_delete", id }); },
     "bestiary-to-combat": () => {
       const z = parseInt(($("bestzone") || {}).value, 10);
       const anzahl = parseInt(($("bestcount") || {}).value, 10);
@@ -4108,17 +4171,17 @@ document.addEventListener("click", (e) => {
     "set-anon": () => gmAction({ type: "set_anon", id, on: target.getAttribute("data-on") === "1" }),
     "bilder-aufraeumen": () => bilderAufraeumen(),
     // SL – Gruppen
-    "group-new": () => {
-      const name = prompt("Name der Gruppe? (z. B. Ork-Trupp)");
+    "group-new": async () => {
+      const name = await eingabe("Name der Gruppe? (z. B. Ork-Trupp)", "", "Anlegen");
       if (name && name.trim()) gmAction({ type: "group_create", name: name.trim() });
     },
-    "group-rename": () => {
+    "group-rename": async () => {
       const g = (App.state.groups || []).find((x) => x.id === target.dataset.group);
-      const name = prompt("Gruppe umbenennen:", g ? g.name : "");
+      const name = await eingabe("Gruppe umbenennen:", g ? g.name : "", "Umbenennen");
       if (name && name.trim()) gmAction({ type: "group_rename", group: target.dataset.group, name: name.trim() });
     },
-    "group-delete": () => {
-      if (confirm("Gruppe auflösen? Die Figuren bleiben im Kampf.")) {
+    "group-delete": async () => {
+      if (await frage("Gruppe auflösen? Die Figuren bleiben im Kampf.", "Auflösen")) {
         gmAction({ type: "group_delete", group: target.dataset.group });
       }
     },
@@ -4127,14 +4190,14 @@ document.addEventListener("click", (e) => {
     "ally-edit": () => renderAllyForm((S.allies || []).find((r) => r.id === id)),
     "ally-save": saveAlly,
     "ally-cancel": () => { const h = $("allyform"); if (h) h.innerHTML = ""; },
-    "ally-delete": () => { if (confirm("Verbündeten-Typ löschen?")) gmAction({ type: "ally_delete", id }); },
+    "ally-delete": async () => { if (await frage("Verbündeten-Typ löschen?", "Löschen", true)) gmAction({ type: "ally_delete", id }); },
     // SL – Begegnungen (gespeicherte Gruppen)
-    "encounter-save": () => {
-      const name = prompt("Name der Begegnung? (z. B. Skree-Überfall)");
+    "encounter-save": async () => {
+      const name = await eingabe("Name der Begegnung? (z. B. Skree-Überfall)", "", "Speichern");
       if (name && name.trim()) gmAction({ type: "save_encounter", name: name.trim() });
     },
     "encounter-to-combat": () => gmAction({ type: "add_encounter", id }),
-    "encounter-delete": () => { if (confirm("Begegnung löschen?")) gmAction({ type: "delete_encounter", id }); },
+    "encounter-delete": async () => { if (await frage("Begegnung löschen?", "Löschen", true)) gmAction({ type: "delete_encounter", id }); },
     "ally-to-combat": () => {
       const z = parseInt(($("allyzone") || {}).value, 10);
       gmAction({ type: "add_ally_from_library", id, zone: isNaN(z) ? undefined : z });
@@ -4175,10 +4238,10 @@ document.addEventListener("click", (e) => {
     // Kampfzonen: Bewegen NUR über Bahn-Tipp + Bestätigung (s. zoneGoto).
     "set-zone": () => gmAction({ type: "set_zone", id, zone: parseInt(target.getAttribute("data-zone"), 10) }),
     // token-info + zone-goto werden per pointerdown behandelt (robuster, s. u.)
-    "tp-remove": () => {
+    "tp-remove": async () => {
       const c = findCombatant(id);
-      const msg = c && c.playerId ? `Spieler "${c.name}" entfernen (Kick)?` : "Teilnehmer entfernen?";
-      if (confirm(msg)) gmAction({ type: "remove_combatant", id });
+      const msg = c && c.playerId ? `Spieler "${c.name}" entfernen (Kick)?` : `${c ? c.name : "Teilnehmer"} entfernen?`;
+      if (await frage(msg, "Entfernen", true)) gmAction({ type: "remove_combatant", id });
       App.tokenPopupId = null;
     },
     "attack-request": () => {
@@ -4197,9 +4260,9 @@ document.addEventListener("click", (e) => {
     "treffer-stufe": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; render(); },
     "treffer-auf": () => trefferAuf(id, e.shiftKey),
     "auswahl-leeren": () => { App.auswahl.clear(); render(); },
-    "auswahl-gruppe": () => {
-      const name = prompt("Name der Gruppe?", "Trupp");
-      if (!name || !name.trim()) return;
+    "auswahl-gruppe": async () => {
+      const name = await eingabe("Name der Gruppe?", "Trupp", "Gruppe anlegen");
+      if (!name) return;
       gmAction({ type: "group_create", name: name.trim(), ids: [...App.auswahl] });
       App.auswahl.clear();
     },
@@ -4233,23 +4296,27 @@ document.addEventListener("click", (e) => {
     "apply-heal": () => gmAction({ type: "apply_heal", id }),
     "recover": () => gmAction({ type: "recover", id, benny: target.getAttribute("data-benny") === "1" }),
     // Ausgeschaltete Gegner aufräumen (SL) – nur Gegner, nicht Verbündete/Spieler
-    "clear-defeated": () => {
+    "clear-defeated": async () => {
       const n = target.getAttribute("data-n") || "";
-      if (confirm(`${n} ausgeschaltete Gegner aus dem Kampf entfernen?`)) gmAction({ type: "clear_defeated" });
+      if (await frage(`${n} ausgeschaltete Gegner aus dem Kampf entfernen?`, "Entfernen")) gmAction({ type: "clear_defeated" });
     },
     // Firewall in einem Klick freigeben (Windows-SL) -> löst UAC-Abfrage aus
     "firewall-allow": () => allowFirewall(),
     "fokus": () => fokusUmschalten(),
     "nur-offene": () => { App.nurOffene = !App.nurOffene; render(); },
     // Begegnung einsetzen, Spieler zurueckholen und austeilen - in einem Schritt.
-    "encounter-start": () => {
+    "encounter-start": async () => {
       const npcs = (S.combatants || []).filter((c) => c.kind === "npc").length;
       let ersetzen = false;
       if (npcs) {
-        ersetzen = confirm(`Es stehen noch ${npcs} Gegner/Verbündete im Kampf.
-
-OK = alte entfernen und die Begegnung frisch starten.
-Abbrechen = Begegnung zusätzlich dazustellen.`);
+        // Drei klare Knöpfe statt „OK = … / Abbrechen = …" (Abbrechen hieß
+        // dort „dazustellen" - verwirrend, und wirklich abbrechen ging nicht).
+        const wahl = await dialog({ text: `Es stehen noch ${npcs} Gegner/Verbündete im Kampf.`, knoepfe: [
+          { text: "Abbrechen", wert: null, abbruch: true },
+          { text: "Dazustellen", wert: "dazu" },
+          { text: "Alte entfernen & frisch starten", wert: "neu", art: "primary", standard: true }] });
+        if (!wahl) return;
+        ersetzen = wahl === "neu";
       }
       gmAction({ type: "start_encounter", id, ersetzen });
     },
@@ -4388,7 +4455,7 @@ Abbrechen = Begegnung zusätzlich dazustellen.`);
       gmAction({ type: "message", target: ziel, text: "", bennies: 1 });
       toast(ziel === "all" ? "🪙 Jeder Spieler bekommt einen Benny" : "🪙 Benny verteilt");
     },
-    "benny-refresh": () => { if (confirm("Alle Wildcards auf Startwert auffrischen?")) gmAction({ type: "benny_refresh" }); },
+    "benny-refresh": async () => { if (await frage("Alle Wildcards auf Startwert auffrischen?", "Auffrischen", false)) gmAction({ type: "benny_refresh" }); },
     "sl-benny-plus": () => gmAction({ type: "sl_benny_adjust", delta: 1 }),
     "sl-benny-minus": () => gmAction({ type: "sl_benny_adjust", delta: -1 }),
   };
@@ -4653,23 +4720,23 @@ async function allowFirewall() {
 // Sicherung wiederherstellen: ersetzt Charaktere + Bibliotheken + Begegnungen.
 async function importBackup(file) {
   if (!file) return;
-  if (!confirm("Sicherung einspielen? Ersetzt Charakterliste, Gegner-/Verbündeten-Bibliothek und Begegnungen (der laufende Kampf bleibt).")) return;
+  if (!await frage("Sicherung einspielen? Ersetzt Charakterliste, Gegner-/Verbündeten-Bibliothek und Begegnungen (der laufende Kampf bleibt).", "Einspielen", true)) return;
   const fd = new FormData();
   fd.append("file", file);
   try {
     const res = await fetch("/api/import", { method: "POST", body: fd });
-    if (res.status === 400) { alert("Das war keine gültige Sicherungsdatei."); return; }
-    if (res.status === 403) { alert("Import geht nur am Spielleiter-Laptop."); return; }
-    if (!res.ok) { alert("Import fehlgeschlagen."); return; }
+    if (res.status === 400) { hinweis("Das war keine gültige Sicherungsdatei."); return; }
+    if (res.status === 403) { hinweis("Import geht nur am Spielleiter-Laptop."); return; }
+    if (!res.ok) { hinweis("Import fehlgeschlagen."); return; }
 
     // Genau berichten, was übernommen wurde – Importieren ERSETZT die Listen,
     // da will man nicht raten, ob die Datei wirklich gepasst hat.
     const b = await res.json();
-    if (!b.ok) { alert("Nicht eingespielt.\n\n" + (b.fehler || "Unbekannter Grund.")); return; }
+    if (!b.ok) { hinweis("Nicht eingespielt.\n\n" + (b.fehler || "Unbekannter Grund.")); return; }
     const zeilen = Object.entries(b.uebernommen || {}).map(([was, n]) => `• ${n} ${was}`);
-    alert("Sicherung eingespielt.\n\n" + (zeilen.join("\n") || "(nichts)") +
+    hinweis("Sicherung eingespielt.\n\n" + (zeilen.join("\n") || "(nichts)") +
       (b.verworfen ? `\n\n${b.verworfen} unbrauchbare Einträge wurden übersprungen.` : ""));
-  } catch { alert("Import fehlgeschlagen."); }
+  } catch { hinweis("Import fehlgeschlagen."); }
 }
 
 // Hochgeladene Bilder, auf die nichts mehr zeigt, wegräumen. Jedes ersetzte
@@ -4679,10 +4746,10 @@ async function bilderAufraeumen() {
     const info = await (await fetch("/api/bilder-verwaist")).json();
     if (!info.anzahl) { toast("Keine überflüssigen Bilder gefunden."); return; }
     const kb = Math.round(info.bytes / 1024);
-    if (!confirm(`${info.anzahl} Bild(er) werden von nichts mehr verwendet (${kb} KB).\n\nJetzt löschen?`)) return;
+    if (!await frage(`${info.anzahl} Bild(er) werden von nichts mehr verwendet (${kb} KB).\n\nJetzt löschen?`, "Löschen", true)) return;
     const erg = await (await fetch("/api/bilder-aufraeumen", { method: "POST" })).json();
     toast(`${erg.geloescht} Bild(er) gelöscht, ${Math.round(erg.bytes / 1024)} KB frei.`);
-  } catch { alert("Aufräumen fehlgeschlagen."); }
+  } catch { hinweis("Aufräumen fehlgeschlagen."); }
 }
 
 // --- Aktionen ---------------------------------------------------------------
@@ -4721,9 +4788,9 @@ async function uploadBestiaryImage(file) {
       const j = await res.json();
       const hid = $("bestimg"); if (hid) hid.value = j.url;
       const av = $("bestavatar"); if (av) av.innerHTML = `<img src="${esc(j.url)}" alt="">`;
-    } else if (res.status === 413) alert("Bild ist zu groß (max. 8 MB).");
-    else alert("Upload fehlgeschlagen.");
-  } catch { alert("Upload fehlgeschlagen."); }
+    } else if (res.status === 413) hinweis("Bild ist zu groß (max. 8 MB).");
+    else hinweis("Upload fehlgeschlagen.");
+  } catch { hinweis("Upload fehlgeschlagen."); }
 }
 
 function saveAlly() {
@@ -4750,9 +4817,9 @@ async function uploadAllyImage(file) {
       const j = await res.json();
       const hid = $("allyimg"); if (hid) hid.value = j.url;
       const av = $("allyavatar"); if (av) av.innerHTML = `<img src="${esc(j.url)}" alt="">`;
-    } else if (res.status === 413) alert("Bild ist zu groß (max. 8 MB).");
-    else alert("Upload fehlgeschlagen.");
-  } catch { alert("Upload fehlgeschlagen."); }
+    } else if (res.status === 413) hinweis("Bild ist zu groß (max. 8 MB).");
+    else hinweis("Upload fehlgeschlagen.");
+  } catch { hinweis("Upload fehlgeschlagen."); }
 }
 
 async function uploadImage(file) {
@@ -4762,8 +4829,8 @@ async function uploadImage(file) {
   try {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) { const j = await res.json(); App.pendingImageUrl = j.url; render(); }
-    else alert("Upload nicht erlaubt (nur vom Laptop).");
-  } catch { alert("Upload fehlgeschlagen."); }
+    else hinweis("Upload nicht erlaubt (nur vom Laptop).");
+  } catch { hinweis("Upload fehlgeschlagen."); }
 }
 
 // Char-Bild einer Figur hochladen und tischweit setzen (SL: jede; Spieler: eigene).
@@ -4774,9 +4841,9 @@ async function uploadCharImage(file, cid) {
   try {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) { const j = await res.json(); gmActionOrPlayer({ type: "set_image", id: cid, url: j.url }); }
-    else if (res.status === 413) alert("Bild ist zu groß (max. 8 MB).");
-    else alert("Upload fehlgeschlagen.");
-  } catch { alert("Upload fehlgeschlagen."); }
+    else if (res.status === 413) hinweis("Bild ist zu groß (max. 8 MB).");
+    else hinweis("Upload fehlgeschlagen.");
+  } catch { hinweis("Upload fehlgeschlagen."); }
 }
 
 function sendMessage() {

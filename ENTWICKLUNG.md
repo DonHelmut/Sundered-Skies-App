@@ -47,6 +47,20 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.4.5 (30.09.2026): Eigene Rückfragen statt Browser-Dialoge
+
+- Anlass: Beim Entfernen bot der Browser „Weitere Dialoge von localhost:8000
+  verbieten" an. Wer das anklickt, bekommt auf jedes `confirm()` sofort still
+  „Abbrechen" – Entfernen, Abräumen, Zurücksetzen, Löschen taten nichts mehr.
+- Alle `confirm()`/`alert()`/`prompt()` in `app.js` ersetzt durch eigene
+  Dialoge (`dialog`, `frage`, `hinweis`, `eingabe`; hängen an `<body>`, nicht
+  an `#app`). Enter = Standardknopf, Esc / Klick daneben = Abbrechen; solange
+  einer offen ist, bekommt die SL-Tastatur nichts (Leertaste gab sonst frei).
+  Löschen/Entfernen mit rotem Knopf. „Begegnung starten" hat jetzt drei klare
+  Knöpfe (Abbrechen / Dazustellen / Alte entfernen & frisch starten) statt
+  „OK = … / Abbrechen = dazustellen".
+- Regel ab jetzt: im Frontend kein `confirm`/`alert`/`prompt` mehr.
+
 ## 1.4.4 (30.09.2026): Offene Tabs laden sich nach einem Update selbst neu
 
 - Anlass: Nach dem Update auf 1.4.3 kam „Probe Schnell" trotzdem wieder – ein
@@ -510,8 +524,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.4** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.4.4 → 1.5 (oder 1.4.5) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.5** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.4.5 → 1.5 (oder 1.4.6) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst
