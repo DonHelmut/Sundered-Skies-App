@@ -34,6 +34,12 @@
   }
   const W = () => window.innerWidth;
   const H = () => window.innerHeight;
+  // 2D wie ein Jump'n'Run (Stefan): Mimi lebt auf EINER Bodenlinie am unteren
+  // Rand und behält immer dieselbe Größe. Früher sprang sie in Bögen auf
+  // zufällige Höhen - das wirkte, als hüpfe sie nach vorn und nach hinten.
+  // Nach oben geht es nur, um mit einem Menüpunkt/einer Karte zu spielen, und
+  // danach wieder auf den Boden.
+  const BODEN = () => H() - 96;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const handy = () => { try { return window.matchMedia("(pointer: coarse)").matches || W() < 700; } catch { return W() < 700; } };
@@ -41,14 +47,12 @@
   // Mimi: schlanke, helle Tigerkatze (gestreift) mit rotem Umhang - frech,
   // verspielt, clever, cool und gerissen (Stefan). Die Bengal-Rosetten sahen
   // gezeichnet nicht gut aus -> klare Streifen. Mehrere Fellfarben
-  // (MIMI_FELLE), gleiche Zeichnung. Seitenansicht, blickt nach rechts.
+  // (MIMI_FELLE, Stefan wählte „Rote Tigerkatze" als einzige; weitere
+  // Farben ließen sich hier wieder ergänzen). Seitenansicht, blickt nach rechts.
   // Die Klassen (mi-tail, mi-leg-*, mi-head, mi-eyes …) steuern die Animationen
   // in style.css - beim Umzeichnen beibehalten.
   const MIMI_FELLE = {
     rot:    { name: "Rote Tigerkatze", fell: "#f1b26a", fell2: "#e39f55", hell: "#fbe8c8", rand: "#9a5a22", streif: "#c9742f", auge: "#9bd96a" },
-    creme:  { name: "Creme",           fell: "#f3dcb4", fell2: "#e8cc9c", hell: "#fcf3e2", rand: "#a0784a", streif: "#d4a86c", auge: "#e0b84c" },
-    silber: { name: "Silber-Tabby",    fell: "#dcd9d3", fell2: "#cbc7c0", hell: "#f6f4ef", rand: "#6e6862", streif: "#6f6964", auge: "#8fd06c" },
-    blau:   { name: "Blaugrau",        fell: "#bcc4cc", fell2: "#aab3bc", hell: "#eef1f4", rand: "#5d6671", streif: "#7b8591", auge: "#e3b34a" },
   };
   function catSVG(art) {
     const F = MIMI_FELLE[art] || MIMI_FELLE.rot;
@@ -70,9 +74,9 @@
       </g>
       ${bein("mi-leg-b1", 25, FELL2)}${bein("mi-leg-f1", 57, FELL2)}
       ${bein("mi-leg-b2", 33, FELL)}${bein("mi-leg-f2", 65, FELL)}
-      <path d="M18,30 C18,24 26,20.5 36,20 L58,20 C66,20 72,24 72,30 C72,36 69,40.6 64,41 C60,41.3 57,39.2 52,38.3 C46,37.3 40,37.8 34,39.2 C28,40.6 22,39.8 19.6,36.2 C18.6,34.6 18,32.4 18,30 Z"
+      <path d="M17.6,30 C17.6,23.6 25.6,19.8 36,19.4 L58,19.4 C66.4,19.4 72.6,23.6 72.6,30.2 C72.6,36.8 69,41.4 63.6,42 C59.6,42.4 56,41.2 51,40.8 C45,40.4 39.6,40.8 33.6,41.6 C27.4,42.4 21.6,41 19.2,37 C18.2,35.2 17.6,32.8 17.6,30 Z"
         fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-      <path d="M37,38.8 C42,37.6 48,37.4 53,38.4 M58.6,39.6 C60.6,40.4 62.6,40.6 64.4,40.2" stroke="${HELL}" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.8"/>
+      <path d="M36,40.4 C42,39.4 48,39.4 53,40.2 M58.4,40.8 C60.6,41.4 62.6,41.6 64.2,41.2" stroke="${HELL}" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.8"/>
       ${strich("M20.6,31 q1.4,3.4 0.4,6.2 M25,33 q1.2,2.8 0.4,5.6 M40,34.4 q0.8,1.6 0.4,2.8 M46,34 q0.8,1.6 0.4,3 M52,33 q0.8,2 0.2,3.6")}
       ${strich("M61.4,25 q2,4.6 1,9.6 M65.4,24.6 q2,4.4 1.2,9.2 M68.8,27 q1.4,3.4 0.8,7", 1.6)}
       <g class="mi-cape">
@@ -90,7 +94,6 @@
         <path d="M85.6,8.8 C87,3.2 89.4,-1.8 91.4,-3.6 C92,0.6 91.6,5.4 89.8,10.2 Z" fill="${OHR}"/>
         <path d="M66,24 C65,13.6 71.6,7 80,7 C88,7 93.4,12 94.6,18 C97.6,20.4 99,23.4 98.4,26.4 C97.4,30.6 93.6,33.6 87,34.2 C76.6,35 66.8,31.6 66,24 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
         <path d="M86,24 C88,20.6 94,20.4 97.6,23.4 C98.8,27.4 96,31.6 90.6,32.8 C86.6,33 84.6,30 86,24 Z" fill="${HELL}"/>
-        <path d="M78,31.4 C82,33.8 87,34.2 91,33" stroke="${HELL}" stroke-width="2" fill="none" stroke-linecap="round"/>
         ${strich("M69,19.4 q2.2,0.6 4.2,0.2 M68.4,23.4 q2.4,0.8 4.6,0.4 M70,27.6 q2,0.6 3.8,0.2", 1.3, 0.75)}
         <g class="mi-eyes">
           <path d="M80,17.4 Q85.4,12.6 91.4,17.6 Q86.4,23.4 80,17.4 Z" fill="${AUGE}" stroke="${DUNKEL}" stroke-width="0.9"/>
@@ -102,14 +105,9 @@
         <path d="M96.8,22.8 l2.4,1.2 -2,1.6 Z" fill="${NASE}"/>
         <path d="M98.2,25.6 v1.1 M98.2,26.7 q-1.6,1.4 -3.8,0.6 q-0.8,-0.4 -1.2,-1.4" stroke="${RAND}" stroke-width="0.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="91.6" cy="26.2" r="0.35" fill="${RAND}"/><circle cx="93" cy="27.4" r="0.35" fill="${RAND}"/><circle cx="91.4" cy="28.2" r="0.35" fill="${RAND}"/>
-        <path d="M90,26 q-4.4,-2.4 -9.6,-2 M90.4,27.6 q-4.6,0 -10,1.4 M90,29.2 q-4,1.8 -8.4,4.2" stroke="#fffaf0" stroke-width="0.5" fill="none" opacity="0.9" stroke-linecap="round"/>
+        <path d="M90,26 q-4.4,-2.4 -9.6,-2 M90.4,27.6 q-4.6,0 -10,1.4 M90,29.2 q-3.2,1.2 -6.4,2.6" stroke="#fffaf0" stroke-width="0.5" fill="none" opacity="0.9" stroke-linecap="round"/>
       </g>
     </svg>`;
-  }
-  function fell() {
-    let f = null;
-    try { f = localStorage.getItem("mimi-fell"); } catch { /* egal */ }
-    return MIMI_FELLE[f] ? f : "rot";
   }
   // Für die Musterseite: alle Fellfarben zeichnen können.
   window.mimiBild = (art) => catSVG(art);
@@ -128,19 +126,9 @@
       titel();
       if (on) spawn(); else despawn();
     });
-    // Fellfarbe pro Gerät (jeder Spieler seine eigene Mimi).
-    const wahl = document.createElement("select");
-    wahl.id = "mimi-fell";
-    wahl.title = "Mimis Fellfarbe";
-    wahl.style.cssText = "width:auto;padding:1px 4px;font-size:12px;";
-    wahl.innerHTML = Object.entries(MIMI_FELLE).map(([k, f]) => `<option value="${k}"${k === fell() ? " selected" : ""}>${f.name}</option>`).join("");
-    wahl.addEventListener("change", () => {
-      try { localStorage.setItem("mimi-fell", wahl.value); } catch { /* egal */ }
-      if (cat) cat.innerHTML = catSVG(fell());
-    });
     // In die Skin-Leiste einreihen (kein Überlappen); sonst eigener Cluster (TV).
     const host = document.getElementById("skins");
-    if (host) { host.insertBefore(wahl, host.firstChild); host.insertBefore(btn, host.firstChild); }
+    if (host) host.insertBefore(btn, host.firstChild);
     else {
       const box = document.createElement("div");
       box.style.cssText = "position:fixed;top:6px;right:8px;z-index:71;display:flex;gap:6px;";
@@ -153,9 +141,9 @@
     if (cat) return;
     cat = document.createElement("div");
     cat.className = "mimi";
-    cat.innerHTML = catSVG(fell());
+    cat.innerHTML = catSVG("rot");
     cat.style.left = rnd(20, W() - 140) + "px";
-    cat.style.top = (H() - 150) + "px";
+    cat.style.top = BODEN() + "px";
     cat.addEventListener("click", (e) => { e.stopPropagation(); menueUmschalten(); });
     document.body.appendChild(cat);
     setState("sit");
@@ -202,7 +190,7 @@
       "walk", "walk", "walk", "sit", "sit", "sit", "paw", "wolle",
       ...(jetzt > ruhigBis ? ["knock"] : []),
       ...(Math.random() < 0.2 ? ["sleep"] : []),
-      ...(Math.random() < 0.08 ? ["miau"] : []),
+      ...(Math.random() < 0.14 ? ["miau"] : []),
       ...(Math.random() < 0.03 ? ["exit"] : []),
       ...(Math.random() < 0.02 && !handy() && jetzt > ruhigBis ? ["flip"] : []),
       ...(!need && Math.random() < 0.18 ? ["want"] : []),
@@ -227,7 +215,7 @@
     cat.classList.add("mi-jump");
     cat.style.transition = "left 0.5s ease, top 0.5s ease";
     cat.style.left = (allowOffscreen ? x : Math.max(2, Math.min(W() - 96, x))) + "px";
-    cat.style.top = Math.max(50, Math.min(H() - 100, y)) + "px";
+    cat.style.top = Math.max(50, Math.min(BODEN(), y)) + "px";
     setTimeout(() => {
       if (!cat) return;
       cat.classList.remove("mi-jump");
@@ -235,20 +223,35 @@
       then();
     }, 560);
   }
-  const fertig = () => { busy = false; if (cat) setState("sit"); schedule(); };
+  const amBoden = () => cat && Math.abs((parseFloat(cat.style.top) || 0) - BODEN()) < 4;
+  // Nach jeder Aktion: steht sie oben (Menüpunkt, Karte), springt sie runter.
+  const fertig = () => {
+    if (cat && !amBoden()) { leapTo(parseFloat(cat.style.left) || 0, BODEN(), fertig); return; }
+    busy = false; if (cat) setState("sit"); schedule();
+  };
+  // Auf dem Boden laufen (mit Laufbewegung der Beine), gleichmäßiges Tempo.
+  function laufen(x, then, schnell) {
+    if (!cat) return;
+    busy = true;
+    const von = parseFloat(cat.style.left) || 0;
+    const ziel = Math.max(-140, Math.min(W() + 40, x));
+    faceTowards(ziel);
+    setState("walk");
+    const ms = Math.max(300, Math.abs(ziel - von) / (schnell ? 0.42 : 0.16));
+    cat.style.transition = `left ${ms}ms linear`;
+    cat.style.top = BODEN() + "px";
+    cat.style.left = ziel + "px";
+    setTimeout(() => {
+      if (!cat) return;
+      cat.style.transition = "";
+      setState("sit");
+      then();
+    }, ms + 30);
+  }
 
-  function walk(done) {
+  function walk() {
     const target = Math.random() < 0.5 ? rnd(10, W() * 0.4) : rnd(W() * 0.6, W() - 130);
-    const hops = Math.random() < 0.5 ? 2 : 1;
-    const step = (n) => {
-      const fromX = parseFloat(cat.style.left) || 0;
-      const nx = n >= hops ? target : fromX + (target - fromX) * 0.55;
-      leapTo(nx, rnd(H() * 0.4, H() - 140), () => {
-        if (n >= hops) { if (done) { busy = false; setState("sit"); done(); } else fertig(); }
-        else step(n + 1);
-      });
-    };
-    step(1);
+    laufen(target, fertig);
   }
 
   function nearestCard() {
@@ -297,18 +300,17 @@
   function exitAndReturn() {
     busy = true;
     const exitX = Math.random() < 0.5 ? -140 : W() + 40;
-    leapTo(exitX, rnd(H() * 0.4, H() - 140), () => {
+    laufen(exitX, () => {
       if (!cat) return;
       setTimeout(() => {
         if (!cat) return;
         const enterLeft = Math.random() < 0.5;
         cat.style.transition = "none";
         cat.style.left = (enterLeft ? -120 : W() + 20) + "px";
-        cat.style.top = (H() - 150) + "px";
+        cat.style.top = BODEN() + "px";
         void cat.offsetWidth;
-        const target = enterLeft ? rnd(30, W() * 0.4) : rnd(W() * 0.6, W() - 130);
-        leapTo(target, rnd(H() * 0.45, H() - 140), fertig);
-      }, rnd(700, 1600));
+        laufen(enterLeft ? rnd(30, W() * 0.4) : rnd(W() * 0.6, W() - 130), fertig);
+      }, rnd(900, 2000));
     }, true);
   }
 
@@ -413,7 +415,7 @@
   function wolle(dannFroh) {
     if (!cat) return;
     const vonLinks = Math.random() < 0.5;
-    const y = H() - 70;
+    const y = BODEN() + 58;                  // rollt auf Mimis Bodenlinie
     const k = document.createElement("div");
     k.className = "mimi-wolle";
     k.textContent = "🧶";
@@ -425,16 +427,16 @@
     k.style.transform = `rotate(${vonLinks ? 900 : -900}deg)`;
     spaeterZurueck(() => k.remove(), 2400);
     const ziel = vonLinks ? W() * 0.75 : W() * 0.2;
-    leapTo((parseFloat(cat.style.left) + ziel) / 2, y - 60, () => leapTo(ziel, y - 60, () => {
-      if (dannFroh === true) { busy = false; froh("♥"); schedule(); } else { say("🐾", 900); fertig(); }
-    }));
+    setTimeout(() => laufen(ziel, () => {
+      if (dannFroh === true) { busy = false; froh("♥"); schedule(); } else { say(pick(["🐾", "Miau!"]), 900); fertig(); }
+    }, true), 350);
   }
   // Pfotenabdrücke quer über den Bildschirm, die langsam verblassen.
   function pfotenSpur() {
     if (!cat) return;
     const start = parseFloat(cat.style.left) || 0;
     const ziel = start < W() / 2 ? rnd(W() * 0.55, W() - 130) : rnd(20, W() * 0.4);
-    const y = rnd(H() * 0.35, H() - 140);
+    const y = BODEN();
     const n = 9;
     for (let i = 0; i < n; i++) {
       setTimeout(() => {
@@ -448,7 +450,7 @@
         setTimeout(() => p.remove(), 3200);
       }, i * 120);
     }
-    leapTo((start + ziel) / 2, y, () => leapTo(ziel, y, fertig));
+    laufen(ziel, fertig);
   }
 
   // Miau-Nachricht: NUR das SL-Gerät verschickt sie (Hook prüft die Rolle).
@@ -558,7 +560,9 @@
   }
 
   window.addEventListener("resize", () => {
-    if (cat) cat.style.left = Math.min(parseFloat(cat.style.left), W() - 130) + "px";
+    if (!cat) return;
+    cat.style.left = Math.min(parseFloat(cat.style.left), W() - 130) + "px";
+    if (!busy) cat.style.top = BODEN() + "px";
   });
 
   // Nur zum Ausprobieren (Konsole/Musterseite): einen Streich gezielt auslösen.

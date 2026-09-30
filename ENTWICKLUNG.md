@@ -47,7 +47,7 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
-## 1.5.2 (30.09.2026): Mimi neu gezeichnet, versorgen, dosierter Schabernack
+## 1.5.2 (30.09.2026): Mimi als rote Tigerkatze, versorgen, dosierter Schabernack
 
 - **Neues Aussehen** (`catSVG(art)` in mimi.js; mehrere Runden mit Stefan):
   schlanke, helle **Tigerkatze** (gestreift) mit rotem Umhang (glatt, mit
@@ -58,9 +58,16 @@ sich über **Export/Import** in der App umziehen.
   mit Pfote/Zehen, geringelter Schwanz. Verworfen: runde Kulleraugen
   („drogenabhängig"), Bengal-Rosetten (gezeichnet nicht schön), zerfetzter
   Umhang („Obdachlose"), Stirnstreifen, Strich hinter dem Auge.
-- **Fellfarben pro Gerät** (`MIMI_FELLE`: Rote Tigerkatze, Creme, Silber-Tabby,
-  Blaugrau) – Auswahl im ⚙-Menü neben 🐈, gemerkt in `localStorage.mimi-fell`.
-  Musterseite `_lab_mimi.html` zeigt alle (lädt mimi.js, `window.mimiBild`).
+- Fellfarbe: nur noch **Rote Tigerkatze** (Stefan wählte sie aus vier
+  Varianten; `MIMI_FELLE` bleibt als Palette, weitere ließen sich ergänzen –
+  die Auswahl im ⚙-Menü ist wieder raus). Körper danach „ein weeenig runder"
+  (Taille weniger hochgezogen). Musterseite `_lab_mimi.html` zeigt den Stand.
+- **2D statt Hüpfen in die Tiefe** (Stefan): Mimi lebt auf einer Bodenlinie
+  (`BODEN()` = unten), läuft mit Laufbewegung (`laufen`), bleibt immer gleich
+  groß (Sprung-Animation ohne Strecken/Stauchen). Nach oben nur, um mit einem
+  Menüpunkt/einer Karte zu spielen – `fertig()` springt danach zurück auf den
+  Boden. Wollknäuel rollt auf der Bodenlinie ins Bild, Mimi rennt hinterher.
+  „Miau" etwas öfter.
 - **Versorgen**: Antippen öffnet ein Menü 🍖 Futter · 💧 Trinken · 🧶 Spielen
   · ✋ Streicheln (schließt nach 6 s oder bei Klick daneben). Wünsche zeigt sie
   nur leise („miau?"), im Menü leuchtet der Wunsch. Versorgt ist sie eine

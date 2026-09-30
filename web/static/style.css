@@ -813,12 +813,12 @@ code.url { background: rgba(0, 0, 0, 0.28); padding: 4px 8px; border-radius: 6px
 
 /* Sprung von A nach B: ducken -> Bogen -> Landung (Squash & Stretch). */
 .mimi.mi-jump { animation: miJump 0.55s cubic-bezier(.3,.1,.35,1); }
+/* Nur ein Bogen nach oben - KEIN Strecken/Stauchen: Mimi bleibt immer gleich
+   groß (Stefan: wirkte wie Vor- und Zurückspringen). */
 @keyframes miJump {
-  0%   { transform: translateY(2px)   scaleX(1.14) scaleY(0.8); }
-  20%  { transform: translateY(-30px) scaleX(0.9)  scaleY(1.16); }
-  52%  { transform: translateY(-50px) scaleX(0.95) scaleY(1.08); }
-  84%  { transform: translateY(-4px)  scaleX(1.08) scaleY(0.9); }
-  100% { transform: translateY(0)     scaleX(1)    scaleY(1); }
+  0%   { transform: translateY(0); }
+  45%  { transform: translateY(-34px); }
+  100% { transform: translateY(0); }
 }
 
 .mimi-say { position: fixed; z-index: 59; font-size: 18px; font-weight: 700; color: var(--text);
