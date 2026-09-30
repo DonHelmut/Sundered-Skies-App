@@ -65,6 +65,12 @@ UPLOAD_DIR = DATA_DIR / "uploads"
 MAX_MESSAGES = 50
 
 
+def _rueckseite_gueltig(wert) -> bool:
+    """Rückseite: eigenes hochgeladenes Bild oder „gruen" (schlicht). Alles
+    andere (fremde Adressen) wird verworfen -> Standardbild."""
+    return wert == "gruen" or (isinstance(wert, str) and wert.startswith("/uploads/"))
+
+
 def default_status() -> dict:
     """Kampfzustand eines Teilnehmers: Angeschlagen / Wunden / Ausgeschaltet
     plus schnelle Zusatz-Zustände."""
@@ -314,8 +320,9 @@ class Game:
         self.spieler_angriff = bool(settings.get("spielerAngriff", True))
         # Eigenes Rückseitenbild (vom SL hochgeladen, liegt nur in data/uploads -
         # kommt also nie ins öffentliche Repo oder Paket).
+        # None = mitgeliefertes Standardbild, "gruen" = schlichte grüne Rückseite.
         rs = settings.get("rueckseiteBild")
-        self.rueckseite_bild: Optional[str] = rs if isinstance(rs, str) and rs.startswith("/uploads/") else None
+        self.rueckseite_bild: Optional[str] = rs if _rueckseite_gueltig(rs) else None
         self.benny_to_gm = bool(settings.get("bennyToGm", True))
         # Ton-Schalter des SL: gehoert zu den Einstellungen, nicht zum Kampf.
         # Stand frueher nur in der Sitzung - nach „Verwerfen" war er wieder an.
@@ -2019,7 +2026,7 @@ class Game:
         """Eigenes Bild für die Kartenrückseite (für ALLE Karten gleich - darf den
         Joker nicht verraten). None = die grüne Standard-Rückseite."""
         url = a.get("url")
-        self.rueckseite_bild = url if isinstance(url, str) and url.startswith("/uploads/") else None
+        self.rueckseite_bild = url if _rueckseite_gueltig(url) else None
         self.save_settings()
 
     def _do_set_requests_enabled(self, a: dict) -> None:

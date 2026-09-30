@@ -822,9 +822,12 @@ function renderCardSVG(card, image) {
   return svgWrap(frame(uid, tier, t) + center + corners + tierPlate(t, t.name, null), "tier-" + tier, d);
 }
 
-// Eigenes Rückseitenbild des Tisches (⚙ beim SL). Gilt für ALLE Karten ohne
-// Charakterbild; Karten mit Charakterbild behalten ihr Porträt.
-let rueckseiteBild = null;
+// Rückseite des Tisches (⚙ beim SL). Standard ist die mitgelieferte, eigene
+// Illustration (werkzeuge/rueckseite_zeichnen.py); „gruen" = die
+// schlichte grüne Rückseite; sonst ein hochgeladenes Bild. Gilt für ALLE Karten
+// ohne Charakterbild - Karten mit Charakterbild behalten ihr Porträt.
+const RUECKSEITE_STANDARD = "/static/rueckseite.svg";
+let rueckseiteBild = RUECKSEITE_STANDARD;
 
 // Stil „B" (Stefan): Bild voll und farbig im Bronzerahmen, unten abgedunkelt
 // mit kleinem Kompass - so bleibt das Motiv sichtbar und es ist trotzdem
@@ -861,7 +864,7 @@ function rueckseiteMitBild(bild) {
 }
 
 function renderBackSVG(image) {
-  if (!image && rueckseiteBild) return rueckseiteMitBild(rueckseiteBild);
+  if (!image && rueckseiteBild && rueckseiteBild !== "gruen") return rueckseiteMitBild(rueckseiteBild);
   // Rückseite mit hochgeladenem Char-Bild: Porträt + Bronze-Rahmen + Vignette.
   // WICHTIG: für ALLE Karten identisch – darf den Joker nicht verraten.
   if (image) {
@@ -1090,7 +1093,7 @@ window.Cards = {
     jokerAuswahl = gut.length ? gut : JOKER_STILE.slice();
   },
   setJokerRunde: (n) => { jokerRunde = Number(n) || 0; },
-  setRueckseite: (url) => { rueckseiteBild = url || null; },
+  setRueckseite: (url) => { rueckseiteBild = url || RUECKSEITE_STANDARD; },
   // Klammer um einen kompletten Neuaufbau (siehe naechsteId).
   renderStart: () => { _renderSeq = 0; },
   renderEnde: () => { _renderSeq = null; },

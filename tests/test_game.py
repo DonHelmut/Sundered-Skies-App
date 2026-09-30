@@ -1681,3 +1681,8 @@ def test_rueckseitenbild_bleibt_und_gilt_als_benutzt(fresh_game):
     assert "abc.jpg" in fresh_game.benutzte_bilder()
     fresh_game.apply({"type": "set_rueckseite", "url": "https://fremd.example/x.jpg"})
     assert fresh_game.rueckseite_bild is None
+    # „gruen" = schlichte Rückseite; None = mitgelieferte Standard-Illustration.
+    fresh_game.apply({"type": "set_rueckseite", "url": "gruen"})
+    assert fresh_game.snapshot()["rueckseiteBild"] == "gruen"
+    fresh_game.apply({"type": "set_rueckseite", "url": None})
+    assert fresh_game.snapshot()["rueckseiteBild"] is None

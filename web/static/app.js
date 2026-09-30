@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.4.7";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.4.8";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -4393,7 +4393,8 @@ document.addEventListener("click", (e) => {
       try { if (kannVibrieren) navigator.vibrate([130, 70, 130]); } catch { /* egal */ }
       dranBlitz();
     },
-    "rueckseite-standard": () => { gmAction({ type: "set_rueckseite", url: null }); toast("Rückseite: Standard"); },
+    "rueckseite-standard": () => { gmAction({ type: "set_rueckseite", url: null }); toast("Rückseite: Standardbild"); },
+    "rueckseite-gruen": () => { gmAction({ type: "set_rueckseite", url: "gruen" }); toast("Rückseite: schlicht grün"); },
     "km-treffer": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; App.trefferSchaden = ""; trefferAuf(id); },
     "angriff-eigene": () => { App.angriffEigene = !App.angriffEigene; render(); },
     "angriff-waehlen": () => {
@@ -4994,7 +4995,8 @@ function mountSkins() {
        <div class="muted small" style="margin-bottom:4px">Kartenrückseite (für alle)</div>
        <label class="knopf-klein" title="Eigenes Bild hochladen – bleibt nur auf diesem Laptop (Ordner data)">🖼 Bild wählen
          <input type="file" accept="image/*" data-act="pick-rueckseite" style="display:none"></label>
-       <button type="button" class="knopf-klein" data-act="rueckseite-standard" title="Zurück zur grünen Rückseite">Standard</button>
+       <button type="button" class="knopf-klein" data-act="rueckseite-standard" title="Mitgeliefertes Standardbild">Standard</button>
+       <button type="button" class="knopf-klein" data-act="rueckseite-gruen" title="Schlichte grüne Rückseite ohne Bild">Grün</button>
      </div>
      <details class="joker-pick">
        <summary>🃏 Joker-Stile <span class="muted small" id="jokerzahl">${jokerZahlText()}</span></summary>

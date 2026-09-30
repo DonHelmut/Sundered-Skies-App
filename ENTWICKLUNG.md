@@ -47,6 +47,20 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.4.8 (30.09.2026): Eigene Illustration als Standard-Rückseite
+
+- Neue Standard-Rückseite `web/static/rueckseite.svg`: eigene, prozedural
+  gezeichnete Illustration (gespaltene Tempelinsel im Gegenlicht, Lichtkranz,
+  Trümmer, Tafelberge mit Spiegelung) – kein fremdes Bild, darf also ins
+  öffentliche Repo. Erzeugt von `werkzeuge/rueckseite_zeichnen.py` (fester
+  Zufallssamen, Kanten fraktal); zum Nachbessern dort ändern und neu erzeugen.
+  Darstellung wie Variante „B" (Bronzerahmen, unten Kompass).
+- ⚙ beim SL: „🖼 Bild wählen / Standard / Grün". `rueckseiteBild`: None =
+  Standard-Illustration, "gruen" = schlichte grüne Rückseite, sonst ein
+  hochgeladenes Bild (bleibt nur lokal in data/uploads).
+- Stefans Vorlagenbild (fremde Kunst) ist bewusst NICHT im Repo; wer es
+  nutzen will, lädt es über „Bild wählen" lokal hoch.
+
 ## 1.4.7 (30.09.2026): TV passt immer auf einen Bildschirm
 
 - Stefan: Am TV/Beamer wird NIE gescrollt – alles muss auf eine Bildschirmseite,
@@ -557,8 +571,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.7** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.4.7 → 1.5 (oder 1.4.8) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.8** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.4.8 → 1.5 (oder 1.4.9) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst
