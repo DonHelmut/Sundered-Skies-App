@@ -324,7 +324,8 @@
     const r = el.getBoundingClientRect();
     return r.width > 20 && r.height > 12 && r.top > 60 && r.bottom < H() - 20 && r.left > 0 && r.right < W();
   }
-  // Auf einen Knopf springen und ihn „drücken" - nur die Optik, kein Klick.
+  // Auf einen Knopf springen und ihn anwackeln - nur die Optik, NIE ein Klick
+  // (es wird nichts ausgelöst, z. B. kein Austeilen).
   function knopf() {
     const kandidaten = [...document.querySelectorAll("#app button, #skin-gear")]
       .filter((b) => sichtbar(b) && !b.disabled && !b.closest(".aktionsleiste, .kopf-menue-inhalt"));
@@ -336,7 +337,7 @@
       cat.classList.remove("mi-flip-x");
       cat.classList.add("mi-paw");
       b.classList.add("mi-gedrueckt");
-      say(pick(["*klick*", "*drück*", "😼"]), 1100);
+      say(pick(["*stups*", "😼", "hihi"]), 1100);   // nur angewackelt - nie ein echter Klick
       spaeterZurueck(() => b.classList.remove("mi-gedrueckt"), 700);
       setTimeout(fertig, 900);
     });

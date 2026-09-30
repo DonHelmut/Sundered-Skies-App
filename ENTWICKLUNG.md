@@ -47,6 +47,13 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.5.3 (30.09.2026): Mimi wackelt Knöpfe nur an
+
+- Stefan: Mimi darf nicht wirklich z. B. neu austeilen. Tat sie nie (kein
+  Klick, nichts an den Server – getestet: 0 Klicks, Spiel unverändert), aber
+  das „Drücken" (kleiner + Goldrahmen) sah echt aus. Jetzt nur noch ein
+  Anwackeln (`miAnwackeln`) und „*stups*"/„hihi" statt „*klick*".
+
 ## 1.5.2 (30.09.2026): Mimi als rote Tigerkatze, versorgen, dosierter Schabernack
 
 - **Neues Aussehen** (`catSVG(art)` in mimi.js; mehrere Runden mit Stefan):
@@ -644,8 +651,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.2** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.5.2 → 1.6 (oder 1.5.3) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.3** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.5.3 → 1.6 (oder 1.5.4) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

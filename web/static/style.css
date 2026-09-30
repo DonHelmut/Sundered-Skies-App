@@ -2213,7 +2213,10 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
 .kampf-bau .kb-dazu { padding: 5px 8px; font-size: 0.85rem; }
 
 /* Mimis Schabernack (nur Optik, dreht sich selbst zurück). */
-.mi-gedrueckt { transform: scale(0.9) !important; box-shadow: 0 0 0 3px var(--gold) !important; transition: transform 0.12s ease; }
+/* Mimi wackelt einen Knopf nur an - sieht bewusst NICHT gedrückt aus (Stefan:
+   am Tisch soll niemand glauben, sie hätte z. B. neu ausgeteilt). */
+.mi-gedrueckt { animation: miAnwackeln 0.7s ease; }
+@keyframes miAnwackeln { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-6deg); } 35% { transform: rotate(5deg); } 55% { transform: rotate(-4deg); } 75% { transform: rotate(2deg); } }
 .mi-tausch { transition: transform 0.35s ease; position: relative; z-index: 3; }
 .mimi-nacht { position: fixed; inset: 0; z-index: 60; pointer-events: none; background: rgba(4, 3, 8, 0.9);
   animation: mimiNacht 2.6s ease forwards; }
