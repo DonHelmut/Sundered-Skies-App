@@ -47,7 +47,7 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
-## In Arbeit (nach 1.3, noch ohne Versionssprung)
+## 1.4 (30.09.2026): TV deckt nicht mehr vor, Stufen-Schild auf Listen-Minis
 
 - **TV-Ansicht deckt nicht mehr vor:** Spielerkarten liegen dort verdeckt, bis
   der Spieler am Handy aufdeckt (Gegner wie gehabt sofort offen); Karten-Spur
@@ -455,8 +455,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.3** (veröffentlicht; weiter 1.4 … 1.9, 1.10 …).
-      Nächstes Release also 1.3 → 1.4 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …).
+      Nächstes Release also 1.4 → 1.5 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst
