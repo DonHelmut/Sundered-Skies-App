@@ -957,13 +957,90 @@ class Game:
                 "anon": bool(c.get("anon", False)),
                 **_kampfwerte(c),
             })
-        if not members:
+        # Charaktere mit ihrer Zone gleich mit - der Kampf lässt sich so exakt
+        # wieder aufbauen (wer fehlt, wird beim Start einfach entfernt).
+        charaktere = [{"characterId": c["characterId"], "zone": c.get("zone", DEFAULT_ZONE_PLAYER)}
+                      for c in self.combatants if c.get("kind") != "npc" and c.get("characterId")]
+        if not members and not charaktere:
             return
         self.encounters.append({
             "id": _new_id("enc"),
-            "name": (a.get("name") or "Begegnung").strip() or "Begegnung",
+            "name": (a.get("name") or "Kampf").strip() or "Kampf",
+            "note": "",
             "members": members,
+            "charaktere": charaktere,
         })
+        self.save_encounters()
+
+    # Kämpfe vorbereiten (Baukasten beim SL) -----------------------------------
+    # Ein vorbereiteter Kampf entsteht OHNE den laufenden Kampf anzufassen:
+    # Gegner/Verbündete aus den Bibliotheken (Anzahl, Zone, verdeckt) plus die
+    # Charaktere mit Startzone. Gespeichert wie eine Begegnung („encounters").
+
+    @staticmethod
+    def _zone_oder(wert, standard: int) -> int:
+        try:
+            return max(ZONE_MIN, min(ZONE_MAX, int(wert)))
+        except (TypeError, ValueError):
+            return standard
+
+    def _kampf_mitglied(self, m) -> Optional[dict]:
+        """Ein Gegner/Verbündeter eines vorbereiteten Kampfes, bereinigt (die
+        Daten kommen vom Browser)."""
+        if not isinstance(m, dict) or not str(m.get("name") or "").strip():
+            return None
+        bild = m.get("image")
+        return {
+            "name": str(m["name"]).strip()[:40],
+            "isWildCard": bool(m.get("isWildCard", False)),
+            "talents": [t for t in (m.get("talents") or []) if t in TALENTS],
+            "gluck": bool(m.get("gluck", False)),
+            "grosses_gluck": bool(m.get("grosses_gluck", False)),
+            "zone": self._zone_oder(m.get("zone"), DEFAULT_ZONE_NPC),
+            "ally": bool(m.get("ally", False)),
+            "image": bild if isinstance(bild, str) and bild.startswith("/uploads/") else None,
+            "note": str(m.get("note") or "")[:200],
+            "anon": bool(m.get("anon", False)) and not m.get("ally"),
+            # Herkunft aus der Bibliothek - damit der Baukasten beim Bearbeiten
+            # gleiche Figuren wieder zu „Skree ×4" zusammenfasst.
+            "vorlage": m.get("vorlage") if isinstance(m.get("vorlage"), str) else None,
+            **_kampfwerte(m),
+        }
+
+    def _do_encounter_upsert(self, a: dict) -> None:
+        members = [x for x in (self._kampf_mitglied(m) for m in (a.get("members") or [])[:80]) if x]
+        bekannte = {r.get("id") for r in self.roster}
+        charaktere, gesehen = [], set()
+        for ch in a.get("charaktere") or []:
+            cid = ch.get("characterId") if isinstance(ch, dict) else None
+            if cid in bekannte and cid not in gesehen:
+                gesehen.add(cid)
+                charaktere.append({"characterId": cid, "zone": self._zone_oder(ch.get("zone"), DEFAULT_ZONE_PLAYER)})
+        if not members and not charaktere:
+            return
+        eintrag = {
+            "id": a.get("id") or _new_id("enc"),
+            "name": (str(a.get("name") or "").strip() or "Kampf")[:60],
+            "note": str(a.get("note") or "")[:300],
+            "members": members,
+            "charaktere": charaktere,
+        }
+        for i, e in enumerate(self.encounters):
+            if e.get("id") == eintrag["id"]:
+                self.encounters[i] = eintrag
+                break
+        else:
+            self.encounters.append(eintrag)
+        self.save_encounters()
+
+    def _do_encounter_copy(self, a: dict) -> None:
+        enc = next((e for e in self.encounters if e.get("id") == a.get("id")), None)
+        if not enc:
+            return
+        kopie = json.loads(json.dumps(enc))
+        kopie["id"] = _new_id("enc")
+        kopie["name"] = f"{enc.get('name', 'Kampf')} (Kopie)"[:60]
+        self.encounters.append(kopie)
         self.save_encounters()
 
     def _do_delete_encounter(self, a: dict) -> None:
@@ -1014,6 +1091,22 @@ class Game:
                     self.combatants[-1]["image"] = m["image"]
                 if m.get("note"):
                     self.combatants[-1]["note"] = m["note"]
+        # Charaktere an ihre Startzone: wer schon da ist (verbunden oder
+        # pausiert), rückt dorthin; wer fehlt, kommt aus der Charakterliste
+        # dazu - tritt der Spieler später bei, übernimmt er seine Figur
+        # (register_player). Wer gar nicht kommt: SL entfernt ihn (Stefan).
+        for ch in enc.get("charaktere") or []:
+            cid = ch.get("characterId")
+            char = next((r for r in self.roster if r.get("id") == cid), None)
+            if not char:
+                continue
+            zone = self._zone_oder(ch.get("zone"), DEFAULT_ZONE_PLAYER)
+            vorhanden = next((c for c in self.combatants if c.get("characterId") == cid), None)
+            if vorhanden:
+                vorhanden["zone"] = zone
+                vorhanden["benched"] = False
+            else:
+                self.add_combatant_from_character(char, None, player_name="", zone=zone)
 
     # Teilnehmer --------------------------------------------------------------
 

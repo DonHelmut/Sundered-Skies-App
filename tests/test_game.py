@@ -1686,3 +1686,44 @@ def test_rueckseitenbild_bleibt_und_gilt_als_benutzt(fresh_game):
     assert fresh_game.snapshot()["rueckseiteBild"] == "gruen"
     fresh_game.apply({"type": "set_rueckseite", "url": None})
     assert fresh_game.snapshot()["rueckseiteBild"] is None
+
+
+def test_kampf_vorbereiten_mit_charakteren_und_starten(fresh_game):
+    """Vorbereiteter Kampf: Gegner aus der Bibliothek + Charaktere mit Startzone,
+    ohne den laufenden Kampf anzufassen. Beim Start rückt ein anwesender
+    Charakter an seine Zone, ein fehlender wird eingesetzt und später vom
+    Spieler übernommen."""
+    fresh_game.apply({"type": "roster_upsert", "name": "Tessa", "isWildCard": True})
+    fresh_game.apply({"type": "roster_upsert", "name": "Korgo", "isWildCard": True})
+    tessa, korgo = fresh_game.roster[-2], fresh_game.roster[-1]
+    fresh_game.apply({"type": "add_from_roster", "id": tessa["id"], "zone": 1})   # Tessa ist schon da
+
+    fresh_game.apply({"type": "encounter_upsert", "name": "Skree-Überfall", "note": "Boss verdeckt",
+                      "members": [{"name": "Skree", "zone": 3, "vorlage": "b1"}] * 3
+                               + [{"name": "Boss", "zone": 2, "anon": True, "isWildCard": True},
+                                  {"name": "Gardist", "zone": 0, "ally": True, "anon": True}],
+                      "charaktere": [{"characterId": tessa["id"], "zone": 0},
+                                     {"characterId": korgo["id"], "zone": 2},
+                                     {"characterId": "gibt-es-nicht", "zone": 1}]})
+    enc = fresh_game.encounters[-1]
+    assert [c["name"] for c in fresh_game.combatants] == ["Tessa"]           # laufender Kampf unberührt
+    assert len(enc["members"]) == 5 and len(enc["charaktere"]) == 2         # Unbekannter Charakter verworfen
+    assert enc["members"][4]["anon"] is False                                # Verbündete nie verdeckt
+
+    fresh_game.apply({"type": "start_encounter", "id": enc["id"]})
+    namen = {c["name"]: c for c in fresh_game.combatants}
+    assert namen["Tessa"]["zone"] == 0                                       # rückt an die Startzone
+    assert namen["Korgo"]["zone"] == 2 and not namen["Korgo"].get("playerId")
+    assert sum(1 for c in fresh_game.combatants if c["name"].startswith("Skree")) == 3
+    assert all(c.get("card") for c in fresh_game.combatants)                 # ausgeteilt
+
+    # Spieler tritt später bei -> übernimmt die eingesetzte Figur statt einer zweiten
+    fresh_game.register_player("Stefan", korgo["id"], None)
+    assert sum(1 for c in fresh_game.combatants if c.get("characterId") == korgo["id"]) == 1
+
+    # Bearbeiten (gleiche id) ersetzt, Kopieren legt neu an
+    fresh_game.apply({"type": "encounter_upsert", "id": enc["id"], "name": "Skree-Überfall",
+                      "members": [{"name": "Skree", "zone": 4}], "charaktere": []})
+    assert len(fresh_game.encounters) == 1 and len(fresh_game.encounters[0]["members"]) == 1
+    fresh_game.apply({"type": "encounter_copy", "id": enc["id"]})
+    assert [e["name"] for e in fresh_game.encounters] == ["Skree-Überfall", "Skree-Überfall (Kopie)"]

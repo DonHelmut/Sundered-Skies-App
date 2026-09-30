@@ -47,6 +47,28 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.5 (30.09.2026): Kämpfe vorbereiten
+
+- Bibliothek-Reiter „Begegnungen" heißt jetzt **„Kämpfe"** (Schlüssel bleibt
+  `encounters`). „➕ Kampf vorbereiten" öffnet einen Baukasten im Reiter –
+  der laufende Kampf bleibt unberührt (`App.kampfEntwurf`, übersteht
+  Neuzeichnen; `.kampf-bau` im Tipp-Schutz):
+  - **Charaktere** aus der Charakterliste mit Häkchen + **Startzone** (neu
+    angelegt: alle dabei – wer fehlt, wird im Spiel per Rechtsklick entfernt).
+  - **Gegner/Verbündete** aus den Bibliotheken: Anzahl −/+, Zone, „verdeckt".
+    Gleiche Figuren werden zu „Skree ×4" zusammengefasst (`vorlage`).
+  - **Notiz (nur SL)** – erscheint beim Starten als Einblendung.
+- Liste: ▶ Starten · + dazu (Verstärkung ohne Austeilen) · ✎ · ⎘ Kopie · ✕.
+  „💾 Laufenden Kampf merken" speichert jetzt auch die Charaktere mit Zone.
+- **Schnellstart**: Ist kein Gegner im Kampf (Sitzungsbeginn, nach „Kampf
+  abräumen"), steht über dem Austeilen-Knopf „Vorbereitet: [Kampf ▾] ▶".
+- Server: `encounter_upsert` (bereinigt alles vom Browser, verwirft unbekannte
+  Charaktere, Verbündete nie verdeckt), `encounter_copy`; `add_encounter` /
+  `start_encounter` setzen Charaktere an ihre Startzone – anwesende rücken
+  dorthin, fehlende kommen aus der Liste (ohne Spieler); tritt der Spieler
+  später bei, übernimmt er die Figur. Test:
+  `test_kampf_vorbereiten_mit_charakteren_und_starten`.
+
 ## 1.4.8 (30.09.2026): Eigene Illustration als Standard-Rückseite
 
 - Neue Standard-Rückseite `web/static/rueckseite.svg`: eigene, prozedural
@@ -571,8 +593,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.8** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.4.8 → 1.5 (oder 1.4.9) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.5 → 1.6 (oder 1.5.1) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

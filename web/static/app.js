@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.4.8";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.5";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -2350,8 +2350,17 @@ function renderControlBody() {
   // Symbol-Knoepfe. Vorher zwei Zeilen mit breiten Text-Knoepfen - rund 80 px,
   // die in der Reihenfolge darunter fehlten. Was sie tun, steht im Tooltip.
   const zeigeAbraeumen = s.combatants.some((c) => c.kind === "npc" || !c.benched);
+  // Vorbereitete Kämpfe genau dann anbieten, wenn keiner läuft (Sitzungsbeginn,
+  // nach „Kampf abräumen") - im Kampf wäre die Auswahl nur Ballast.
+  const kaempfe = s.encounters || [];
+  const schnellstart = kaempfe.length && !s.combatants.some((c) => c.kind === "npc")
+    ? `<div class="schnellkampf"><span class="muted small">Vorbereitet:</span>
+        <select id="schnellkampf">${kaempfe.map((k) => `<option value="${k.id}">${esc(k.name)}</option>`).join("")}</select>
+        <button class="small primary" data-act="schnellkampf-start" title="Kampf einsetzen, Charaktere an ihre Startzone und austeilen">▶ Starten</button></div>`
+    : "";
   return `
     ${cleanupRow}
+    ${schnellstart}
     <div class="kampf-knoepfe">
       <button class="${rundeDran ? "primary" : "ghost small"}" data-act="new-round" ${rundeDran ? "" : 'title="Allen eine neue Karte austeilen"'}>🃏 ${s.round === 0 ? "Karten an ALLE austeilen" : rundeDran ? "Neue Runde – an ALLE austeilen" : "Neue Runde"}</button>
       ${phasePill}
@@ -3134,7 +3143,7 @@ const BIB_REITER = [
   { key: "roster", name: "Charaktere", n: (s) => s.roster.length, inhalt: () => rosterInhalt() },
   { key: "bestiary", name: "Gegner", n: (s) => (s.bestiary || []).length, inhalt: () => bestiaryInhalt() },
   { key: "allies", name: "Verbündete", n: (s) => (s.allies || []).length, inhalt: () => allyInhalt() },
-  { key: "encounters", name: "Begegnungen", n: (s) => (s.encounters || []).length, inhalt: () => encounterInhalt() },
+  { key: "encounters", name: "Kämpfe", n: (s) => (s.encounters || []).length, inhalt: () => encounterInhalt() },
 ];
 function bibReiter() {
   let r = null;
@@ -3235,26 +3244,121 @@ function allyInhalt() {
 }
 
 // Begegnungen: gespeicherte Gegner-/Verbündeten-Gruppen, auf einen Schlag einsetzbar.
+// --- Kämpfe vorbereiten ------------------------------------------------------
+// Der SL baut Kämpfe VORAB zusammen - ohne den laufenden Kampf anzufassen:
+// Charaktere mit Startzone, Gegner/Verbündete aus den Bibliotheken mit Anzahl,
+// Zone und „verdeckt". Gespielt wird per „▶ Starten" (oder Schnellstart über
+// dem Austeilen-Knopf, wenn der Kampf leer ist). Früher ging Speichern nur,
+// indem man die Gegner erst in den laufenden Kampf stellte.
+function kampfZusammenfassung(e) {
+  const gruppen = {};
+  (e.members || []).forEach((m) => { const n = grundname(m.name); gruppen[n] = (gruppen[n] || 0) + 1; });
+  const npc = Object.entries(gruppen).map(([n, k]) => (k > 1 ? `${n} ×${k}` : n)).join(", ");
+  const chars = (e.charaktere || []).map((ch) => ((App.state.roster || []).find((r) => r.id === ch.characterId) || {}).name).filter(Boolean);
+  return [chars.length ? `👥 ${chars.join(", ")}` : "", npc ? `⚔ ${npc}` : ""].filter(Boolean).join(" · ");
+}
+
 function encounterInhalt() {
+  if (App.kampfEntwurf) return kampfBaukastenHtml();
   const list = (App.state && App.state.encounters) || [];
-  const hasNpcs = ((App.state && App.state.combatants) || []).some((c) => c.kind === "npc");
-  const items = list.map((e) => {
-    const names = (e.members || []).map((m) => m.name).join(", ");
-    return `<div class="roster-item">
-      <div class="grow"><strong>${esc(e.name)}</strong>
-        <div class="muted small">${(e.members || []).length} Figur(en): ${esc(names).slice(0, 90)}</div>
+  const imKampf = ((App.state && App.state.combatants) || []).length > 0;
+  const items = list.map((e) => `<div class="roster-item kampf-eintrag">
+      <div class="grow" style="min-width:0"><strong>${esc(e.name)}</strong>
+        <div class="muted small kampf-zeile">${esc(kampfZusammenfassung(e)).slice(0, 140)}</div>
+        ${e.note ? `<div class="muted small kampf-zeile">📝 ${esc(e.note)}</div>` : ""}
       </div>
-      <button class="small primary" data-act="encounter-start" data-id="${e.id}" title="Einsetzen, pausierte Spieler zurückholen und sofort austeilen">▶ Starten</button>
-      <button class="ghost small" data-act="encounter-to-combat" data-id="${e.id}" title="Nur einsetzen, ohne auszuteilen">+ Kampf</button>
-      <button class="ghost small bad" data-act="encounter-delete" data-id="${e.id}">✕</button>
-    </div>`;
-  }).join("") || `<div class="muted small">Noch keine Begegnungen gespeichert.</div>`;
+      <button class="small primary" data-act="encounter-start" data-id="${e.id}" title="Einsetzen, Charaktere an ihre Startzone, pausierte Spieler zurückholen und sofort austeilen">▶ Starten</button>
+      <button class="ghost small" data-act="encounter-to-combat" data-id="${e.id}" title="Nur dazustellen (z. B. Verstärkung), ohne auszuteilen">+ dazu</button>
+      <button class="ghost small" data-act="kb-bearbeiten" data-id="${e.id}" title="Bearbeiten">✎</button>
+      <button class="ghost small" data-act="encounter-copy" data-id="${e.id}" title="Kopie anlegen (z. B. als Vorlage für eine Variante)">⎘</button>
+      <button class="ghost small bad" data-act="encounter-delete" data-id="${e.id}" title="Löschen">✕</button>
+    </div>`).join("") || `<div class="muted small">Noch keine Kämpfe vorbereitet.</div>`;
   return `
-    <div class="muted small hilfe">Eine Gegner-/Verbündeten-Gruppe speichern und später mit EINEM Klick komplett einsetzen (in den gespeicherten Zonen).</div>
-    <div class="row" style="margin:6px 0">
-      <button data-act="encounter-save" ${hasNpcs ? "" : "disabled"} title="${hasNpcs ? "Aktuelle Gegner/Verbündete als Begegnung speichern" : "Erst Gegner/Verbündete in den Kampf setzen"}">💾 Aktuelle Aufstellung speichern</button>
+    <div class="muted small hilfe">Kämpfe vorab zusammenstellen (Charaktere mit Startzone, Gegner und Verbündete aus der Bibliothek) und im Spiel mit EINEM Klick starten. Fehlt ein Spieler, einfach per Rechtsklick entfernen.</div>
+    <div class="row" style="margin:6px 0; gap:6px">
+      <button class="primary" data-act="kb-neu">➕ Kampf vorbereiten</button>
+      <button class="ghost small" data-act="encounter-save" ${imKampf ? "" : "disabled"} title="${imKampf ? "Den laufenden Kampf (Figuren und Zonen) als vorbereiteten Kampf speichern" : "Gerade steht niemand im Kampf"}">💾 Laufenden Kampf merken</button>
     </div>
     <div style="margin-top:8px">${items}</div>`;
+}
+
+// Baukasten-Entwurf: übersteht jedes Neuzeichnen (Server-Updates kommen laufend).
+function kampfEntwurfAus(e) {
+  const roster = (App.state && App.state.roster) || [];
+  const zeilen = [];
+  (e ? e.members || [] : []).forEach((m) => {
+    const name = grundname(m.name);
+    const key = `${m.vorlage || name}|${m.ally ? 1 : 0}|${m.zone}|${m.anon ? 1 : 0}`;
+    const z = zeilen.find((x) => x.key === key);
+    if (z) z.anzahl += 1;
+    else zeilen.push({ key, proto: { ...m, name }, anzahl: 1, zone: m.zone, anon: !!m.anon });
+  });
+  const chars = {};
+  roster.forEach((r) => {
+    const drin = e && (e.charaktere || []).find((ch) => ch.characterId === r.id);
+    // Neu: alle Charaktere dabei (wer fehlt, wird im Spiel entfernt - Stefan).
+    chars[r.id] = { dabei: e ? !!drin : true, zone: drin ? drin.zone : lastPlayerZone() };
+  });
+  return { id: e ? e.id : null, name: e ? e.name : "", note: e ? e.note || "" : "", zeilen, chars };
+}
+
+function kampfBaukastenHtml() {
+  const E = App.kampfEntwurf;
+  const s = App.state;
+  const roster = s.roster || [];
+  const charZeilen = roster.map((r) => {
+    const c = E.chars[r.id] || { dabei: false, zone: lastPlayerZone() };
+    return `<div class="kb-zeile kb-char-zeile${c.dabei ? "" : " aus"}">
+      <label class="kb-name"><input type="checkbox" data-act="kb-char" data-id="${r.id}" ${c.dabei ? "checked" : ""}> ${esc(r.name)}</label>
+      <select data-act="kb-char-zone" data-id="${r.id}" ${c.dabei ? "" : "disabled"}>${zoneOptions(c.zone)}</select>
+    </div>`;
+  }).join("") || `<div class="muted small">Noch keine Charaktere angelegt.</div>`;
+  const npcZeilen = E.zeilen.map((z, i) => `<div class="kb-zeile">
+      <span class="kb-name${z.proto.ally ? " verbuendet" : " feind"}">${z.proto.ally ? "🤝 " : ""}${esc(z.proto.name)}</span>
+      <span class="kb-anzahl">
+        <button type="button" class="st-btn" data-act="kb-anzahl" data-i="${i}" data-d="-1">−</button>
+        <b>${z.anzahl}</b>
+        <button type="button" class="st-btn" data-act="kb-anzahl" data-i="${i}" data-d="1">+</button>
+      </span>
+      <select data-act="kb-zone" data-i="${i}">${zoneOptions(z.zone)}</select>
+      ${z.proto.ally ? `<span class="kb-anon"></span>` : `<label class="kb-anon" title="Spieler sehen statt des Namens nur Unlesbares"><input type="checkbox" data-act="kb-anon" data-i="${i}" ${z.anon ? "checked" : ""}> verdeckt</label>`}
+      <button type="button" class="ghost small bad" data-act="kb-weg" data-i="${i}" title="Zeile entfernen">✕</button>
+    </div>`).join("") || `<div class="muted small">Noch keine Gegner – unten aus der Bibliothek hinzufügen.</div>`;
+  const opt = (liste, praefix) => (liste || []).map((v) => `<option value="${praefix}:${v.id}">${esc(v.name)}</option>`).join("");
+  const dazu = `<select data-act="kb-dazu" class="kb-dazu">
+      <option value="">+ Gegner / Verbündete aus der Bibliothek …</option>
+      ${(s.bestiary || []).length ? `<optgroup label="Gegner">${opt(s.bestiary, "b")}</optgroup>` : ""}
+      ${(s.allies || []).length ? `<optgroup label="Verbündete">${opt(s.allies, "a")}</optgroup>` : ""}
+    </select>`;
+  return `<div class="kampf-bau">
+    <label class="field"><span>Name des Kampfes</span>
+      <input id="kb-name" value="${esc(E.name)}" placeholder="z. B. Skree-Überfall" maxlength="60" autocomplete="off"></label>
+    <div class="kb-abschnitt">👥 Charaktere <span class="muted small">– Startzone</span></div>
+    ${charZeilen}
+    <div class="kb-abschnitt">⚔ Gegner &amp; Verbündete</div>
+    ${npcZeilen}
+    ${dazu}
+    <label class="field" style="margin-top:10px"><span>Notiz (nur SL)</span>
+      <input id="kb-notiz" value="${esc(E.note)}" placeholder="z. B. Boss erst in Runde 2 aufdecken" maxlength="300" autocomplete="off"></label>
+    <div class="row" style="justify-content:flex-end; gap:6px; margin-top:8px">
+      <button type="button" class="ghost" data-act="kb-abbrechen">Abbrechen</button>
+      <button type="button" class="primary" data-act="kb-speichern">💾 Speichern</button>
+    </div>
+  </div>`;
+}
+
+function kampfSpeichern() {
+  const E = App.kampfEntwurf;
+  const members = [];
+  E.zeilen.forEach((z) => {
+    for (let k = 0; k < z.anzahl; k++) members.push({ ...z.proto, zone: z.zone, anon: z.anon && !z.proto.ally });
+  });
+  const charaktere = Object.entries(E.chars).filter(([, c]) => c.dabei).map(([id, c]) => ({ characterId: id, zone: c.zone }));
+  if (!members.length && !charaktere.length) { hinweis("Der Kampf ist noch leer – Charaktere anhaken oder Gegner hinzufügen."); return; }
+  gmAction({ type: "encounter_upsert", id: E.id, name: E.name.trim() || "Kampf", note: E.note.trim(), members, charaktere });
+  toast(`⚔ „${E.name.trim() || "Kampf"}" gespeichert`);
+  App.kampfEntwurf = null;
+  render();
 }
 
 function renderAllyForm(existing) {
@@ -3721,11 +3825,13 @@ function tipptImBogen() {
   // bei jedem Server-Update weg.
   // Und die Beitrittsseite: kam dort ein Update (jemand anderes trat bei),
   // verlor man mitten im Tippen Fokus und Tastatur.
-  return !!(a && a.closest && a.closest(".bogen-form, .al-treffer, .angriff-popup, .join-form") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  return !!(a && a.closest && a.closest(".bogen-form, .al-treffer, .angriff-popup, .join-form, .kampf-bau") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
 }
 document.addEventListener("input", (e) => {
   if (e.target && e.target.id === "treffer-schaden") App.trefferSchaden = e.target.value;
   if (e.target && e.target.id === "joinneu") App.joinEntwurf.neuName = e.target.value;
+  if (e.target && e.target.id === "kb-name" && App.kampfEntwurf) App.kampfEntwurf.name = e.target.value;
+  if (e.target && e.target.id === "kb-notiz" && App.kampfEntwurf) App.kampfEntwurf.note = e.target.value;
   if (e.target && e.target.id === "joinname") App.joinEntwurf.spielerName = e.target.value;
   // Angriffs-Fenster: Vorschlag sofort neu rechnen (einmal neu zeichnen, Fokus
   // und Cursor danach wiederherstellen).
@@ -4194,11 +4300,27 @@ document.addEventListener("click", (e) => {
     "ally-delete": async () => { if (await frage("Verbündeten-Typ löschen?", "Löschen", true)) gmAction({ type: "ally_delete", id }); },
     // SL – Begegnungen (gespeicherte Gruppen)
     "encounter-save": async () => {
-      const name = await eingabe("Name der Begegnung? (z. B. Skree-Überfall)", "", "Speichern");
+      const name = await eingabe("Name des Kampfes? (z. B. Skree-Überfall)", "", "Speichern");
       if (name && name.trim()) gmAction({ type: "save_encounter", name: name.trim() });
     },
     "encounter-to-combat": () => gmAction({ type: "add_encounter", id }),
-    "encounter-delete": async () => { if (await frage("Begegnung löschen?", "Löschen", true)) gmAction({ type: "delete_encounter", id }); },
+    "encounter-copy": () => { gmAction({ type: "encounter_copy", id }); toast("Kopie angelegt"); },
+    "kb-neu": () => { App.kampfEntwurf = kampfEntwurfAus(null); render(); const f = $("kb-name"); if (f) f.focus(); },
+    "kb-bearbeiten": () => { App.kampfEntwurf = kampfEntwurfAus((S.encounters || []).find((x) => x.id === id)); render(); },
+    "kb-abbrechen": () => { App.kampfEntwurf = null; render(); },
+    "kb-speichern": () => kampfSpeichern(),
+    "kb-anzahl": () => {
+      const z = App.kampfEntwurf && App.kampfEntwurf.zeilen[Number(target.dataset.i)];
+      if (!z) return;
+      z.anzahl = Math.max(1, Math.min(20, z.anzahl + Number(target.dataset.d)));
+      render();
+    },
+    "kb-weg": () => { App.kampfEntwurf.zeilen.splice(Number(target.dataset.i), 1); render(); },
+    "schnellkampf-start": () => {
+      const sel = $("schnellkampf");
+      if (sel && sel.value) handlers["encounter-start"].call(null, sel.value);
+    },
+    "encounter-delete": async () => { if (await frage("Vorbereiteten Kampf löschen?", "Löschen", true)) gmAction({ type: "delete_encounter", id }); },
     "ally-to-combat": () => {
       const z = parseInt(($("allyzone") || {}).value, 10);
       gmAction({ type: "add_ally_from_library", id, zone: isNaN(z) ? undefined : z });
@@ -4306,7 +4428,8 @@ document.addEventListener("click", (e) => {
     "fokus": () => fokusUmschalten(),
     "nur-offene": () => { App.nurOffene = !App.nurOffene; render(); },
     // Begegnung einsetzen, Spieler zurueckholen und austeilen - in einem Schritt.
-    "encounter-start": async () => {
+    "encounter-start": async (wahlId) => {
+      const kampfId = wahlId || id;
       const npcs = (S.combatants || []).filter((c) => c.kind === "npc").length;
       let ersetzen = false;
       if (npcs) {
@@ -4319,7 +4442,9 @@ document.addEventListener("click", (e) => {
         if (!wahl) return;
         ersetzen = wahl === "neu";
       }
-      gmAction({ type: "start_encounter", id, ersetzen });
+      gmAction({ type: "start_encounter", id: kampfId, ersetzen });
+      const k = (S.encounters || []).find((x) => x.id === kampfId);
+      if (k && k.note) toast("📝 " + k.note);   // die SL-Notiz genau dann, wenn sie gebraucht wird
     },
     "alle-zeigen": () => { App.alleZeigen = !App.alleZeigen; render(); },
     "bogen-reiter": () => { App.bogenReiter = target.getAttribute("data-reiter"); render(); },
@@ -4656,6 +4781,32 @@ document.addEventListener("change", (e) => {
     uploadImage(t.files[0]);
   } else if (act === "pick-char-image") {
     uploadCharImage(t.files[0], t.getAttribute("data-id"));
+  } else if (act === "kb-char" || act === "kb-char-zone") {
+    const c = App.kampfEntwurf && App.kampfEntwurf.chars[t.dataset.id];
+    if (!c) return;
+    if (act === "kb-char") c.dabei = t.checked; else c.zone = parseInt(t.value, 10);
+    render();
+  } else if (act === "kb-zone" || act === "kb-anon") {
+    const z = App.kampfEntwurf && App.kampfEntwurf.zeilen[Number(t.dataset.i)];
+    if (!z) return;
+    if (act === "kb-zone") z.zone = parseInt(t.value, 10); else z.anon = t.checked;
+    render();
+  } else if (act === "kb-dazu") {
+    const [art, vid] = String(t.value || "").split(":");
+    const liste = art === "b" ? App.state.bestiary : App.state.allies;
+    const v = (liste || []).find((x) => x.id === vid);
+    if (v && App.kampfEntwurf) {
+      const ally = art === "a";
+      const zone = ally ? lastAllyZone() : lastNpcZone();
+      const key = `${v.id}|${ally ? 1 : 0}|${zone}|0`;
+      const vorhanden = App.kampfEntwurf.zeilen.find((z) => z.key === key);
+      if (vorhanden) vorhanden.anzahl += 1;
+      else App.kampfEntwurf.zeilen.push({ key, anzahl: 1, zone, anon: false,
+        proto: { name: v.name, isWildCard: !!v.isWildCard, talents: v.talents || [], gluck: !!v.gluck, grosses_gluck: !!v.grosses_gluck,
+                 ally, image: v.image || null, vorlage: v.id, parade: v.parade, robustheit: v.robustheit, panzer: v.panzer } });
+    }
+    t.value = "";
+    render();
   } else if (act === "pick-rueckseite") {
     uploadRueckseite(t.files[0]);
     t.value = "";                    // dasselbe Bild nochmal wählen geht sonst nicht

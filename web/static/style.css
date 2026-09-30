@@ -2185,3 +2185,29 @@ body.tv-modus .tv-tile .badges .pill { font-size: 1em; padding: 0.1em 0.5em; }
 /* Gegnernamen in der Farbe des jeweiligen Designs – das feste Hellrosa war auf
    hellem Pergament kaum lesbar. */
 body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
+
+/* --- Kämpfe vorbereiten (Reiter „Kämpfe" in der Bibliothek) --- */
+.kampf-eintrag .kampf-zeile { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kampf-bau { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--panel2); }
+.kb-abschnitt { font-weight: 700; margin: 10px 0 4px; }
+.kb-zeile { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; gap: 6px; align-items: center; padding: 3px 0; }
+.kb-zeile.kb-char-zeile { grid-template-columns: minmax(0, 1fr) auto; }
+.kb-zeile.aus .kb-name { color: var(--muted); }
+.kb-zeile select { width: auto; max-width: 170px; }
+.kb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-name.feind { color: var(--foe-name); font-weight: 600; }
+.kb-name.verbuendet { color: var(--good); font-weight: 600; }
+.kb-anzahl { display: inline-flex; align-items: center; gap: 4px; }
+.kb-anzahl b { min-width: 18px; text-align: center; }
+.kb-anon { font-size: 0.8rem; white-space: nowrap; min-width: 70px; }
+.kb-dazu { margin-top: 6px; width: 100%; }
+.schnellkampf { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.schnellkampf select { width: auto; max-width: 240px; }
+/* Globale Formular-Stile (input 100 % breit, große Selects) hier zurücknehmen -
+   sonst verschluckte das Häkchen den Charakternamen. */
+.kampf-bau .kb-name, .kampf-bau .kb-anon { display: inline-flex; align-items: center; gap: 6px; min-width: 0; cursor: pointer; }
+.kampf-bau .kb-anon { min-width: 78px; }
+.kampf-bau input[type="checkbox"] { width: auto; margin: 0; flex: 0 0 auto; }
+.kampf-bau .kb-zeile select { padding: 3px 6px; font-size: 0.85rem; min-height: 0; height: auto; }
+.kampf-bau .kb-zeile .st-btn, .kampf-bau .kb-zeile .ghost.small { padding: 2px 8px; min-height: 0; }
+.kampf-bau .kb-dazu { padding: 5px 8px; font-size: 0.85rem; }
