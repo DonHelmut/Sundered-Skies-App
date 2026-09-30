@@ -47,6 +47,20 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.4.1 (30.09.2026): Repo öffentlich, Aktualisieren.bat, Fanprojekt-Hinweise
+
+- **Repo ist öffentlich** (Stefan, 30.09.). `main` geschützt: kein Force-Push,
+  kein Löschen; andere nur per Fork + Pull Request mit Freigabe durch Stefan
+  (Admins dürfen weiter direkt pushen). Commit-Mail bleibt sichtbar (bewusst).
+- **`Aktualisieren.bat` + `Aktualisieren.ps1`** im Paket: holt das neueste
+  Release, vergleicht mit der Versionszeile in `START-HIER.txt`, beendet auf
+  Nachfrage die laufende App, tauscht alles außer `data`. Man bleibt für immer
+  im selben Ordner. Braucht das öffentliche Repo (keine Anmeldung).
+- **Fanprojekt-Hinweise**: README (mit Satz aus der Savage-Worlds-Fan-License),
+  START-HIER.txt, in der App unter der Versionszeile und auf der Beitrittsseite.
+- Versionen dürfen jetzt dreistellig sein (1.4.1); `[version]` im Updater
+  vergleicht das richtig.
+
 ## 1.4 (30.09.2026): TV deckt nicht mehr vor, Stufen-Schild auf Listen-Minis
 
 - **TV-Ansicht deckt nicht mehr vor:** Spielerkarten liegen dort verdeckt, bis
@@ -455,8 +469,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …).
-      Nächstes Release also 1.4 → 1.5 (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.1** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.4.1 → 1.5 (oder 1.4.2) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

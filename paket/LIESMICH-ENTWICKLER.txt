@@ -25,6 +25,6 @@ Vor jedem Release die Version an DREI Stellen hochzaehlen:
   web/index.html + web/tv.html   ?v=X.Y
 und in paket/START-HIER.txt die Versionszeile oben.
 
-Aktualisieren.bat (ab 1.5): holt das neueste GitHub-Release (braucht das
+Aktualisieren.bat (ab 1.4.1): holt das neueste GitHub-Release (braucht das
 oeffentliche Repo), vergleicht mit der Versionszeile in START-HIER.txt und
 tauscht alles ausser data aus. Darum die Versionszeile dort IMMER mitziehen.

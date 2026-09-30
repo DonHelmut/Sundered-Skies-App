@@ -13,7 +13,7 @@
 > (rechts auf der Startseite unter **Releases**).
 
 > **Aktualisieren:** im App-Ordner Doppelklick auf **`Aktualisieren.bat`** – holt die
-> neueste Version, der Spielstand (`data`) bleibt erhalten (ab Version 1.5 dabei).
+> neueste Version, der Spielstand (`data`) bleibt erhalten (ab Version 1.4.1 dabei).
 
 > [!NOTE]
 > **Inoffizielles Fanprojekt.** Nicht verbunden mit, gesponsert oder unterstützt von
