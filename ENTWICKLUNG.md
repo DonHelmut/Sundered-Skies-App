@@ -49,12 +49,16 @@ sich über **Export/Import** in der App umziehen.
 
 ## 1.5.2 (30.09.2026): Mimi neu gezeichnet, versorgen, dosierter Schabernack
 
-- **Neues Aussehen** (`catSVG` in mimi.js): feinere Linien (1,3 statt 2),
-  größerer Kopf mit heller Schnauze, Nase, Maul, Schnurrhaaren, Auge mit
-  Glanzpunkt, rosa Innenohren mit Pinselspitzen, heller Bauch, Pfoten, kurzer
-  Umhang mit Goldspange (vorher verdeckte der Umhang den ganzen Körper).
-  Die Klassen `mi-tail`, `mi-leg-*`, `mi-head`, `mi-eyes` steuern die
-  Animationen – beim Umzeichnen beibehalten.
+- **Neues Aussehen** (`catSVG` in mimi.js; aus Variante A in `_lab_mimi.html`
+  weiterentwickelt, Stefan: „mehr Bengale, feiner"): goldene Bengalkatze mit
+  zweifarbigen Rosetten (rostroter Kern, unterbrochener dunkler Rand),
+  kleinen runden Ohren, großem grünem Auge mit Goldrand, EINER Linie vom Auge
+  zur Backe, heller Schnauze/Bauch, zart gestreiften Beinen, geringeltem
+  Schwanz mit schwarzer Spitze; feine Linien (1,0). Großer, glatt fallender
+  roter Umhang mit Goldborte und Spange (die Fetzen-Version wirkte laut
+  Stefan „wie ne Obdachlose"). Beine als geformte Pfade mit Pfote/Zehen
+  (Rechtecke wirkten wie Stelzen). Schnurrhaare von der Schnauze nach hinten
+  über die Backe. Noch in Abstimmung mit Stefan.
 - **Versorgen**: Antippen öffnet ein Menü 🍖 Futter · 💧 Trinken · 🧶 Spielen
   · ✋ Streicheln (schließt nach 6 s oder bei Klick daneben). Wünsche zeigt sie
   nur leise („miau?"), im Menü leuchtet der Wunsch. Versorgt ist sie eine
@@ -63,9 +67,10 @@ sich über **Export/Import** in der App umziehen.
   zurück, nichts wird geklickt/gespeichert/gesendet): Knopf „drücken",
   Design kurz umschalten (zurück auf `localStorage.skin`), Licht aus mit
   leuchtenden Augen, zwei Zeilen vertauschen, Pfotenspur; dazu Wollknäuel.
-  Stefan fand es zu viel -> Pausen 7–15 s, verstellende Streiche nur mit 28 %
-  Chance und mindestens 70 s Abstand, nie bei Eingaben/Dialogen/eigenem Zug
-  (`beschaeftigt()`); am Handy ohne Licht-aus/Umfärben/Bildschirm-Dreher.
+  Dosierung nach Stefans Rückmeldung: Pausen 6–13 s, verstellende Streiche
+  mit 36 % Chance und mindestens 50 s Abstand, nie bei Eingaben/Dialogen/
+  eigenem Zug (`beschaeftigt()`); am Handy ohne Umfärben/Bildschirm-Dreher
+  („Licht aus" ist am Handy okay).
   Beim Ausschalten wird alles Verstellte sofort zurückgesetzt (`spaeterZurueck`).
 - Läuft auch am Handy (⚙ → 🐈, pro Gerät).
 - `window.mimiStreich(name)` löst Streiche/Versorgen gezielt aus (Ausprobieren).

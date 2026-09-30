@@ -24,7 +24,7 @@
   let menue = null;
   let ruhigBis = 0;             // bis wann Mimi zufrieden (= keine Streiche) ist
   let letzterStreich = 0;       // Abstand zwischen verstellenden Streichen
-  const STREICH_ABSTAND = 70000;
+  const STREICH_ABSTAND = 50000;
   // Rücksetzer für laufenden Schabernack - beim Ausschalten sofort alle ausführen.
   const zurueck = new Set();
   function spaeterZurueck(fn, ms) {
@@ -38,54 +38,74 @@
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const handy = () => { try { return window.matchMedia("(pointer: coarse)").matches || W() < 700; } catch { return W() < 700; } };
 
-  // Serval mit grünen Augen, Luchs-Ohren und kurzem rotem Umhang mit Spange.
-  // Seitenansicht, blickt nach rechts. Feine Linien, großer Kopf (niedlicher),
-  // heller Bauch und Schnauze. Die Klassen (mi-tail, mi-leg-*, mi-head, mi-eyes …)
-  // steuern die Animationen in style.css - beim Umzeichnen beibehalten.
+  // Bengalkatze mit großem rotem Umhang (Stefan: „mehr Bengale, feiner"):
+  // goldenes Fell mit zweifarbigen Rosetten (dunkler Rand, rostroter Kern),
+  // kleine abgerundete Ohren, „M" auf der Stirn, dunkle Linie vom Auge zur
+  // Backe, Auge mit Goldrand, heller Bauch und Schnauze, gestreifte Beine,
+  // geringelter Schwanz mit schwarzer Spitze. Seitenansicht, blickt nach rechts.
+  // Die Klassen (mi-tail, mi-leg-*, mi-head, mi-eyes …) steuern die Animationen
+  // in style.css - beim Umzeichnen beibehalten.
   function catSVG() {
-    const FELL = "#eaa954", FELL2 = "#dc9433", HELL = "#f8d9a0", RAND = "#8f5a1c", FLECK = "#3a2710",
-      SPITZE = "#22170c", AUGE = "#79ea5f", ROSA = "#e59a8f", CAPE = "#a82a22", CAPE2 = "#65150f", GOLD = "#e8c25a";
-    const L = 1.3;   // Linienstärke (vorher 2 - wirkte grob)
-    const fleck = (x, y, r, w = 0) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.72}" transform="rotate(${w} ${x} ${y})" fill="${FLECK}" opacity="0.85"/>`;
-    const bein = (cls, x, farbe) => `<g class="mi-leg ${cls}">
-        <rect x="${x}" y="40" width="6.4" height="18" rx="3.2" fill="${farbe}" stroke="${RAND}" stroke-width="${L}"/>
-        <ellipse cx="${x + 3.4}" cy="57.6" rx="4.1" ry="2.3" fill="${HELL}" stroke="${RAND}" stroke-width="${L * 0.8}"/></g>`;
+    const FELL = "#e3a24a", FELL2 = "#cf8b33", HELL = "#f6e1bb", RAND = "#76471a", DUNKEL = "#2e1c0c",
+      ROST = "#b9642a", AUGE = "#8fdc4f", GOLDRING = "#d4a53c", ROSA = "#e39a8c", CAPE = "#a82a22", CAPE2 = "#65150f", GOLD = "#e8c25a";
+    const L = 1;     // feine Linien
+    // Rosette: rostroter Kern, unterbrochener dunkler Rand (typisch Bengal).
+    const rosette = (x, y, r, w = 0) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.7}" transform="rotate(${w} ${x} ${y})"
+      fill="${ROST}" stroke="${DUNKEL}" stroke-width="0.9" stroke-dasharray="${(r * 1.6).toFixed(1)} ${(r * 0.7).toFixed(1)}" opacity="0.92"/>`;
+    const punkt = (x, y, r) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.75}" fill="${DUNKEL}" opacity="0.8"/>`;
+    const streifen = (x, y, b) => `<path d="M${x + b * 0.15},${y} q${b * 0.35},1.2 ${b * 0.7},0" stroke="${DUNKEL}" stroke-width="0.9" fill="none" stroke-linecap="round" opacity="0.5"/>`;
+    // Beine als geformte, leicht zulaufende Pfade mit Pfote und Zehen (vorher
+    // Rechtecke - sahen aus wie Stelzen). Hinterbeine mit Knick nach hinten.
+    const vorderbein = (cls, x, farbe) => `<g class="mi-leg ${cls}">
+        <path d="M${x - 0.6},37 C${x - 1.2},44 ${x + 0.2},50 ${x + 0.4},55 L${x + 7.4},55 C${x + 7.8},50 ${x + 9},44 ${x + 9.2},37 Z" fill="${farbe}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        ${streifen(x + 0.2, 45.5, 7.8)}${streifen(x + 0.4, 50, 7.2)}
+        <path d="M${x - 1},54.6 C${x - 1.2},58.8 ${x + 9.2},59 ${x + 9.2},55 C${x + 6.4},53.6 ${x + 1.8},53.6 ${x - 1},54.6 Z" fill="${HELL}" stroke="${RAND}" stroke-width="${L * 0.8}"/>
+        <path d="M${x + 2.6},56.4 v1.4 M${x + 5.4},56.4 v1.4" stroke="${RAND}" stroke-width="0.5" stroke-linecap="round"/></g>`;
+    const hinterbein = (cls, x, farbe) => `<g class="mi-leg ${cls}">
+        <path d="M${x - 3},32 C${x - 5},40 ${x - 1},44 ${x + 1},47 C${x + 1.5},50 ${x + 0.5},53 ${x + 0.6},55.5 L${x + 5.8},55.5 C${x + 6},51 ${x + 6.6},47 ${x + 6},43 C${x + 9},39 ${x + 9},34 ${x + 7},31 Z" fill="${farbe}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        ${streifen(x + 0.6, 48.5, 5.6)}${streifen(x + 0.6, 52.2, 5.2)}
+        <path d="M${x - 0.4},55.2 C${x - 0.4},58.6 ${x + 7.8},58.8 ${x + 8},55.6 C${x + 5.8},54.4 ${x + 1.8},54.4 ${x - 0.4},55.2 Z" fill="${HELL}" stroke="${RAND}" stroke-width="${L * 0.8}"/></g>`;
     return `<svg viewBox="0 -24 106 94" xmlns="http://www.w3.org/2000/svg">
       <g class="mi-tail">
-        <path d="M25,31 C12,27 8,14 13,2 C17,-8 26,-11 30,-6 C25,-5 21,1 22,9 C23,18 28,22 30,27 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-        <path d="M14,-1 q3,-3 7,-1 M13,6 q4,-2 8,0 M15,14 q4,-1 7,1" stroke="${SPITZE}" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-        <path d="M29,-6 q-3,-2 -6,0" stroke="${SPITZE}" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M24,31 C11,27 7,14 12,2 C15,-6 22,-10 27,-8 C29,-7 29,-5 27,-4 C22,-3 19,2 20,9 C21,17 26,21 29,26 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M13.5,20 q3,-2.4 6.6,-0.4 M12,12 q3.6,-1.6 7.6,0.2 M12.4,4 q3.6,-1.2 7.4,0.8 M15,-3 q3,-0.6 6,1.6" stroke="${DUNKEL}" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+        <path d="M22,-8.6 C25,-9.4 28.6,-8 27.6,-5.4 C26,-4.2 23.6,-4.6 22,-5.4 Z" fill="${DUNKEL}"/>
       </g>
-      ${bein("mi-leg-b1", 25, FELL2)}${bein("mi-leg-f1", 58, FELL2)}
+      ${hinterbein("mi-leg-b1", 26, FELL2)}${vorderbein("mi-leg-f1", 57, FELL2)}
       <ellipse cx="46" cy="32" rx="29" ry="14" fill="${FELL}" stroke="${RAND}" stroke-width="${L}"/>
-      <ellipse cx="50" cy="39" rx="20" ry="6.5" fill="${HELL}" opacity="0.9"/>
-      ${fleck(32, 27, 2.2, 20)}${fleck(40, 24, 1.9)}${fleck(36, 35, 1.8, -15)}${fleck(46, 29, 1.7)}${fleck(55, 27, 1.8, 10)}${fleck(28, 34, 1.5)}${fleck(51, 35, 1.4)}
-      ${bein("mi-leg-b2", 34, FELL)}${bein("mi-leg-f2", 66, FELL)}
+      <ellipse cx="50" cy="40" rx="21" ry="6" fill="${HELL}" opacity="0.92"/>
+      ${rosette(60, 35, 2.6, 10)}${rosette(66, 29.5, 2.2)}${rosette(22, 38, 2.2, -20)}${rosette(30, 43, 2)}${rosette(44, 44, 1.8)}
+      ${punkt(69.4, 36.6, 0.9)}
+      ${hinterbein("mi-leg-b2", 34, FELL)}${vorderbein("mi-leg-f2", 65, FELL)}
       <g class="mi-cape">
-        <path d="M66,20 C60,15 50,15 42,17 C36,19 33,24 34,30 L37,27 L39,33 L43,28 L46,34 L50,28 L54,33 L57,27 C62,26 66,24 66,20 Z"
+        <path d="M67,19 C60,13 46,12 34,14 C24,16 16,23 12,33 C18,38 26,41.5 34,42 C42,42.5 50,39 56,33 C62,30 67,25 67,19 Z"
           fill="${CAPE}" stroke="${CAPE2}" stroke-width="${L}" stroke-linejoin="round"/>
-        <path d="M44,19 C40,22 38,26 38,30" stroke="#d45a45" stroke-width="1.1" fill="none" opacity="0.6"/>
-        <circle cx="65" cy="21" r="2.3" fill="${GOLD}" stroke="#8a6a2f" stroke-width="0.8"/>
+        <path d="M12.6,32.4 C18,37.6 26,41 34,41.4 C42,41.8 50,38.4 55.6,32.6" stroke="${GOLD}" stroke-width="1.3" fill="none" opacity="0.9"/>
+        <path d="M44,15 C36,20 30,28 28,39 M55,17 C49,22 45,29 44,39" stroke="${CAPE2}" stroke-width="0.8" fill="none" opacity="0.35"/>
+        <path d="M36,15.4 C27,18 20,25 16,32" stroke="#d45a45" stroke-width="1.2" fill="none" opacity="0.5"/>
+        <circle cx="66" cy="20.5" r="2.5" fill="${GOLD}" stroke="#8a6a2f" stroke-width="0.7"/>
       </g>
       <g class="mi-head">
-        <path d="M68,12 L66,-3 L76,6 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-        <path d="M69,8 L68,0 L73,5 Z" fill="${ROSA}"/>
-        <path d="M66.3,-2 l-1.6,-4.2 l3.2,2.2 Z" fill="${SPITZE}"/>
-        <path d="M86,11 L92,-3 L81,5 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-        <path d="M86,7 L90,0 L83,4 Z" fill="${ROSA}"/>
-        <path d="M91.7,-2 l1.6,-4.2 l-3.2,2.2 Z" fill="${SPITZE}"/>
-        <circle cx="79" cy="21" r="14.5" fill="${FELL}" stroke="${RAND}" stroke-width="${L}"/>
-        <ellipse cx="88" cy="27" rx="7.5" ry="5.5" fill="${HELL}"/>
-        ${fleck(72, 13, 1.5)}${fleck(78, 10, 1.4)}${fleck(70, 21, 1.3)}${fleck(73, 29, 1.2)}
+        <path d="M69,12 C67.6,5 68.6,-0.4 71,-1.6 C74.4,0.4 77.4,4 78.6,8 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M70.6,8.6 C70,4.6 70.6,1.6 71.8,1 C73.6,2.4 75.4,4.8 76,7.4 Z" fill="${ROSA}"/>
+        <path d="M84,9.6 C85.4,3.6 88.4,-0.6 90.6,-1 C91.8,2.6 91.8,7.6 89.8,12.4 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M85.8,9 C87,5 88.8,2.2 90,1.8 C90.6,4.4 90.4,7.6 89.2,10.2 Z" fill="${ROSA}"/>
+        <path d="M66,24 C65,13.6 71.6,7 80,7 C88,7 93.4,12 94.6,18 C97.6,20.4 99,23.4 98.4,26.4 C97.4,30.6 93.6,33.6 87,34.2 C76.6,35 66.8,31.6 66,24 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M86,24 C88,20.6 94,20.4 97.6,23.4 C98.8,27.4 96,31.6 90.6,32.8 C86.6,33 84.6,30 86,24 Z" fill="${HELL}"/>
+        <path d="M76.4,10.4 q-0.6,-2.4 0.4,-4.4 M80,10.2 q0.4,-2.4 1.8,-4" stroke="${DUNKEL}" stroke-width="0.7" fill="none" stroke-linecap="round" opacity="0.4"/>
+        ${rosette(71.4, 18, 1.5)}
         <g class="mi-eyes">
-          <path d="M79,20 Q84,14 89,20 Q84,25 79,20 Z" fill="${AUGE}" stroke="#2e4a22" stroke-width="0.8"/>
-          <ellipse cx="84.4" cy="20" rx="1.1" ry="3.6" fill="#132010"/>
-          <circle cx="86" cy="18.4" r="0.9" fill="#fff"/>
+          <path d="M80,19 Q85.4,11.8 91.4,18.4 Q86,26 80,19 Z" fill="${AUGE}" stroke="${GOLDRING}" stroke-width="0.8"/>
+          <ellipse cx="86" cy="19" rx="1.4" ry="4.4" fill="#10200c"/>
+          <circle cx="87.8" cy="17" r="1" fill="#fff"/><circle cx="84.6" cy="21.4" r="0.45" fill="#fff" opacity="0.8"/>
+          <path d="M80.2,19.2 Q85.4,12.6 91.2,18.6" stroke="${DUNKEL}" stroke-width="0.55" fill="none" opacity="0.8"/>
         </g>
-        <g class="mi-eyes-closed"><path d="M79,21 Q84,24 89,21" stroke="#2b2016" stroke-width="1.5" fill="none" stroke-linecap="round"/></g>
-        <path d="M93.4,24.6 l2.6,1.4 -2.6,1.2 Z" fill="#c9675a"/>
-        <path d="M95,27.4 q-2,3 -5,2.4" stroke="#6b3d1f" stroke-width="0.9" fill="none" stroke-linecap="round"/>
-        <path d="M90,25 l12,-2 M90,27 l12,1 M89,29 l11,3" stroke="#fff5e2" stroke-width="0.6" opacity="0.9"/>
+        <g class="mi-eyes-closed"><path d="M80.4,20 Q85.6,23 91,19.8" stroke="${DUNKEL}" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>
+        <path d="M80.4,19.8 C77.6,20.4 75.4,22 74,24" stroke="${DUNKEL}" stroke-width="0.8" fill="none" stroke-linecap="round" opacity="0.6"/>
+        <path d="M97.2,23.2 l1.8,1 -1.6,1.4 Z" fill="#c9675a"/>
+        <path d="M98.2,25.8 q-1.4,2.8 -4.6,2.6 M98.2,25.8 q0.4,2.6 -1,3.8" stroke="#6b3d1f" stroke-width="0.7" fill="none" stroke-linecap="round"/>
+        <circle cx="91.6" cy="26.2" r="0.35" fill="#6b3d1f"/><circle cx="93" cy="27.4" r="0.35" fill="#6b3d1f"/><circle cx="91.4" cy="28.2" r="0.35" fill="#6b3d1f"/>
+        <path d="M90,26 q-4.4,-2.4 -9.6,-2 M90.4,27.6 q-4.6,0 -10,1.4 M90,29.2 q-4,1.8 -8.4,4.2" stroke="#fff6e4" stroke-width="0.5" fill="none" opacity="0.85" stroke-linecap="round"/>
       </g>
     </svg>`;
   }
@@ -147,7 +167,7 @@
   function schedule(ms) {
     clearTimeout(timer);
     // Gemütlich: lange Pausen (Stefan: war zu viel).
-    const base = ms != null ? ms : rnd(7000, 15000);
+    const base = ms != null ? ms : rnd(6000, 13000);
     timer = setTimeout(nextAntic, base);
   }
 
@@ -156,10 +176,10 @@
     const jetzt = Date.now();
     // Verstellende Streiche: selten, mit Abstand, nicht wenn Mimi zufrieden ist,
     // nicht bei Eingaben/eigenem Zug. Am Handy ohne Licht-aus/Umfärben.
-    const streichErlaubt = jetzt > ruhigBis && jetzt - letzterStreich > STREICH_ABSTAND && !beschaeftigt() && Math.random() < 0.28;
+    const streichErlaubt = jetzt > ruhigBis && jetzt - letzterStreich > STREICH_ABSTAND && !beschaeftigt() && Math.random() < 0.36;
     if (streichErlaubt) {
       letzterStreich = jetzt;
-      const streiche = handy() ? [knopf, zeilenTausch, pfotenSpur] : [knopf, skinWechsel, lichtAus, zeilenTausch, pfotenSpur];
+      const streiche = handy() ? [knopf, lichtAus, zeilenTausch, pfotenSpur] : [knopf, skinWechsel, lichtAus, zeilenTausch, pfotenSpur];
       pick(streiche)();
       return;
     }
