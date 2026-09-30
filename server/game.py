@@ -554,6 +554,21 @@ class Game:
             c.setdefault("grosses_gluck", False)
         return True
 
+    def spieler_bekannt(self, player_id: Optional[str]) -> bool:
+        """Kennt dieser Server das Gerät - aus der laufenden Sitzung oder aus der
+        gespeicherten, die noch auf „Fortsetzen" wartet? Für das STILLE
+        Wiederbeitreten: ein Browser mit gemerkter ID aus einer ganz anderen
+        Installation (alter Test, anderer Laptop) soll nicht ungefragt als Gast
+        auftauchen (so geschehen: „Probe Schnell" im frisch entpackten 1.4.2)."""
+        if not player_id:
+            return False
+        if any(p.get("id") == player_id for p in self.players):
+            return True
+        if self.resume_available:
+            gespeichert = _read_json(SESSION_FILE) or {}
+            return any(p.get("id") == player_id for p in gespeichert.get("players", []))
+        return False
+
     def discard_saved_session(self) -> None:
         """Fängt eine frische Sitzung an, ohne die alte zu laden."""
         try:

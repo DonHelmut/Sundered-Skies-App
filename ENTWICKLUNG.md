@@ -47,6 +47,18 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.4.3 (30.09.2026): Kein stilles Wiederbeitreten fremder Geräte
+
+- Anlass: Im frisch entpackten 1.4.2 (leerer `data`) stand beim ersten Start
+  „Probe Schnell" als Gast im Kampf – ein Browser auf dem Laptop hatte ID und
+  Namen aus einem alten Test gemerkt und meldete sich beim Verbinden still an.
+- Das automatische Wiederbeitreten schickt jetzt `auto: true`; der Server nimmt
+  es nur von Geräten an, die er kennt (laufende Sitzung oder gespeicherte, die
+  auf „Fortsetzen" wartet – `Game.spieler_bekannt`). Sonst `joinError` mit
+  `grund: "unbekannt"`: das Handy vergisst die alte ID und zeigt die normale
+  Beitrittsseite. Von Hand beitreten geht wie immer. Test in `test_ws.py`.
+- Das Paket selbst war sauber (kein `data`, keine Charaktere) – geprüft.
+
 ## 1.4.2 (30.09.2026): Aktualisieren als .exe
 
 - **`Aktualisieren.exe`** statt `.bat` (Stefan: einfacher für Anwender). Quelle
@@ -482,8 +494,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.2** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.4.2 → 1.5 (oder 1.4.3) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.3** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.4.3 → 1.5 (oder 1.4.4) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

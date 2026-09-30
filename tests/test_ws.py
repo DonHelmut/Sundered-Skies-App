@@ -41,3 +41,24 @@ def test_clientlog_is_swallowed_and_silent():
     meta = {"role": "player", "playerId": None, "ip": "192.168.0.5"}
     asyncio.run(A.handle_message(ws, meta, {"type": "clientlog", "event": "wieder verbunden", "gapMs": 8200}))
     assert ws.sent == []
+
+
+def test_stilles_wiederbeitreten_nur_fuer_bekannte_geraete(fresh_game, monkeypatch):
+    """Ein Browser mit gemerkter ID aus einer anderen Installation darf nicht
+    ungefragt als Gast auftauchen – ein bekanntes Gerät kommt wieder rein."""
+    monkeypatch.setattr(A, "game", fresh_game)
+    ws = FakeWS()
+    meta = {"role": "player", "playerId": None, "ip": "10.0.0.5"}
+    fremd = {"type": "join", "name": "Probe Schnell", "characterId": None, "playerId": "plr-alt", "auto": True}
+    asyncio.run(A.handle_message(ws, meta, fremd))
+    assert ws.sent[-1] == {"type": "joinError", "grund": "unbekannt", "message": ""}
+    assert fresh_game.combatants == [] and fresh_game.players == []
+
+    # Von Hand beitreten (ohne auto) geht, und danach klappt auch das stille Wiederkommen.
+    asyncio.run(A.handle_message(ws, meta, {**fremd, "auto": False}))
+    assert ws.sent[-1]["type"] == "joined"
+    pid = ws.sent[-1]["playerId"]
+    ws2 = FakeWS()
+    asyncio.run(A.handle_message(ws2, {"role": "player", "playerId": None, "ip": "10.0.0.5"},
+                                 {**fremd, "playerId": pid}))
+    assert ws2.sent[-1] == {"type": "joined", "playerId": pid}

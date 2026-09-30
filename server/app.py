@@ -389,6 +389,15 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         return
 
     if mtype == "join":
+        # Stilles Wiederbeitreten (Handy verbindet sich neu, ohne dass jemand
+        # etwas angetippt hat) nur für Geräte, die dieser Server kennt. Sonst
+        # tauchten Browser mit gemerkter ID aus alten Installationen ungefragt
+        # als Gast auf. Das Handy vergisst die alte ID und zeigt die Beitrittsseite.
+        if msg.get("auto") and not game.spieler_bekannt(msg.get("playerId")):
+            diag.log(f"AUTO-BEITRITT verworfen: unbekanntes Gerät "
+                     f"({str(msg.get('name') or '?')[:40]!r}, ip={meta.get('ip', '?')})")
+            await ws.send_json({"type": "joinError", "grund": "unbekannt", "message": ""})
+            return
         # Spieler legt sich selbst einen Charakter an (Name aus dem Handy).
         # So kann jemand mitspielen, ohne dass der SL erst etwas eintragen muss.
         if msg.get("neuerCharakter"):

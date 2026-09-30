@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.4.2";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.4.3";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -557,7 +557,13 @@ function connect() {
       // Charakter wird gerade woanders gespielt oder ist unbekannt -> zurück
       // auf die Beitrittsseite, mit Erklärung.
       App.joined = false;
-      App.joinFehler = msg.message;
+      App.joinFehler = msg.message || null;
+      if (msg.grund === "unbekannt") {
+        // Gemerkte ID stammt von einem anderen/alten Server: vergessen, damit
+        // das Handy nicht bei jedem Verbinden wieder anklopft.
+        App.myPlayerId = null; App.myCharacterId = null;
+        try { localStorage.removeItem("playerId"); localStorage.removeItem("characterId"); } catch { /* egal */ }
+      }
       if (App.state && (App.state.roster || []).length) App.joinEntwurf.modus = "liste";
       if (msg.grund === "charakter-unbekannt") {
         // Veraltete ID aus einer früheren Runde vergessen - sonst meldet sich
@@ -729,7 +735,8 @@ function wsSend(obj) {
 
 function maybeAutoRejoin() {
   if (App.role === "player" && App.myPlayerId && App.myName) {
-    wsSend({ type: "join", name: App.myName, characterId: App.myCharacterId, playerId: App.myPlayerId });
+    // auto: der Server nimmt das nur von Geräten an, die er kennt (sonst Beitrittsseite).
+    wsSend({ type: "join", name: App.myName, characterId: App.myCharacterId, playerId: App.myPlayerId, auto: true });
     App.joined = true;
   }
 }
