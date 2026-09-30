@@ -58,7 +58,7 @@ Es öffnet sich die **Spielleiter-Ansicht** im Browser und im Terminal steht ein
 
 Die Rolle entscheidet der Server automatisch anhand der Adresse – Spieler können
 nicht versehentlich Spielleiter werden. Klappt der hübsche Name
-`http://pen-and-paper.local:8000/` bei einem Gerät nicht, einfach den QR-Code
+`http://pnp.local:8000/` bei einem Gerät nicht, einfach den QR-Code
 oder die IP-Adresse nehmen.
 
 ## Bedienung (Spielleiter)

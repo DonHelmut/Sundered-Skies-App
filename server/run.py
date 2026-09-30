@@ -1,7 +1,7 @@
 """Start-Einstiegspunkt (auch der Entry-Point der gebündelten .exe).
 
 - Ermittelt die LAN-IP, druckt QR-Code + Adresse im Terminal.
-- Registriert best-effort den Namen ``pen-and-paper.local`` per mDNS.
+- Registriert best-effort den Namen ``pnp.local`` per mDNS.
 - Öffnet die SL-Ansicht im Browser (localhost -> Loopback -> SL-Rolle).
 - Startet den Uvicorn-Server mit dem App-Objekt (bundle-fest, kein Import-String).
 """
@@ -156,7 +156,7 @@ def print_banner(ip: str) -> None:
     if ip.startswith("127."):
         print("\n  ACHTUNG: keine LAN-Adresse gefunden (WLAN verbunden?).")
         print("  127.0.0.1 erreicht NUR diesen Laptop, keine Handys.")
-    print(f"\n  (alternativ, falls verfuegbar:  http://{HOSTNAME}.local:{PORT}/)\n")
+    print(f"\n  (alternativ, falls verfuegbar:  http://{HOSTNAME}.local:{active_port()}/)\n")
     # QR im Terminal ist nur Komfort. Schlaegt die Ausgabe fehl (Zeichensatz),
     # bleibt der Server trotzdem erreichbar - der QR steht auch in der SL-Ansicht.
     try:

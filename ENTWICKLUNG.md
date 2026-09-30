@@ -47,6 +47,16 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.5.4 (30.09.2026): Kurzer Handy-Name pnp.local
+
+- Stefan: `pen-and-paper.local` war am Handy zu lang zum Tippen. Der
+  mDNS-Name ist jetzt `pnp` (`HOSTNAME` in `server/paths.py`), die Adresse
+  also `http://pnp.local:8000/`. Getestet: Windows löst `pnp.local` auf,
+  `/api/info` antwortet. Android kann `.local` je nach Version nicht – dort
+  bleiben IP-Adresse und QR-Code.
+- Nebenbei: der Start-Hinweis im Konsolenfenster nannte immer Port 8000,
+  auch wenn die App auf einen Ausweich-Port gewichen war.
+
 ## 1.5.3 (30.09.2026): Mimi wackelt Knöpfe nur an
 
 - Stefan: Mimi darf nicht wirklich z. B. neu austeilen. Tat sie nie (kein

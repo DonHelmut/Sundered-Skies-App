@@ -17,7 +17,8 @@ PORT = 8000            # Wunsch-Port
 # Ausweich-Ports, falls 8000 von einem anderen Programm belegt ist.
 PORT_CANDIDATES = [8000, 8001, 8010, 8080, 8088, 8123, 8765, 8899]
 ACTIVE_PORT = PORT     # wird beim Start auf den tatsaechlich benutzten Port gesetzt
-HOSTNAME = "pen-and-paper"
+# Kurz halten - Spieler tippen ihn am Handy ab (früher "pen-and-paper", zu lang).
+HOSTNAME = "pnp"
 
 
 def active_port() -> int:
@@ -28,7 +29,7 @@ def active_port() -> int:
 def set_active_port(port: int) -> None:
     global ACTIVE_PORT
     ACTIVE_PORT = int(port)
-APP_VERSION = "1.5.3"   # sichtbare Version (deckt sich mit ?v= der Web-Assets); ab 1.0 als 1.1, 1.2 …
+APP_VERSION = "1.5.4"   # sichtbare Version (deckt sich mit ?v= der Web-Assets); ab 1.0 als 1.1, 1.2 …
 
 # Adapter-Namen, die (fast) nie das echte Tisch-WLAN sind -> ans Ende sortieren.
 _VIRTUAL_HINTS = (
