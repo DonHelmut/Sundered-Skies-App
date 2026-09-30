@@ -166,7 +166,7 @@ function render() {
   const prevTokens = captureTokens();
 
   const zonesBlock = (s.combatants.length && window.Zones)
-    ? `<div class="tv-zones"><h2 class="tv-zones-title">Kampfzonen</h2>${Zones.renderTarget(s.combatants, { zones: s.zones, activeId: s.activeId, interactive: false, blurAnon: true })}</div>`
+    ? `<div class="tv-zones"><h2 class="tv-zones-title">Kampfzonen</h2><div class="tv-zones-inhalt">${Zones.renderTarget(s.combatants, { zones: s.zones, activeId: s.activeId, interactive: false, blurAnon: true })}</div></div>`
     : "";
 
   const timerBlock = s.phase === "running"
@@ -204,17 +204,88 @@ function render() {
       <div class="tv-round">Runde ${s.round}</div>
       ${timerBlock}
     </div>
-    ${spotlight}
-    ${zonesBlock}
-    <div class="tv-order">${tiles}</div>
+    <div class="tv-haupt">
+      <div class="tv-links"><div class="tv-buehne">${spotlight}</div><div class="tv-order">${tiles}</div></div>
+      ${zonesBlock}
+    </div>
     ${s.tvImage && (s.tvImage.imageUrl || s.tvImage.text) ? `<div class="tv-image-overlay">
       ${s.tvImage.imageUrl ? `<img src="${esc(s.tvImage.imageUrl)}">` : ""}
       ${s.tvImage.text ? `<div class="tv-image-caption">${esc(s.tvImage.text)}</div>` : ""}
     </div>` : ""}`;
 
+  einpassen();              // VOR playFlip: die Animation braucht die Endpositionen
   playFlip(prevRects);
   playTokens(prevTokens);
 }
+
+// Der TV/Beamer muss IMMER auf einen Bildschirm passen - dort scrollt niemand
+// (Stefan). Je nach Auflösung und Anzahl der Figuren wird darum gerechnet:
+// - Quer: das hohe Zonen-Board bekommt eine eigene Spalte rechts über die
+//   ganze Höhe (in einer flachen Reihe wurde es bei vielen Figuren winzig),
+//   links „Am Zug" + Reihenfolge. Hochkant: alles untereinander.
+// - Die Bühne („Am Zug") bleibt so hoch wie möglich, solange die Kacheln
+//   lesbar groß bleiben; Spaltenzahl so, dass die Kacheln am größten werden.
+const ZONEN_B = 480;          // natürliche Breite des Zonen-Boards (zones-target)
+function einpassen() {
+  const root = $("tv");
+  if (!root) return;
+  const hoehe = window.innerHeight, breite = window.innerWidth;
+  const hoch = hoehe > breite * 1.1;
+  document.body.classList.toggle("tv-hoch", hoch);
+  const haupt = root.querySelector(".tv-haupt");
+  const order = root.querySelector(".tv-order");
+  const buehne = root.querySelector(".tv-buehne");
+  const zonen = root.querySelector(".tv-zones");
+  const inhalt = root.querySelector(".tv-zones-inhalt");
+  const kacheln = order ? [...order.children] : [];
+  const n = kacheln.length;
+  const luecke = Math.max(6, Math.round(hoehe * 0.012));
+  if (order) order.style.setProperty("--luecke", luecke + "px");
+
+  // Zonen-Board einpassen: Faktor aus verfügbarer Höhe (quer: ganze Spalte,
+  // hochkant: fester Anteil) und höchstens gut ein Drittel der Breite.
+  const zonenEinpassen = (platzH, platzB) => {
+    if (!zonen || !inhalt) return;
+    inhalt.style.transform = "none";
+    const titel = zonen.querySelector(".tv-zones-title");
+    const titelH = titel ? titel.offsetHeight + 6 : 0;
+    const f = Math.max(0.2, Math.min(1.5, (platzH - titelH) / Math.max(1, inhalt.offsetHeight), platzB / ZONEN_B));
+    inhalt.style.transform = `scale(${f.toFixed(3)})`;
+    zonen.style.width = hoch ? "" : Math.ceil(ZONEN_B * f) + "px";
+  };
+  if (zonen) {
+    if (hoch) { zonen.style.height = Math.round(hoehe * 0.26) + "px"; zonenEinpassen(hoehe * 0.26, breite - 40); }
+    else { zonen.style.height = ""; zonenEinpassen(haupt ? haupt.clientHeight : hoehe * 0.8, breite * 0.34); }
+  }
+
+  let verhaeltnis = 1.5;                      // Höhe : Breite einer Kachel
+  if (n) {
+    order.style.setProperty("--kachel-b", "100px");
+    order.style.setProperty("--spalten", String(Math.min(n, 10)));
+    verhaeltnis = Math.max(...kacheln.map((k) => k.offsetHeight)) / 100 || 1.5;
+  }
+  const mindestens = Math.min(150, breite / 9);  // darunter wird es unleserlich
+  const stufen = n ? (hoch ? [0.3, 0.25, 0.2, 0.16] : [0.5, 0.44, 0.38, 0.32, 0.26, 0.2]) : [0.62];
+  let wahl = { b: 0, sp: 1 };
+  for (const anteil of stufen) {
+    if (buehne) buehne.style.height = Math.round(hoehe * anteil) + "px";
+    const H = order ? order.clientHeight : 0, B = order ? order.clientWidth : 0;
+    let best = { b: 0, sp: 1 };
+    for (let sp = 1; sp <= n; sp++) {
+      const zeilen = Math.ceil(n / sp);
+      const b = Math.min((B - (sp - 1) * luecke) / sp, (H - (zeilen - 1) * luecke) / zeilen / verhaeltnis);
+      if (b > best.b) best = { b, sp };
+    }
+    wahl = best;
+    if (!n || best.b >= mindestens) break;
+  }
+  if (order && n) {
+    order.style.setProperty("--kachel-b", Math.max(40, Math.floor(wahl.b)) + "px");
+    order.style.setProperty("--spalten", String(wahl.sp));
+  }
+}
+let _einpassenTakt = null;
+window.addEventListener("resize", () => { clearTimeout(_einpassenTakt); _einpassenTakt = setTimeout(einpassen, 80); });
 
 // Timer-Anzeige (nur darstellen, keine Steuerung).
 setInterval(() => {

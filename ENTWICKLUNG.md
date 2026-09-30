@@ -47,6 +47,24 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.4.7 (30.09.2026): TV passt immer auf einen Bildschirm
+
+- Stefan: Am TV/Beamer wird NIE gescrollt – alles muss auf eine Bildschirmseite,
+  je nach Auflösung und Größe anders.
+- `tv.html` hat `body.tv-modus` (100vh, overflow hidden). Aufbau quer: oben
+  Runde/Timer, links „Am Zug" (große Karte) + Reihenfolge, rechts das
+  Zonen-Board als eigene Spalte über die ganze Höhe (in einer flachen Reihe
+  wurde es bei vielen Figuren briefmarkenklein). Hochkant: untereinander.
+- `einpassen()` in tv.js (nach jedem render und bei resize): misst das
+  Seitenverhältnis einer Kachel, wählt die Bühnenhöhe so groß wie möglich,
+  solange die Kacheln lesbar bleiben (≥ min(150 px, Breite/9)), und die
+  Spaltenzahl mit den größten Kacheln (`--kachel-b`, `--spalten`); skaliert
+  das Zonen-Board (transform) in seine Spalte (höchstens ~34 % der Breite).
+- Nachgemessen mit 25 Figuren: 1024×768, 1280×720, 1920×1080, 3840×2160 und
+  hochkant 1080×1920 – nichts ragt heraus, nichts scrollt.
+- Gegnernamen auf den Kacheln in `--foe-name` (vorher festes Hellrosa, auf
+  Pergament kaum lesbar).
+
 ## 1.4.6 (30.09.2026): Eigenes Bild als Kartenrückseite
 
 - ⚙-Menü beim SL (nur Laptop, `.nur-sl`): „Kartenrückseite (für alle) – 🖼 Bild
@@ -539,8 +557,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.6** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.4.6 → 1.5 (oder 1.4.7) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.7** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.4.7 → 1.5 (oder 1.4.8) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst
