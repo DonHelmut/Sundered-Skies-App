@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.4.3";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.4.4";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -526,6 +526,7 @@ function connect() {
     try { msg = JSON.parse(ev.data); } catch { return; }
     if (msg.type === "pong") return;   // reiner Heartbeat, nichts zu tun
     if (msg.type === "hello") {
+      if (veraltetNeuLaden(msg.version, ASSET_VERSION)) return;
       App.role = msg.role;
       document.body.classList.toggle("player", App.role === "player");
       // Die SL-Optik (Kopfleiste, flache Panels, Liste als Tabelle) gilt nur am
@@ -731,6 +732,23 @@ function wsSend(obj) {
   }
   merkeFuerSpaeter(obj);
   return false;
+}
+
+// Nach einem Update laufen offene Tabs (Laptop, Handys, Beamer) mit dem ALTEN
+// Seiten-Code weiter und verbinden sich einfach neu - mit alter Logik. So kam
+// „Probe Schnell" trotz Schutz in 1.4.3 wieder rein. Weicht die Server-Version
+// ab: einmal neu laden. Hängt danach der Cache, zeigt versionLine() den Hinweis.
+function veraltetNeuLaden(serverVersion, eigene) {
+  let schon = null;
+  try { schon = sessionStorage.getItem("neuGeladenFuer"); } catch { /* egal */ }
+  if (!serverVersion || serverVersion === eigene) {
+    if (schon) try { sessionStorage.removeItem("neuGeladenFuer"); } catch { /* egal */ }
+    return false;
+  }
+  if (schon === serverVersion) return false;          // schon versucht - nicht im Kreis laden
+  try { sessionStorage.setItem("neuGeladenFuer", serverVersion); } catch { /* egal */ }
+  location.reload();
+  return true;
 }
 
 function maybeAutoRejoin() {

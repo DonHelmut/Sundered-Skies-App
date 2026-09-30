@@ -86,6 +86,17 @@ function connect() {
   ws.onmessage = (ev) => {
     TV.lastRecv = Date.now();
     let msg; try { msg = JSON.parse(ev.data); } catch { return; }
+    if (msg.type === "hello") {
+      // Nach einem Update: Beamer mit altem Code einmal neu laden (wie app.js).
+      const eigene = (/[?&]v=([^&]+)/.exec((document.querySelector('script[src*="tv.js"]') || {}).src || "") || [])[1];
+      let schon = null;
+      try { schon = sessionStorage.getItem("neuGeladenFuer"); } catch { /* egal */ }
+      if (msg.version && eigene && msg.version !== eigene && schon !== msg.version) {
+        try { sessionStorage.setItem("neuGeladenFuer", msg.version); } catch { /* egal */ }
+        location.reload();
+      }
+      return;
+    }
     if (msg.type === "state") {
       if (msg.state.serverNow) TV.clockOffset = msg.state.serverNow - Date.now();
       TV.state = msg.state; render();

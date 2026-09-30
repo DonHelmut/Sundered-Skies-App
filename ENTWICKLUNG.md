@@ -47,6 +47,22 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.4.4 (30.09.2026): Offene Tabs laden sich nach einem Update selbst neu
+
+- Anlass: Nach dem Update auf 1.4.3 kam „Probe Schnell" trotzdem wieder – ein
+  seit Stunden offener Browser-Tab auf dem Laptop lief noch mit dem Seiten-Code
+  von 1.4.2 und verband sich mit alter Logik neu.
+- Der Server schickt im `hello` seine Version; weicht sie vom geladenen Code ab,
+  lädt sich die Seite einmal neu (`veraltetNeuLaden`, Beamer in `tv.js`
+  genauso). Schutz gegen Endlosschleife: `sessionStorage.neuGeladenFuer` –
+  hängt der Cache trotzdem, bleibt der bekannte „Alte Seite im Cache"-Hinweis.
+- Greift erst für Tabs, die schon 1.4.4-Code haben: Tabs von vor 1.4.4 einmal
+  von Hand schließen/neu laden.
+- **Behoben: „☰ Mehr" war unsichtbar.** Die Kopfleiste verlängerte ihren
+  Hintergrund per `box-shadow` + `clip-path` bis an den Fensterrand – der
+  `clip-path` schnitt aber auch das aufgeklappte Menü unter der Leiste ab. Jetzt
+  per `.sl-kopf::before` (seit 1.0 so, fiel erst jetzt auf).
+
 ## 1.4.3 (30.09.2026): Kein stilles Wiederbeitreten fremder Geräte
 
 - Anlass: Im frisch entpackten 1.4.2 (leerer `data`) stand beim ersten Start
@@ -494,8 +510,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.3** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.4.3 → 1.5 (oder 1.4.4) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.4** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.4.4 → 1.5 (oder 1.4.5) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

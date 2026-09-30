@@ -1837,8 +1837,12 @@ body.sl-ansicht .order-raster { display: flex; flex-direction: column; }
 }
 /* Kopfleiste auf breiten Schirmen über die GANZE Fensterbreite (der Inhalt
    darunter bleibt auf 1800 px begrenzt): Hintergrund per Schatten nach links/
-   rechts verlängert, die Goldlinie per ::after. */
-body.sl-ansicht .sl-kopf { border-bottom: none; box-shadow: 0 0 0 100vmax var(--panel); clip-path: inset(0 -100vmax -3px); }
+   rechts verlängert per ::before, die Goldlinie per ::after. */
+/* NICHT per box-shadow + clip-path: der clip-path schnitt auch das aufgeklappte
+   „☰ Mehr"-Menü unterhalb der Leiste ab – es war unsichtbar. */
+body.sl-ansicht .sl-kopf { border-bottom: none; }
+body.sl-ansicht .sl-kopf::before { content: ""; position: absolute; top: 0; bottom: 0; left: -100vmax; right: -100vmax;
+  background: var(--panel); box-shadow: 0 3px 12px rgba(0,0,0,0.12); z-index: -1; }
 body.sl-ansicht .sl-kopf::after { content: ""; position: absolute; left: -100vmax; right: -100vmax; bottom: -2px;
   height: 2px; background: var(--gold); }
 

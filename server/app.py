@@ -330,7 +330,9 @@ async def websocket_endpoint(ws: WebSocket):
     diag.log(f"VERBUNDEN  {meta['role']:6s} ip={client_ip}")
 
     # Initialen Zustand senden.
-    await ws.send_json({"type": "hello", "role": meta["role"]})
+    # Version mitschicken: offene Tabs mit altem Code (nach einem Update) laden
+    # sich daran selbst neu, statt mit veralteter Logik weiterzulaufen.
+    await ws.send_json({"type": "hello", "role": meta["role"], "version": APP_VERSION})
     await ws.send_json({"type": "state",
                         "state": game.snapshot(fuer_spieler=meta["role"] != "gm")})
 
