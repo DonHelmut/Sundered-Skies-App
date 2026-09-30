@@ -47,6 +47,32 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.5.2 (30.09.2026): Mimi neu gezeichnet, versorgen, dosierter Schabernack
+
+- **Neues Aussehen** (`catSVG` in mimi.js): feinere Linien (1,3 statt 2),
+  größerer Kopf mit heller Schnauze, Nase, Maul, Schnurrhaaren, Auge mit
+  Glanzpunkt, rosa Innenohren mit Pinselspitzen, heller Bauch, Pfoten, kurzer
+  Umhang mit Goldspange (vorher verdeckte der Umhang den ganzen Körper).
+  Die Klassen `mi-tail`, `mi-leg-*`, `mi-head`, `mi-eyes` steuern die
+  Animationen – beim Umzeichnen beibehalten.
+- **Versorgen**: Antippen öffnet ein Menü 🍖 Futter · 💧 Trinken · 🧶 Spielen
+  · ✋ Streicheln (schließt nach 6 s oder bei Klick daneben). Wünsche zeigt sie
+  nur leise („miau?"), im Menü leuchtet der Wunsch. Versorgt ist sie eine
+  Weile zufrieden (`ruhigBis`: 1–3 min) – dann keine Streiche.
+- **Schabernack, der kurz etwas verstellt** (nur Optik, dreht sich selbst
+  zurück, nichts wird geklickt/gespeichert/gesendet): Knopf „drücken",
+  Design kurz umschalten (zurück auf `localStorage.skin`), Licht aus mit
+  leuchtenden Augen, zwei Zeilen vertauschen, Pfotenspur; dazu Wollknäuel.
+  Stefan fand es zu viel -> Pausen 7–15 s, verstellende Streiche nur mit 28 %
+  Chance und mindestens 70 s Abstand, nie bei Eingaben/Dialogen/eigenem Zug
+  (`beschaeftigt()`); am Handy ohne Licht-aus/Umfärben/Bildschirm-Dreher.
+  Beim Ausschalten wird alles Verstellte sofort zurückgesetzt (`spaeterZurueck`).
+- Läuft auch am Handy (⚙ → 🐈, pro Gerät).
+- `window.mimiStreich(name)` löst Streiche/Versorgen gezielt aus (Ausprobieren).
+- Behoben am Rand: `/api/info` und `/qr.png` nehmen den Port der Anfrage
+  (`_port_von`) – ein direkt mit uvicorn gestarteter Server (Testserver 8765)
+  zeigte sonst :8000 im QR-Code. Mit `server.run` war es schon richtig.
+
 ## 1.5.1 (30.09.2026): Ladebalken beim Aktualisieren
 
 - `Aktualisieren.exe` zeigt beim Download einen Balken, der sich in derselben
@@ -604,8 +630,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.1** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.5.1 → 1.6 (oder 1.5.2) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.2** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.5.2 → 1.6 (oder 1.5.3) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

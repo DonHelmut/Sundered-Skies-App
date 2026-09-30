@@ -1,89 +1,112 @@
-// Mimi die Katze – ein rein optisches, lokales Gimmick (pro Gerät an/aus).
-// EIN Schalter: ist sie an, rennt sie herum und treibt Schabernack (pfotelt an
-// Karten, schmeißt mal eine runter, dreht kurz den Bildschirm, springt mit Cape
-// rein und raus). Bedürfnisse erscheinen NICHT über dem Kopf – erst beim
-// Anklicken zeigt sie, was sie will, ein weiterer Klick erfüllt es.
+// Mimi die Katze – ein rein optisches, lokales Gimmick (pro Gerät an/aus, auch
+// am Handy). Ist sie an, streift sie herum, döst, pfotelt an Karten und treibt
+// ab und zu Schabernack.
+//
+// Schabernack mit „Sachen verstellen" (Design umschalten, Knöpfe drücken,
+// Licht aus, Zeilen vertauschen …) ist IMMER nur Optik auf diesem Gerät und
+// dreht sich nach ein paar Sekunden selbst zurück (Stefan: danach wieder die
+// Einstellungen des Nutzers). Mimi klickt nie wirklich, schickt nichts an den
+// Server und speichert nichts. Bei Eingaben/Dialogen/eigenem Zug lässt sie es.
+// Stefan fand es zu viel -> verstellende Streiche selten und mit Abstand.
+//
+// Interaktion: Antippen öffnet ein kleines Menü (Futter, Trinken, Spielen,
+// Streicheln). Ab und zu wünscht sie sich etwas – das zeigt sie nur leise
+// („miau?") und im Menü leuchtet der Wunsch. Eine versorgte Mimi ist eine
+// Weile ruhiger. Nichts davon drängt sich auf (Stefan: soll nicht nerven).
 
 (function () {
   const KEY = "mimi-on";
   let on = localStorage.getItem(KEY) === "1";
   let cat = null;
   let timer = null;
-  let need = null;          // "food" | "water" | "play" | null
-  let needShown = false;    // wurde das Bedürfnis schon (per Klick) aufgedeckt?
+  let need = null;              // "futter" | "trinken" | "spielen" | null
   let busy = false;
+  let menue = null;
+  let ruhigBis = 0;             // bis wann Mimi zufrieden (= keine Streiche) ist
+  let letzterStreich = 0;       // Abstand zwischen verstellenden Streichen
+  const STREICH_ABSTAND = 70000;
+  // Rücksetzer für laufenden Schabernack - beim Ausschalten sofort alle ausführen.
+  const zurueck = new Set();
+  function spaeterZurueck(fn, ms) {
+    const einmal = () => { if (zurueck.delete(einmal)) fn(); };
+    zurueck.add(einmal);
+    setTimeout(einmal, ms);
+  }
   const W = () => window.innerWidth;
   const H = () => window.innerHeight;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const handy = () => { try { return window.matchMedia("(pointer: coarse)").matches || W() < 700; } catch { return W() < 700; } };
 
-  // Gefleckter Serval mit grünen Augen, Luchs-Ohren und rotem Schal.
-  // Seitenansicht, blickt nach rechts. Handgezeichnet – Vibe des Referenzbilds.
+  // Serval mit grünen Augen, Luchs-Ohren und kurzem rotem Umhang mit Spange.
+  // Seitenansicht, blickt nach rechts. Feine Linien, großer Kopf (niedlicher),
+  // heller Bauch und Schnauze. Die Klassen (mi-tail, mi-leg-*, mi-head, mi-eyes …)
+  // steuern die Animationen in style.css - beim Umzeichnen beibehalten.
   function catSVG() {
-    const FUR = "#e9a84e", FUR2 = "#e0942f", EDGE = "#9c6118", SPOT = "#33240f",
-      TIP = "#20160c", EYE = "#6ff05c", SCARF = "#a83223", SCARF2 = "#7c2016";
-    const CAPE = "#a12822", CAPE2 = "#5c130f", CAPEHI = "#d1503a";   // zerfetzter roter Umhang (Referenzbild)
-    const sp = (x, y, r) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.78}" fill="${SPOT}"/>`;
+    const FELL = "#eaa954", FELL2 = "#dc9433", HELL = "#f8d9a0", RAND = "#8f5a1c", FLECK = "#3a2710",
+      SPITZE = "#22170c", AUGE = "#79ea5f", ROSA = "#e59a8f", CAPE = "#a82a22", CAPE2 = "#65150f", GOLD = "#e8c25a";
+    const L = 1.3;   // Linienstärke (vorher 2 - wirkte grob)
+    const fleck = (x, y, r, w = 0) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.72}" transform="rotate(${w} ${x} ${y})" fill="${FLECK}" opacity="0.85"/>`;
+    const bein = (cls, x, farbe) => `<g class="mi-leg ${cls}">
+        <rect x="${x}" y="40" width="6.4" height="18" rx="3.2" fill="${farbe}" stroke="${RAND}" stroke-width="${L}"/>
+        <ellipse cx="${x + 3.4}" cy="57.6" rx="4.1" ry="2.3" fill="${HELL}" stroke="${RAND}" stroke-width="${L * 0.8}"/></g>`;
     return `<svg viewBox="0 -24 106 94" xmlns="http://www.w3.org/2000/svg">
       <g class="mi-tail">
-        <path d="M24,32 q-13,-10 -9,-31 q1,-17 16,-19 q-10,9 -5,21 q5,11 -6,15 q12,3 4,20 Z" fill="${FUR}" stroke="${EDGE}" stroke-width="2"/>
-        <path d="M17,-9 q-1,-6 6,-9 M14,1 q-2,-6 5,-10 M15,12 q-1,-5 6,-8" stroke="${TIP}" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+        <path d="M25,31 C12,27 8,14 13,2 C17,-8 26,-11 30,-6 C25,-5 21,1 22,9 C23,18 28,22 30,27 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M14,-1 q3,-3 7,-1 M13,6 q4,-2 8,0 M15,14 q4,-1 7,1" stroke="${SPITZE}" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M29,-6 q-3,-2 -6,0" stroke="${SPITZE}" stroke-width="3" fill="none" stroke-linecap="round"/>
       </g>
-      <g class="mi-legs">
-        <rect class="mi-leg mi-leg-b1" x="24" y="42" width="7" height="17" rx="3.5" fill="${FUR2}" stroke="${EDGE}" stroke-width="1.5"/>
-        <rect class="mi-leg mi-leg-b2" x="34" y="42" width="7" height="17" rx="3.5" fill="${FUR}" stroke="${EDGE}" stroke-width="1.5"/>
-        <rect class="mi-leg mi-leg-f1" x="58" y="42" width="7" height="17" rx="3.5" fill="${FUR2}" stroke="${EDGE}" stroke-width="1.5"/>
-        <rect class="mi-leg mi-leg-f2" x="67" y="42" width="7" height="17" rx="3.5" fill="${FUR}" stroke="${EDGE}" stroke-width="1.5"/>
-      </g>
-      <ellipse cx="46" cy="33" rx="32" ry="15.5" fill="${FUR}" stroke="${EDGE}" stroke-width="2"/>
-      ${sp(50, 41, 2.7)}${sp(59, 37, 2.5)}${sp(64, 43, 2.2)}${sp(42, 39, 2.3)}${sp(36, 43, 2)}${sp(54, 45, 1.9)}
+      ${bein("mi-leg-b1", 25, FELL2)}${bein("mi-leg-f1", 58, FELL2)}
+      <ellipse cx="46" cy="32" rx="29" ry="14" fill="${FELL}" stroke="${RAND}" stroke-width="${L}"/>
+      <ellipse cx="50" cy="39" rx="20" ry="6.5" fill="${HELL}" opacity="0.9"/>
+      ${fleck(32, 27, 2.2, 20)}${fleck(40, 24, 1.9)}${fleck(36, 35, 1.8, -15)}${fleck(46, 29, 1.7)}${fleck(55, 27, 1.8, 10)}${fleck(28, 34, 1.5)}${fleck(51, 35, 1.4)}
+      ${bein("mi-leg-b2", 34, FELL)}${bein("mi-leg-f2", 66, FELL)}
       <g class="mi-cape">
-        <path d="M64,21 Q54,9 39,11 Q24,13 17,23 Q9,33 4,48 L8,41 L11,49 L16,41 L21,48 L26,40 L32,47 L38,39 L44,46 L50,38 L56,42 Q64,33 64,21 Z" fill="${CAPE}" stroke="${CAPE2}" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M39,13 Q23,18 9,43" stroke="${CAPEHI}" stroke-width="1.6" fill="none" opacity="0.5"/>
-        <path d="M55,24 q-7,5 -16,5" stroke="${CAPE2}" stroke-width="1.3" fill="none" opacity="0.6"/>
+        <path d="M66,20 C60,15 50,15 42,17 C36,19 33,24 34,30 L37,27 L39,33 L43,28 L46,34 L50,28 L54,33 L57,27 C62,26 66,24 66,20 Z"
+          fill="${CAPE}" stroke="${CAPE2}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M44,19 C40,22 38,26 38,30" stroke="#d45a45" stroke-width="1.1" fill="none" opacity="0.6"/>
+        <circle cx="65" cy="21" r="2.3" fill="${GOLD}" stroke="#8a6a2f" stroke-width="0.8"/>
       </g>
       <g class="mi-head">
-        <path d="M66,14 l-3,-14 12,7 Z" fill="${FUR}" stroke="${EDGE}" stroke-width="2"/>
-        <path d="M63,0 l3,7" stroke="${TIP}" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-        <path d="M60,-3 l3,4 M62,-4 l3,4" stroke="${TIP}" stroke-width="1.2"/>
-        <path d="M86,14 l5,-14 -12,7 Z" fill="${FUR}" stroke="${EDGE}" stroke-width="2"/>
-        <path d="M90,0 l-3,7" stroke="${TIP}" stroke-width="3.2" fill="none" stroke-linecap="round"/>
-        <circle cx="78" cy="24" r="14" fill="#efb662" stroke="${EDGE}" stroke-width="2"/>
-        ${sp(72, 18, 1.9)}${sp(84, 18, 1.9)}${sp(78, 14, 1.7)}${sp(70, 28, 1.7)}
+        <path d="M68,12 L66,-3 L76,6 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M69,8 L68,0 L73,5 Z" fill="${ROSA}"/>
+        <path d="M66.3,-2 l-1.6,-4.2 l3.2,2.2 Z" fill="${SPITZE}"/>
+        <path d="M86,11 L92,-3 L81,5 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M86,7 L90,0 L83,4 Z" fill="${ROSA}"/>
+        <path d="M91.7,-2 l1.6,-4.2 l-3.2,2.2 Z" fill="${SPITZE}"/>
+        <circle cx="79" cy="21" r="14.5" fill="${FELL}" stroke="${RAND}" stroke-width="${L}"/>
+        <ellipse cx="88" cy="27" rx="7.5" ry="5.5" fill="${HELL}"/>
+        ${fleck(72, 13, 1.5)}${fleck(78, 10, 1.4)}${fleck(70, 21, 1.3)}${fleck(73, 29, 1.2)}
         <g class="mi-eyes">
-          <ellipse cx="82" cy="23" rx="4.3" ry="5.3" fill="${EYE}"/>
-          <rect x="81" y="18.5" width="2" height="9" rx="1" fill="#16240f"/>
+          <path d="M79,20 Q84,14 89,20 Q84,25 79,20 Z" fill="${AUGE}" stroke="#2e4a22" stroke-width="0.8"/>
+          <ellipse cx="84.4" cy="20" rx="1.1" ry="3.6" fill="#132010"/>
+          <circle cx="86" cy="18.4" r="0.9" fill="#fff"/>
         </g>
-        <g class="mi-eyes-closed"><path d="M78,23 q4,3 8,0" stroke="#2b2016" stroke-width="2" fill="none" stroke-linecap="round"/></g>
-        <path d="M90,26 l5,2 -5,2 Z" fill="#c05a3a"/>
-        <path d="M91,23 h7 M91,28 h7" stroke="#efe0c2" stroke-width="1" opacity="0.85"/>
+        <g class="mi-eyes-closed"><path d="M79,21 Q84,24 89,21" stroke="#2b2016" stroke-width="1.5" fill="none" stroke-linecap="round"/></g>
+        <path d="M93.4,24.6 l2.6,1.4 -2.6,1.2 Z" fill="#c9675a"/>
+        <path d="M95,27.4 q-2,3 -5,2.4" stroke="#6b3d1f" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+        <path d="M90,25 l12,-2 M90,27 l12,1 M89,29 l11,3" stroke="#fff5e2" stroke-width="0.6" opacity="0.9"/>
       </g>
     </svg>`;
   }
 
   function mountToggle() {
-    const mk = (id, title) => {
-      const b = document.createElement("button");
-      b.id = id; b.title = title;
-      b.style.cssText = "padding:2px 6px;font-size:15px;line-height:1;border-radius:8px;";
-      return b;
-    };
-    const btn = mk("mimi-toggle", "Mimi die Katze an/aus");
+    const btn = document.createElement("button");
+    btn.id = "mimi-toggle";
+    btn.style.cssText = "padding:2px 6px;font-size:15px;line-height:1;border-radius:8px;";
     btn.textContent = "🐈";
-    btn.style.opacity = on ? "1" : "0.45";
+    const titel = () => { btn.style.opacity = on ? "1" : "0.45"; btn.title = on ? "Mimi läuft herum – antippen: Futter, Trinken, Spielen. Klick hier: weg" : "Mimi die Katze an/aus"; };
+    titel();
     btn.addEventListener("click", () => {
       on = !on;
       localStorage.setItem(KEY, on ? "1" : "0");
-      btn.style.opacity = on ? "1" : "0.45";
-      btn.title = on ? "Mimi läuft herum – Klick: weg" : "Mimi die Katze an/aus";
+      titel();
       if (on) spawn(); else despawn();
     });
-
     // In die Skin-Leiste einreihen (kein Überlappen); sonst eigener Cluster (TV).
     const host = document.getElementById("skins");
-    if (host) {
-      host.insertBefore(btn, host.firstChild);
-    } else {
+    if (host) host.insertBefore(btn, host.firstChild);
+    else {
       const box = document.createElement("div");
       box.style.cssText = "position:fixed;top:6px;right:8px;z-index:71;display:flex;gap:6px;";
       box.appendChild(btn);
@@ -98,20 +121,22 @@
     cat.innerHTML = catSVG();
     cat.style.left = rnd(20, W() - 140) + "px";
     cat.style.top = (H() - 150) + "px";
-    cat.addEventListener("click", onClick);
+    cat.addEventListener("click", (e) => { e.stopPropagation(); menueUmschalten(); });
     document.body.appendChild(cat);
     setState("sit");
-    schedule(1800);
+    schedule(2500);
   }
   function despawn() {
     clearTimeout(timer);
+    [...zurueck].forEach((fn) => fn());      // Verstelltes sofort zurück
+    menueZu();
     if (cat) { cat.remove(); cat = null; }
-    need = null; needShown = false; busy = false;
+    need = null; busy = false;
   }
 
   function setState(s) {
     if (!cat) return;
-    cat.classList.remove("mi-sit", "mi-walk", "mi-sleep", "mi-happy", "mi-paw");
+    cat.classList.remove("mi-sit", "mi-walk", "mi-sleep", "mi-happy", "mi-paw", "mi-eat");
     cat.classList.add("mi-" + s);
   }
   function faceTowards(x) {
@@ -121,33 +146,40 @@
 
   function schedule(ms) {
     clearTimeout(timer);
-    const base = ms != null ? ms : rnd(5500, 12000);   // gemütlich – längere Pausen
+    // Gemütlich: lange Pausen (Stefan: war zu viel).
+    const base = ms != null ? ms : rnd(7000, 15000);
     timer = setTimeout(nextAntic, base);
   }
 
   function nextAntic() {
-    if (!on || !cat || busy) { schedule(); return; }
-    // Gemütlich: streift mal umher, döst gern, ein bisschen Schabernack – aber
-    // ruhig. Aus dem Bild springen und Bildschirm-Dreher nur ganz selten.
-    const frisky = need ? 2 : 1;
+    if (!on || !cat || busy || menue) { schedule(); return; }
+    const jetzt = Date.now();
+    // Verstellende Streiche: selten, mit Abstand, nicht wenn Mimi zufrieden ist,
+    // nicht bei Eingaben/eigenem Zug. Am Handy ohne Licht-aus/Umfärben.
+    const streichErlaubt = jetzt > ruhigBis && jetzt - letzterStreich > STREICH_ABSTAND && !beschaeftigt() && Math.random() < 0.28;
+    if (streichErlaubt) {
+      letzterStreich = jetzt;
+      const streiche = handy() ? [knopf, zeilenTausch, pfotenSpur] : [knopf, skinWechsel, lichtAus, zeilenTausch, pfotenSpur];
+      pick(streiche)();
+      return;
+    }
     const bag = [
-      "walk", "walk", "walk",
-      "sit", "sit", "sit",
-      "paw", "knock",
-      ...(Math.random() < 0.16 ? ["sleep"] : []),
-      ...(Math.random() < 0.14 ? ["miau"] : []),
-      ...(Math.random() < 0.04 ? ["exit"] : []),           // selten aus dem Bild springen
-      ...(Math.random() < 0.05 * frisky ? ["flip"] : []),  // selten der Bildschirm-Dreher
-      ...(!need && Math.random() < 0.3 ? ["want"] : []),
+      "walk", "walk", "walk", "sit", "sit", "sit", "paw", "wolle",
+      ...(jetzt > ruhigBis ? ["knock"] : []),
+      ...(Math.random() < 0.2 ? ["sleep"] : []),
+      ...(Math.random() < 0.08 ? ["miau"] : []),
+      ...(Math.random() < 0.03 ? ["exit"] : []),
+      ...(Math.random() < 0.02 && !handy() && jetzt > ruhigBis ? ["flip"] : []),
+      ...(!need && Math.random() < 0.18 ? ["want"] : []),
     ];
-    ({ sleep, sit, walk, paw, knock, flip, want, miau, exit: exitAndReturn }[pick(bag)] || sit)();
+    ({ sleep, sit, walk, paw, knock, flip, want, miau, exit: exitAndReturn, wolle }[pick(bag)] || sit)();
   }
 
   function sit() { setState("sit"); schedule(); }
   function sleep() {
     setState("sleep");
     say("Zzz", 4500, true);
-    schedule(rnd(6000, 12000));   // nur ein kurzes Nickerchen – dann wieder los
+    schedule(rnd(8000, 15000));
   }
   // Ein Sprung von der aktuellen Position nach (x,y): Bogen statt Gleiten.
   function leapTo(x, y, then, allowOffscreen) {
@@ -160,7 +192,7 @@
     cat.classList.add("mi-jump");
     cat.style.transition = "left 0.5s ease, top 0.5s ease";
     cat.style.left = (allowOffscreen ? x : Math.max(2, Math.min(W() - 96, x))) + "px";
-    cat.style.top = y + "px";
+    cat.style.top = Math.max(50, Math.min(H() - 100, y)) + "px";
     setTimeout(() => {
       if (!cat) return;
       cat.classList.remove("mi-jump");
@@ -168,16 +200,16 @@
       then();
     }, 560);
   }
+  const fertig = () => { busy = false; if (cat) setState("sit"); schedule(); };
 
   function walk(done) {
-    // Flink in 1–2 Sätzen von A nach B hüpfen.
     const target = Math.random() < 0.5 ? rnd(10, W() * 0.4) : rnd(W() * 0.6, W() - 130);
     const hops = Math.random() < 0.5 ? 2 : 1;
     const step = (n) => {
       const fromX = parseFloat(cat.style.left) || 0;
       const nx = n >= hops ? target : fromX + (target - fromX) * 0.55;
       leapTo(nx, rnd(H() * 0.4, H() - 140), () => {
-        if (n >= hops) { busy = false; setState("sit"); if (done) done(); else schedule(); }
+        if (n >= hops) { if (done) { busy = false; setState("sit"); done(); } else fertig(); }
         else step(n + 1);
       });
     };
@@ -193,43 +225,42 @@
     const r = holder.getBoundingClientRect();
     leapTo(r.left - 46, r.top + r.height * 0.35, () => {
       if (!cat) return;
-      cat.classList.remove("mi-flip-x"); // schaut zur Karte (nach rechts)
+      cat.classList.remove("mi-flip-x");
       setState("sit");
       then(r, holder);
     });
   }
   function paw() {
     const holder = nearestCard();
-    if (!holder) { walk(); return; }   // keine Karten da -> lieber weiterrennen
+    if (!holder) { walk(); return; }
     goToCard(holder, () => {
       cat.classList.add("mi-paw");
       holder.classList.add("mi-wiggle");
       setTimeout(() => holder.classList.remove("mi-wiggle"), 700);
-      setTimeout(() => { if (cat) cat.classList.remove("mi-paw"); busy = false; schedule(); }, 800);
+      setTimeout(fertig, 800);
     });
   }
   function knock() {
     const holder = nearestCard();
-    if (!holder) { walk(); return; }   // keine Karten da -> lieber weiterrennen
+    if (!holder) { walk(); return; }
     goToCard(holder, () => {
       cat.classList.add("mi-paw");
       say("😹", 1400);
       holder.classList.add("mi-knockoff");
       setTimeout(() => holder.classList.remove("mi-knockoff"), 1400);
-      setTimeout(() => { if (cat) cat.classList.remove("mi-paw"); busy = false; schedule(); }, 1500);
+      setTimeout(fertig, 1500);
     });
   }
   function flip() {
     document.documentElement.classList.add("mimi-flip");
     say("😼", 1300);
-    setTimeout(() => document.documentElement.classList.remove("mimi-flip"), 1300);
-    schedule(rnd(10000, 20000));
+    spaeterZurueck(() => document.documentElement.classList.remove("mimi-flip"), 1300);
+    schedule(rnd(12000, 20000));
   }
 
-  // Dramatischer Auftritt: mit Cape aus dem Sichtfeld springen und wieder rein.
+  // Dramatischer Auftritt: aus dem Sichtfeld springen und wieder rein.
   function exitAndReturn() {
     busy = true;
-    cat.classList.add("mi-caped");
     const exitX = Math.random() < 0.5 ? -140 : W() + 40;
     leapTo(exitX, rnd(H() * 0.4, H() - 140), () => {
       if (!cat) return;
@@ -241,12 +272,148 @@
         cat.style.top = (H() - 150) + "px";
         void cat.offsetWidth;
         const target = enterLeft ? rnd(30, W() * 0.4) : rnd(W() * 0.6, W() - 130);
-        leapTo(target, rnd(H() * 0.45, H() - 140), () => {
-          if (cat) cat.classList.remove("mi-caped");   // gelandet -> Cape ab
-          busy = false; setState("sit"); schedule();
-        });
+        leapTo(target, rnd(H() * 0.45, H() - 140), fertig);
       }, rnd(700, 1600));
     }, true);
+  }
+
+  // --- Schabernack, der kurz etwas verstellt -------------------------------
+  function beschaeftigt() {
+    const a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return true;
+    return !!document.querySelector(".app-dialog-hg, .angriff-popup, .kontext-menue, .msg-overlay, .dl-blatt, .myturn-banner, .kampf-bau");
+  }
+  function sichtbar(el) {
+    const r = el.getBoundingClientRect();
+    return r.width > 20 && r.height > 12 && r.top > 60 && r.bottom < H() - 20 && r.left > 0 && r.right < W();
+  }
+  // Auf einen Knopf springen und ihn „drücken" - nur die Optik, kein Klick.
+  function knopf() {
+    const kandidaten = [...document.querySelectorAll("#app button, #skin-gear")]
+      .filter((b) => sichtbar(b) && !b.disabled && !b.closest(".aktionsleiste, .kopf-menue-inhalt"));
+    if (!kandidaten.length) { walk(); return; }
+    const b = pick(kandidaten);
+    const r = b.getBoundingClientRect();
+    leapTo(r.left - 70, r.top + r.height / 2 - 60, () => {
+      if (!cat) return;
+      cat.classList.remove("mi-flip-x");
+      cat.classList.add("mi-paw");
+      b.classList.add("mi-gedrueckt");
+      say(pick(["*klick*", "*drück*", "😼"]), 1100);
+      spaeterZurueck(() => b.classList.remove("mi-gedrueckt"), 700);
+      setTimeout(fertig, 900);
+    });
+  }
+  // Das Design kurz umschalten - danach wieder das, was der Nutzer eingestellt hat.
+  const SKINS = ["sand", "skies", "blood", "dark", "glutstein", "nebelmeer", "pergament"];
+  function skinWechsel() {
+    const jetzt = SKINS.find((s) => document.body.classList.contains("theme-" + s));
+    if (!jetzt) { knopf(); return; }                 // TV & Co. ohne Designs
+    const gear = document.getElementById("skin-gear");
+    const umschalten = () => {
+      const anders = pick(SKINS.filter((s) => s !== jetzt));
+      document.body.classList.remove(...SKINS.map((s) => "theme-" + s));
+      document.body.classList.add("theme-" + anders);
+      say("😼 hihi", 1500);
+      spaeterZurueck(() => {
+        // Die Einstellung des Nutzers - auch falls er in der Zwischenzeit selbst umgestellt hat.
+        let eigen = null;
+        try { eigen = localStorage.getItem("skin"); } catch { /* egal */ }
+        const ziel = SKINS.includes(eigen) ? eigen : jetzt;
+        document.body.classList.remove(...SKINS.map((s) => "theme-" + s));
+        document.body.classList.add("theme-" + ziel);
+      }, rnd(2500, 4000));
+      fertig();
+    };
+    if (gear && sichtbar(gear)) {
+      const r = gear.getBoundingClientRect();
+      leapTo(r.left - 80, r.top + 10, () => {
+        if (!cat) return;
+        cat.classList.add("mi-paw");
+        gear.classList.add("mi-gedrueckt");
+        spaeterZurueck(() => gear.classList.remove("mi-gedrueckt"), 600);
+        setTimeout(umschalten, 450);
+      });
+    } else umschalten();
+  }
+  // Licht aus: alles dunkel, nur Mimis Augen leuchten.
+  function lichtAus() {
+    if (!cat) return;
+    busy = true;
+    setState("sit");
+    const nacht = document.createElement("div");
+    nacht.className = "mimi-nacht";
+    const r = cat.getBoundingClientRect();
+    const links = cat.classList.contains("mi-flip-x");
+    const ax = r.left + (links ? 0.2 : 0.8) * r.width, ay = r.top + 0.47 * r.height;
+    nacht.innerHTML = `<span class="mimi-auge" style="left:${ax - 7}px;top:${ay}px"></span><span class="mimi-auge" style="left:${ax + 5}px;top:${ay}px"></span>`;
+    document.body.appendChild(nacht);
+    say("👀", 1800);
+    spaeterZurueck(() => nacht.remove(), 2600);
+    setTimeout(fertig, 2700);
+  }
+  // Zwei Zeilen der Reihenfolge kurz vertauschen (nur Optik).
+  function zeilenTausch() {
+    const zeilen = [...document.querySelectorAll(".combatant")].filter(sichtbar);
+    if (zeilen.length < 2) { paw(); return; }
+    const i = Math.floor(rnd(0, zeilen.length - 1));
+    const a = zeilen[i], b = zeilen[i + 1];
+    const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    leapTo(ra.left - 80, ra.top, () => {
+      if (!cat) return;
+      cat.classList.remove("mi-flip-x");
+      cat.classList.add("mi-paw");
+      [a, b].forEach((z) => z.classList.add("mi-tausch"));
+      a.style.transform = `translate(${rb.left - ra.left}px, ${rb.top - ra.top}px)`;
+      b.style.transform = `translate(${ra.left - rb.left}px, ${ra.top - rb.top}px)`;
+      say("🙀", 1400);
+      spaeterZurueck(() => {
+        a.style.transform = ""; b.style.transform = "";
+        setTimeout(() => [a, b].forEach((z) => z.classList.remove("mi-tausch")), 400);
+      }, 2200);
+      setTimeout(fertig, 900);
+    });
+  }
+  // Wollknäuel rollt über den Boden, Mimi jagt hinterher.
+  function wolle(dannFroh) {
+    if (!cat) return;
+    const vonLinks = Math.random() < 0.5;
+    const y = H() - 70;
+    const k = document.createElement("div");
+    k.className = "mimi-wolle";
+    k.textContent = "🧶";
+    k.style.left = (vonLinks ? -40 : W() + 10) + "px";
+    k.style.top = y + "px";
+    document.body.appendChild(k);
+    void k.offsetWidth;
+    k.style.left = (vonLinks ? W() + 40 : -60) + "px";
+    k.style.transform = `rotate(${vonLinks ? 900 : -900}deg)`;
+    spaeterZurueck(() => k.remove(), 2400);
+    const ziel = vonLinks ? W() * 0.75 : W() * 0.2;
+    leapTo((parseFloat(cat.style.left) + ziel) / 2, y - 60, () => leapTo(ziel, y - 60, () => {
+      if (dannFroh === true) { busy = false; froh("♥"); schedule(); } else { say("🐾", 900); fertig(); }
+    }));
+  }
+  // Pfotenabdrücke quer über den Bildschirm, die langsam verblassen.
+  function pfotenSpur() {
+    if (!cat) return;
+    const start = parseFloat(cat.style.left) || 0;
+    const ziel = start < W() / 2 ? rnd(W() * 0.55, W() - 130) : rnd(20, W() * 0.4);
+    const y = rnd(H() * 0.35, H() - 140);
+    const n = 9;
+    for (let i = 0; i < n; i++) {
+      setTimeout(() => {
+        const p = document.createElement("div");
+        p.className = "mimi-pfote";
+        p.textContent = "🐾";
+        p.style.left = (start + (ziel - start) * (i / n) + 40) + "px";
+        p.style.top = (y + 62 + (i % 2 ? 7 : -7)) + "px";
+        p.style.transform = `rotate(${ziel > start ? 90 : -90}deg)`;
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 3200);
+      }, i * 120);
+    }
+    leapTo((start + ziel) / 2, y, () => leapTo(ziel, y, fertig));
   }
 
   // Miau-Nachricht: NUR das SL-Gerät verschickt sie (Hook prüft die Rolle).
@@ -256,37 +423,86 @@
     if (window.mimiSend) window.mimiSend(pick(CAT_PHRASES));
     schedule();
   }
+  // Ein Wunsch - nur leise angedeutet, im Menü leuchtet er dann.
   function want() {
-    need = pick(["food", "water", "play"]);
-    needShown = false;
+    need = pick(["futter", "trinken", "spielen"]);
     setState("sit");
-    say("miau?", 1600);           // leiser Hinweis, KEIN Dauer-Icon
-    schedule(rnd(4000, 9000));
+    say("miau?", 1600);
+    schedule(rnd(6000, 12000));
   }
 
-  // --- Klick-Interaktion: erst zeigen, was sie will, dann erfüllen ----------
-  const NEED_ICON = { food: "🍖", water: "💧", play: "🧶" };
-  function onClick() {
-    if (!cat) return;
-    if (need && !needShown) {
-      needShown = true;
-      say(NEED_ICON[need], 1800);           // Icon erscheint erst jetzt, beim Klick
-      return;
-    }
-    if (need && needShown) {                 // zweiter Klick = geben
-      say(NEED_ICON[need] + "♥", 1400);
-      need = null; needShown = false;
-      happy();
-      return;
-    }
-    happy();                                 // ohne Bedürfnis: einfach streicheln
-    say("♥", 1200);
+  // --- Interaktion: Antippen öffnet das Menü ---------------------------------
+  const WAHL = [
+    { key: "futter", icon: "🍖", text: "Futter" },
+    { key: "trinken", icon: "💧", text: "Trinken" },
+    { key: "spielen", icon: "🧶", text: "Spielen" },
+    { key: "streicheln", icon: "✋", text: "Streicheln" },
+  ];
+  let menueTimer = null;
+  function menueZu() {
+    clearTimeout(menueTimer);
+    if (menue) { menue.remove(); menue = null; }
   }
-  function happy() {
+  function menueUmschalten() {
+    if (!cat) return;
+    if (menue) { menueZu(); return; }
+    const r = cat.getBoundingClientRect();
+    menue = document.createElement("div");
+    menue.className = "mimi-menue";
+    menue.innerHTML = WAHL.map((w) => `<button type="button" data-mimi="${w.key}" class="${need === w.key ? "wunsch" : ""}" title="${w.text}">${w.icon}</button>`).join("");
+    document.body.appendChild(menue);
+    const mb = menue.getBoundingClientRect();
+    menue.style.left = Math.max(6, Math.min(W() - mb.width - 6, r.left + r.width / 2 - mb.width / 2)) + "px";
+    menue.style.top = Math.max(6, r.top - mb.height - 6) + "px";
+    menue.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-mimi]");
+      e.stopPropagation();
+      if (b) { menueZu(); versorgen(b.dataset.mimi); }
+    });
+    menueTimer = setTimeout(menueZu, 6000);   // schließt von selbst - soll nicht nerven
+  }
+  document.addEventListener("click", (e) => { if (menue && !e.target.closest(".mimi-menue, .mimi")) menueZu(); });
+
+  function froh(txt) {
     if (!cat) return;
     setState("sit");
     cat.classList.add("mi-happy");
     setTimeout(() => cat && cat.classList.remove("mi-happy"), 500);
+    if (txt) say(txt, 1400);
+  }
+  function versorgen(was) {
+    if (!cat || busy) return;
+    clearTimeout(timer);
+    const gewuenscht = need === was;
+    // Zufrieden = eine Weile keine Streiche (gewünscht: länger).
+    const ruhig = was === "streicheln" ? 60000 : gewuenscht ? 180000 : 90000;
+    ruhigBis = Math.max(ruhigBis, Date.now() + ruhig);
+    if (gewuenscht || was !== "streicheln") need = null;
+    if (was === "spielen") { wolle(true); return; }
+    if (was === "streicheln") {
+      setState("sleep");                       // Augen zu, schnurrt
+      say("schnurr… ♥", 2000, true);
+      setTimeout(() => { froh(); schedule(); }, 2200);
+      return;
+    }
+    // Futter/Trinken: Napf neben Mimi, sie frisst/trinkt, dann glücklich.
+    const r = cat.getBoundingClientRect();
+    const rechts = !cat.classList.contains("mi-flip-x");
+    const napf = document.createElement("div");
+    napf.className = "mimi-napf";
+    napf.textContent = was === "futter" ? "🍖" : "💧";
+    napf.style.left = (rechts ? r.right - 6 : r.left - 26) + "px";
+    napf.style.top = (r.bottom - 30) + "px";
+    document.body.appendChild(napf);
+    busy = true;
+    setState("eat");
+    say(was === "futter" ? "mampf" : "schlabber", 1600);
+    spaeterZurueck(() => napf.remove(), 2600);
+    setTimeout(() => {
+      busy = false;
+      froh(gewuenscht ? "♥♥" : "♥");
+      schedule();
+    }, 2400);
   }
 
   function say(txt, ms, follow) {
@@ -309,6 +525,15 @@
   window.addEventListener("resize", () => {
     if (cat) cat.style.left = Math.min(parseFloat(cat.style.left), W() - 130) + "px";
   });
+
+  // Nur zum Ausprobieren (Konsole/Musterseite): einen Streich gezielt auslösen.
+  window.mimiStreich = (name) => {
+    if (!cat) spawn();
+    busy = false;
+    ({ wolle, knopf, skin: skinWechsel, licht: lichtAus, tausch: zeilenTausch, pfoten: pfotenSpur, paw, knock, flip,
+       want, menue: menueUmschalten, futter: () => versorgen("futter"), trinken: () => versorgen("trinken"),
+       spielen: () => versorgen("spielen"), streicheln: () => versorgen("streicheln") }[name] || sit)();
+  };
 
   mountToggle();
   if (on) spawn();

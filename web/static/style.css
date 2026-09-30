@@ -2211,3 +2211,27 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
 .kampf-bau .kb-zeile select { padding: 3px 6px; font-size: 0.85rem; min-height: 0; height: auto; }
 .kampf-bau .kb-zeile .st-btn, .kampf-bau .kb-zeile .ghost.small { padding: 2px 8px; min-height: 0; }
 .kampf-bau .kb-dazu { padding: 5px 8px; font-size: 0.85rem; }
+
+/* Mimis Schabernack (nur Optik, dreht sich selbst zurück). */
+.mi-gedrueckt { transform: scale(0.9) !important; box-shadow: 0 0 0 3px var(--gold) !important; transition: transform 0.12s ease; }
+.mi-tausch { transition: transform 0.35s ease; position: relative; z-index: 3; }
+.mimi-nacht { position: fixed; inset: 0; z-index: 60; pointer-events: none; background: rgba(4, 3, 8, 0.9);
+  animation: mimiNacht 2.6s ease forwards; }
+@keyframes mimiNacht { 0% { opacity: 0; } 12%, 80% { opacity: 1; } 100% { opacity: 0; } }
+.mimi-auge { position: absolute; width: 7px; height: 9px; border-radius: 50%; background: #9cff7a;
+  box-shadow: 0 0 8px 3px rgba(111, 240, 92, 0.75); animation: mimiBlinzeln 1.3s steps(1) infinite; }
+@keyframes mimiBlinzeln { 0%, 88% { transform: scaleY(1); } 90%, 96% { transform: scaleY(0.1); } }
+.mimi-wolle { position: fixed; z-index: 58; font-size: 26px; pointer-events: none; transition: left 2.2s linear, transform 2.2s linear; }
+.mimi-pfote { position: fixed; z-index: 57; font-size: 14px; pointer-events: none; opacity: 0.55; animation: mimiPfote 3.2s ease forwards; }
+@keyframes mimiPfote { 0% { opacity: 0.6; } 100% { opacity: 0; } }
+
+/* Mimi versorgen: Menü beim Antippen, Napf, Fressen. */
+.mimi-menue { position: fixed; z-index: 61; display: flex; gap: 4px; padding: 5px; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); animation: miSay 0.2s ease; }
+.mimi-menue button { width: 38px; height: 38px; padding: 0; border-radius: 50%; font-size: 19px; line-height: 1;
+  background: var(--panel2); border: 1px solid var(--line); }
+.mimi-menue button.wunsch { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 0 0 12px var(--gold); animation: miWunsch 1.2s ease-in-out infinite; }
+@keyframes miWunsch { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.mimi-napf { position: fixed; z-index: 57; font-size: 22px; pointer-events: none; animation: miSay 0.25s ease; }
+.mimi.mi-eat .mi-head { transform-box: fill-box; transform-origin: 20% 90%; animation: miFressen 0.5s ease-in-out infinite; }
+@keyframes miFressen { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(16deg) translateY(3px); } }

@@ -114,20 +114,29 @@ async def no_cache_for_assets(request: Request, call_next):
     return resp
 
 
+def _port_von(request: Request) -> int:
+    """Der Port, über den die Anfrage WIRKLICH kam. Wird der Server nicht über
+    server.run gestartet (z. B. Testserver direkt mit uvicorn auf 8765), kennt
+    active_port() nur den Wunsch-Port 8000 - QR-Code und Adresse zeigten dann
+    ins Leere."""
+    return request.url.port or active_port()
+
+
 @app.get("/api/info")
-async def api_info():
+async def api_info(request: Request):
     """Beitritts-Info (IP/URL) – bei JEDEM Aufruf frisch, damit ein WLAN-Wechsel
     ohne Neustart auffällt. Liefert ALLE Kandidaten-IPs (falls eine nicht geht)."""
+    port = _port_von(request)
     ips = all_lan_ips()
     primary = ips[0] if ips else LOCAL_IP
     # netsh startet einen Prozess - nicht im Event-Loop warten (kurz gepuffert).
     wlan = await asyncio.get_event_loop().run_in_executor(None, winnet.wlan_info)
     return JSONResponse({
-        "ip": primary, "port": active_port(),
-        "url": f"http://{primary}:{active_port()}/",
+        "ip": primary, "port": port,
+        "url": f"http://{primary}:{port}/",
         "ips": ips,
-        "urls": [f"http://{ip}:{active_port()}/" for ip in ips],
-        "prettyUrl": f"http://{HOSTNAME}.local:{active_port()}/",
+        "urls": [f"http://{ip}:{port}/" for ip in ips],
+        "prettyUrl": f"http://{HOSTNAME}.local:{port}/",
         "version": APP_VERSION,
         "networkPublic": winnet.is_public(),   # True = WLAN „öffentlich" (Firewall blockt)
         "isWindows": os.name == "nt",
@@ -144,11 +153,11 @@ async def api_info():
 
 
 @app.get("/qr.png")
-async def qr_png():
+async def qr_png(request: Request):
     """QR-Code zur Beitritts-URL – bei jedem Aufruf frisch aus der AKTUELLEN
     LAN-IP (überlebt so einen WLAN-Wechsel ohne Neustart)."""
     ips = all_lan_ips()
-    url = f"http://{ips[0]}:{active_port()}/" if ips else join_url()
+    url = f"http://{ips[0]}:{_port_von(request)}/" if ips else join_url()
     buf = io.BytesIO()
     qrcode.make(url).save(buf, format="PNG")
     return Response(content=buf.getvalue(), media_type="image/png")
