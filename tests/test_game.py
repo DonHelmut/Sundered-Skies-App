@@ -1667,3 +1667,17 @@ def test_fortsetzen_behaelt_schon_verbundene_handys(fresh_game):
     assert neu.resume_session()
     assert next(p for p in neu.players if p["id"] == pid)["connected"]
     assert neu.charakter_aktiv_belegt(char, "plr-fremd") == "Tessa"
+
+
+def test_rueckseitenbild_bleibt_und_gilt_als_benutzt(fresh_game):
+    """Eigenes Rückseitenbild: wird gespeichert, geht an alle Geräte und wird
+    beim Aufräumen nicht als verwaist gelöscht. Nur /uploads/ zulässig."""
+    from server import game as gmod
+    import json
+    fresh_game.apply({"type": "set_rueckseite", "url": "/uploads/abc.jpg"})
+    assert fresh_game.snapshot()["rueckseiteBild"] == "/uploads/abc.jpg"
+    assert fresh_game.snapshot(fuer_spieler=True)["rueckseiteBild"] == "/uploads/abc.jpg"
+    assert json.loads(gmod.SETTINGS_FILE.read_text(encoding="utf-8"))["rueckseiteBild"] == "/uploads/abc.jpg"
+    assert "abc.jpg" in fresh_game.benutzte_bilder()
+    fresh_game.apply({"type": "set_rueckseite", "url": "https://fremd.example/x.jpg"})
+    assert fresh_game.rueckseite_bild is None

@@ -2132,3 +2132,10 @@ body.blatt-offen { overflow: hidden; }
 .app-dialog-text { line-height: 1.5; margin-bottom: 14px; }
 .app-dialog-eingabe { width: 100%; margin-bottom: 14px; box-sizing: border-box; }
 .app-dialog-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+
+/* ⚙-Menü: Kartenrückseite – nur am SL-Laptop (gilt für den ganzen Tisch). */
+.nur-sl { display: none; }
+body.sl-ansicht .nur-sl { display: block; }
+.rueckseite-pick { width: 100%; }
+.knopf-klein { display: inline-block; padding: 4px 8px; font-size: 0.8rem; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--panel2); color: var(--text); cursor: pointer; margin-right: 4px; }

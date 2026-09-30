@@ -47,6 +47,21 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.4.6 (30.09.2026): Eigenes Bild als Kartenrückseite
+
+- ⚙-Menü beim SL (nur Laptop, `.nur-sl`): „Kartenrückseite (für alle) – 🖼 Bild
+  wählen / Standard". Das Bild wird hochgeladen und liegt nur in
+  `data/uploads` (Einstellung `rueckseiteBild` in settings.json) – kommt also
+  nie ins öffentliche Repo oder Paket. Stefans Vorlage ist fremde Kunst mit
+  ungeklärten Rechten, darum so statt fest eingebaut.
+- Gestaltung „B" (Stefans Wahl aus `_lab_rueckseite.html`, nur lokal):
+  `rueckseiteMitBild` in cards.js – Bild farbig im Bronzerahmen, unten
+  abgedunkelt mit kleinem Kompass. Gilt für alle Karten ohne Charakterbild
+  (Karten mit Charakterbild behalten ihr Porträt), Handys und TV gleich.
+- Das Bild zählt beim „Alte Bilder aufräumen" als benutzt. Test in test_game.py.
+- Offen: Vorlage hat nur 236×363 px (auf Handy/TV unscharf); besser ein
+  größeres, eigenes Bild (Prompt-Vorschlag im Verlauf 30.09.).
+
 ## 1.4.5 (30.09.2026): Eigene Rückfragen statt Browser-Dialoge
 
 - Anlass: Beim Entfernen bot der Browser „Weitere Dialoge von localhost:8000
@@ -524,8 +539,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.5** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.4.5 → 1.5 (oder 1.4.6) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.6** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.4.6 → 1.5 (oder 1.4.7) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

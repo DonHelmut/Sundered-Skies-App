@@ -822,7 +822,46 @@ function renderCardSVG(card, image) {
   return svgWrap(frame(uid, tier, t) + center + corners + tierPlate(t, t.name, null), "tier-" + tier, d);
 }
 
+// Eigenes Rückseitenbild des Tisches (⚙ beim SL). Gilt für ALLE Karten ohne
+// Charakterbild; Karten mit Charakterbild behalten ihr Porträt.
+let rueckseiteBild = null;
+
+// Stil „B" (Stefan): Bild voll und farbig im Bronzerahmen, unten abgedunkelt
+// mit kleinem Kompass - so bleibt das Motiv sichtbar und es ist trotzdem
+// erkennbar „unsere" Kartenrückseite.
+function rueckseiteMitBild(bild) {
+  const id = "rs" + naechsteId();
+  const kompass = Array.from({ length: 8 }).map((_, i) => {
+    const a = (i * Math.PI) / 4;
+    return `<line x1="${(Math.cos(a) * 22).toFixed(1)}" y1="${(Math.sin(a) * 22).toFixed(1)}" x2="${(Math.cos(a) * 38).toFixed(1)}" y2="${(Math.sin(a) * 38).toFixed(1)}" stroke-width="${i % 2 ? 0.8 : 1.8}"/>`;
+  }).join("");
+  return `<svg class="card-svg card-back" viewBox="0 0 ${CARD_W} ${CARD_H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <clipPath id="${id}"><rect x="5" y="5" width="${CARD_W - 10}" height="${CARD_H - 10}" rx="16"/></clipPath>
+      <radialGradient id="${id}v" cx="50%" cy="42%" r="75%">
+        <stop offset="55%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#0c0904" stop-opacity="0.7"/>
+      </radialGradient>
+      <linearGradient id="${id}u" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#0c0904" stop-opacity="0"/><stop offset="1" stop-color="#0c0904" stop-opacity="0.75"/>
+      </linearGradient>
+    </defs>
+    <rect x="4" y="4" width="${CARD_W - 8}" height="${CARD_H - 8}" rx="18" fill="#0f0b06"/>
+    <g clip-path="url(#${id})">
+      <image href="${esc(bild)}" xlink:href="${esc(bild)}" x="5" y="5" width="${CARD_W - 10}" height="${CARD_H - 10}" preserveAspectRatio="xMidYMid slice"/>
+      <rect x="5" y="5" width="${CARD_W - 10}" height="${CARD_H - 10}" fill="url(#${id}v)"/>
+      <rect x="5" y="${CARD_H - 120}" width="${CARD_W - 10}" height="115" fill="url(#${id}u)"/>
+    </g>
+    <g transform="translate(${CARD_W / 2} ${CARD_H - 62})" stroke="${BRONZE_LT}" fill="none" opacity="0.9">
+      <circle r="30" stroke-width="1.6"/><circle r="22" stroke-width="0.8"/>${kompass}
+      <path d="M0,-27 L6,0 L0,27 L-6,0 Z" fill="${BRONZE_LT}" opacity="0.6"/>
+    </g>
+    <rect x="4" y="4" width="${CARD_W - 8}" height="${CARD_H - 8}" rx="18" fill="none" stroke="${BRONZE_LT}" stroke-width="5"/>
+    <rect x="11" y="11" width="${CARD_W - 22}" height="${CARD_H - 22}" rx="13" fill="none" stroke="${BRONZE_LT}" stroke-width="1.2" opacity="0.55"/>
+  </svg>`;
+}
+
 function renderBackSVG(image) {
+  if (!image && rueckseiteBild) return rueckseiteMitBild(rueckseiteBild);
   // Rückseite mit hochgeladenem Char-Bild: Porträt + Bronze-Rahmen + Vignette.
   // WICHTIG: für ALLE Karten identisch – darf den Joker nicht verraten.
   if (image) {
@@ -1051,6 +1090,7 @@ window.Cards = {
     jokerAuswahl = gut.length ? gut : JOKER_STILE.slice();
   },
   setJokerRunde: (n) => { jokerRunde = Number(n) || 0; },
+  setRueckseite: (url) => { rueckseiteBild = url || null; },
   // Klammer um einen kompletten Neuaufbau (siehe naechsteId).
   renderStart: () => { _renderSeq = 0; },
   renderEnde: () => { _renderSeq = null; },

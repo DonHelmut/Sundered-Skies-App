@@ -147,6 +147,7 @@ function render() {
   const s = TV.state;
   if (!s) return;
   Cards.setJokerRunde(s.round);             // gleicher Joker-Stil wie auf den Handys
+  Cards.setRueckseite(s.rueckseiteBild);    // eigenes Rückseitenbild wie beim SL
   const root = $("tv");
   const active = s.combatants.find((c) => c.id === s.activeId);
 

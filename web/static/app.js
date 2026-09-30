@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.4.5";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.4.6";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -1647,6 +1647,7 @@ function render() {
   if (!App.state || !App.role) return;
   const root = $("app");
   Cards.setJokerRunde(App.state.round);      // Joker-Stil bleibt je Runde fest
+  Cards.setRueckseite(App.state.rueckseiteBild);   // eigenes Rückseitenbild (⚙ beim SL)
 
   // Joker-Moment: beim SL sofort, wenn ein Joker gezogen wurde (er sieht alle
   // Karten ohnehin offen). Beim Spieler NICHT hier - das verriet den Joker schon
@@ -4392,6 +4393,7 @@ document.addEventListener("click", (e) => {
       try { if (kannVibrieren) navigator.vibrate([130, 70, 130]); } catch { /* egal */ }
       dranBlitz();
     },
+    "rueckseite-standard": () => { gmAction({ type: "set_rueckseite", url: null }); toast("Rückseite: Standard"); },
     "km-treffer": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; App.trefferSchaden = ""; trefferAuf(id); },
     "angriff-eigene": () => { App.angriffEigene = !App.angriffEigene; render(); },
     "angriff-waehlen": () => {
@@ -4653,6 +4655,9 @@ document.addEventListener("change", (e) => {
     uploadImage(t.files[0]);
   } else if (act === "pick-char-image") {
     uploadCharImage(t.files[0], t.getAttribute("data-id"));
+  } else if (act === "pick-rueckseite") {
+    uploadRueckseite(t.files[0]);
+    t.value = "";                    // dasselbe Bild nochmal wählen geht sonst nicht
   } else if (act === "pick-bestiary-image") {
     uploadBestiaryImage(t.files[0]);
   } else if (act === "pick-ally-image") {
@@ -4833,6 +4838,23 @@ async function uploadImage(file) {
   } catch { hinweis("Upload fehlgeschlagen."); }
 }
 
+// Eigenes Rückseitenbild hochladen (SL). Liegt danach in data/uploads - also
+// nur auf diesem Laptop, nie im öffentlichen Repo oder im Download-Paket.
+async function uploadRueckseite(file) {
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (res.ok) {
+      const j = await res.json();
+      gmAction({ type: "set_rueckseite", url: j.url });
+      toast("Rückseite gesetzt – gilt für alle Karten ohne Charakterbild");
+    } else if (res.status === 413) hinweis("Bild ist zu groß (max. 8 MB).");
+    else hinweis("Upload fehlgeschlagen.");
+  } catch { hinweis("Upload fehlgeschlagen."); }
+}
+
 // Char-Bild einer Figur hochladen und tischweit setzen (SL: jede; Spieler: eigene).
 async function uploadCharImage(file, cid) {
   if (!file || !cid) return;
@@ -4967,6 +4989,12 @@ function mountSkins() {
        <div class="muted small" style="margin-bottom:4px">Karten aufdecken</div>
        <select id="revealsel">${REVEALS.map((r) =>
          `<option value="${r}"${r === revealSetting() ? " selected" : ""}>${REVEAL_NAMES[r]}</option>`).join("")}</select>
+     </div>
+     <div class="rueckseite-pick nur-sl">
+       <div class="muted small" style="margin-bottom:4px">Kartenrückseite (für alle)</div>
+       <label class="knopf-klein" title="Eigenes Bild hochladen – bleibt nur auf diesem Laptop (Ordner data)">🖼 Bild wählen
+         <input type="file" accept="image/*" data-act="pick-rueckseite" style="display:none"></label>
+       <button type="button" class="knopf-klein" data-act="rueckseite-standard" title="Zurück zur grünen Rückseite">Standard</button>
      </div>
      <details class="joker-pick">
        <summary>🃏 Joker-Stile <span class="muted small" id="jokerzahl">${jokerZahlText()}</span></summary>

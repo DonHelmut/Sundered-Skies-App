@@ -28,7 +28,7 @@ def active_port() -> int:
 def set_active_port(port: int) -> None:
     global ACTIVE_PORT
     ACTIVE_PORT = int(port)
-APP_VERSION = "1.4.5"   # sichtbare Version (deckt sich mit ?v= der Web-Assets); ab 1.0 als 1.1, 1.2 …
+APP_VERSION = "1.4.6"   # sichtbare Version (deckt sich mit ?v= der Web-Assets); ab 1.0 als 1.1, 1.2 …
 
 # Adapter-Namen, die (fast) nie das echte Tisch-WLAN sind -> ans Ende sortieren.
 _VIRTUAL_HINTS = (

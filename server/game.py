@@ -312,6 +312,10 @@ class Game:
         self.schaden_rechnen = bool(settings.get("schadenRechnen", False))
         self.gruppen_karte = bool(settings.get("gruppenKarte", False))
         self.spieler_angriff = bool(settings.get("spielerAngriff", True))
+        # Eigenes Rückseitenbild (vom SL hochgeladen, liegt nur in data/uploads -
+        # kommt also nie ins öffentliche Repo oder Paket).
+        rs = settings.get("rueckseiteBild")
+        self.rueckseite_bild: Optional[str] = rs if isinstance(rs, str) and rs.startswith("/uploads/") else None
         self.benny_to_gm = bool(settings.get("bennyToGm", True))
         # Ton-Schalter des SL: gehoert zu den Einstellungen, nicht zum Kampf.
         # Stand frueher nur in der Sitzung - nach „Verwerfen" war er wieder an.
@@ -394,6 +398,7 @@ class Game:
             "schadenRechnen": self.schaden_rechnen,
             "gruppenKarte": self.gruppen_karte,
             "spielerAngriff": self.spieler_angriff,
+            "rueckseiteBild": self.rueckseite_bild,
         })
 
     def export_data(self) -> dict:
@@ -690,6 +695,7 @@ class Game:
             "schadenRechnen": self.schaden_rechnen,
             "gruppenKarte": self.gruppen_karte,
             "spielerAngriff": self.spieler_angriff,
+            "rueckseiteBild": self.rueckseite_bild,
             "deckCount": len(self.deck),
             "hasSavedSession": self.resume_available,
             "canUndo": len(self._history) > 0,
@@ -1752,6 +1758,8 @@ class Game:
                 url = g.get("image")
                 if isinstance(url, str) and url.startswith("/uploads/"):
                     benutzt.add(url.rsplit("/", 1)[-1])
+        if isinstance(self.rueckseite_bild, str) and self.rueckseite_bild.startswith("/uploads/"):
+            benutzt.add(self.rueckseite_bild.rsplit("/", 1)[-1])   # sonst „aufgeräumt"
         if isinstance(self.tv_image, dict):
             # Der Eintrag heisst "imageUrl" (siehe _do_message) - unter "url"
             # stand nie etwas, dadurch galt ein Bild, das GERADE auf dem TV
@@ -2006,6 +2014,13 @@ class Game:
             if feld == "spieler_angriff" and not self.spieler_angriff:
                 self.requests = [r for r in self.requests if r.get("kind") != "attack"]
             self.save_settings()
+
+    def _do_set_rueckseite(self, a: dict) -> None:
+        """Eigenes Bild für die Kartenrückseite (für ALLE Karten gleich - darf den
+        Joker nicht verraten). None = die grüne Standard-Rückseite."""
+        url = a.get("url")
+        self.rueckseite_bild = url if isinstance(url, str) and url.startswith("/uploads/") else None
+        self.save_settings()
 
     def _do_set_requests_enabled(self, a: dict) -> None:
         """Anfragen der Spieler ganz abschalten (dann sehen sie den Knopf nicht)."""
