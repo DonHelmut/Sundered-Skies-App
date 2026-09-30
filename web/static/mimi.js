@@ -38,47 +38,43 @@
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const handy = () => { try { return window.matchMedia("(pointer: coarse)").matches || W() < 700; } catch { return W() < 700; } };
 
-  // Bengalkatze mit großem rotem Umhang (Stefan: „mehr Bengale, feiner"):
-  // goldenes Fell mit zweifarbigen Rosetten (dunkler Rand, rostroter Kern),
-  // kleine abgerundete Ohren, „M" auf der Stirn, dunkle Linie vom Auge zur
-  // Backe, Auge mit Goldrand, heller Bauch und Schnauze, gestreifte Beine,
-  // geringelter Schwanz mit schwarzer Spitze. Seitenansicht, blickt nach rechts.
+  // Mimi: schlanke, helle Tigerkatze (gestreift) mit rotem Umhang - frech,
+  // verspielt, clever, cool und gerissen (Stefan). Die Bengal-Rosetten sahen
+  // gezeichnet nicht gut aus -> klare Streifen. Mehrere Fellfarben
+  // (MIMI_FELLE), gleiche Zeichnung. Seitenansicht, blickt nach rechts.
   // Die Klassen (mi-tail, mi-leg-*, mi-head, mi-eyes …) steuern die Animationen
   // in style.css - beim Umzeichnen beibehalten.
-  function catSVG() {
-    const FELL = "#e3a24a", FELL2 = "#cf8b33", HELL = "#f6e1bb", RAND = "#76471a", DUNKEL = "#2e1c0c",
-      ROST = "#b9642a", AUGE = "#8fdc4f", GOLDRING = "#d4a53c", ROSA = "#e39a8c", CAPE = "#a82a22", CAPE2 = "#65150f", GOLD = "#e8c25a";
+  const MIMI_FELLE = {
+    rot:    { name: "Rote Tigerkatze", fell: "#f1b26a", fell2: "#e39f55", hell: "#fbe8c8", rand: "#9a5a22", streif: "#c9742f", auge: "#9bd96a" },
+    creme:  { name: "Creme",           fell: "#f3dcb4", fell2: "#e8cc9c", hell: "#fcf3e2", rand: "#a0784a", streif: "#d4a86c", auge: "#e0b84c" },
+    silber: { name: "Silber-Tabby",    fell: "#dcd9d3", fell2: "#cbc7c0", hell: "#f6f4ef", rand: "#6e6862", streif: "#6f6964", auge: "#8fd06c" },
+    blau:   { name: "Blaugrau",        fell: "#bcc4cc", fell2: "#aab3bc", hell: "#eef1f4", rand: "#5d6671", streif: "#7b8591", auge: "#e3b34a" },
+  };
+  function catSVG(art) {
+    const F = MIMI_FELLE[art] || MIMI_FELLE.rot;
+    const FELL = F.fell, FELL2 = F.fell2, HELL = F.hell, RAND = F.rand, STREIF = F.streif, AUGE = F.auge,
+      DUNKEL = "#2a1a0e", OHR = "#efb8aa", NASE = "#d98579", CAPE = "#a82a22", CAPE2 = "#65150f", GOLD = "#e8c25a";
     const L = 1;     // feine Linien
-    // Rosette flach ins Fell gemalt: weicher dunkler Fleck, darin rostroter Kern,
-    // KEIN Rand (mit Rand sahen sie aus wie Warzen - Stefan).
-    const rosette = (x, y, r, w = 0) => `<g transform="rotate(${w} ${x} ${y})" opacity="0.8">
-      <ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.62}" fill="${DUNKEL}" opacity="0.55"/>
-      <ellipse cx="${x + r * 0.15}" cy="${y}" rx="${r * 0.55}" ry="${r * 0.32}" fill="${ROST}"/></g>`;
-    const punkt = (x, y, r) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.75}" fill="${DUNKEL}" opacity="0.8"/>`;
-    const streifen = (x, y, b) => `<path d="M${x + b * 0.15},${y} q${b * 0.35},1.2 ${b * 0.7},0" stroke="${DUNKEL}" stroke-width="0.9" fill="none" stroke-linecap="round" opacity="0.5"/>`;
-    // Beine als geformte, leicht zulaufende Pfade mit Pfote und Zehen (vorher
-    // Rechtecke - sahen aus wie Stelzen). Hinterbeine mit Knick nach hinten.
-    const vorderbein = (cls, x, farbe) => `<g class="mi-leg ${cls}">
-        <path d="M${x},37 C${x - 0.4},44 ${x + 0.6},50 ${x + 0.8},55 L${x + 5.8},55 C${x + 6},50 ${x + 6.8},44 ${x + 7.2},37 Z" fill="${farbe}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-        ${streifen(x + 0.4, 46, 6.2)}${streifen(x + 0.6, 50.4, 5.6)}
+    const strich = (d, w = 1.6, o = 0.9) => `<path d="${d}" stroke="${STREIF}" stroke-width="${w}" fill="none" stroke-linecap="round" opacity="${o}"/>`;
+    // Alle vier Beine gleich geformt, schlank, mit Pfote und Zehen, zwei Streifen.
+    const bein = (cls, x, farbe) => `<g class="mi-leg ${cls}">
+        <path d="M${x},36 C${x - 0.4},44 ${x + 0.6},50 ${x + 0.8},55 L${x + 5.8},55 C${x + 6},50 ${x + 6.8},44 ${x + 7.2},36 Z" fill="${farbe}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        ${strich(`M${x + 0.8},45.4 q2.6,1 5.4,-0.2`, 1.3, 0.8)}${strich(`M${x + 1},49.8 q2.4,0.9 4.8,-0.2`, 1.2, 0.8)}
         <path d="M${x - 0.2},54.6 C${x - 0.4},58.6 ${x + 7.6},58.8 ${x + 7.6},55 C${x + 5.4},53.8 ${x + 2},53.8 ${x - 0.2},54.6 Z" fill="${HELL}" stroke="${RAND}" stroke-width="${L * 0.8}"/>
         <path d="M${x + 2.6},56.4 v1.3 M${x + 4.9},56.4 v1.3" stroke="${RAND}" stroke-width="0.5" stroke-linecap="round"/></g>`;
-    const hinterbein = (cls, x, farbe) => `<g class="mi-leg ${cls}">
-        <path d="M${x - 3},32 C${x - 5},40 ${x - 1},44 ${x + 1},47 C${x + 1.5},50 ${x + 0.5},53 ${x + 0.6},55.5 L${x + 5.8},55.5 C${x + 6},51 ${x + 6.6},47 ${x + 6},43 C${x + 9},39 ${x + 9},34 ${x + 7},31 Z" fill="${farbe}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-        ${streifen(x + 0.6, 48.5, 5.6)}${streifen(x + 0.6, 52.2, 5.2)}
-        <path d="M${x - 0.4},55.2 C${x - 0.4},58.6 ${x + 7.8},58.8 ${x + 8},55.6 C${x + 5.8},54.4 ${x + 1.8},54.4 ${x - 0.4},55.2 Z" fill="${HELL}" stroke="${RAND}" stroke-width="${L * 0.8}"/></g>`;
     return `<svg viewBox="0 -24 106 94" xmlns="http://www.w3.org/2000/svg">
       <g class="mi-tail">
         <path d="M24,31 C11,27 7,14 12,2 C15,-6 22,-10 27,-8 C29,-7 29,-5 27,-4 C22,-3 19,2 20,9 C21,17 26,21 29,26 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-        <path d="M13.5,20 q3,-2.4 6.6,-0.4 M12,12 q3.6,-1.6 7.6,0.2 M12.4,4 q3.6,-1.2 7.4,0.8 M15,-3 q3,-0.6 6,1.6" stroke="${DUNKEL}" stroke-width="1.9" fill="none" stroke-linecap="round"/>
-        <path d="M22,-8.6 C25,-9.4 28.6,-8 27.6,-5.4 C26,-4.2 23.6,-4.6 22,-5.4 Z" fill="${DUNKEL}"/>
+        ${strich("M13.5,20 q3,-2.4 6.6,-0.4 M12,12 q3.6,-1.6 7.6,0.2 M12.4,4 q3.6,-1.2 7.4,0.8 M15.6,-3.4 q3,-1 6,1", 2)}
+        <path d="M22,-8.6 C25,-9.4 28.6,-8 27.6,-5.4 C26,-4.2 23.6,-4.6 22,-5.4 Z" fill="${STREIF}"/>
       </g>
-      ${hinterbein("mi-leg-b1", 26, FELL2)}${vorderbein("mi-leg-f1", 57, FELL2)}
-      ${hinterbein("mi-leg-b2", 34, FELL)}${vorderbein("mi-leg-f2", 65, FELL)}
-      <ellipse cx="46" cy="32" rx="29" ry="14" fill="${FELL}" stroke="${RAND}" stroke-width="${L}"/>
-      <ellipse cx="50" cy="40" rx="21" ry="6" fill="${HELL}" opacity="0.92"/>
-      ${rosette(60, 35, 2.6, 10)}${rosette(66, 29.5, 2.2)}${rosette(22, 38, 2.2, -20)}${rosette(30, 43, 2)}${rosette(44, 44, 1.8)}
-      ${punkt(69.4, 36.6, 0.9)}
+      ${bein("mi-leg-b1", 25, FELL2)}${bein("mi-leg-f1", 57, FELL2)}
+      ${bein("mi-leg-b2", 33, FELL)}${bein("mi-leg-f2", 65, FELL)}
+      <path d="M18,30 C18,24 26,20.5 36,20 L58,20 C66,20 72,24 72,30 C72,36 69,40.6 64,41 C60,41.3 57,39.2 52,38.3 C46,37.3 40,37.8 34,39.2 C28,40.6 22,39.8 19.6,36.2 C18.6,34.6 18,32.4 18,30 Z"
+        fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+      <path d="M37,38.8 C42,37.6 48,37.4 53,38.4 M58.6,39.6 C60.6,40.4 62.6,40.6 64.4,40.2" stroke="${HELL}" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.8"/>
+      ${strich("M20.6,31 q1.4,3.4 0.4,6.2 M25,33 q1.2,2.8 0.4,5.6 M40,34.4 q0.8,1.6 0.4,2.8 M46,34 q0.8,1.6 0.4,3 M52,33 q0.8,2 0.2,3.6")}
+      ${strich("M61.4,25 q2,4.6 1,9.6 M65.4,24.6 q2,4.4 1.2,9.2 M68.8,27 q1.4,3.4 0.8,7", 1.6)}
       <g class="mi-cape">
         <path d="M67,19 C60,13.4 47,12.6 36,14.6 C27,16.4 19.6,22.6 16,31.4 C21.4,35.8 28.4,38.8 35.6,39.2 C43,39.6 50,36.8 55.4,31.8 C61.8,29.4 67,25 67,19 Z"
           fill="${CAPE}" stroke="${CAPE2}" stroke-width="${L}" stroke-linejoin="round"/>
@@ -88,27 +84,36 @@
         <circle cx="66" cy="20.5" r="2.5" fill="${GOLD}" stroke="#8a6a2f" stroke-width="0.7"/>
       </g>
       <g class="mi-head" transform="rotate(-6 76 24)">
-        <path d="M69,12 C67.6,5 68.6,-0.4 71,-1.6 C74.4,0.4 77.4,4 78.6,8 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-        <path d="M70.6,8.6 C70,4.6 70.6,1.6 71.8,1 C73.6,2.4 75.4,4.8 76,7.4 Z" fill="${ROSA}"/>
-        <path d="M84,9.6 C85.4,3.6 88.4,-0.6 90.6,-1 C91.8,2.6 91.8,7.6 89.8,12.4 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-        <path d="M85.8,9 C87,5 88.8,2.2 90,1.8 C90.6,4.4 90.4,7.6 89.2,10.2 Z" fill="${ROSA}"/>
+        <path d="M68.4,13 C66.2,4 67,-5.4 69.4,-9 C73.8,-4.6 77.8,1.6 79.6,8 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M70.2,9.6 C69,3.6 69.6,-2 70.8,-4.8 C73.6,-1.8 76,2.4 77.2,7.2 Z" fill="${OHR}"/>
+        <path d="M83.6,9.6 C85.4,1.6 89,-5.2 92.4,-7.6 C93.8,-1.8 93.4,5 90.8,12.4 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        <path d="M85.6,8.8 C87,3.2 89.4,-1.8 91.4,-3.6 C92,0.6 91.6,5.4 89.8,10.2 Z" fill="${OHR}"/>
         <path d="M66,24 C65,13.6 71.6,7 80,7 C88,7 93.4,12 94.6,18 C97.6,20.4 99,23.4 98.4,26.4 C97.4,30.6 93.6,33.6 87,34.2 C76.6,35 66.8,31.6 66,24 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
         <path d="M86,24 C88,20.6 94,20.4 97.6,23.4 C98.8,27.4 96,31.6 90.6,32.8 C86.6,33 84.6,30 86,24 Z" fill="${HELL}"/>
-        ${rosette(71.4, 18, 1.5)}
+        <path d="M78,31.4 C82,33.8 87,34.2 91,33" stroke="${HELL}" stroke-width="2" fill="none" stroke-linecap="round"/>
+        ${strich("M69,19.4 q2.2,0.6 4.2,0.2 M68.4,23.4 q2.4,0.8 4.6,0.4 M70,27.6 q2,0.6 3.8,0.2", 1.3, 0.75)}
         <g class="mi-eyes">
-          <ellipse cx="85.8" cy="18.4" rx="5.2" ry="5.6" fill="${AUGE}" stroke="${GOLDRING}" stroke-width="0.8"/>
-          <ellipse cx="86.4" cy="18.8" rx="2.8" ry="3.6" fill="#10200c"/>
-          <circle cx="87.8" cy="16.6" r="1.3" fill="#fff"/><circle cx="84.8" cy="20.6" r="0.6" fill="#fff" opacity="0.85"/>
+          <path d="M80,17.4 Q85.4,12.6 91.4,17.6 Q86.4,23.4 80,17.4 Z" fill="${AUGE}" stroke="${DUNKEL}" stroke-width="0.9"/>
+          <ellipse cx="86.2" cy="18" rx="0.95" ry="3.2" fill="#10200c"/>
+          <circle cx="87.6" cy="16.2" r="0.85" fill="#fff"/><circle cx="84.2" cy="19.8" r="0.4" fill="#fff" opacity="0.7"/>
+          <path d="M80.8,12.8 L88.4,14.2" stroke="${DUNKEL}" stroke-width="0.7" fill="none" stroke-linecap="round" opacity="0.45"/>
         </g>
-        <g class="mi-eyes-closed"><path d="M80.8,19 Q85.8,22.4 90.8,19" stroke="${DUNKEL}" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>
-        <path d="M80.6,20.4 C78,21.2 76,22.8 74.8,24.6" stroke="${DUNKEL}" stroke-width="0.7" fill="none" stroke-linecap="round" opacity="0.5"/>
-        <path d="M97.2,23.2 l1.8,1 -1.6,1.4 Z" fill="#c9675a"/>
-        <path d="M98,25.6 v1.2 M98,26.8 q-0.8,1.6 -2.2,1.2 q-0.8,-0.3 -1,-1.1 M98,26.8 q0.6,1.4 1.4,1" stroke="#6b3d1f" stroke-width="0.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="91.6" cy="26.2" r="0.35" fill="#6b3d1f"/><circle cx="93" cy="27.4" r="0.35" fill="#6b3d1f"/><circle cx="91.4" cy="28.2" r="0.35" fill="#6b3d1f"/>
-        <path d="M90,26 q-4.4,-2.4 -9.6,-2 M90.4,27.6 q-4.6,0 -10,1.4 M90,29.2 q-4,1.8 -8.4,4.2" stroke="#fff6e4" stroke-width="0.5" fill="none" opacity="0.85" stroke-linecap="round"/>
+        <g class="mi-eyes-closed"><path d="M80,18 Q85.6,21.2 91.2,18" stroke="${DUNKEL}" stroke-width="1.1" fill="none" stroke-linecap="round"/></g>
+        <path d="M96.8,22.8 l2.4,1.2 -2,1.6 Z" fill="${NASE}"/>
+        <path d="M98.2,25.6 v1.1 M98.2,26.7 q-1.6,1.4 -3.8,0.6 q-0.8,-0.4 -1.2,-1.4" stroke="${RAND}" stroke-width="0.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="91.6" cy="26.2" r="0.35" fill="${RAND}"/><circle cx="93" cy="27.4" r="0.35" fill="${RAND}"/><circle cx="91.4" cy="28.2" r="0.35" fill="${RAND}"/>
+        <path d="M90,26 q-4.4,-2.4 -9.6,-2 M90.4,27.6 q-4.6,0 -10,1.4 M90,29.2 q-4,1.8 -8.4,4.2" stroke="#fffaf0" stroke-width="0.5" fill="none" opacity="0.9" stroke-linecap="round"/>
       </g>
     </svg>`;
   }
+  function fell() {
+    let f = null;
+    try { f = localStorage.getItem("mimi-fell"); } catch { /* egal */ }
+    return MIMI_FELLE[f] ? f : "rot";
+  }
+  // Für die Musterseite: alle Fellfarben zeichnen können.
+  window.mimiBild = (art) => catSVG(art);
+  window.MIMI_FELLE = MIMI_FELLE;
 
   function mountToggle() {
     const btn = document.createElement("button");
@@ -123,9 +128,19 @@
       titel();
       if (on) spawn(); else despawn();
     });
+    // Fellfarbe pro Gerät (jeder Spieler seine eigene Mimi).
+    const wahl = document.createElement("select");
+    wahl.id = "mimi-fell";
+    wahl.title = "Mimis Fellfarbe";
+    wahl.style.cssText = "width:auto;padding:1px 4px;font-size:12px;";
+    wahl.innerHTML = Object.entries(MIMI_FELLE).map(([k, f]) => `<option value="${k}"${k === fell() ? " selected" : ""}>${f.name}</option>`).join("");
+    wahl.addEventListener("change", () => {
+      try { localStorage.setItem("mimi-fell", wahl.value); } catch { /* egal */ }
+      if (cat) cat.innerHTML = catSVG(fell());
+    });
     // In die Skin-Leiste einreihen (kein Überlappen); sonst eigener Cluster (TV).
     const host = document.getElementById("skins");
-    if (host) host.insertBefore(btn, host.firstChild);
+    if (host) { host.insertBefore(wahl, host.firstChild); host.insertBefore(btn, host.firstChild); }
     else {
       const box = document.createElement("div");
       box.style.cssText = "position:fixed;top:6px;right:8px;z-index:71;display:flex;gap:6px;";
@@ -138,7 +153,7 @@
     if (cat) return;
     cat = document.createElement("div");
     cat.className = "mimi";
-    cat.innerHTML = catSVG();
+    cat.innerHTML = catSVG(fell());
     cat.style.left = rnd(20, W() - 140) + "px";
     cat.style.top = (H() - 150) + "px";
     cat.addEventListener("click", (e) => { e.stopPropagation(); menueUmschalten(); });

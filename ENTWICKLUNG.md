@@ -49,19 +49,18 @@ sich über **Export/Import** in der App umziehen.
 
 ## 1.5.2 (30.09.2026): Mimi neu gezeichnet, versorgen, dosierter Schabernack
 
-- **Neues Aussehen** (`catSVG` in mimi.js; aus Variante A in `_lab_mimi.html`
-  weiterentwickelt, Stefan: „mehr Bengale, feiner"): goldene Bengalkatze mit
-  zweifarbigen Rosetten (rostroter Kern, unterbrochener dunkler Rand),
-  kleinen runden Ohren, großem grünem Auge mit Goldrand, EINER Linie vom Auge
-  zur Backe, heller Schnauze/Bauch, zart gestreiften Beinen, geringeltem
-  Schwanz mit schwarzer Spitze; feine Linien (1,0). Großer, glatt fallender
-  roter Umhang mit Goldborte und Spange (die Fetzen-Version wirkte laut
-  Stefan „wie ne Obdachlose"). Beine als geformte Pfade mit Pfote/Zehen
-  (Rechtecke wirkten wie Stelzen). Schnurrhaare von der Schnauze nach hinten
-  über die Backe. Runde 3: Flecken flach ohne Rand (mit Rand „wie Warzen"),
-  keine Stirnstreifen, alle Beine unter dem Körper (vorher oben abgehackt),
-  schlankere Vorderbeine, Umhang etwas kleiner, verspieltes Gesicht: rundes
-  Auge mit weiter Pupille, „w"-Lächeln, Kopf leicht angehoben (rotate -6°).
+- **Neues Aussehen** (`catSVG(art)` in mimi.js; mehrere Runden mit Stefan):
+  schlanke, helle **Tigerkatze** (gestreift) mit rotem Umhang (glatt, mit
+  Goldborte und Spange) – frech, verspielt, clever, cool. Athletischer Körper
+  (flacher Rücken, hochgezogene Taille – die Ellipse wirkte „fett"), große
+  spitze Ohren, scharfe Mandelaugen mit Schlitzpupille, verschmitztes
+  Grinsen, Schnurrhaare nach hinten zur Backe, alle vier Beine gleich geformt
+  mit Pfote/Zehen, geringelter Schwanz. Verworfen: runde Kulleraugen
+  („drogenabhängig"), Bengal-Rosetten (gezeichnet nicht schön), zerfetzter
+  Umhang („Obdachlose"), Stirnstreifen, Strich hinter dem Auge.
+- **Fellfarben pro Gerät** (`MIMI_FELLE`: Rote Tigerkatze, Creme, Silber-Tabby,
+  Blaugrau) – Auswahl im ⚙-Menü neben 🐈, gemerkt in `localStorage.mimi-fell`.
+  Musterseite `_lab_mimi.html` zeigt alle (lädt mimi.js, `window.mimiBild`).
 - **Versorgen**: Antippen öffnet ein Menü 🍖 Futter · 💧 Trinken · 🧶 Spielen
   · ✋ Streicheln (schließt nach 6 s oder bei Klick daneben). Wünsche zeigt sie
   nur leise („miau?"), im Menü leuchtet der Wunsch. Versorgt ist sie eine

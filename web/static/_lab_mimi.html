@@ -22,8 +22,9 @@
 </style>
 </head>
 <body>
-<h1>MIMI · DESIGN-VARIANTEN (nur lokal)</h1>
+<h1>MIMI · DESIGN-VARIANTEN</h1>
 <div class="reihe" id="reihe"></div>
+<script src="/static/mimi.js"></script>
 <script>
 // Alle Varianten: Seitenansicht nach rechts, viewBox 0 -24 106 94, Beine y 40–58.
 // Gleiche Klassen wie im Spiel (mi-tail, mi-leg-*, mi-head, mi-eyes, mi-cape),
@@ -166,7 +167,10 @@ function varianteE() {
     </g></svg>`;
 }
 
-const varianten = [
+// Aktueller Stand aus dem Spiel: gestreifte Mimi in allen Fellfarben (mimi.js).
+const felle = window.MIMI_FELLE ? Object.entries(window.MIMI_FELLE).map(([k, f]) =>
+  [`Gestreift · ${f.name}`, "So läuft Mimi jetzt im Spiel – nur die Fellfarbe unterscheidet sich.", () => window.mimiBild(k)]) : [];
+const varianten = [...felle,
   ["A · Aktuell", "Serval mit kurzem Umhang (Stand jetzt).", varianteA],
   ["B · Kätzchen", "Niedlich: großer Kopf, großes Auge, kurze Beine, Streifen, rotes Halstuch.", varianteB],
   ["C · Luftpiratin", "Serval mit Fliegerbrille und flatterndem Schal – passend zu Luftschiffen.", varianteC],
