@@ -8,8 +8,10 @@ zu Beginn lesen.**
 
 ## Arbeitsweise
 
-- Wird auf **mehreren PCs** entwickelt. Vor dem Arbeiten `git pull`, zum Schluss
-  committen und `git push` – aber nur, wenn Stefan das Sichern verlangt.
+- Wird auf **mehreren PCs** entwickelt. Vor dem Arbeiten `git pull`. **Stefan will
+  alle Änderungen immer im Git haben:** jede abgeschlossene, getestete Änderung
+  selbst committen und `git push`en (Nachricht mit Erklärung für den anderen PC,
+  Eintrag in ENTWICKLUNG.md). Spielbare Pakete (.exe) als GitHub-Release per `gh`.
 - Sprache: Deutsch (Antworten, Kommentare, Commit-Nachrichten).
 - Stefan beurteilt Optik im Browser-Tab und entscheidet nach Ansicht: lieber
   Varianten zeigen als lange nachfragen.
