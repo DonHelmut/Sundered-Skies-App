@@ -47,6 +47,17 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.5.1 (30.09.2026): Ladebalken beim Aktualisieren
+
+- `Aktualisieren.exe` zeigt beim Download einen Balken, der sich in derselben
+  Zeile füllt (`fortschritt_balken`, ``, höchstens ~12×/s neu gezeichnet):
+  `[██████████░░░░░░░░░░]  52 %   13,4 / 25,9 MB` – statt zehn Zeilen „… 10 %".
+  Ohne echtes Konsolenfenster (umgeleitet/Tests) nur jede 10 % eine Zeile mit
+  `#`/`-` (cp1252 kennt █/░ nicht); `stdout` zusätzlich mit `errors="replace"`.
+- Der neue Updater kommt beim nächsten Update als `*.neu` und wird beim
+  nächsten App-Start eingesetzt – den Balken sieht man also ab dem Update
+  NACH 1.5.1.
+
 ## 1.5 (30.09.2026): Kämpfe vorbereiten
 
 - Bibliothek-Reiter „Begegnungen" heißt jetzt **„Kämpfe"** (Schlüssel bleibt
@@ -593,8 +604,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.5 → 1.6 (oder 1.5.1) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.1** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.5.1 → 1.6 (oder 1.5.2) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

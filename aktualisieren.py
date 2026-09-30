@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -155,20 +156,42 @@ def neueste_version() -> tuple[str, str, int]:
     return info.get("tag_name", "").lstrip("v"), zip_["browser_download_url"], int(zip_.get("size") or 0)
 
 
+def fortschritt_balken(geladen: int, groesse: int, breite: int = 30, zeichen: str = "█░") -> str:
+    """Eine Zeile wie  [██████████░░░░░░░░░░]  52 %   13,4 / 25,9 MB"""
+    anteil = min(1.0, geladen / groesse) if groesse else 0.0
+    voll = round(anteil * breite)
+    mb = lambda n: f"{n / 1024 / 1024:.1f}".replace(".", ",")
+    return f"  [{zeichen[0] * voll}{zeichen[1] * (breite - voll)}] {round(anteil * 100):3d} %   {mb(geladen)} / {mb(groesse)} MB"
+
+
 def herunterladen(url: str, ziel: Path, groesse: int) -> None:
+    # Ein Balken, der sich in DERSELBEN Zeile füllt (\r) - statt zehn Zeilen
+    # „… 10 %", „… 20 %" (Stefan: sieht besser aus). Ohne echtes Konsolenfenster
+    # (umgeleitete Ausgabe, Tests) nur ab und zu eine Zeile, sonst Zeichenmüll.
+    fenster = sys.stdout.isatty()
     with urllib.request.urlopen(_anfrage(url), timeout=60) as r, open(ziel, "wb") as f:
-        geladen, zuletzt = 0, -1
+        geladen, zuletzt, zuletzt_zeit = 0, -1, 0.0
         while True:
-            stueck = r.read(256 * 1024)
+            stueck = r.read(128 * 1024)
             if not stueck:
                 break
             f.write(stueck)
             geladen += len(stueck)
-            if groesse:
-                prozent = min(100, geladen * 100 // groesse)
-                if prozent // 10 != zuletzt:
-                    zuletzt = prozent // 10
-                    print(f"  … {prozent} %", flush=True)
+            if not groesse:
+                continue
+            if fenster:
+                jetzt = time.monotonic()
+                if jetzt - zuletzt_zeit > 0.08 or geladen >= groesse:
+                    zuletzt_zeit = jetzt
+                    print("\r" + fortschritt_balken(geladen, groesse), end="", flush=True)
+            else:
+                zehntel = min(10, geladen * 10 // groesse)
+                if zehntel != zuletzt:
+                    zuletzt = zehntel
+                    # Umgeleitet schreibt Windows in cp1252 - dort gibt es █/░ nicht.
+                    print(fortschritt_balken(geladen, groesse, zeichen="#-"), flush=True)
+        if fenster and groesse:
+            print("\r" + fortschritt_balken(groesse, groesse), flush=True)
 
 
 # --- Ablauf -------------------------------------------------------------------
@@ -184,6 +207,11 @@ def _ende(code: int) -> None:
 
 
 def main() -> None:
+    # Nie an einem Zeichen scheitern, das die Konsole nicht kennt.
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except Exception:
+        pass
     ordner = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path.cwd()
     print("============================================")
     print("  Sundered Skies – Initiative: Aktualisieren")

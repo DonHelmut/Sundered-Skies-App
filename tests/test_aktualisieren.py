@@ -63,3 +63,12 @@ def test_austauschen_laesst_data_und_legt_updater_als_neu(tmp_path):
 
 def test_app_laeuft_ohne_dll_ist_falsch(tmp_path):
     assert akt.app_laeuft(tmp_path) is False
+
+
+def test_fortschrittsbalken():
+    mb = 1024 * 1024
+    assert akt.fortschritt_balken(0, 26 * mb) == "  [" + "░" * 30 + "]   0 %   0,0 / 26,0 MB"
+    halb = akt.fortschritt_balken(13 * mb, 26 * mb)
+    assert halb.count("█") == 15 and " 50 %" in halb and "13,0 / 26,0 MB" in halb
+    assert akt.fortschritt_balken(26 * mb, 26 * mb).count("█") == 30
+    assert akt.fortschritt_balken(30 * mb, 26 * mb).count("█") == 30      # nie über 100 %
