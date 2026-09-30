@@ -47,6 +47,55 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## Überblick 30.09.2026 – was heute alles passiert ist (1.4 → 1.5.5)
+
+Für den anderen PC / Mitentwickler: ein Tag mit vielen kleinen Releases.
+Details stehen in den einzelnen Abschnitten darunter.
+
+- **Verteilen & Updaten:** Repo ist öffentlich (mit Fanprojekt-Hinweisen,
+  `main` geschützt – nur Stefan pusht). Jede Version ist ein GitHub-Release mit
+  `SunderedSkies-App.zip`. Im Paket liegt **`Aktualisieren.exe`**: holt das
+  neueste Release, ersetzt die App, behält `data/`, mit Ladebalken; aktualisiert
+  sich beim nächsten App-Start auch selbst (1.4.1–1.4.2, 1.5.1).
+- **Stabilität:** kein stilles Wiederbeitreten fremder Geräte („Probe
+  Schnell"-Gast), offene Tabs laden sich nach einem Update selbst neu,
+  „☰ Mehr" nicht mehr abgeschnitten, eigene Rückfragen statt
+  Browser-Dialogen (die der Browser sperren kann) (1.4.3–1.4.5).
+- **Karten:** eigene gemalte Illustration (Himmelsinseln) als
+  Standard-Rückseite; der SL kann ein eigenes Bild oder schlichtes Grün
+  wählen (1.4.6, 1.4.8). **Neu in 1.5.5:** jeder Spieler wählt die Rückseite
+  seiner Karten selbst – Standard, Profil (Charakterbild) oder eigenes Bild.
+- **TV:** deckt Spielerkarten erst nach dem Aufdecken auf und passt immer auf
+  einen Bildschirm, nie Scrollen (1.4, 1.4.7).
+- **Kämpfe vorbereiten** (1.5): Gegner aus der Bibliothek + Charaktere mit
+  Startzone, Notiz; später mit einem Klick einspielen.
+- **Mimi** (die Katze): rote Tigerkatze mit Umhang, läuft in 2D auf einer
+  Bodenlinie, lässt sich versorgen (Futter/Trinken/Spielen/Streicheln),
+  Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
+- **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
+
+## 1.5.5 (30.09.2026): Spieler wählen ihre Kartenrückseite
+
+- Stefan: Jeder Spieler soll selbst wählen, was hinten auf SEINEN Karten
+  ist: die Standard-Rückseite des Tisches (Inseln), sein Profil
+  (Charakterbild) oder ein eigenes Bild.
+- Am Handy unter dem Ton-Schalter: „🂠 Kartenrückseite: …" – aufgeklappt drei
+  kleine Karten zum Antippen. Profil ohne Charakterbild bzw. Eigenes ohne Bild
+  öffnen direkt die Bildauswahl.
+- Feld `rueckseite` an Figur und Charakter (None / `"profil"` /
+  `"/uploads/…"`), gemerkt am Charakter (kommt beim nächsten Abend wieder,
+  übersteht Bearbeiten im Roster), Aktion `set_figur_rueckseite` – Spieler
+  nur für die eigene Figur, kein Rückgängig-Schritt (reine Optik). Das eigene
+  Bild zählt beim Aufräumen als benutzt und kommt mit in die Sicherung.
+- **Verhaltensänderung:** Früher bekam jede Figur mit Charakterbild
+  automatisch das Porträt als Rückseite. Jetzt ist Standard überall die
+  Tisch-Rückseite; das Porträt nur, wer „Profil" wählt. (Gegner zeigen damit
+  auch keine Porträt-Rückseite mehr - verdeckte Gegner verraten sich so nicht.)
+- Joker bleibt geheim: alle Karten EINER Figur haben dieselbe Rückseite.
+- Testen ohne echten Spielstand: Server mit Umgebungsvariable `SWI_DATA_DIR`
+  auf einen leeren Ordner starten (hier lokal als Startkonfiguration
+  `sundered-skies-probe8766` in `.claude/launch.json`, nicht im Git).
+
 ## 1.5.4 (30.09.2026): Kurzer Handy-Name pnp.local
 
 - Stefan: `pen-and-paper.local` war am Handy zu lang zum Tippen. Der
@@ -661,8 +710,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.3** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.5.3 → 1.6 (oder 1.5.4) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.5** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.5.5 → 1.6 (oder 1.5.6) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

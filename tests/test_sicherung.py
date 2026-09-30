@@ -64,3 +64,9 @@ def test_unbrauchbare_datei_meldet_fehler(tmp_path):
         z.writestr("irgendwas.txt", "x")
     with pytest.raises(ValueError):
         sicherung.lies_sicherung(puffer.getvalue(), tmp_path)
+
+
+def test_eigene_rueckseite_kommt_mit_in_die_sicherung():
+    rs = "fedcba9876543210fedcba9876543210.jpg"
+    daten = {"roster": [{"id": "c1", "name": "Korgo", "image": f"/uploads/{BILD}", "rueckseite": f"/uploads/{rs}"}]}
+    assert sicherung.bilder_der_sicherung(daten) == {BILD, rs}

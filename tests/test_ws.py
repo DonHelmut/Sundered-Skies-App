@@ -62,3 +62,18 @@ def test_stilles_wiederbeitreten_nur_fuer_bekannte_geraete(fresh_game, monkeypat
     asyncio.run(A.handle_message(ws2, {"role": "player", "playerId": None, "ip": "10.0.0.5"},
                                  {**fremd, "playerId": pid}))
     assert ws2.sent[-1] == {"type": "joined", "playerId": pid}
+
+
+def test_spieler_setzt_nur_die_eigene_rueckseite(fresh_game, monkeypatch):
+    """Die ID kommt vom Server: ein Handy kann nicht die Rückseite eines
+    anderen Spielers umstellen, auch wenn es dessen ID schickt."""
+    monkeypatch.setattr(A, "game", fresh_game)
+    fresh_game.apply({"type": "roster_upsert", "name": "Korgo", "isWildCard": True})
+    fresh_game.apply({"type": "roster_upsert", "name": "Tessa", "isWildCard": True})
+    korgo, tessa = fresh_game.roster[-2], fresh_game.roster[-1]
+    ich = fresh_game.add_combatant_from_character(korgo, "plr-ich")
+    andere = fresh_game.add_combatant_from_character(tessa, "plr-andere")
+    meta = {"role": "player", "playerId": "plr-ich", "ip": "10.0.0.5"}
+    asyncio.run(A.handle_message(FakeWS(), meta, {"type": "gm_action", "action": {
+        "type": "set_figur_rueckseite", "id": andere["id"], "wert": "profil"}}))
+    assert ich["rueckseite"] == "profil" and andere["rueckseite"] is None

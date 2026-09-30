@@ -785,9 +785,9 @@ function portraitFace(card, image, uid, tier, t) {
     ${tierPlate(t, t.name, null)}`;
 }
 
-function renderCardSVG(card, image) {
+function renderCardSVG(card, image, rueckWahl) {
   ensureGlobalDefs();
-  if (!card) return renderBackSVG(image);
+  if (!card) return renderBackSVG(image, rueckWahl);
   // Joker: mit Bild als Porträt (Bild bleibt sichtbar!), sonst Drachen-Karte.
   if (card.suit === "joker") {
     return svgWrap(jokerSVG(card, image), "is-joker");
@@ -863,7 +863,13 @@ function rueckseiteMitBild(bild) {
   </svg>`;
 }
 
-function renderBackSVG(image) {
+// wahl = Rückseite, die sich der Spieler für SEINE Karten ausgesucht hat
+// (Stefan): nichts = die des Tisches (Inseln), „profil" = sein Charakterbild,
+// „/uploads/…" = eigenes Bild. Früher bekam jede Figur mit Charakterbild
+// automatisch das Porträt hinten drauf - jetzt nur, wer das will.
+function renderBackSVG(bild, wahl) {
+  if (typeof wahl === "string" && wahl.startsWith("/uploads/")) return rueckseiteMitBild(wahl);
+  const image = wahl === "profil" ? bild : null;
   if (!image && rueckseiteBild && rueckseiteBild !== "gruen") return rueckseiteMitBild(rueckseiteBild);
   // Rückseite mit hochgeladenem Char-Bild: Porträt + Bronze-Rahmen + Vignette.
   // WICHTIG: für ALLE Karten identisch – darf den Joker nicht verraten.

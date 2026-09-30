@@ -138,8 +138,9 @@ function statusBadges(c) {
 
 function cardFace(cid, card, status, isJoker) {
   const holderCls = ["card-holder", status && status.out ? "is-out" : "", isJoker ? "joker-slot" : ""].filter(Boolean).join(" ");
-  const cimg = ((TV.state && TV.state.combatants.find((c) => c.id === cid)) || {}).image || null;
-  const svg = card ? Cards.renderCardSVG(card, cimg) : Cards.renderBackSVG(cimg);
+  const fig = (TV.state && TV.state.combatants.find((c) => c.id === cid)) || {};
+  const cimg = fig.image || null;
+  const svg = card ? Cards.renderCardSVG(card, cimg) : Cards.renderBackSVG(cimg, fig.rueckseite);
   return `<div class="${holderCls}"><div class="tv-face">${svg}</div>${statusOverlay(status)}</div>`;
 }
 

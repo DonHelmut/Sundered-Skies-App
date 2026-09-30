@@ -28,11 +28,14 @@ def bilder_der_sicherung(data: dict) -> set[str]:
     namen: set[str] = set()
 
     def merke(eintrag):
-        url = eintrag.get("image") if isinstance(eintrag, dict) else None
-        if isinstance(url, str) and url.startswith("/uploads/"):
-            name = url.rsplit("/", 1)[-1]
-            if BILD_NAME.match(name):
-                namen.add(name)
+        if not isinstance(eintrag, dict):
+            return
+        for feld in ("image", "rueckseite"):     # eigene Kartenrückseite gehört mit rein
+            url = eintrag.get(feld)
+            if isinstance(url, str) and url.startswith("/uploads/"):
+                name = url.rsplit("/", 1)[-1]
+                if BILD_NAME.match(name):
+                    namen.add(name)
 
     for feld in ("roster", "bestiary", "allies"):
         for e in data.get(feld) or []:

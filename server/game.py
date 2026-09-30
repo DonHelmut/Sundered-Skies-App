@@ -71,6 +71,15 @@ def _rueckseite_gueltig(wert) -> bool:
     return wert == "gruen" or (isinstance(wert, str) and wert.startswith("/uploads/"))
 
 
+def _figur_rueckseite(wert) -> Optional[str]:
+    """Rückseite, die sich ein Spieler für SEINE Karten aussucht: None = die
+    des Tisches (Standard, Inseln), „profil" = das eigene Charakterbild, oder
+    ein eigenes hochgeladenes Bild. Alles andere -> None."""
+    if wert == "profil" or (isinstance(wert, str) and wert.startswith("/uploads/")):
+        return wert
+    return None
+
+
 def default_status() -> dict:
     """Kampfzustand eines Teilnehmers: Angeschlagen / Wunden / Ausgeschaltet
     plus schnelle Zusatz-Zustände."""
@@ -523,6 +532,7 @@ class Game:
             c.setdefault("ran", False)
             c.setdefault("moved", False)
             c.setdefault("image", None)
+            c.setdefault("rueckseite", None)
             c.setdefault("draw", None)
             c.setdefault("benched", False)
             c.setdefault("ally", False)
@@ -766,6 +776,11 @@ class Game:
         if t == "sheet_update":
             self.bogen_setzen(action.get("id"), action.get("bogen"))
             return
+        # Kartenrückseite der eigenen Figur: reine Optik, die sich der Spieler
+        # selbst aussucht - ebenfalls kein Undo-Ziel.
+        if t == "set_figur_rueckseite":
+            self.figur_rueckseite_setzen(action.get("id"), action.get("wert"))
+            return
         # Ansicht des SL-Laptops sichern: kein Spielzug, also weder Rückgängig-
         # Schritt noch Ende der „Fortsetzen?"-Möglichkeit (Panel aufklappen vor
         # dem Fortsetzen durfte die gespeicherte Sitzung nicht verwerfen).
@@ -810,7 +825,7 @@ class Game:
             "image": a.get("image", (prev or {}).get("image")),
         }
         # Gemerkte Bennies und den Charakterbogen der Spieler ebenso.
-        for feld in ("bennies", "bogen"):
+        for feld in ("bennies", "bogen", "rueckseite"):
             if prev and feld in prev:
                 entry[feld] = prev[feld]
         for i, r in enumerate(self.roster):
@@ -1142,6 +1157,7 @@ class Game:
             "ally": False,
             "note": "",
             "image": char.get("image"),
+            "rueckseite": _figur_rueckseite(char.get("rueckseite")),
             "status": default_status(),
             "createdAt": now_ms(),
         }
@@ -1680,6 +1696,20 @@ class Game:
             self.save_roster()
         self.save_session()
 
+    def figur_rueckseite_setzen(self, cid: Optional[str], wert) -> None:
+        """Rückseite für die Karten EINER Figur (Standard/Profil/eigenes Bild).
+        Wird am Charakter gemerkt, damit sie beim nächsten Abend wieder da ist.
+        Den Joker verrät das nicht: alle Karten dieser Figur sehen hinten gleich aus."""
+        c = self._combatant(cid)
+        if not c:
+            return
+        c["rueckseite"] = _figur_rueckseite(wert)
+        char = next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
+        if char is not None:
+            char["rueckseite"] = c["rueckseite"]
+            self.save_roster()
+        self.save_session()
+
     def talente_setzen(self, cid: Optional[str], talente, gluck, grosses_gluck) -> None:
         c = self._combatant(cid)
         if not c or not isinstance(talente, list):
@@ -1850,9 +1880,10 @@ class Game:
         quellen = (self.roster, self.bestiary, self.allies, self.combatants)
         for liste in quellen:
             for eintrag in liste:
-                url = eintrag.get("image")
-                if isinstance(url, str) and url.startswith("/uploads/"):
-                    benutzt.add(url.rsplit("/", 1)[-1])
+                for feld in ("image", "rueckseite"):     # eigene Rückseite zählt auch
+                    url = eintrag.get(feld)
+                    if isinstance(url, str) and url.startswith("/uploads/"):
+                        benutzt.add(url.rsplit("/", 1)[-1])
         for begegnung in self.encounters:
             for g in begegnung.get("members") or []:
                 url = g.get("image")

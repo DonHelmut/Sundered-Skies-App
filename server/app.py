@@ -522,6 +522,10 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             # Spieler setzt NUR das Bild der eigenen Figur.
             game.apply({"type": "set_image", "id": own["id"], "url": action.get("url")})
             await hub.broadcast_state()
+        elif atype == "set_figur_rueckseite":
+            # Kartenrückseite NUR der eigenen Figur (Standard/Profil/eigenes Bild).
+            game.apply({"type": "set_figur_rueckseite", "id": own["id"], "wert": action.get("wert")})
+            await hub.broadcast_state()
         elif atype == "sheet_update":
             # Charakterbogen: NUR der eigene (die ID kommt vom Server, nicht vom Handy).
             game.apply({"type": "sheet_update", "id": own["id"], "bogen": action.get("bogen")})

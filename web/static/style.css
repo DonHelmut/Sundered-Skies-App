@@ -2213,6 +2213,19 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
 .kampf-bau .kb-dazu { padding: 5px 8px; font-size: 0.85rem; }
 
 /* Mimis Schabernack (nur Optik, dreht sich selbst zurück). */
+/* Spieler: Wahl der eigenen Kartenrückseite (drei kleine Karten). */
+.rs-wahl { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 10px; }
+.rs-kacheln { display: flex; gap: 12px; justify-content: center; }
+.rs-kachel { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px;
+  background: none; border: 2px solid transparent; border-radius: 10px; cursor: pointer;
+  color: var(--muted); font-size: 0.8rem; min-height: 0; box-shadow: none; }
+.rs-kachel.on { border-color: var(--accent); color: var(--text); }
+.rs-karte { display: block; width: 58px; aspect-ratio: 5 / 7; }
+.rs-karte svg { width: 100%; height: 100%; display: block; }
+.rs-leer { display: flex; align-items: center; justify-content: center; text-align: center;
+  border: 2px dashed var(--muted); border-radius: 7px; font-size: 0.72rem; line-height: 1.25; opacity: 0.8; }
+.rs-neu { cursor: pointer; }
+
 /* Mimi wackelt einen Knopf nur an - sieht bewusst NICHT gedrückt aus (Stefan:
    am Tisch soll niemand glauben, sie hätte z. B. neu ausgeteilt). */
 .mi-gedrueckt { animation: miAnwackeln 0.7s ease; }

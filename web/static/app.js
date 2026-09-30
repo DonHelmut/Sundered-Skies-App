@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.5.4";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.5.5";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -831,8 +831,10 @@ function cardSlot(cid, card, status, extraClass = "", opts = {}) {
   const { open = true, tappable = false } = opts;
   const key = card ? `${cid}:${card.id}` : `${cid}:none`;
   // Char-Bild dieser Figur: Vorder- UND Rückseite im Design des Bildes.
-  const cimg = ((App.state && App.state.combatants.find((x) => x.id === cid)) || {}).image || null;
-  const front = card ? Cards.renderCardSVG(card, cimg) : Cards.renderBackSVG(cimg);
+  const fig = (App.state && App.state.combatants.find((x) => x.id === cid)) || {};
+  const cimg = fig.image || null;
+  const rwahl = fig.rueckseite || null;     // Rückseite, die sich der Spieler ausgesucht hat
+  const front = card ? Cards.renderCardSVG(card, cimg) : Cards.renderBackSVG(cimg, rwahl);
   const isJoker = card && card.suit === "joker";
   const holderCls = ["card-holder", extraClass,
     status && status.out ? "is-out" : "",
@@ -840,7 +842,7 @@ function cardSlot(cid, card, status, extraClass = "", opts = {}) {
     isJoker ? "joker-slot" : ""].filter(Boolean).join(" ");
   const faces = `<div class="flip-inner">
       <div class="flip-face flip-front">${front}</div>
-      <div class="flip-face flip-back">${Cards.renderBackSVG(cimg)}</div>
+      <div class="flip-face flip-back">${Cards.renderBackSVG(cimg, rwahl)}</div>
     </div>`;
 
   const faceUp = card ? open : true;   // ohne Karte: Rückseite als Platzhalter zeigen
@@ -4043,6 +4045,7 @@ function renderPlayer() {
       <span class="small muted">🔔 ${kannVibrieren ? "Vibration/Ton" : "Ton"}, wenn ich dran bin</span>
       <button class="ghost small" data-act="ton-testen" title="Lautstärke prüfen – am iPhone muss der Lautlos-Schalter aus sein">▶ Test</button>
     </label>
+    ${rueckseiteWahlHtml(mine)}
     ${msgs ? `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs}</div>` : ""}
     ${daumen}
   `;
@@ -4518,6 +4521,13 @@ document.addEventListener("click", (e) => {
       try { if (kannVibrieren) navigator.vibrate([130, 70, 130]); } catch { /* egal */ }
       dranBlitz();
     },
+    "rs-wahl-auf": () => { App.rsWahlOffen = !App.rsWahlOffen; render(); },
+    "figur-rueckseite": () => {
+      const mine = myCombatant();
+      if (!mine) return;
+      gmActionOrPlayer({ type: "set_figur_rueckseite", id: mine.id, wert: target.dataset.wert || null });
+      toast("🂠 Rückseite gewählt");
+    },
     "rueckseite-standard": () => { gmAction({ type: "set_rueckseite", url: null }); toast("Rückseite: Standardbild"); },
     "rueckseite-gruen": () => { gmAction({ type: "set_rueckseite", url: "gruen" }); toast("Rückseite: schlicht grün"); },
     "km-treffer": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; App.trefferSchaden = ""; trefferAuf(id); },
@@ -4781,6 +4791,8 @@ document.addEventListener("change", (e) => {
     uploadImage(t.files[0]);
   } else if (act === "pick-char-image") {
     uploadCharImage(t.files[0], t.getAttribute("data-id"));
+  } else if (act === "pick-figur-rueckseite") {
+    uploadFigurRueckseite(t.files[0], t.dataset.profil === "1");
   } else if (act === "kb-char" || act === "kb-char-zone") {
     const c = App.kampfEntwurf && App.kampfEntwurf.chars[t.dataset.id];
     if (!c) return;
@@ -5018,6 +5030,52 @@ async function uploadCharImage(file, cid) {
     else if (res.status === 413) hinweis("Bild ist zu groß (max. 8 MB).");
     else hinweis("Upload fehlgeschlagen.");
   } catch { hinweis("Upload fehlgeschlagen."); }
+}
+
+// Eigene Kartenrückseite des Spielers hochladen. profil=true: das Bild wird
+// sein Charakterbild (Kachel „Profil" ohne Bild) und gleich als Rückseite genommen.
+async function uploadFigurRueckseite(file, profil) {
+  const mine = myCombatant();
+  if (!file || !mine) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (res.ok) {
+      const j = await res.json();
+      if (profil) gmActionOrPlayer({ type: "set_image", id: mine.id, url: j.url });
+      gmActionOrPlayer({ type: "set_figur_rueckseite", id: mine.id, wert: profil ? "profil" : j.url });
+      toast("🂠 Rückseite gesetzt");
+    } else if (res.status === 413) hinweis("Bild ist zu groß (max. 8 MB).");
+    else hinweis("Upload fehlgeschlagen.");
+  } catch { hinweis("Upload fehlgeschlagen."); }
+}
+
+// Spieler sucht sich die Rückseite SEINER Karten aus: Standard (die des
+// Tisches), sein Charakterbild oder ein eigenes Bild. Eingeklappt, damit die
+// Spieleransicht aufgeräumt bleibt; offen als drei kleine Karten zum Antippen.
+function rueckseiteWahlHtml(mine) {
+  const w = mine.rueckseite || null;
+  const eigen = typeof w === "string" && w.startsWith("/uploads/") ? w : null;
+  const name = eigen ? "Eigenes Bild" : w === "profil" ? "Profil" : "Standard";
+  const kopf = `<button type="button" class="ghost small rs-wahl-kopf" data-act="rs-wahl-auf">🂠 Kartenrückseite: <b>${name}</b> ${App.rsWahlOffen ? "▴" : "▾"}</button>`;
+  if (!App.rsWahlOffen) return `<div class="rs-wahl">${kopf}</div>`;
+  const karte = (svg) => `<span class="rs-karte">${svg}</span>`;
+  const leer = (text) => `<span class="rs-karte rs-leer">${text}</span>`;
+  const datei = (profil) => `<input type="file" accept="image/*" data-act="pick-figur-rueckseite"${profil ? ' data-profil="1"' : ""} style="display:none">`;
+  const std = `<button type="button" class="rs-kachel${!w ? " on" : ""}" data-act="figur-rueckseite" data-wert="">
+      ${karte(Cards.renderBackSVG(null, null))}<span>Standard</span></button>`;
+  // Profil ohne Charakterbild: Antippen lädt eines hoch (wird auch das Avatar-Bild).
+  const prof = mine.image
+    ? `<button type="button" class="rs-kachel${w === "profil" ? " on" : ""}" data-act="figur-rueckseite" data-wert="profil">
+        ${karte(Cards.renderBackSVG(mine.image, "profil"))}<span>Profil</span></button>`
+    : `<label class="rs-kachel">${leer("📷<br>Bild<br>wählen")}<span>Profil</span>${datei(true)}</label>`;
+  const eig = eigen
+    ? `<button type="button" class="rs-kachel${w === eigen ? " on" : ""}" data-act="figur-rueckseite" data-wert="${esc(eigen)}">
+        ${karte(Cards.renderBackSVG(null, eigen))}<span>Eigenes</span></button>`
+    : `<label class="rs-kachel">${leer("🖼<br>Bild<br>hochladen")}<span>Eigenes</span>${datei(false)}</label>`;
+  const neu = eigen ? `<label class="ghost small rs-neu">🖼 anderes Bild${datei(false)}</label>` : "";
+  return `<div class="rs-wahl offen">${kopf}<div class="rs-kacheln">${std}${prof}${eig}</div>${neu}</div>`;
 }
 
 function sendMessage() {

@@ -1727,3 +1727,31 @@ def test_kampf_vorbereiten_mit_charakteren_und_starten(fresh_game):
     assert len(fresh_game.encounters) == 1 and len(fresh_game.encounters[0]["members"]) == 1
     fresh_game.apply({"type": "encounter_copy", "id": enc["id"]})
     assert [e["name"] for e in fresh_game.encounters] == ["Skree-Überfall", "Skree-Überfall (Kopie)"]
+
+
+def test_spieler_waehlt_eigene_kartenrueckseite(fresh_game):
+    """Rückseite pro Figur: Standard (None), Profil oder eigenes Bild. Wird am
+    Charakter gemerkt, überlebt Bearbeiten im Roster und Wiederbeitreten, ist
+    kein Rückgängig-Schritt, und das eigene Bild wird nicht aufgeräumt."""
+    fresh_game.apply({"type": "roster_upsert", "name": "Korgo", "isWildCard": True})
+    char = fresh_game.roster[-1]
+    c = fresh_game.add_combatant_from_character(char, "plr-1")
+    assert c["rueckseite"] is None                         # Standard = Inseln des Tisches
+    schritte = len(fresh_game._history)
+
+    fresh_game.apply({"type": "set_figur_rueckseite", "id": c["id"], "wert": "profil"})
+    assert c["rueckseite"] == "profil" and char["rueckseite"] == "profil"
+    assert len(fresh_game._history) == schritte           # reine Optik, kein ↶-Ziel
+
+    fresh_game.apply({"type": "set_figur_rueckseite", "id": c["id"], "wert": "/uploads/eigen.png"})
+    assert char["rueckseite"] == "/uploads/eigen.png"
+    assert "eigen.png" in fresh_game.benutzte_bilder()
+    fresh_game.apply({"type": "set_figur_rueckseite", "id": c["id"], "wert": "https://fremd.example/x.png"})
+    assert c["rueckseite"] is None                         # fremde Adressen -> Standard
+
+    fresh_game.apply({"type": "set_figur_rueckseite", "id": c["id"], "wert": "/uploads/eigen.png"})
+    fresh_game.apply({"type": "roster_upsert", "id": char["id"], "name": "Korgo der Große", "isWildCard": True})
+    assert fresh_game.roster[-1]["rueckseite"] == "/uploads/eigen.png"
+    fresh_game.apply({"type": "remove_combatant", "id": c["id"]})
+    wieder = fresh_game.add_combatant_from_character(fresh_game.roster[-1], "plr-1")
+    assert wieder["rueckseite"] == "/uploads/eigen.png"
