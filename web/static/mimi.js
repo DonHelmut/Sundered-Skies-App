@@ -49,18 +49,20 @@
     const FELL = "#e3a24a", FELL2 = "#cf8b33", HELL = "#f6e1bb", RAND = "#76471a", DUNKEL = "#2e1c0c",
       ROST = "#b9642a", AUGE = "#8fdc4f", GOLDRING = "#d4a53c", ROSA = "#e39a8c", CAPE = "#a82a22", CAPE2 = "#65150f", GOLD = "#e8c25a";
     const L = 1;     // feine Linien
-    // Rosette: rostroter Kern, unterbrochener dunkler Rand (typisch Bengal).
-    const rosette = (x, y, r, w = 0) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.7}" transform="rotate(${w} ${x} ${y})"
-      fill="${ROST}" stroke="${DUNKEL}" stroke-width="0.9" stroke-dasharray="${(r * 1.6).toFixed(1)} ${(r * 0.7).toFixed(1)}" opacity="0.92"/>`;
+    // Rosette flach ins Fell gemalt: weicher dunkler Fleck, darin rostroter Kern,
+    // KEIN Rand (mit Rand sahen sie aus wie Warzen - Stefan).
+    const rosette = (x, y, r, w = 0) => `<g transform="rotate(${w} ${x} ${y})" opacity="0.8">
+      <ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.62}" fill="${DUNKEL}" opacity="0.55"/>
+      <ellipse cx="${x + r * 0.15}" cy="${y}" rx="${r * 0.55}" ry="${r * 0.32}" fill="${ROST}"/></g>`;
     const punkt = (x, y, r) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.75}" fill="${DUNKEL}" opacity="0.8"/>`;
     const streifen = (x, y, b) => `<path d="M${x + b * 0.15},${y} q${b * 0.35},1.2 ${b * 0.7},0" stroke="${DUNKEL}" stroke-width="0.9" fill="none" stroke-linecap="round" opacity="0.5"/>`;
     // Beine als geformte, leicht zulaufende Pfade mit Pfote und Zehen (vorher
     // Rechtecke - sahen aus wie Stelzen). Hinterbeine mit Knick nach hinten.
     const vorderbein = (cls, x, farbe) => `<g class="mi-leg ${cls}">
-        <path d="M${x - 0.6},37 C${x - 1.2},44 ${x + 0.2},50 ${x + 0.4},55 L${x + 7.4},55 C${x + 7.8},50 ${x + 9},44 ${x + 9.2},37 Z" fill="${farbe}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
-        ${streifen(x + 0.2, 45.5, 7.8)}${streifen(x + 0.4, 50, 7.2)}
-        <path d="M${x - 1},54.6 C${x - 1.2},58.8 ${x + 9.2},59 ${x + 9.2},55 C${x + 6.4},53.6 ${x + 1.8},53.6 ${x - 1},54.6 Z" fill="${HELL}" stroke="${RAND}" stroke-width="${L * 0.8}"/>
-        <path d="M${x + 2.6},56.4 v1.4 M${x + 5.4},56.4 v1.4" stroke="${RAND}" stroke-width="0.5" stroke-linecap="round"/></g>`;
+        <path d="M${x},37 C${x - 0.4},44 ${x + 0.6},50 ${x + 0.8},55 L${x + 5.8},55 C${x + 6},50 ${x + 6.8},44 ${x + 7.2},37 Z" fill="${farbe}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
+        ${streifen(x + 0.4, 46, 6.2)}${streifen(x + 0.6, 50.4, 5.6)}
+        <path d="M${x - 0.2},54.6 C${x - 0.4},58.6 ${x + 7.6},58.8 ${x + 7.6},55 C${x + 5.4},53.8 ${x + 2},53.8 ${x - 0.2},54.6 Z" fill="${HELL}" stroke="${RAND}" stroke-width="${L * 0.8}"/>
+        <path d="M${x + 2.6},56.4 v1.3 M${x + 4.9},56.4 v1.3" stroke="${RAND}" stroke-width="0.5" stroke-linecap="round"/></g>`;
     const hinterbein = (cls, x, farbe) => `<g class="mi-leg ${cls}">
         <path d="M${x - 3},32 C${x - 5},40 ${x - 1},44 ${x + 1},47 C${x + 1.5},50 ${x + 0.5},53 ${x + 0.6},55.5 L${x + 5.8},55.5 C${x + 6},51 ${x + 6.6},47 ${x + 6},43 C${x + 9},39 ${x + 9},34 ${x + 7},31 Z" fill="${farbe}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
         ${streifen(x + 0.6, 48.5, 5.6)}${streifen(x + 0.6, 52.2, 5.2)}
@@ -72,38 +74,36 @@
         <path d="M22,-8.6 C25,-9.4 28.6,-8 27.6,-5.4 C26,-4.2 23.6,-4.6 22,-5.4 Z" fill="${DUNKEL}"/>
       </g>
       ${hinterbein("mi-leg-b1", 26, FELL2)}${vorderbein("mi-leg-f1", 57, FELL2)}
+      ${hinterbein("mi-leg-b2", 34, FELL)}${vorderbein("mi-leg-f2", 65, FELL)}
       <ellipse cx="46" cy="32" rx="29" ry="14" fill="${FELL}" stroke="${RAND}" stroke-width="${L}"/>
       <ellipse cx="50" cy="40" rx="21" ry="6" fill="${HELL}" opacity="0.92"/>
       ${rosette(60, 35, 2.6, 10)}${rosette(66, 29.5, 2.2)}${rosette(22, 38, 2.2, -20)}${rosette(30, 43, 2)}${rosette(44, 44, 1.8)}
       ${punkt(69.4, 36.6, 0.9)}
-      ${hinterbein("mi-leg-b2", 34, FELL)}${vorderbein("mi-leg-f2", 65, FELL)}
       <g class="mi-cape">
-        <path d="M67,19 C60,13 46,12 34,14 C24,16 16,23 12,33 C18,38 26,41.5 34,42 C42,42.5 50,39 56,33 C62,30 67,25 67,19 Z"
+        <path d="M67,19 C60,13.4 47,12.6 36,14.6 C27,16.4 19.6,22.6 16,31.4 C21.4,35.8 28.4,38.8 35.6,39.2 C43,39.6 50,36.8 55.4,31.8 C61.8,29.4 67,25 67,19 Z"
           fill="${CAPE}" stroke="${CAPE2}" stroke-width="${L}" stroke-linejoin="round"/>
-        <path d="M12.6,32.4 C18,37.6 26,41 34,41.4 C42,41.8 50,38.4 55.6,32.6" stroke="${GOLD}" stroke-width="1.3" fill="none" opacity="0.9"/>
-        <path d="M44,15 C36,20 30,28 28,39 M55,17 C49,22 45,29 44,39" stroke="${CAPE2}" stroke-width="0.8" fill="none" opacity="0.35"/>
-        <path d="M36,15.4 C27,18 20,25 16,32" stroke="#d45a45" stroke-width="1.2" fill="none" opacity="0.5"/>
+        <path d="M16.6,30.8 C21.8,35 28.6,38 35.6,38.4 C42.8,38.8 49.6,36 54.8,31.4" stroke="${GOLD}" stroke-width="1.2" fill="none" opacity="0.9"/>
+        <path d="M45,15.4 C38,20 33,27 31.4,37 M55,17.4 C49.6,22 46.4,28.6 45.6,36.6" stroke="${CAPE2}" stroke-width="0.8" fill="none" opacity="0.35"/>
+        <path d="M37,15.8 C29,18.4 23,24.6 19.4,31" stroke="#d45a45" stroke-width="1.1" fill="none" opacity="0.5"/>
         <circle cx="66" cy="20.5" r="2.5" fill="${GOLD}" stroke="#8a6a2f" stroke-width="0.7"/>
       </g>
-      <g class="mi-head">
+      <g class="mi-head" transform="rotate(-6 76 24)">
         <path d="M69,12 C67.6,5 68.6,-0.4 71,-1.6 C74.4,0.4 77.4,4 78.6,8 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
         <path d="M70.6,8.6 C70,4.6 70.6,1.6 71.8,1 C73.6,2.4 75.4,4.8 76,7.4 Z" fill="${ROSA}"/>
         <path d="M84,9.6 C85.4,3.6 88.4,-0.6 90.6,-1 C91.8,2.6 91.8,7.6 89.8,12.4 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
         <path d="M85.8,9 C87,5 88.8,2.2 90,1.8 C90.6,4.4 90.4,7.6 89.2,10.2 Z" fill="${ROSA}"/>
         <path d="M66,24 C65,13.6 71.6,7 80,7 C88,7 93.4,12 94.6,18 C97.6,20.4 99,23.4 98.4,26.4 C97.4,30.6 93.6,33.6 87,34.2 C76.6,35 66.8,31.6 66,24 Z" fill="${FELL}" stroke="${RAND}" stroke-width="${L}" stroke-linejoin="round"/>
         <path d="M86,24 C88,20.6 94,20.4 97.6,23.4 C98.8,27.4 96,31.6 90.6,32.8 C86.6,33 84.6,30 86,24 Z" fill="${HELL}"/>
-        <path d="M76.4,10.4 q-0.6,-2.4 0.4,-4.4 M80,10.2 q0.4,-2.4 1.8,-4" stroke="${DUNKEL}" stroke-width="0.7" fill="none" stroke-linecap="round" opacity="0.4"/>
         ${rosette(71.4, 18, 1.5)}
         <g class="mi-eyes">
-          <path d="M80,19 Q85.4,11.8 91.4,18.4 Q86,26 80,19 Z" fill="${AUGE}" stroke="${GOLDRING}" stroke-width="0.8"/>
-          <ellipse cx="86" cy="19" rx="1.4" ry="4.4" fill="#10200c"/>
-          <circle cx="87.8" cy="17" r="1" fill="#fff"/><circle cx="84.6" cy="21.4" r="0.45" fill="#fff" opacity="0.8"/>
-          <path d="M80.2,19.2 Q85.4,12.6 91.2,18.6" stroke="${DUNKEL}" stroke-width="0.55" fill="none" opacity="0.8"/>
+          <ellipse cx="85.8" cy="18.4" rx="5.2" ry="5.6" fill="${AUGE}" stroke="${GOLDRING}" stroke-width="0.8"/>
+          <ellipse cx="86.4" cy="18.8" rx="2.8" ry="3.6" fill="#10200c"/>
+          <circle cx="87.8" cy="16.6" r="1.3" fill="#fff"/><circle cx="84.8" cy="20.6" r="0.6" fill="#fff" opacity="0.85"/>
         </g>
-        <g class="mi-eyes-closed"><path d="M80.4,20 Q85.6,23 91,19.8" stroke="${DUNKEL}" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>
-        <path d="M80.4,19.8 C77.6,20.4 75.4,22 74,24" stroke="${DUNKEL}" stroke-width="0.8" fill="none" stroke-linecap="round" opacity="0.6"/>
+        <g class="mi-eyes-closed"><path d="M80.8,19 Q85.8,22.4 90.8,19" stroke="${DUNKEL}" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>
+        <path d="M80.6,20.4 C78,21.2 76,22.8 74.8,24.6" stroke="${DUNKEL}" stroke-width="0.7" fill="none" stroke-linecap="round" opacity="0.5"/>
         <path d="M97.2,23.2 l1.8,1 -1.6,1.4 Z" fill="#c9675a"/>
-        <path d="M98.2,25.8 q-1.4,2.8 -4.6,2.6 M98.2,25.8 q0.4,2.6 -1,3.8" stroke="#6b3d1f" stroke-width="0.7" fill="none" stroke-linecap="round"/>
+        <path d="M98,25.6 v1.2 M98,26.8 q-0.8,1.6 -2.2,1.2 q-0.8,-0.3 -1,-1.1 M98,26.8 q0.6,1.4 1.4,1" stroke="#6b3d1f" stroke-width="0.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="91.6" cy="26.2" r="0.35" fill="#6b3d1f"/><circle cx="93" cy="27.4" r="0.35" fill="#6b3d1f"/><circle cx="91.4" cy="28.2" r="0.35" fill="#6b3d1f"/>
         <path d="M90,26 q-4.4,-2.4 -9.6,-2 M90.4,27.6 q-4.6,0 -10,1.4 M90,29.2 q-4,1.8 -8.4,4.2" stroke="#fff6e4" stroke-width="0.5" fill="none" opacity="0.85" stroke-linecap="round"/>
       </g>

@@ -58,7 +58,10 @@ sich über **Export/Import** in der App umziehen.
   roter Umhang mit Goldborte und Spange (die Fetzen-Version wirkte laut
   Stefan „wie ne Obdachlose"). Beine als geformte Pfade mit Pfote/Zehen
   (Rechtecke wirkten wie Stelzen). Schnurrhaare von der Schnauze nach hinten
-  über die Backe. Noch in Abstimmung mit Stefan.
+  über die Backe. Runde 3: Flecken flach ohne Rand (mit Rand „wie Warzen"),
+  keine Stirnstreifen, alle Beine unter dem Körper (vorher oben abgehackt),
+  schlankere Vorderbeine, Umhang etwas kleiner, verspieltes Gesicht: rundes
+  Auge mit weiter Pupille, „w"-Lächeln, Kopf leicht angehoben (rotate -6°).
 - **Versorgen**: Antippen öffnet ein Menü 🍖 Futter · 💧 Trinken · 🧶 Spielen
   · ✋ Streicheln (schließt nach 6 s oder bei Klick daneben). Wünsche zeigt sie
   nur leise („miau?"), im Menü leuchtet der Wunsch. Versorgt ist sie eine
