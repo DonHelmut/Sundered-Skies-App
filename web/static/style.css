@@ -299,6 +299,9 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
    in die Nachbarzeilen. */
 .combatant .mini .joker-aussen,
 .tv-tile .joker-aussen { display: none; }
+/* Stufen-Schild (GLUT/…) ist auf den Listen-Minis nur ~1,7 px hoch – unleserlich.
+   Die Stufe zeigt dort schon der Rahmen. */
+.combatant .mini .stufen-schild { display: none; }
 /* Ueberstand ist reine Deko: Klicks gehen hindurch (z. B. auf „Verlassen"
    ueber der Grosskarte, wohin der Ueberstand reicht). */
 .joker-aussen { pointer-events: none; }

@@ -47,6 +47,20 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## In Arbeit (nach 1.3, noch ohne Versionssprung)
+
+- **TV-Ansicht deckt nicht mehr vor:** Spielerkarten liegen dort verdeckt, bis
+  der Spieler am Handy aufdeckt (Gegner wie gehabt sofort offen); Karten-Spur
+  und ★ JOKER erst dann. Der Joker-Moment am TV feuert beim AUFDECKEN eines
+  Jokers, nicht mehr beim Austeilen (`tv.js`: `offen(c)`, `TV.jokerGesehen`).
+  Vorher verriet der TV die Karte vor dem eigenen Aufdeck-Moment und hebelte
+  die Reihenfolge-Sperre der Handys aus.
+- **Stufen-Schild** (GLUT/ASCHE/…) auf den Mini-Karten der Liste ausgeblendet
+  (`.combatant .mini .stufen-schild`) – dort war es ~1,7 px hoch. Große Karten
+  und TV unverändert.
+- Joker im Handy-Format (375 px) nachgemessen: kein Stil macht die Seite
+  breiter; Riss ragt am weitesten (±45 px), wird am Rand sauber abgeschnitten.
+
 ## 1.3 (28.09.2026): Zielwahl nach Standort, Fernkampf-Regel, Fehler aus dem Großtest
 
 - **Zielwahl am Handy** (`angriffWahlHtml`): eigenes Vollbild-Blatt
@@ -439,13 +453,14 @@ Halten nicht scrollen.
 ## Offene Punkte
 
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
+      Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
+      nur, wie flüssig es auf echten Geräten läuft.
 - [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.3** (veröffentlicht; weiter 1.4 … 1.9, 1.10 …).
       Nächstes Release also 1.3 → 1.4 (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
-- [ ] Stufen-Schild auf den kleinen Listenkarten ist mit ~1,7 px unleserlich
-      (war es vorher auch) – Vorschlag: dort ausblenden.
-- [ ] TV-Ansicht zeigt **alle Karten sofort offen**, auch wenn Spieler ihre
-      noch nicht aufgedeckt haben – widerspricht evtl. der neuen
-      Reihenfolge-Sperre. Klären, ob gewollt.
+- [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
+- [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst
+      nach dem Aufdecken (Joker-Moment ebenso). Falls doch anders gewünscht:
+      `offen(c)` in `tv.js`.
 - [ ] Geparkte Joker-Stile ggf. später weiterentwickeln (Ideen: Zerrissen noch
       feiner, Entladung als Alternative zu Blitz).

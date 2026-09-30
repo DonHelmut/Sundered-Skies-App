@@ -198,7 +198,8 @@ function frame(uid, tier, t) {
 // Namensschild unten: macht die Stufe unmissverständlich lesbar.
 function tierPlate(t, label, glow) {
   const w = 96, h = 20, x = (CARD_W - w) / 2, y = CARD_H - 34;
-  return `<g>
+  // Klasse: auf den Mini-Karten der Liste ausgeblendet (dort ~1,7 px Schrift).
+  return `<g class="stufen-schild">
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10"
       fill="${glow ? "rgba(10,16,14,0.72)" : "rgba(255,255,255,0.72)"}"
       stroke="${glow || t.dk}" stroke-width="1.2"/>

@@ -1,6 +1,6 @@
 // Read-only Beamer-/TV-Ansicht. Lauscht nur auf den Zustand (sendet nichts).
 
-const TV = { ws: null, state: null, prevJokerFlash: null, clockOffset: 0 };
+const TV = { ws: null, state: null, jokerGesehen: null, clockOffset: 0 };
 const $ = (id) => document.getElementById(id);
 const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -139,9 +139,16 @@ function render() {
   const root = $("tv");
   const active = s.combatants.find((c) => c.id === s.activeId);
 
-  // Joker-Moment bei neuem Joker.
-  if (TV.prevJokerFlash === null) TV.prevJokerFlash = s.jokerFlash;
-  else if (s.jokerFlash > TV.prevJokerFlash) { TV.prevJokerFlash = s.jokerFlash; triggerJokerMoment(); }
+  // Karten erst zeigen, wenn sie aufgedeckt sind (Gegner sofort, Spieler nach
+  // dem Antippen am Handy). Vorher zeigte der TV alles offen und verriet den
+  // Spielern ihre Karte, bevor sie selbst aufdecken durften - der Aufdeck-
+  // Moment am Handy und die Reihenfolge-Sperre liefen damit ins Leere.
+  const offen = (c) => !!(c.card && c.revealed);
+  // Joker-Moment erst, wenn ein Joker OFFEN liegt - nicht schon beim Austeilen
+  // (sonst weiß der Tisch vom Joker, bevor der Spieler aufgedeckt hat).
+  const jokerJetzt = new Set(s.combatants.filter((c) => offen(c) && c.card.suit === "joker").map((c) => `${c.id}:${c.card.id}`));
+  if (TV.jokerGesehen && [...jokerJetzt].some((k) => !TV.jokerGesehen.has(k))) triggerJokerMoment();
+  TV.jokerGesehen = jokerJetzt;
 
   const prevRects = captureRects();
   const prevTokens = captureTokens();
@@ -156,7 +163,7 @@ function render() {
 
   const spotlight = active
     ? `<div class="tv-spotlight">
-         <div class="tv-bigcard">${cardFace(active.id, active.card, active.status, active.card && active.card.suit === "joker")}</div>
+         <div class="tv-bigcard">${cardFace(active.id, offen(active) ? active.card : null, active.status, offen(active) && active.card.suit === "joker")}</div>
          <div class="tv-actorinfo">
            <div class="tv-actorlabel">Am Zug</div>
            <div class="tv-actorname">${esc(active.name)}</div>
@@ -167,16 +174,16 @@ function render() {
 
   const tiles = s.combatants.map((c, i) => {
     const isActive = c.id === s.activeId;
-    const hasJoker = c.card && c.card.suit === "joker";
+    const hasJoker = offen(c) && c.card.suit === "joker";
     const heldPill = c.held ? `<span class="pill warn">hält</span>` : "";
     const jokerBadge = hasJoker ? `<span class="pill" style="background:var(--gold);color:#1a1206;border-color:var(--gold);font-weight:800">★ JOKER</span>` : "";
     return `<div class="tv-tile ${isActive ? "active" : ""} ${c.kind === "npc" ? "enemy" : ""} ${hasJoker ? "joker-holder" : ""}" data-cid="${c.id}">
       <div class="tv-tilepos">${i + 1}</div>
-      ${cardFace(c.id, c.card, c.status, hasJoker)}
+      ${cardFace(c.id, offen(c) ? c.card : null, c.status, hasJoker)}
       <div class="tv-tilename">${c.anon
         ? `<span class="verdeckt">${esc(c.name)}</span>`
         : esc(c.name)} ${heldPill}</div>
-      <div class="badges">${jokerBadge} ${statusBadges(c)} ${Cards.trail(c)}</div>
+      <div class="badges">${jokerBadge} ${statusBadges(c)} ${offen(c) ? Cards.trail(c) : ""}</div>
     </div>`;
   }).join("");
 
