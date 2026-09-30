@@ -12,6 +12,21 @@
 > Quellcode **ohne** .exe. Das spielbare Paket gibt es **nur** über den Link oben
 > (rechts auf der Startseite unter **Releases**).
 
+> **Aktualisieren:** im App-Ordner Doppelklick auf **`Aktualisieren.bat`** – holt die
+> neueste Version, der Spielstand (`data`) bleibt erhalten (ab Version 1.5 dabei).
+
+> [!NOTE]
+> **Inoffizielles Fanprojekt.** Nicht verbunden mit, gesponsert oder unterstützt von
+> Pinnacle Entertainment Group oder Triple Ace Games. *Savage Worlds* ist eine Marke
+> von Pinnacle Entertainment Group, *Sundered Skies* von Triple Ace Games. Die App
+> ersetzt die Regelwerke nicht – zum Spielen braucht ihr die offiziellen Bücher.
+>
+> *This game references the Savage Worlds game system, available from Pinnacle
+> Entertainment Group at www.peginc.com. Savage Worlds and all associated logos and
+> trademarks are copyrights of Pinnacle Entertainment Group. Used with permission.
+> Pinnacle makes no representation or warranty as to the quality, viability, or
+> suitability for purpose of this product.*
+
 ---
 
 Digitaler Initiative-Kartenstapel für **Savage Worlds: Sundered Skies**, der

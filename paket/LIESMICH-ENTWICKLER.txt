@@ -8,7 +8,8 @@ Firmen-Laptops, startet schneller). Die Einzeldatei-Spec
 Paket bauen:
   1. .venv\Scripts\python.exe -m PyInstaller SunderedSkiesInitiative-Ordner.spec --noconfirm --clean
   2. Inhalt von dist\SunderedSkies-Ordnerversion (exe + _internal) plus
-     START-HIER.txt, START.bat, "WICHTIG - ganzen Ordner behalten.txt",
+     START-HIER.txt, START.bat, Aktualisieren.bat + Aktualisieren.ps1,
+     "WICHTIG - ganzen Ordner behalten.txt",
      Firewall-*.bat und WLAN-Stromsparen-aus.bat in einen Ordner
      "SunderedSkies-App" legen
   3. Ordner als SunderedSkies-App.zip zippen, Tag setzen und pushen,
@@ -23,3 +24,7 @@ Vor jedem Release die Version an DREI Stellen hochzaehlen:
   web/static/app.js  ASSET_VERSION
   web/index.html + web/tv.html   ?v=X.Y
 und in paket/START-HIER.txt die Versionszeile oben.
+
+Aktualisieren.bat (ab 1.5): holt das neueste GitHub-Release (braucht das
+oeffentliche Repo), vergleicht mit der Versionszeile in START-HIER.txt und
+tauscht alles ausser data aus. Darum die Versionszeile dort IMMER mitziehen.

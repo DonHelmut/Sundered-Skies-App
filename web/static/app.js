@@ -89,6 +89,7 @@ function versionLine() {
   const server = App._info && App._info.version;
   const stale = server && server !== ASSET_VERSION;
   return `<div class="muted small" style="margin-top:8px">App-Version ${esc(ASSET_VERSION)}${server ? ` · Server ${esc(server)}` : ""}</div>` +
+    `<div class="muted small" style="margin-top:2px">Inoffizielles Fanprojekt – nicht verbunden mit Pinnacle (Savage Worlds) oder Triple Ace Games (Sundered Skies).</div>` +
     (stale ? `<div class="pill bad" style="margin-top:4px">⚠ Alte Seite im Cache (v${esc(ASSET_VERSION)} statt v${esc(server)}). Einmal Strg+F5 drücken.</div>` : "");
 }
 const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
@@ -3988,6 +3989,7 @@ function renderJoin() {
     </div>
     ${handyTipp()}
     <div class="center muted small">Nichts zu installieren – läuft direkt im Browser.</div>
+    <div class="center muted small" style="margin-top:4px; opacity:0.75">Inoffizielles Fanprojekt für Savage Worlds: Sundered Skies.</div>
   `;
 }
 

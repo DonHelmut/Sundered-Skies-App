@@ -4,6 +4,14 @@ Sundered Skies – Initiative  (Version 1.4)
 Du brauchst NICHTS zu installieren. Kein Python, keine Zusatzpakete –
 alles steckt in diesem Ordner.
 
+INOFFIZIELLES FANPROJEKT: nicht verbunden mit oder unterstuetzt von
+Pinnacle Entertainment Group (Savage Worlds) oder Triple Ace Games
+(Sundered Skies). Die Namen gehoeren ihren Inhabern. Zum Spielen braucht
+ihr die offiziellen Regelwerke - die App ersetzt sie nicht.
+
+UPDATES: Doppelklick auf  Aktualisieren.bat  holt die neueste Version aus
+dem Internet. Dein Spielstand (Ordner "data") bleibt dabei erhalten.
+
 SO STARTEST DU
 --------------
 1. Den GANZEN Ordner entpacken, an einen festen Platz legen (z. B. Desktop)
