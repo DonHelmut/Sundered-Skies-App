@@ -72,10 +72,12 @@ def _rueckseite_gueltig(wert) -> bool:
 
 
 def _figur_rueckseite(wert) -> Optional[str]:
-    """Rückseite, die sich ein Spieler für SEINE Karten aussucht: None = die
-    des Tisches (Standard, Inseln), „profil" = das eigene Charakterbild, oder
-    ein eigenes hochgeladenes Bild. Alles andere -> None."""
-    if wert == "profil" or (isinstance(wert, str) and wert.startswith("/uploads/")):
+    """Rückseite, die sich ein Spieler für SEINE Karten aussucht:
+    None = automatisch (Charakterbild, falls vorhanden, sonst die des Tisches -
+    Stefan: das Porträt hinten war gut, wer eins hat), „standard" = bewusst
+    die des Tisches (Inseln), „profil" = das Charakterbild, oder ein eigenes
+    hochgeladenes Bild. Alles andere -> None."""
+    if wert in ("standard", "profil") or (isinstance(wert, str) and wert.startswith("/uploads/")):
         return wert
     return None
 

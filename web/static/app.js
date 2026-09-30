@@ -79,7 +79,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "1.5.5";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "1.5.6";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -5057,21 +5057,23 @@ async function uploadFigurRueckseite(file, profil) {
 function rueckseiteWahlHtml(mine) {
   const w = mine.rueckseite || null;
   const eigen = typeof w === "string" && w.startsWith("/uploads/") ? w : null;
-  const name = eigen ? "Eigenes Bild" : w === "profil" ? "Profil" : "Standard";
+  // Ohne eigene Wahl gilt automatisch: Charakterbild, falls vorhanden, sonst Standard.
+  const gilt = eigen ? "eigen" : w === "profil" || (!w && mine.image) ? "profil" : "standard";
+  const name = { eigen: "Eigenes Bild", profil: "Profil", standard: "Standard" }[gilt];
   const kopf = `<button type="button" class="ghost small rs-wahl-kopf" data-act="rs-wahl-auf">🂠 Kartenrückseite: <b>${name}</b> ${App.rsWahlOffen ? "▴" : "▾"}</button>`;
   if (!App.rsWahlOffen) return `<div class="rs-wahl">${kopf}</div>`;
   const karte = (svg) => `<span class="rs-karte">${svg}</span>`;
   const leer = (text) => `<span class="rs-karte rs-leer">${text}</span>`;
   const datei = (profil) => `<input type="file" accept="image/*" data-act="pick-figur-rueckseite"${profil ? ' data-profil="1"' : ""} style="display:none">`;
-  const std = `<button type="button" class="rs-kachel${!w ? " on" : ""}" data-act="figur-rueckseite" data-wert="">
-      ${karte(Cards.renderBackSVG(null, null))}<span>Standard</span></button>`;
+  const std = `<button type="button" class="rs-kachel${gilt === "standard" ? " on" : ""}" data-act="figur-rueckseite" data-wert="standard">
+      ${karte(Cards.renderBackSVG(null, "standard"))}<span>Standard</span></button>`;
   // Profil ohne Charakterbild: Antippen lädt eines hoch (wird auch das Avatar-Bild).
   const prof = mine.image
-    ? `<button type="button" class="rs-kachel${w === "profil" ? " on" : ""}" data-act="figur-rueckseite" data-wert="profil">
+    ? `<button type="button" class="rs-kachel${gilt === "profil" ? " on" : ""}" data-act="figur-rueckseite" data-wert="profil">
         ${karte(Cards.renderBackSVG(mine.image, "profil"))}<span>Profil</span></button>`
     : `<label class="rs-kachel">${leer("📷<br>Bild<br>wählen")}<span>Profil</span>${datei(true)}</label>`;
   const eig = eigen
-    ? `<button type="button" class="rs-kachel${w === eigen ? " on" : ""}" data-act="figur-rueckseite" data-wert="${esc(eigen)}">
+    ? `<button type="button" class="rs-kachel${gilt === "eigen" ? " on" : ""}" data-act="figur-rueckseite" data-wert="${esc(eigen)}">
         ${karte(Cards.renderBackSVG(null, eigen))}<span>Eigenes</span></button>`
     : `<label class="rs-kachel">${leer("🖼<br>Bild<br>hochladen")}<span>Eigenes</span>${datei(false)}</label>`;
   const neu = eigen ? `<label class="ghost small rs-neu">🖼 anderes Bild${datei(false)}</label>` : "";

@@ -1736,7 +1736,9 @@ def test_spieler_waehlt_eigene_kartenrueckseite(fresh_game):
     fresh_game.apply({"type": "roster_upsert", "name": "Korgo", "isWildCard": True})
     char = fresh_game.roster[-1]
     c = fresh_game.add_combatant_from_character(char, "plr-1")
-    assert c["rueckseite"] is None                         # Standard = Inseln des Tisches
+    assert c["rueckseite"] is None                         # automatisch (Profilbild oder Inseln)
+    fresh_game.apply({"type": "set_figur_rueckseite", "id": c["id"], "wert": "standard"})
+    assert c["rueckseite"] == "standard"                   # bewusst die Inseln, auch mit Profilbild
     schritte = len(fresh_game._history)
 
     fresh_game.apply({"type": "set_figur_rueckseite", "id": c["id"], "wert": "profil"})
@@ -1747,7 +1749,7 @@ def test_spieler_waehlt_eigene_kartenrueckseite(fresh_game):
     assert char["rueckseite"] == "/uploads/eigen.png"
     assert "eigen.png" in fresh_game.benutzte_bilder()
     fresh_game.apply({"type": "set_figur_rueckseite", "id": c["id"], "wert": "https://fremd.example/x.png"})
-    assert c["rueckseite"] is None                         # fremde Adressen -> Standard
+    assert c["rueckseite"] is None                         # fremde Adressen -> automatisch
 
     fresh_game.apply({"type": "set_figur_rueckseite", "id": c["id"], "wert": "/uploads/eigen.png"})
     fresh_game.apply({"type": "roster_upsert", "id": char["id"], "name": "Korgo der Große", "isWildCard": True})

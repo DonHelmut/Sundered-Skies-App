@@ -845,7 +845,7 @@ function rueckseiteMitBild(bild) {
         <stop offset="55%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#0c0904" stop-opacity="0.7"/>
       </radialGradient>
       <linearGradient id="${id}u" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#0c0904" stop-opacity="0"/><stop offset="1" stop-color="#0c0904" stop-opacity="0.75"/>
+        <stop offset="0" stop-color="#0c0904" stop-opacity="0"/><stop offset="1" stop-color="#0c0904" stop-opacity="0.6"/>
       </linearGradient>
     </defs>
     <rect x="4" y="4" width="${CARD_W - 8}" height="${CARD_H - 8}" rx="18" fill="#0f0b06"/>
@@ -863,13 +863,14 @@ function rueckseiteMitBild(bild) {
   </svg>`;
 }
 
-// wahl = Rückseite, die sich der Spieler für SEINE Karten ausgesucht hat
-// (Stefan): nichts = die des Tisches (Inseln), „profil" = sein Charakterbild,
-// „/uploads/…" = eigenes Bild. Früher bekam jede Figur mit Charakterbild
-// automatisch das Porträt hinten drauf - jetzt nur, wer das will.
+// wahl = Rückseite, die sich der Spieler für SEINE Karten ausgesucht hat:
+// nichts = automatisch (Charakterbild, falls es eins gibt, sonst die des
+// Tisches), „standard" = bewusst die des Tisches (Inseln), „profil" = sein
+// Charakterbild, „/uploads/…" = eigenes Bild. (1.5.5 zeigte ohne Wahl immer
+// die Inseln - Stefan: das Porträt war gut, wer schon ein Bild hat.)
 function renderBackSVG(bild, wahl) {
   if (typeof wahl === "string" && wahl.startsWith("/uploads/")) return rueckseiteMitBild(wahl);
-  const image = wahl === "profil" ? bild : null;
+  const image = wahl === "standard" ? null : bild;
   if (!image && rueckseiteBild && rueckseiteBild !== "gruen") return rueckseiteMitBild(rueckseiteBild);
   // Rückseite mit hochgeladenem Char-Bild: Porträt + Bronze-Rahmen + Vignette.
   // WICHTIG: für ALLE Karten identisch – darf den Joker nicht verraten.

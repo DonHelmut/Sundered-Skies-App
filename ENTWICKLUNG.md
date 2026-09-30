@@ -47,7 +47,7 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
-## Überblick 30.09.2026 – was heute alles passiert ist (1.4 → 1.5.5)
+## Überblick 30.09.2026 – was heute alles passiert ist (1.4 → 1.5.6)
 
 Für den anderen PC / Mitentwickler: ein Tag mit vielen kleinen Releases.
 Details stehen in den einzelnen Abschnitten darunter.
@@ -63,8 +63,9 @@ Details stehen in den einzelnen Abschnitten darunter.
   Browser-Dialogen (die der Browser sperren kann) (1.4.3–1.4.5).
 - **Karten:** eigene gemalte Illustration (Himmelsinseln) als
   Standard-Rückseite; der SL kann ein eigenes Bild oder schlichtes Grün
-  wählen (1.4.6, 1.4.8). **Neu in 1.5.5:** jeder Spieler wählt die Rückseite
-  seiner Karten selbst – Standard, Profil (Charakterbild) oder eigenes Bild.
+  wählen (1.4.6, 1.4.8). **Neu in 1.5.5/1.5.6:** jeder Spieler wählt die
+  Rückseite seiner Karten selbst – Standard, Profil (Charakterbild) oder
+  eigenes Bild; ohne Wahl automatisch Profil (falls Bild da), sonst Standard.
 - **TV:** deckt Spielerkarten erst nach dem Aufdecken auf und passt immer auf
   einen Bildschirm, nie Scrollen (1.4, 1.4.7).
 - **Kämpfe vorbereiten** (1.5): Gegner aus der Bibliothek + Charaktere mit
@@ -73,6 +74,17 @@ Details stehen in den einzelnen Abschnitten darunter.
   Bodenlinie, lässt sich versorgen (Futter/Trinken/Spielen/Streicheln),
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
+
+## 1.5.6 (30.09.2026): Ohne Wahl: Profilbild, sonst Inseln
+
+- Stefan: Die Porträt-Rückseite war gut, wenn der Spieler schon ein
+  Charakterbild hat – sonst die Inseln (Variante „D" der Musterseite
+  (lokale Vorschau, nicht im Git): eigene Zeichnung + Kompass).
+- `rueckseite` jetzt: None = **automatisch** (Charakterbild, falls vorhanden,
+  sonst Tisch-Rückseite – wie vor 1.5.5, auch für Gegner), `"standard"` =
+  bewusst die Tisch-Rückseite, `"profil"`, `"/uploads/…"`. Die Auswahl am
+  Handy markiert, was gerade tatsächlich gilt.
+- Unterer Verlauf der Bild-Rückseite 0.75 → 0.6 (genau wie Variante D).
 
 ## 1.5.5 (30.09.2026): Spieler wählen ihre Kartenrückseite
 
@@ -87,7 +99,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   übersteht Bearbeiten im Roster), Aktion `set_figur_rueckseite` – Spieler
   nur für die eigene Figur, kein Rückgängig-Schritt (reine Optik). Das eigene
   Bild zählt beim Aufräumen als benutzt und kommt mit in die Sicherung.
-- **Verhaltensänderung:** Früher bekam jede Figur mit Charakterbild
+- **Verhaltensänderung (in 1.5.6 wieder zurückgenommen):** Früher bekam jede Figur mit Charakterbild
   automatisch das Porträt als Rückseite. Jetzt ist Standard überall die
   Tisch-Rückseite; das Porträt nur, wer „Profil" wählt. (Gegner zeigen damit
   auch keine Porträt-Rückseite mehr - verdeckte Gegner verraten sich so nicht.)
@@ -710,8 +722,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.5** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.5.5 → 1.6 (oder 1.5.6) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.6** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.5.6 → 1.6 (oder 1.5.7) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst
