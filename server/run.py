@@ -308,6 +308,17 @@ def main() -> None:
 
     konsole_entschaerfen()
 
+    # Neue Updater-Dateien (*.neu), die Aktualisieren.exe nicht ueber sich selbst
+    # schreiben konnte, jetzt einsetzen - jetzt laeuft der Updater nicht.
+    if getattr(sys, "frozen", False):
+        try:
+            import aktualisieren
+            from .paths import BASE_DIR
+            if aktualisieren.updater_nachziehen(BASE_DIR):
+                diag.log("Updater-Dateien nachgezogen (Aktualisieren.exe)")
+        except Exception as fehler:
+            diag.log(f"Updater nachziehen fehlgeschlagen: {fehler}")
+
     # Port waehlen: 8000 bevorzugt. Belegt? -> Laeuft dort UNSERE App, brechen wir
     # ab (zwei Server wuerden den Spielstand aufteilen). Blockiert ein FREMDES
     # Programm, weichen wir auf einen anderen Port aus.

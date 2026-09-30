@@ -47,6 +47,19 @@ sich über **Export/Import** in der App umziehen.
 
 ---
 
+## 1.4.2 (30.09.2026): Aktualisieren als .exe
+
+- **`Aktualisieren.exe`** statt `.bat` (Stefan: einfacher für Anwender). Quelle
+  `aktualisieren.py` (nur Standardbibliothek), gebaut mit `Aktualisieren.spec`
+  als Ordnerversion mit eigenem Unterordner `_aktualisieren` (Einzeldatei-.exe
+  würde aus %TEMP% starten → auf Firmen-Laptops blockiert).
+- Sich selbst kann der laufende Updater nicht überschreiben: neue
+  Updater-Dateien kommen als `*.neu` daneben, die App setzt sie beim nächsten
+  Start ein (`updater_nachziehen` in `server/run.py`) und räumt die alte
+  `Aktualisieren.bat`/`.ps1` weg.
+- Erkennt die laufende App an der gesperrten `_internal\python3*.dll` und
+  beendet sie auf Nachfrage (`taskkill`). Tests: `tests/test_aktualisieren.py`.
+
 ## 1.4.1 (30.09.2026): Repo öffentlich, Aktualisieren.bat, Fanprojekt-Hinweise
 
 - **Repo ist öffentlich** (Stefan, 30.09.). `main` geschützt: kein Force-Push,
@@ -469,8 +482,8 @@ Halten nicht scrollen.
 - [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
       Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
       nur, wie flüssig es auf echten Geräten läuft.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.1** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.4.1 → 1.5 (oder 1.4.2) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.4.2** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.4.2 → 1.5 (oder 1.4.3) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst

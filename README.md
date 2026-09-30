@@ -12,8 +12,9 @@
 > Quellcode **ohne** .exe. Das spielbare Paket gibt es **nur** über den Link oben
 > (rechts auf der Startseite unter **Releases**).
 
-> **Aktualisieren:** im App-Ordner Doppelklick auf **`Aktualisieren.bat`** – holt die
-> neueste Version, der Spielstand (`data`) bleibt erhalten (ab Version 1.4.1 dabei).
+> **Aktualisieren:** im App-Ordner Doppelklick auf **`Aktualisieren.exe`** – holt die
+> neueste Version, der Spielstand (`data`) bleibt erhalten (ab Version 1.4.2; in 1.4.1
+> hieß es noch `Aktualisieren.bat`).
 
 > [!NOTE]
 > **Inoffizielles Fanprojekt.** Nicht verbunden mit, gesponsert oder unterstützt von

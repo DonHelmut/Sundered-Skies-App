@@ -7,8 +7,10 @@ Firmen-Laptops, startet schneller). Die Einzeldatei-Spec
 
 Paket bauen:
   1. .venv\Scripts\python.exe -m PyInstaller SunderedSkiesInitiative-Ordner.spec --noconfirm --clean
-  2. Inhalt von dist\SunderedSkies-Ordnerversion (exe + _internal) plus
-     START-HIER.txt, START.bat, Aktualisieren.bat + Aktualisieren.ps1,
+     .venv\Scripts\python.exe -m PyInstaller Aktualisieren.spec --noconfirm --clean
+  2. Inhalt von dist\SunderedSkies-Ordnerversion (exe + _internal) UND von
+     dist\Aktualisieren (Aktualisieren.exe + _aktualisieren) plus
+     START-HIER.txt, START.bat,
      "WICHTIG - ganzen Ordner behalten.txt",
      Firewall-*.bat und WLAN-Stromsparen-aus.bat in einen Ordner
      "SunderedSkies-App" legen
@@ -25,6 +27,8 @@ Vor jedem Release die Version an DREI Stellen hochzaehlen:
   web/index.html + web/tv.html   ?v=X.Y
 und in paket/START-HIER.txt die Versionszeile oben.
 
-Aktualisieren.bat (ab 1.4.1): holt das neueste GitHub-Release (braucht das
-oeffentliche Repo), vergleicht mit der Versionszeile in START-HIER.txt und
-tauscht alles ausser data aus. Darum die Versionszeile dort IMMER mitziehen.
+Aktualisieren.exe (ab 1.4.2, Quelle aktualisieren.py; 1.4.1 hatte eine .bat):
+holt das neueste GitHub-Release (braucht das oeffentliche Repo), vergleicht mit
+der Versionszeile in START-HIER.txt und tauscht alles ausser data aus. Darum
+die Versionszeile dort IMMER mitziehen. Seine eigenen Dateien legt er als *.neu
+daneben; die App setzt sie beim naechsten Start ein (updater_nachziehen).
