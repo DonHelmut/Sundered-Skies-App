@@ -37,6 +37,8 @@ sich über **Export/Import** in der App umziehen.
 ### Testen
 
 - `.venv\Scripts\python -m pytest` – Server-Logik.
+- **GitHub Actions** (`.github/workflows/tests.yml`) lässt die Tests bei jedem
+  Push auf Windows laufen; rotes ✗ auf GitHub = vor dem nächsten Pull ansehen.
 - Server starten: `.venv\Scripts\python -m server.run` (LAN, QR-Code).
 - **Musterseite** für alles Optische: `http://localhost:8000/static/_lab.html` –
   alle Joker-Stile (aktiv + geparkt), Kartenstufen, Talent-Wechsel-Demo.
@@ -168,7 +170,8 @@ Details stehen in den einzelnen Abschnitten darunter.
 ## 1.5.1 (30.09.2026): Ladebalken beim Aktualisieren
 
 - `Aktualisieren.exe` zeigt beim Download einen Balken, der sich in derselben
-  Zeile füllt (`fortschritt_balken`, ``, höchstens ~12×/s neu gezeichnet):
+  Zeile füllt (`fortschritt_balken`, `
+`, höchstens ~12×/s neu gezeichnet):
   `[██████████░░░░░░░░░░]  52 %   13,4 / 25,9 MB` – statt zehn Zeilen „… 10 %".
   Ohne echtes Konsolenfenster (umgeleitet/Tests) nur jede 10 % eine Zeile mit
   `#`/`-` (cp1252 kennt █/░ nicht); `stdout` zusätzlich mit `errors="replace"`.
@@ -719,9 +722,8 @@ Halten nicht scrollen.
 
 ## Offene Punkte
 
-- [ ] **Handy-Test** der Joker auf echten Geräten (am aufwendigsten: Orbit).
-      Im Handy-Format nachgemessen: nichts macht die Seite breiter – offen bleibt
-      nur, wie flüssig es auf echten Geräten läuft.
+- [x] ~~**Handy-Test** der Joker auf echten Geräten~~ – erledigt 01.10.2026,
+      läuft flüssig.
 - [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.6** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
       Nächstes Release also 1.5.6 → 1.6 (oder 1.5.7) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
