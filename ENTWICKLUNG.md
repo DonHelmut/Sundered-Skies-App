@@ -77,6 +77,24 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (01.10.2026): app.js aufgeteilt, Tests auf GitHub
+
+- **app.js (5 300 Zeilen) in 11 Dateien geschnitten**, Inhalt unverändert –
+  nur an den vorhandenen Abschnitts-Überschriften getrennt: `app.js` (Kern) →
+  `verbindung.js` → `dialoge.js` → `tisch.js` → `render.js` → `sl.js` →
+  `bogen.js` → `spieler.js` → `ereignisse.js` → `aktionen.js` → `start.js`.
+  Warum: schneller finden, weniger Git-Konflikte zwischen den PCs.
+- Klassische Scripts, gemeinsamer globaler Bereich (kein Build, keine Module –
+  sonst müsste jede der ~hunderten Funktionen exportiert werden). Einzige
+  Falle: Code, der beim LADEN läuft (nicht in einer Funktion), darf nur auf
+  frühere Dateien zugreifen – Funktions-Hoisting gilt nur innerhalb einer Datei.
+  Geprüft per Skript (keine Ladezeit-Zugriffe nach vorn) und im Browser:
+  SL + Spieler beitreten, Runde, Aufdecken, Treffer, Rechtsklick-Menü, TV –
+  keine Fehler in der Konsole.
+- `ASSET_VERSION` bleibt in `app.js`. Beim Release `?v=` jetzt in allen
+  Script-Tags von `index.html` hochzählen.
+- **GitHub Actions** (`.github/workflows/tests.yml`): pytest bei jedem Push.
+
 ## 1.5.6 (30.09.2026): Ohne Wahl: Profilbild, sonst Inseln
 
 - Stefan: Die Porträt-Rückseite war gut, wenn der Spieler schon ein

@@ -24,7 +24,7 @@ kein Sprung auf 2.0). Tags heissen v1.0, v1.1, ...
 Vor jedem Release die Version an DREI Stellen hochzaehlen:
   server/paths.py  APP_VERSION
   web/static/app.js  ASSET_VERSION
-  web/index.html + web/tv.html   ?v=X.Y
+  web/index.html + web/tv.html   ?v=X.Y (alle Script-/CSS-Tags)
 und in paket/START-HIER.txt die Versionszeile oben.
 
 Aktualisieren.exe (ab 1.4.2, Quelle aktualisieren.py; 1.4.1 hatte eine .bat):

@@ -315,7 +315,10 @@ Dateien werden mit `no-cache` ausgeliefert, damit Updates immer laden.
 - `server/diag.py` – Protokoll (`data/log.txt`)
 - `web/index.html`, `web/tv.html` – SL-/Spieler-Ansicht und TV-Ansicht
 - `web/static/cards.js` – Karten als SVG
-- `web/static/app.js` – SL-/Spieler-Logik
+- `web/static/app.js` – Kern der SL-/Spieler-Logik (App-Zustand, Hilfen); dazu
+  `verbindung.js`, `dialoge.js`, `tisch.js` (Karten, Zonen, Joker-Moment),
+  `render.js`, `sl.js` (SL-Pult), `bogen.js` (Charakterbogen), `spieler.js`,
+  `ereignisse.js` (Klicks/Tasten), `aktionen.js`, `start.js` (läuft zuletzt)
 - `web/static/zones.js` – Zonen-Board (gemeinsam für SL, Spieler, TV)
 - `web/static/tv.js` – TV-Ansicht
 - `web/static/mimi.js` – Mimi die Katze
@@ -332,7 +335,7 @@ run-tests.bat                                 REM dasselbe als Doppelklick
 
 Vor jedem Release die Version an **drei** Stellen hochzählen – `server/paths.py`
 (`APP_VERSION`), `web/static/app.js` (`ASSET_VERSION`) und `?v=NN` in
-`web/index.html` + `web/tv.html` – dazu die Versionszeile in
+`web/index.html` (alle Script-Tags) + `web/tv.html` – dazu die Versionszeile in
 `paket/START-HIER.txt`. Stimmen Server- und Seitenversion nicht überein, warnt
 die App von selbst („Alte Seite im Cache"). Details zum Paketbau:
 `paket/LIESMICH-ENTWICKLER.txt`.

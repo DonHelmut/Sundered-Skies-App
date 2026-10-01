@@ -33,9 +33,14 @@ LAN-Adresse.
 - Kommentare erklären das **Warum**, oft mit der Vorgeschichte („sonst …").
   Diesen Stil beibehalten.
 - Keine Browser-Dialoge (`confirm`/`alert`/`prompt`) – der Browser lässt sie sperren;
-  stattdessen `frage`/`hinweis`/`eingabe` aus `app.js`.
+  stattdessen `frage`/`hinweis`/`eingabe` aus `dialoge.js`.
 - Kein animierter CSS-`filter` auf Karten (ruckelt beim Drehen); Leuchten wird
   mit Verläufen/`box-shadow` gemalt.
+- Client-Logik ist auf mehrere klassische `<script>`-Dateien verteilt (`app.js`
+  = Kern … `start.js` = Start, Liste oben in `app.js`), gemeinsamer globaler
+  Bereich, kein Build. Reihenfolge in `index.html` zählt: Code, der beim Laden
+  läuft, nur auf frühere Dateien zugreifen lassen. Neue Datei → Script-Tag mit
+  `?v=` in `index.html`.
 - Joker: `cards.js` (`JOKER_STILE`, `JOKER_NAMEN`, `JOKER_BAU`). Geparkte Stile
   in `web/static/joker-archiv.js`, das Spiel lädt sie nicht. Leitlinien in
   ENTWICKLUNG.md.
