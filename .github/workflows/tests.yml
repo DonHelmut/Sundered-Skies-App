@@ -1,0 +1,21 @@
+# Tests bei jedem Push und PR – fängt Fehler ab, bevor der andere PC sie
+# per `git pull` holt. Windows-Runner, weil das Spiel nur dort läuft (winnet,
+# ctypes.windll); unter Linux würden Windows-Pfade ungeprüft bleiben.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # requirements-dev.txt allein reicht nicht (qrcode fehlt sonst) – beide.
+      - run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m pytest
