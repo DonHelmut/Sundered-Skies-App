@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (01.10.2026): app.js aufgeteilt, Tests auf GitHub
+## 1.5.7 (03.10.2026): app.js aufgeteilt, Tests auf GitHub
 
 - **app.js (5 300 Zeilen) in 11 Dateien geschnitten**, Inhalt unverändert –
   nur an den vorhandenen Abschnitts-Überschriften getrennt: `app.js` (Kern) →
@@ -742,8 +742,8 @@ Halten nicht scrollen.
 
 - [x] ~~**Handy-Test** der Joker auf echten Geräten~~ – erledigt 01.10.2026,
       läuft flüssig.
-- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.6** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
-      Nächstes Release also 1.5.6 → 1.6 (oder 1.5.7) (`server/paths.py`, `web/static/app.js`,
+- [x] ~~Version 91 → 92~~ – erledigt; **aktueller Stand ist 1.5.7** (veröffentlicht; weiter 1.5 … 1.9, 1.10 …; kleine Nachlieferungen als 1.4.1, 1.4.2 …).
+      Nächstes Release also 1.5.7 → 1.6 (oder 1.5.8) (`server/paths.py`, `web/static/app.js`,
       `?v=` in `web/index.html` + `web/tv.html`, `paket/START-HIER.txt`).
 - [x] ~~Stufen-Schild auf den kleinen Listenkarten~~ – dort ausgeblendet.
 - [x] ~~TV-Ansicht zeigt alle Karten sofort offen~~ – Spielerkarten jetzt erst
