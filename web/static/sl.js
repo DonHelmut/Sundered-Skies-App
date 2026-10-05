@@ -1329,6 +1329,7 @@ function kontextMenueHtml() {
       ${b("redraw", "🔄 Neu ziehen")}
     </div>`;
   const verwalten = `<div class="km-zeile km-klein">
+      ${hatBogen(c) || hatSpielwerte(c) ? b("bogen-ansicht", c.kind === "npc" ? "📜 Spielwerte" : "📜 Bogen") : ""}
       ${b("edit-combatant", "✎ Bearbeiten")}
       ${c.kind === "npc" && !c.ally ? `<button class="km-btn${c.anon ? " on" : ""}" data-act="set-anon" data-id="${c.id}" data-on="${c.anon ? 0 : 1}">${c.anon ? "🫥 Aufdecken" : "👁 Verdecken"}</button>` : ""}
       <button class="km-btn" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}">${c.benched ? "▶️ Wieder rein" : "⏸ Pausieren"}</button>
@@ -1446,6 +1447,7 @@ function rosterInhalt() {
       <div class="grow"><strong>${esc(r.name)}</strong>
         <div class="badges">${r.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)">WC</span>' : ""}${talentBadges(r.talents)}</div>
       </div>
+      ${hatBogen(r) ? `<button class="ghost small" data-act="bogen-ansicht" data-id="${r.id}" data-quelle="roster" title="Charakterbogen ansehen">📜</button>` : ""}
       <button class="small primary" data-act="roster-to-combat" data-id="${r.id}" title="Diesen Charakter in den Kampf setzen (SL-gesteuert)">+ Kampf</button>
       <button class="ghost small" data-act="edit-char" data-id="${r.id}">Bearbeiten</button>
       <button class="ghost small bad" data-act="delete-char" data-id="${r.id}">✕</button>

@@ -391,11 +391,14 @@ function kampfwerteFelder(prefix, c) {
     ${feld("parade", "Parade", "z. B. 6")}
     ${feld("robustheit", "Robustheit", "Gesamtwert inkl. Panzer, z. B. 8")}
     ${feld("panzer", "davon Panzer", "nur zur Anzeige: 8(2)")}
-  </div>`;
+  </div>
+  <label class="field spielwerte-feld"><span>📜 Spielwerte (Spickzettel, nur SL)</span>
+    <textarea id="${prefix}-spielwerte" rows="5" maxlength="3000"
+      placeholder="Attribute: GE W6, VE W4, WI W6, ST W8, KO W8&#10;Fertigkeiten: Kämpfen W8, Einschüchtern W6&#10;• Kurzschwert: St+W6&#10;• Zäh: +1 Robustheit">${esc((c && c.spielwerte) || "")}</textarea></label>`;
 }
 function kampfwerteLesen(prefix) {
   const w = {};
-  ["parade", "robustheit", "panzer"].forEach((k) => { const el = $(`${prefix}-${k}`); w[k] = el ? el.value : ""; });
+  ["parade", "robustheit", "panzer", "spielwerte"].forEach((k) => { const el = $(`${prefix}-${k}`); w[k] = el ? el.value : ""; });
   return w;
 }
 

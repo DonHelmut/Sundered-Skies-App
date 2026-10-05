@@ -43,7 +43,7 @@ function render() {
   }
   Cards.renderStart();
   let html;
-  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay(); }
+  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay() + bogenAnsichtHtml(); }
   finally { Cards.renderEnde(); }
   // Unveraendert? Dann den Bildschirm NICHT neu aufbauen. Jeder Neuaufbau ersetzt
   // alle Karten: laufende Animationen (Joker, Glanz, Glimmen) starten von vorn,
