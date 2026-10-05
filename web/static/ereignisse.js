@@ -173,6 +173,13 @@ document.addEventListener("click", (e) => {
       App.tokenPopupId = null; render();
     },
     "close-token-popup": () => { App.tokenPopupId = null; render(); },
+    // Fremden Bogen / Gegner-Spielwerte ansehen (Blatt über allem).
+    "bogen-ansicht": () => {
+      App.bogenAnsicht = { id, quelle: target.getAttribute("data-quelle") || "kampf" };
+      App.tokenPopupId = null; App.kontextMenue = null; render();
+    },
+    "bogen-ansicht-zu": () => { App.bogenAnsicht = null; render(); },
+    "bogen-ansicht-reiter": () => { App.bogenAnsichtReiter = target.getAttribute("data-reiter"); render(); },
     "zur-aktiven-zeile": () => zurAktivenZeile(true),
     "zustand-umschalten": () => {
       // Gemerkt in App.rowStatusOpen, damit ein Broadcast-Render es nicht zuklappt.
@@ -414,6 +421,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (App.role !== "gm" || !App.state) return;
   if (e.key === "Escape" && App.tastenHilfe) { App.tastenHilfe = false; render(); return; }
+  if (e.key === "Escape" && App.bogenAnsicht) { App.bogenAnsicht = null; render(); return; }
   if (e.key === "Escape" && App.auswahl.size) { App.auswahl.clear(); render(); return; }
   if (e.ctrlKey || e.altKey || e.metaKey) return;
   const t = e.target;
@@ -613,7 +621,7 @@ document.addEventListener("change", (e) => {
       if (vorhanden) vorhanden.anzahl += 1;
       else App.kampfEntwurf.zeilen.push({ key, anzahl: 1, zone, anon: false,
         proto: { name: v.name, isWildCard: !!v.isWildCard, talents: v.talents || [], gluck: !!v.gluck, grosses_gluck: !!v.grosses_gluck,
-                 ally, image: v.image || null, vorlage: v.id, parade: v.parade, robustheit: v.robustheit, panzer: v.panzer } });
+                 ally, image: v.image || null, vorlage: v.id, parade: v.parade, robustheit: v.robustheit, panzer: v.panzer, spielwerte: v.spielwerte || "" } });
     }
     t.value = "";
     render();

@@ -189,6 +189,30 @@ def test_kampfwerte_von_vorlage_bis_begegnung(fresh_game):
     assert fresh_game._combatant(ork["id"])["parade"] is None
 
 
+def test_spielwerte_reisen_mit_und_bleiben_beim_sl(fresh_game):
+    text = "Attribute: GE W6, ST W8\n• Axt: St+W8"
+    fresh_game.apply({"type": "bestiary_upsert", "name": "Ork", "spielwerte": text})
+    vorlage = fresh_game.bestiary[-1]
+    assert vorlage["spielwerte"] == text
+    fresh_game.apply({"type": "add_npc_from_bestiary", "id": vorlage["id"]})
+    ork = fresh_game.combatants[-1]
+    assert ork["spielwerte"] == text
+    # Handys bekommen Gegner-Spielwerte nicht - der SL schon.
+    assert all("spielwerte" not in c for c in fresh_game.snapshot(fuer_spieler=True)["combatants"])
+    assert fresh_game.snapshot()["combatants"][-1]["spielwerte"] == text
+    # Vorbereiteter Kampf holt sie frisch aus der Bibliothek (Vorlage später ergänzt).
+    fresh_game.apply({"type": "encounter_upsert", "name": "Hinterhalt",
+                      "members": [{"name": "Ork", "vorlage": vorlage["id"], "zone": 3}]})
+    fresh_game.apply({"type": "bestiary_upsert", "id": vorlage["id"], "name": "Ork", "spielwerte": "neu"})
+    fresh_game.apply({"type": "add_encounter", "id": fresh_game.encounters[-1]["id"]})
+    assert fresh_game.combatants[-1]["spielwerte"] == "neu"
+    # Leeren beim Bearbeiten entfernt das Feld; Länge gedeckelt.
+    fresh_game.apply({"type": "edit_combatant", "id": ork["id"], "spielwerte": ""})
+    assert "spielwerte" not in fresh_game._combatant(ork["id"])
+    fresh_game.apply({"type": "edit_combatant", "id": ork["id"], "spielwerte": "x" * 5000})
+    assert len(fresh_game._combatant(ork["id"])["spielwerte"]) == 3000
+
+
 def test_kampfhilfen_schalter_bleiben(fresh_game):
     assert fresh_game.snapshot()["schadenRechnen"] is False
     for name in ("schadenRechnen", "gruppenKarte"):

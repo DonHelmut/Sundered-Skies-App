@@ -77,6 +77,24 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.7, 05.10.2026): Bögen für alle, Gegner-Spielwerte
+
+- Kalle: SL soll die Charakterbögen sehen, **die Mitspieler auch**. Nur lesen –
+  eintragen bleibt Sache des Spielers. Zu öffnen über: Token-Popup („📜
+  Charakterbogen"), SL-Rechtsklick („📜 Bogen"), Bibliothek → Charaktere („📜",
+  auch außerhalb des Kampfs) und am Handy unter „Mein Charakter" → Mitspieler.
+  Blatt `bogenAnsichtHtml()` in bogen.js (`App.bogenAnsicht = {id, quelle}`);
+  Lese-Ansicht `bogenLesenHtml()` teilt sich der eigene Bogen.
+- **Gegner-Spickzettel**: Feld „📜 Spielwerte" (Freitext, max. 3000 Zeichen) in
+  Gegner-/Verbündeten-Vorlagen und im Figur-Editor (`kampfwerteFelder`). Freitext,
+  damit man den Werteblock aus dem Regelbuch hineinkopieren kann; „Wort:" am
+  Zeilenanfang wird fett, „•/-/*" wird Aufzählung. Reist über `_kampfwerte` mit
+  (Vorlage → Kampf → vorbereiteter Kampf); vorbereitete Kämpfe holen die
+  Spielwerte beim Starten frisch aus der Bibliothek (`vorlage`).
+- Gegner-Spielwerte bekommen die Handys NICHT (`_fuer_spieler` streicht sie),
+  die von Verbündeten schon.
+- Gemerkt, nicht gebaut: **Sprachsteuerung** für den SL (Kalle überlegt noch).
+
 ## 1.5.7 (03.10.2026): app.js aufgeteilt, Tests auf GitHub
 
 - **app.js (5 300 Zeilen) in 11 Dateien geschnitten**, Inhalt unverändert –

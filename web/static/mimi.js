@@ -318,7 +318,7 @@
   function beschaeftigt() {
     const a = document.activeElement;
     if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return true;
-    return !!document.querySelector(".app-dialog-hg, .angriff-popup, .kontext-menue, .msg-overlay, .dl-blatt, .myturn-banner, .kampf-bau");
+    return !!document.querySelector(".app-dialog-hg, .bogen-ansicht-hg, .angriff-popup, .kontext-menue, .msg-overlay, .dl-blatt, .myturn-banner, .kampf-bau");
   }
   function sichtbar(el) {
     const r = el.getBoundingClientRect();

@@ -102,8 +102,25 @@ def _kampfwert(v) -> Optional[int]:
         return None
 
 
+SPIELWERTE_MAX = 3000
+
+
+def _spielwerte(v) -> str:
+    """Freitext-Spickzettel einer Gegner-/Verbündeten-Vorlage (Attribute,
+    Angriffe, Sonderfähigkeiten …). Bewusst Freitext: so lässt sich der
+    Werteblock aus dem Regelbuch einfach hineinkopieren."""
+    return str(v or "").replace("\r\n", "\n").strip()[:SPIELWERTE_MAX]
+
+
 def _kampfwerte(quelle: dict) -> dict:
-    return {k: _kampfwert(quelle.get(k)) for k in ("parade", "robustheit", "panzer")}
+    werte = {k: _kampfwert(quelle.get(k)) for k in ("parade", "robustheit", "panzer")}
+    # Spielwerte reisen mit Parade & Co. überall hin mit (Vorlage → Kampf →
+    # vorbereiteter Kampf). Nur wenn vorhanden - sonst trüge jede Figur ein
+    # leeres Feld in jedem Update mit.
+    spick = _spielwerte(quelle.get("spielwerte"))
+    if spick:
+        werte["spielwerte"] = spick
+    return werte
 
 
 def max_wounds(c: dict, statisten_ko: int = 3) -> int:
@@ -680,10 +697,15 @@ class Game:
         die eigene Seite soll man ja erkennen."""
         raus = []
         for c in combatants:
-            if c.get("anon") and c.get("kind") == "npc" and not c.get("ally"):
+            feind = c.get("kind") == "npc" and not c.get("ally")
+            if feind and (c.get("anon") or c.get("spielwerte")):
                 kopie = dict(c)
-                kopie["name"] = self._tarnname(c)
-                kopie["anon"] = True             # Client zeichnet das weich
+                # Spielwerte der Gegner sind Spickzettel des SL - am Handy
+                # verrieten sie Angriffe und Sonderfähigkeiten.
+                kopie.pop("spielwerte", None)
+                if c.get("anon"):
+                    kopie["name"] = self._tarnname(c)
+                    kopie["anon"] = True         # Client zeichnet das weich
                 raus.append(kopie)
             else:
                 raus.append(c)
@@ -692,7 +714,7 @@ class Game:
     def snapshot(self, fuer_spieler: bool = False) -> dict:
         # Verdeckte Gegner: der SL markiert sie einzeln, die Spieler bekommen
         # dann Tarnnamen statt der echten.
-        anon = fuer_spieler and any(c.get("anon") for c in self.combatants)
+        anon = fuer_spieler and any(c.get("anon") or c.get("spielwerte") for c in self.combatants)
         return {
             "serverNow": now_ms(),   # zum Ausgleich von Uhren-Versatz der Clients
             "round": self.round,
@@ -1085,6 +1107,14 @@ class Game:
             c["benched"] = False
         self._deal(new_round=True)
 
+    def _vorlage_spielwerte(self, m: dict) -> dict:
+        vid = m.get("vorlage")
+        if not isinstance(vid, str):
+            return {}
+        v = next((r for r in (*self.bestiary, *self.allies) if r.get("id") == vid), None)
+        spick = _spielwerte((v or {}).get("spielwerte"))
+        return {"spielwerte": spick} if spick else {}
+
     def _do_add_encounter(self, a: dict) -> None:
         """Setzt eine gespeicherte Begegnung komplett in den Kampf."""
         enc = next((e for e in self.encounters if e.get("id") == a.get("id")), None)
@@ -1100,6 +1130,9 @@ class Game:
                 "zone": m.get("zone"),
                 "anon": bool(m.get("anon", False)) and not m.get("ally"),
                 **_kampfwerte(m),
+                # Spielwerte frisch aus der Bibliothek: wer die Vorlage nach dem
+                # Vorbereiten ergänzt, soll das im Kampf auch sehen.
+                **self._vorlage_spielwerte(m),
             })
             if self.combatants:
                 if m.get("ally"):
@@ -1289,6 +1322,12 @@ class Game:
         for feld in ("parade", "robustheit", "panzer"):
             if feld in a:
                 c[feld] = _kampfwert(a[feld])
+        if "spielwerte" in a:
+            spick = _spielwerte(a["spielwerte"])
+            if spick:
+                c["spielwerte"] = spick
+            else:
+                c.pop("spielwerte", None)
         if "talents" in a:
             c["talents"] = [t for t in a["talents"] if t in TALENTS]
         if "gluck" in a:

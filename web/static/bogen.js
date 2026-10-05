@@ -38,16 +38,16 @@ function renderBogen(mine) {
   const reiter = App.bogenReiter || "kampf";
   const edit = !!App.bogenEntwurf;
   const b = edit ? App.bogenEntwurf : bogenVon(mine);
-  const leiste = `<div class="reiter">${BOGEN_REITER.map(([k, n]) =>
-    `<button class="${k === reiter ? "an" : ""}" data-act="bogen-reiter" data-reiter="${k}">${n}</button>`).join("")}</div>`;
+  const leiste = bogenReiterLeiste(reiter, "bogen-reiter");
   let inhalt;
   if (!edit && bogenIstLeer(b) && reiter !== "talente") {
     inhalt = `<div class="muted small" style="padding:6px 0">Noch leer. Tippe auf <b>✎ Bearbeiten</b> und trag deine Werte ein – dann hast du sie im Kampf immer griffbereit.</div>`;
     if (reiter === "kampf") inhalt += regelTipp(b);
-    return section("bogen", "📜 Mein Charakter", `<div class="bogen">${leiste}${inhalt}<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div></div>`);
+    return section("bogen", "📜 Mein Charakter", `<div class="bogen">${leiste}${inhalt}<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div>${mitspielerBoegen(mine)}</div>`);
+  } else if (!edit) {
+    inhalt = bogenLesenHtml(b, mine, reiter);
   } else if (reiter === "kampf") {
-    inhalt = edit
-      ? `<div class="bogen-raster">
+    inhalt = `<div class="bogen-raster">
            <label title="Leer lassen: 2 + halbes Kämpfen">Parade ${bogenFeld("parade", b.parade, autoParade(b) !== null ? `auto ${autoParade(b)}` : "z. B. 7", "4.5em")}</label>
            <label title="Leer lassen: 2 + halbe Konstitution + Panzer">Robustheit ${bogenFeld("robustheit", b.robustheit, autoRobustheit(b) !== null ? `auto ${autoRobustheit(b)}` : "z. B. 8", "4.5em")}</label>
            <label>davon Panzer ${bogenFeld("panzer", b.panzer, "z. B. 2", "4.5em")}</label>
@@ -71,55 +71,33 @@ function renderBogen(mine) {
              ${bogenFeld(`waffen.${i}.info`, w.info, w.art === "fern" ? "Reichweite 12/24/48" : "Notiz, z. B. Parade +1")}
            </div>
          </div>`).join("")}
-         <button class="ghost small" data-act="bogen-dazu" data-liste="waffen">+ Waffe</button>`
-      : `<div class="zeile2"><span>Parade</span><b>${b.parade ? esc(b.parade) : (autoParade(b) !== null ? `${autoParade(b)} <span class="auto-wert">automatisch</span>` : "–")}</b></div>
-         <div class="zeile2"><span>Robustheit</span><b>${b.robustheit ? esc(b.robustheit) : (autoRobustheit(b) !== null ? `${autoRobustheit(b)} <span class="auto-wert">automatisch</span>` : "–")}${b.panzer ? ` (${esc(b.panzer)})` : ""}</b></div>
-         <div class="zeile2"><span>Tempo</span><b>${esc(b.tempo || "–")}${b.rennen ? ` · Rennen ${esc(b.rennen)}` : ""}</b></div>
-         ${b.waffen.map((w) => `<div class="zeile2"><span>${w.art === "fern" ? "🏹" : "⚔"} ${esc(w.name)}</span><b>${esc([w.schaden, w.info].filter(Boolean).join(" · "))}</b></div>
-           <div class="wuerfel-tipp">${wuerfelTipp(w, b)}</div>`).join("")}`;
+         <button class="ghost small" data-act="bogen-dazu" data-liste="waffen">+ Waffe</button>`;
   } else if (reiter === "werte") {
-    // Fruehere Kuerzel (GE/VE/WI/ST/KO) waren nicht eindeutig - jetzt
-    // ausgeschrieben, untereinander statt in fuenf schmalen Kaestchen.
     inhalt = `<div class="attr-liste">${ATTRIBUTE.map(([k, kurz, lang]) =>
         `<div class="attr-zeile"><span>${lang} <span class="muted small">(${kurz})</span></span>
-          ${edit ? wuerfelWahl(`attribute.${k}`, b.attribute[k]) : `<b>${esc(b.attribute[k] || "–")}</b>`}</div>`).join("")}</div>
-      ${edit ? `<div class="muted small">Nur die Zahl reicht: <b>6</b> wird zu W6, <b>6+2</b> zu W6+2.</div>` : ""}
+          ${wuerfelWahl(`attribute.${k}`, b.attribute[k])}</div>`).join("")}</div>
+      <div class="muted small">Nur die Zahl reicht: <b>6</b> wird zu W6, <b>6+2</b> zu W6+2.</div>
       <div class="bogen-titel">Fertigkeiten</div>
-      ${edit
-        ? b.fertigkeiten.map((f, i) => `<div class="bogen-reihe">${bogenFeld(`fertigkeiten.${i}.name`, f.name, "z. B. Kämpfen")}${wuerfelWahl(`fertigkeiten.${i}.wert`, f.wert)}
-            <button class="st-btn" data-act="bogen-weg" data-liste="fertigkeiten" data-i="${i}" title="Entfernen">✕</button></div>`).join("")
-          + `<button class="ghost small" data-act="bogen-dazu" data-liste="fertigkeiten">+ Fertigkeit</button>`
-        : (b.fertigkeiten.length
-            ? `<div class="fert">${b.fertigkeiten.map((f) => `<span>${esc(f.name)}</span><span class="w">${esc(f.wert || "–")}</span>`).join("")}</div>`
-            : `<div class="muted small">–</div>`)}`;
+      ${b.fertigkeiten.map((f, i) => `<div class="bogen-reihe">${bogenFeld(`fertigkeiten.${i}.name`, f.name, "z. B. Kämpfen")}${wuerfelWahl(`fertigkeiten.${i}.wert`, f.wert)}
+            <button class="st-btn" data-act="bogen-weg" data-liste="fertigkeiten" data-i="${i}" title="Entfernen">✕</button></div>`).join("")}
+      <button class="ghost small" data-act="bogen-dazu" data-liste="fertigkeiten">+ Fertigkeit</button>`;
   } else if (reiter === "talente") {
     // Initiative-Talente (Schnell, Kühler Kopf …) und Glück: wirken direkt aufs
     // Kartenziehen bzw. die Bennies - der Spieler hakt sie hier selbst an.
     const alle = App.state.talents || {};
     const te = App.talentEntwurf;
-    const hat = (k) => (edit ? te.talents : (mine.talents || [])).includes(k);
-    const glueck = edit ? te : mine;
-    const initAnzeige = [
-      ...(mine.talents || []).map((t) => (alle[t] || {}).label || t),
-      ...(mine.gluck ? ["Glück"] : []), ...(mine.grosses_gluck ? ["Großes Glück"] : []),
-    ].map((n) => `<span class="tag">${esc(n)}</span>`).join("");
     const initEdit = Object.keys(alle).map((k) =>
-        `<label class="talent-wahl"><input type="checkbox" data-talent="${k}"${hat(k) ? " checked" : ""}> ${esc(alle[k].label)}</label>`).join("")
-      + `<label class="talent-wahl"><input type="checkbox" data-talent="gluck"${glueck.gluck ? " checked" : ""}> Glück (+1 Benny)</label>`
-      + `<label class="talent-wahl"><input type="checkbox" data-talent="grosses_gluck"${glueck.grosses_gluck ? " checked" : ""}> Großes Glück (+2)</label>`;
+        `<label class="talent-wahl"><input type="checkbox" data-talent="${k}"${te.talents.includes(k) ? " checked" : ""}> ${esc(alle[k].label)}</label>`).join("")
+      + `<label class="talent-wahl"><input type="checkbox" data-talent="gluck"${te.gluck ? " checked" : ""}> Glück (+1 Benny)</label>`
+      + `<label class="talent-wahl"><input type="checkbox" data-talent="grosses_gluck"${te.grosses_gluck ? " checked" : ""}> Großes Glück (+2)</label>`;
     inhalt = `<div class="bogen-titel">Initiative &amp; Glück</div>
-      ${edit ? `<div class="talent-raster">${initEdit}</div>`
-        : `<div class="chips">${initAnzeige || `<span class="muted small">–</span>`}</div>`}
+      <div class="talent-raster">${initEdit}</div>
       <div class="bogen-titel">Talente</div>
-      ${edit ? `<textarea data-bogen="talente" rows="4" placeholder="Ein Talent pro Zeile">${esc(b.talente.join("\n"))}</textarea>`
-        : `<div class="chips">${b.talente.map((t) => `<span class="tag">${esc(t)}</span>`).join("") || `<span class="muted small">–</span>`}</div>`}
+      <textarea data-bogen="talente" rows="4" placeholder="Ein Talent pro Zeile">${esc(b.talente.join("\n"))}</textarea>
       <div class="bogen-titel">Handicaps</div>
-      ${edit ? `<textarea data-bogen="handicaps" rows="3" placeholder="Ein Handicap pro Zeile">${esc(b.handicaps.join("\n"))}</textarea>`
-        : `<div class="chips">${b.handicaps.map((t) => `<span class="tag handicap">${esc(t)}</span>`).join("") || `<span class="muted small">–</span>`}</div>`}`;
+      <textarea data-bogen="handicaps" rows="3" placeholder="Ein Handicap pro Zeile">${esc(b.handicaps.join("\n"))}</textarea>`;
   } else {
-    inhalt = edit
-      ? `<textarea data-bogen="ausruestung" rows="6" placeholder="Ein Gegenstand pro Zeile, z. B. Heiltrank ×3">${esc(b.ausruestung.join("\n"))}</textarea>`
-      : (b.ausruestung.map((z) => `<div class="zeile2"><span>${esc(z)}</span></div>`).join("") || `<div class="muted small">–</div>`);
+    inhalt = `<textarea data-bogen="ausruestung" rows="6" placeholder="Ein Gegenstand pro Zeile, z. B. Heiltrank ×3">${esc(b.ausruestung.join("\n"))}</textarea>`;
   }
   // Regel-Spickzettel nur im Kampf-Reiter und nicht beim Bearbeiten.
   if (reiter === "kampf" && !edit) inhalt += regelTipp(b);
@@ -127,7 +105,112 @@ function renderBogen(mine) {
     ? `<div class="row" style="margin-top:10px; gap:8px"><button class="primary" data-act="bogen-speichern">✓ Speichern</button>
          <button class="ghost" data-act="bogen-abbrechen">Abbrechen</button></div>`
     : `<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div>`;
-  return section("bogen", "📜 Mein Charakter", `<div class="bogen${edit ? " bogen-form" : ""}">${leiste}${inhalt}${knoepfe}</div>`);
+  return section("bogen", "📜 Mein Charakter", `<div class="bogen${edit ? " bogen-form" : ""}">${leiste}${inhalt}${knoepfe}${edit ? "" : mitspielerBoegen(mine)}</div>`);
+}
+
+// Die Bögen der anderen am Tisch - sonst nur über das Token in den Zonen.
+function mitspielerBoegen(mine) {
+  const andere = ((App.state && App.state.combatants) || []).filter((c) => c.id !== mine.id && hatBogen(c));
+  if (!andere.length) return "";
+  return `<div class="bogen-titel">Mitspieler</div><div class="row" style="gap:6px; flex-wrap:wrap">${andere.map((c) =>
+    `<button class="ghost small" data-act="bogen-ansicht" data-id="${c.id}">📜 ${esc(c.name)}</button>`).join("")}</div>`;
+}
+
+function bogenReiterLeiste(reiter, act) {
+  return `<div class="reiter">${BOGEN_REITER.map(([k, n]) =>
+    `<button class="${k === reiter ? "an" : ""}" data-act="${act}" data-reiter="${k}">${n}</button>`).join("")}</div>`;
+}
+
+// Bogen nur ansehen - der eigene (ohne Bearbeiten) und der fremde (SL und
+// Mitspieler, Kalle 05.10.2026: „sollen andere aber auch sehen können").
+// ``c`` ist Figur oder Roster-Charakter: von dort kommen die Initiative-Talente.
+function bogenLesenHtml(b, c, reiter) {
+  if (reiter === "kampf") {
+    return `<div class="zeile2"><span>Parade</span><b>${b.parade ? esc(b.parade) : (autoParade(b) !== null ? `${autoParade(b)} <span class="auto-wert">automatisch</span>` : "–")}</b></div>
+         <div class="zeile2"><span>Robustheit</span><b>${b.robustheit ? esc(b.robustheit) : (autoRobustheit(b) !== null ? `${autoRobustheit(b)} <span class="auto-wert">automatisch</span>` : "–")}${b.panzer ? ` (${esc(b.panzer)})` : ""}</b></div>
+         <div class="zeile2"><span>Tempo</span><b>${esc(b.tempo || "–")}${b.rennen ? ` · Rennen ${esc(b.rennen)}` : ""}</b></div>
+         ${b.waffen.map((w) => `<div class="zeile2"><span>${w.art === "fern" ? "🏹" : "⚔"} ${esc(w.name)}</span><b>${esc([w.schaden, w.info].filter(Boolean).join(" · "))}</b></div>
+           <div class="wuerfel-tipp">${wuerfelTipp(w, b)}</div>`).join("")}`;
+  }
+  if (reiter === "werte") {
+    // Fruehere Kuerzel (GE/VE/WI/ST/KO) waren nicht eindeutig - jetzt
+    // ausgeschrieben, untereinander statt in fuenf schmalen Kaestchen.
+    return `<div class="attr-liste">${ATTRIBUTE.map(([k, kurz, lang]) =>
+        `<div class="attr-zeile"><span>${lang} <span class="muted small">(${kurz})</span></span>
+          <b>${esc(b.attribute[k] || "–")}</b></div>`).join("")}</div>
+      <div class="bogen-titel">Fertigkeiten</div>
+      ${b.fertigkeiten.length
+        ? `<div class="fert">${b.fertigkeiten.map((f) => `<span>${esc(f.name)}</span><span class="w">${esc(f.wert || "–")}</span>`).join("")}</div>`
+        : `<div class="muted small">–</div>`}`;
+  }
+  if (reiter === "talente") {
+    const alle = App.state.talents || {};
+    const initAnzeige = [
+      ...(c.talents || []).map((t) => (alle[t] || {}).label || t),
+      ...(c.gluck ? ["Glück"] : []), ...(c.grosses_gluck ? ["Großes Glück"] : []),
+    ].map((n) => `<span class="tag">${esc(n)}</span>`).join("");
+    return `<div class="bogen-titel">Initiative &amp; Glück</div>
+      <div class="chips">${initAnzeige || `<span class="muted small">–</span>`}</div>
+      <div class="bogen-titel">Talente</div>
+      <div class="chips">${b.talente.map((t) => `<span class="tag">${esc(t)}</span>`).join("") || `<span class="muted small">–</span>`}</div>
+      <div class="bogen-titel">Handicaps</div>
+      <div class="chips">${b.handicaps.map((t) => `<span class="tag handicap">${esc(t)}</span>`).join("") || `<span class="muted small">–</span>`}</div>`;
+  }
+  return b.ausruestung.map((z) => `<div class="zeile2"><span>${esc(z)}</span></div>`).join("") || `<div class="muted small">–</div>`;
+}
+
+// --- Fremde Bögen und Spielwerte ansehen (Blatt über allem) -----------------
+// App.bogenAnsicht = { id, quelle: "kampf" | "roster" }. Spieler-Figuren
+// zeigen ihren Bogen (Reiter wie am Handy), Gegner/Verbündete ihre
+// Spielwerte aus der Bibliothek (Freitext). Gegner-Spielwerte bekommen die
+// Handys gar nicht erst (Server streicht sie).
+function bogenAnsichtFigur() {
+  const a = App.bogenAnsicht;
+  if (!a || !App.state) return null;
+  const liste = a.quelle === "roster" ? App.state.roster : App.state.combatants;
+  return (liste || []).find((x) => x.id === a.id) || null;
+}
+function hatBogen(c) {
+  return !!(c && c.kind !== "npc" && c.bogen && !bogenIstLeer(bogenVon(c)));
+}
+function hatSpielwerte(c) {
+  return !!(c && c.kind === "npc" && c.spielwerte);
+}
+
+// Freitext hübsch: „Attribute:" am Zeilenanfang fett, „•"/„-"/„*" als Punkt.
+function spielwerteHtml(text) {
+  return String(text || "").split("\n").map((z) => z.trim()).filter(Boolean).map((z) => {
+    const punkt = /^[•\-*–]\s*/.test(z);
+    let t = esc(z.replace(/^[•\-*–]\s*/, ""));
+    t = t.replace(/^([^:]{2,30}):/, "<b>$1:</b>");
+    return `<div class="${punkt ? "sw-punkt" : "sw-zeile"}">${t}</div>`;
+  }).join("");
+}
+
+function bogenAnsichtHtml() {
+  const c = bogenAnsichtFigur();
+  if (!c) { App.bogenAnsicht = null; return ""; }
+  let inhalt;
+  if (c.kind === "npc") {
+    const werte = kampfwerteText(c);
+    inhalt = `${werte ? `<div class="zeile2"><span>Kampfwerte</span><b>${esc(werte)}</b></div>` : ""}
+      <div class="spielwerte">${c.spielwerte ? spielwerteHtml(c.spielwerte) : `<div class="muted small">Keine Spielwerte eingetragen. In der Bibliothek beim Gegner-Typ unter „📜 Spielwerte" ergänzen.</div>`}</div>`;
+  } else {
+    const reiter = App.bogenAnsichtReiter || "kampf";
+    const b = bogenVon(c);
+    inhalt = bogenReiterLeiste(reiter, "bogen-ansicht-reiter")
+      + (bogenIstLeer(b) && reiter !== "talente" ? `<div class="muted small" style="padding:6px 0">Noch nichts eingetragen.</div>` : bogenLesenHtml(b, c, reiter));
+  }
+  const wer = c.kind === "npc" ? (c.ally ? "Verbündeter" : "Gegner") : (c.playerName ? `gespielt von ${esc(c.playerName)}` : "Charakter");
+  return `<div class="bogen-ansicht-hg" data-act="bogen-ansicht-zu">
+    <div class="bogen-ansicht panel" data-act="">
+      <div class="row spread" style="align-items:center; margin-bottom:8px">
+        <div><strong>📜 ${esc(c.name)}</strong> <span class="muted small">${wer}</span></div>
+        <button class="ghost small" data-act="bogen-ansicht-zu">Schließen</button>
+      </div>
+      <div class="bogen">${inhalt}</div>
+    </div>
+  </div>`;
 }
 
 // „Womit würfle ich?" - aus den eigenen Werten für GENAU diese Waffe.
