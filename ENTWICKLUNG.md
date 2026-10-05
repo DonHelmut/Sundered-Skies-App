@@ -88,7 +88,9 @@ Details stehen in den einzelnen Abschnitten darunter.
 - **Gegner-Spickzettel**: Feld „📜 Spielwerte" (Freitext, max. 3000 Zeichen) in
   Gegner-/Verbündeten-Vorlagen und im Figur-Editor (`kampfwerteFelder`). Freitext,
   damit man den Werteblock aus dem Regelbuch hineinkopieren kann; „Wort:" am
-  Zeilenanfang wird fett, „•/-/*" wird Aufzählung. Reist über `_kampfwerte` mit
+  Zeilenanfang wird fett, „•/-/*" wird Aufzählung; „Attribute:" wird ein Raster
+  aus fünf Kacheln, „Fertigkeiten:" eine Liste Name/Würfel, „Titel:" allein eine
+  Überschrift (Kalle: Attribute als Fließtext zu unaufgeräumt). Reist über `_kampfwerte` mit
   (Vorlage → Kampf → vorbereiteter Kampf); vorbereitete Kämpfe holen die
   Spielwerte beim Starten frisch aus der Bibliothek (`vorlage`).
 - Gegner-Spielwerte bekommen die Handys NICHT (`_fuer_spieler` streicht sie),

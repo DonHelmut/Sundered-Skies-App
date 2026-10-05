@@ -177,9 +177,36 @@ function hatSpielwerte(c) {
   return !!(c && c.kind === "npc" && c.spielwerte);
 }
 
-// Freitext hübsch: „Attribute:" am Zeilenanfang fett, „•"/„-"/„*" als Punkt.
+// Freitext hübsch: „Attribute:" als Raster aus fünf Kacheln, „Fertigkeiten:"
+// als Liste Name/Würfel (wie im Spielerbogen) - als Fließtext war das ein
+// unaufgeräumter Block (Kalle). Sonst „Wort:" am Zeilenanfang fett und
+// „•"/„-"/„*" als Punkt.
+const ATTR_KURZ = { geschicklichkeit: "GE", verstand: "VE", willenskraft: "WI", stärke: "ST", staerke: "ST", konstitution: "KO" };
+function spielwerteListe(rest) {
+  // „Kämpfen W8, Schießen W6+1" -> [["Kämpfen", "W8"], ["Schießen", "W6+1"]]
+  return rest.split(/[,;]/).map((t) => t.trim()).filter(Boolean).map((t) => {
+    const m = /^(.*?)\s*(\d{0,2}[wWdD]\d{1,2}(?:\s*[+-]\s*\d+)?)$/.exec(t);
+    return m && m[1] ? [m[1], m[2].replace(/\s+/g, "").replace(/^(\d*)[wdD]/, "$1W")] : [t, ""];
+  });
+}
 function spielwerteHtml(text) {
   return String(text || "").split("\n").map((z) => z.trim()).filter(Boolean).map((z) => {
+    const kopf = /^(attribute|fertigkeiten)\s*:\s*(.+)$/i.exec(z);
+    if (kopf && /^a/i.test(kopf[1])) {
+      const teile = spielwerteListe(kopf[2]);
+      if (teile.every(([, w]) => w)) {
+        return `<div class="sw-attr">${teile.map(([n, w]) =>
+          `<div class="sw-attr-kachel"><span>${esc(ATTR_KURZ[n.toLowerCase()] || n)}</span><b>${esc(w)}</b></div>`).join("")}</div>`;
+      }
+    }
+    if (kopf) {
+      const teile = spielwerteListe(kopf[2]);
+      return `<div class="bogen-titel">${esc(kopf[1])}</div><div class="fert">${teile.map(([n, w]) =>
+        `<span>${esc(n)}</span><span class="w">${esc(w || "")}</span>`).join("")}</div>`;
+    }
+    // Nur eine Überschrift („Sonderfähigkeiten:") - wie die anderen Titel.
+    const titel = /^([^:•*–-][^:]{1,29}):$/.exec(z);
+    if (titel) return `<div class="bogen-titel">${esc(titel[1])}</div>`;
     const punkt = /^[•\-*–]\s*/.test(z);
     let t = esc(z.replace(/^[•\-*–]\s*/, ""));
     t = t.replace(/^([^:]{2,30}):/, "<b>$1:</b>");

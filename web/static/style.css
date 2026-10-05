@@ -2263,3 +2263,9 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
 .spielwerte .sw-punkt { padding: 2px 0 2px 14px; position: relative; }
 .spielwerte .sw-punkt::before { content: "•"; position: absolute; left: 2px; color: var(--muted); }
 .spielwerte-feld textarea { width: 100%; font-size: 0.88rem; resize: vertical; }
+.sw-attr { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 4px 0 6px; }
+.sw-attr-kachel { display: flex; flex-direction: column; align-items: center; padding: 5px 2px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); }
+.sw-attr-kachel span { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.05em; color: var(--muted); }
+.sw-attr-kachel b { font-size: 1.05rem; }
+.spielwerte .bogen-titel { margin-top: 8px; }
