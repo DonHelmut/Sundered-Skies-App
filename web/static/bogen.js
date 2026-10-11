@@ -228,7 +228,7 @@ function bogenAnsichtHtml() {
     inhalt = bogenReiterLeiste(reiter, "bogen-ansicht-reiter")
       + (bogenIstLeer(b) && reiter !== "talente" ? `<div class="muted small" style="padding:6px 0">Noch nichts eingetragen.</div>` : bogenLesenHtml(b, c, reiter));
   }
-  const wer = c.kind === "npc" ? (c.ally ? "Verbündeter" : "Gegner") : (c.playerName ? `gespielt von ${esc(c.playerName)}` : "Charakter");
+  const wer = c.kind === "npc" ? (c.ally ? "Verbündeter" : "Gegner") : (c.playerName && c.playerName !== c.name ? `gespielt von ${esc(c.playerName)}` : "Charakter");
   return `<div class="bogen-ansicht-hg" data-act="bogen-ansicht-zu">
     <div class="bogen-ansicht panel" data-act="">
       <div class="row spread" style="align-items:center; margin-bottom:8px">

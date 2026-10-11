@@ -15,6 +15,12 @@ function renderPlayer() {
   if (mine.characterId && App._gemerkterChar !== mine.characterId) {
     App._gemerkterChar = mine.characterId;
     merkeLetztenCharakter(mine.characterId, mine.name);
+    // Auch fürs stille Wiederbeitreten merken: wer am Handy einen NEUEN
+    // Charakter angelegt hat, kannte dessen ID bisher nicht. Startete der
+    // Laptop neu und der SL klickte „Verwerfen", kam er als namensgleicher
+    // Gast ohne Bogen zurück – und Eingetragenes landete nicht mehr am Charakter.
+    App.myCharacterId = mine.characterId;
+    try { localStorage.setItem("characterId", mine.characterId); } catch { /* privates Fenster */ }
   }
 
   const isMyTurn = s.activeId === mine.id && s.phase === "running";
