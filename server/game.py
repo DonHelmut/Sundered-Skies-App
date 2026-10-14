@@ -1599,9 +1599,7 @@ class Game:
         pid = c.get("playerId") if c else None
         # Wird der aktive Akteur entfernt, zum nächsten weiterrücken.
         if self.active_id == rid:
-            order = [x["id"] for x in self.combatants]
-            idx = order.index(rid) if rid in order else -1
-            self.active_id = order[idx + 1] if 0 <= idx < len(order) - 1 else None
+            self._advance_active()
             self.phase = "gate"
             self.timer_ends_at = None
         # Offene Anfragen dieses Teilnehmers verwerfen.
@@ -1624,10 +1622,8 @@ class Game:
                 self._karte_ablegen(c)
         # War der aktive Akteur dabei, zum nächsten verbleibenden weiterrücken.
         if self.active_id in vids:
-            order = [x["id"] for x in self.combatants]
-            idx = order.index(self.active_id)
-            self.active_id = next((order[j] for j in range(idx + 1, len(order))
-                                   if order[j] not in vids), None)
+            # Die Ausgeschalteten sind K.O. - _advance_active ueberspringt sie.
+            self._advance_active()
             self.phase = "gate"
             self.timer_ends_at = None
         self.requests = [r for r in self.requests if r.get("combatantId") not in vids]
@@ -1873,7 +1869,10 @@ class Game:
         if not self.combatants:
             return
         if self.active_id is None:
-            self.active_id = self.combatants[0]["id"]
+            # Runde durch: nicht wieder beim Ersten (laengst fertigen) anfangen.
+            self.active_id = self._naechster_ab(0)
+            if self.active_id is None:
+                return
         self.phase = "running"
         self.timer_ends_at = now_ms() + self.timer_seconds * 1000
 
@@ -1968,14 +1967,27 @@ class Game:
         self.auto_release = bool(a.get("on", False))
         self.save_settings()
 
+    def _kann_dran_sein(self, c: dict) -> bool:
+        """Darf diese Figur den naechsten Zug bekommen? Pausierte, K.O.,
+        schon fertige und abwartende Figuren nicht - und ohne Karte (mitten in
+        der Runde dazugekommen) auch nicht. Vorher ging der Zug stumpf an den
+        naechsten in der Liste: nach einem Eingreifen bekam ein schon fertiger
+        Gegner einen zweiten Zug, ein K.O. oder Pausierter war „dran", und am
+        Rundenende teilte die Leertaste nicht aus, weil noch jemand aktiv war.
+        Die Anzeige „danach: …" (naechsterAkteur in app.js) prueft dasselbe."""
+        if c.get("benched") or c.get("done") or c.get("held"):
+            return False
+        if (c.get("status") or {}).get("out"):
+            return False
+        return bool(c.get("card")) or self.round == 0
+
+    def _naechster_ab(self, start: int) -> Optional[str]:
+        return next((c["id"] for c in self.combatants[start:] if self._kann_dran_sein(c)), None)
+
     def _advance_active(self) -> None:
         order = [c["id"] for c in self.combatants]
-        if self.active_id in order:
-            idx = order.index(self.active_id)
-            nxt = order[idx + 1] if idx + 1 < len(order) else None
-        else:
-            nxt = order[0] if order else None
-        self.active_id = nxt
+        start = order.index(self.active_id) + 1 if self.active_id in order else 0
+        self.active_id = self._naechster_ab(start)
 
     def _do_set_active(self, a: dict) -> None:
         """SL springt manuell zu einem Akteur (z. B. Korrektur)."""
@@ -1990,7 +2002,8 @@ class Game:
         """Aktion aufsparen. In Savage Worlds darf das JEDE Figur (nicht nur
         Joker-Halter) – sie greift dann spaeter ein."""
         c = self._combatant(a.get("id"))
-        if c and c.get("card") and not c.get("out"):
+        # K.O. steht im Status, nicht an der Figur (c["out"] gab es nie).
+        if c and c.get("card") and not (c.get("status") or {}).get("out"):
             c["held"] = True
             if self.active_id == c["id"]:
                 self.phase = "gate"

@@ -765,6 +765,94 @@ def test_hold_allowed_for_everyone(fresh_game):
     assert fresh_game.active_id == a["id"]
 
 
+# --- Zugfolge (Szenarien aus dem Spieltest 11.10.2026) ----------------------
+
+def _runde_mit(g, *namen):
+    for n in namen:
+        _add_npc(g, n)
+    g.apply({"type": "new_round"})
+    return [c["id"] for c in g.combatants]     # in Initiative-Reihenfolge
+
+
+def _zug(g):
+    g.apply({"type": "release"})
+    g.apply({"type": "confirm_turn"})
+
+
+def test_nach_eingreifen_kein_zweiter_zug_fuer_fertige(fresh_game):
+    """A handelt, B wartet ab, C handelt, D ist dran - B greift ein. Danach
+    ist D dran (nicht der schon fertige C, der bekam sonst zwei Züge)."""
+    g = fresh_game
+    a, b, c, d = _runde_mit(g, "A", "B", "C", "D")
+    _zug(g)                                   # A
+    g.apply({"type": "hold", "id": b})
+    assert g.active_id == c
+    _zug(g)                                   # C
+    assert g.active_id == d
+    g.apply({"type": "intervene", "id": b})
+    g.apply({"type": "confirm_turn"})
+    assert g.active_id == d
+
+
+def test_zug_ueberspringt_ko_pausierte_und_abwartende(fresh_game):
+    g = fresh_game
+    a, b, c, d = _runde_mit(g, "A", "B", "C", "D")
+    g.apply({"type": "set_status", "id": b, "out": True})
+    g.apply({"type": "bench", "id": c, "on": True})
+    _zug(g)
+    assert g.active_id == d
+    # Rundenende: niemand mehr dran -> die Leertaste teilt neu aus.
+    _zug(g)
+    assert g.active_id is None
+
+
+def test_abwartender_bekommt_den_zug_nicht_automatisch(fresh_game):
+    g = fresh_game
+    a, b, c = _runde_mit(g, "A", "B", "C")
+    g.apply({"type": "hold", "id": a})
+    assert g.active_id == b
+    g.apply({"type": "intervene", "id": a})
+    g.apply({"type": "hold", "id": b})        # B wartet seinerseits ab
+    g.apply({"type": "confirm_turn"})          # A fertig
+    assert g.active_id == c
+
+
+def test_nachzuegler_ohne_karte_ist_nicht_dran(fresh_game):
+    """Mitten in der Runde dazugekommen (Handy tritt bei): keine Karte, also
+    auch kein Zug - die Runde endet nach den anderen."""
+    g = fresh_game
+    a, b = _runde_mit(g, "A", "B")
+    _add_npc(g, "Spät")
+    _zug(g)
+    _zug(g)
+    assert g.active_id is None
+
+
+def test_freigeben_nach_rundenende_faengt_nicht_von_vorn_an(fresh_game):
+    g = fresh_game
+    a, b = _runde_mit(g, "A", "B")
+    _zug(g)
+    _zug(g)
+    g.apply({"type": "release"})
+    assert g.active_id is None and g.phase != "running"
+
+
+def test_ko_figur_kann_nicht_abwarten(fresh_game):
+    g = fresh_game
+    (a,) = _runde_mit(g, "A")
+    g.apply({"type": "set_status", "id": a, "out": True})
+    g.apply({"type": "hold", "id": a})
+    assert g._combatant(a)["held"] is False
+
+
+def test_aktiven_entfernen_springt_zum_naechsten_der_handeln_darf(fresh_game):
+    g = fresh_game
+    a, b, c = _runde_mit(g, "A", "B", "C")
+    g.apply({"type": "set_status", "id": b, "out": True})
+    g.apply({"type": "remove_combatant", "id": a})
+    assert g.active_id == c
+
+
 def test_conditions_toggle_is_reported_and_saved(fresh_game):
     """Der Zustaende-Schalter muss im Snapshot stehen (sonst springt die Checkbox
     in der Oberflaeche sofort zurueck) UND in den Einstellungen landen."""

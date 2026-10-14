@@ -329,9 +329,10 @@ function rundenZaehler(s) {
   return `<span class="runden-zaehler${neu ? " neu" : ""}" title="Aktuelle Kampfrunde">Runde <b>${s.round}</b></span>`;
 }
 
-// Wer kommt nach dem aktiven Akteur dran? Pausierte, ausgeschiedene und schon
-// fertige Figuren werden uebersprungen. (SL-Leiste „danach:" und die
-// Vorwarnung „Gleich bist du dran" auf dem Handy.)
+// Wer kommt nach dem aktiven Akteur dran? Pausierte, ausgeschiedene, schon
+// fertige, abwartende und kartenlose Figuren werden uebersprungen - genau wie
+// am Server (_kann_dran_sein), sonst kündigte die Leiste jemand anderen an,
+// als dann drankam. (SL-Leiste „danach:" und „Gleich bist du dran" am Handy.)
 function naechsterAkteur(s) {
   if (!s || !s.activeId) return null;
   const platz = s.combatants.findIndex((c) => c.id === s.activeId);
@@ -339,7 +340,8 @@ function naechsterAkteur(s) {
   // Teilt der Aktive eine Gruppenkarte, sind die übrigen Mitglieder nicht
   // „danach" - sie handeln gerade mit.
   const gruppe = new Set(kartenGruppeVon(s.combatants[platz]).map((x) => x.id));
-  return s.combatants.slice(platz + 1).find((c) => !gruppe.has(c.id) && !c.benched && !(c.status || {}).out && !c.done) || null;
+  return s.combatants.slice(platz + 1).find((c) => !gruppe.has(c.id) && !c.benched && !(c.status || {}).out && !c.done
+    && !c.held && (c.card || s.round === 0)) || null;
 }
 
 // „Ork 11" -> „Ork" (wie _grundname am Server).

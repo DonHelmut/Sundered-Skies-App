@@ -77,6 +77,29 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.8, 11.10.2026): Spieltest – Zugfolge repariert
+
+Kalle: „testen und szenarien". Kampf im Browser durchgespielt (SL + 4 Handys:
+Beitritt, neuer Charakter am Handy, Aufdecken, Angriffe, Abwarten/Eingreifen,
+Neuladen, Nachzügler mitten in der Runde, Joker, Bögen, Spickzettel, TV,
+Laptop-Neustart mit Fortsetzen/Verwerfen) plus Zufalls-Stresstest (400 Kämpfe,
+Deck immer 54 verschiedene Karten). Behoben:
+
+- **Zugfolge** (`_kann_dran_sein`/`_advance_active` in game.py): der Zug ging
+  stumpf an den Nächsten in der Liste. Folgen: nach einem **Eingreifen** bekam
+  ein schon fertiger Gegner einen zweiten Zug; **K.O.**, **pausierte**,
+  abwartende und kartenlose (Nachzügler) Figuren wurden „dran"; am Rundenende
+  stand noch ein Pausierter als aktiv da, also teilte die Leertaste nicht aus.
+  Jetzt überspringt der Server dieselben Figuren wie die Anzeige „danach: …"
+  (`naechsterAkteur` in app.js, dort zusätzlich abwartende/kartenlose).
+  „Freigeben" nach dem Rundenende fängt nicht wieder beim Ersten an.
+- K.O.-Figuren konnten abwarten (`_do_hold` prüfte `c["out"]`, das gibt es nicht).
+- **Neuer Charakter am Handy** kannte seine eigene ID nicht: nach Laptop-Neustart
+  + „Verwerfen" kam der Spieler als namensgleicher Gast ohne Bogen zurück. Das
+  Handy merkt sich die ID jetzt (spieler.js).
+- Bogen-Ansicht: „Korgo gespielt von Korgo" → nur, wenn der Spielername anders ist.
+- Tests: `test_nach_eingreifen_…`, `test_zug_ueberspringt_…` u. a. in test_game.py.
+
 ## Unveröffentlicht (nach 1.5.7, 05.10.2026): Bögen für alle, Gegner-Spielwerte
 
 - Kalle: SL soll die Charakterbögen sehen, **die Mitspieler auch**. Nur lesen –
