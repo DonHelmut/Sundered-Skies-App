@@ -106,6 +106,30 @@ Spielstand bleiben sauber). Behoben:
 - **Unlesbare session.json**: „Fortsetzen" tat nichts, die Frage blieb stehen,
   Spieleraktionen zählten nicht, gespeichert wurde nichts. Jetzt endet die Frage.
 - Tests: tests/test_stabilitaet.py (ohne Fix rot).
+## Unveröffentlicht (nach 1.5.10, 14.10.2026): Kein „Gast"/„Nur zuschauen" mehr
+
+- Anlass: Wer am Handy „👁 Nur zuschauen" tippte, wurde trotzdem als Figur
+  „Gast" angelegt und stand in Reihenfolge und Zonen (Kalle: „Gast macht ja
+  überall mit??").
+- Beitritt nur noch mit Charakter: aus der Liste, „Weiter als …" oder „Neuen
+  Charakter erstellen". Knopf entfernt (`renderJoin`), `doJoin` sendet ohne
+  Charakter nichts, `add_guest_combatant` gelöscht.
+- Server lehnt `join` ohne `characterId` ab (`joinError`, `grund:
+  "ohne-charakter"`; beim stillen Wiederbeitreten ohne Meldung → Handy zeigt
+  die Charakterwahl). Ausnahme `hat_eigene_figur`: Gerät hat schon eine Figur
+  im Kampf (Gast aus alter Sitzung) → bekommt sie zurück, keine zweite.
+- Zuschauen ohne Figur: TV-Ansicht (unverändert).
+
+## 1.5.10 (14.10.2026): Reihenfolge schneidet nichts mehr ab
+
+- SL-Reihenfolge (v. a. zweispaltig): Abzeichen hinter dem Namen wurden rechts
+  abgeschnitten („verdeckt", „Gruppenkarte", Bennies). Jetzt Name oben,
+  Abzeichen darunter (die Kartenminiatur macht die Zeile ohnehin so hoch).
+  Wird es trotzdem eng, schrumpfen erst Zone und „↓ danach", dann bricht die
+  Abzeichen-Zeile um – abgeschnitten wird nichts mehr.
+- „Verdeckt" für den SL kein Abzeichen mehr, sondern 🫥 vorn am Namen plus
+  gestrichelter Unterstrich (auch an der Gruppenkarten-Zeile, wenn ein
+  Mitglied verdeckt ist).
 
 ## 1.5.9 (14.10.2026): Spieltest – Zugfolge repariert
 
