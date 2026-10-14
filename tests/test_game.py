@@ -969,12 +969,12 @@ def test_wiederbeitritt_nimmt_niemandem_die_figur_weg(fresh_game):
     assert len([c for c in g.combatants if c.get("characterId") == cid]) == 1
 
 
-def test_gast_beitritt_unveraendert(fresh_game):
-    """Gaeste (ohne Charakter) bekommen weiterhin jeweils eine eigene Figur."""
+def test_ohne_charakter_kein_gast_mehr(fresh_game):
+    """Ohne Charakter entsteht kein „Gast", der als Figur ueberall mitspielt."""
     g = fresh_game
-    g.register_player("Gast A", character_id=None, existing_player_id=None)
-    g.register_player("Gast B", character_id=None, existing_player_id=None)
-    assert len(g.combatants) == 2
+    assert g.register_player("Gast A", character_id=None, existing_player_id=None) is None
+    assert g.register_player("Gast B", character_id=None, existing_player_id="plr-x") is None
+    assert g.combatants == [] and g.players == []
 
 
 def test_gleiche_gegner_werden_durchnummeriert(fresh_game):
@@ -1431,11 +1431,16 @@ def test_wiederbeitritt_mit_figur_bleibt_unveraendert(fresh_game):
     assert [c["id"] for c in g.combatants if c.get("playerId") == p["id"]] == [figur["id"]]
 
 
-def test_gast_ohne_charakter_weiterhin_moeglich(fresh_game):
+def test_alte_figur_ohne_charakter_kommt_wieder(fresh_game):
+    """Ein Geraet mit Figur im Kampf (z. B. Gast aus einer alten Sitzung) darf
+    ohne Charakter-ID wieder beitreten und bekommt keine zweite Figur."""
     g = fresh_game
-    p = g.register_player("Gast", character_id=None, existing_player_id=None)
-    assert p is not None
-    assert len([c for c in g.combatants if c.get("playerId") == p["id"]]) == 1
+    g.combatants.append({"id": "cbt-alt", "name": "Gast", "kind": "player",
+                         "characterId": None, "playerId": "plr-alt"})
+    g.players.append({"id": "plr-alt", "name": "Gast", "connected": False, "characterId": None})
+    p = g.register_player("Gast", character_id=None, existing_player_id="plr-alt")
+    assert p is not None and p["connected"]
+    assert len(g.combatants) == 1
 
 
 def test_player_sets_own_talents(fresh_game):

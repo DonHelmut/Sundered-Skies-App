@@ -438,7 +438,21 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             })
             return
 
-        # Spieler tritt bei (aus Charakterliste oder als Gast).
+        # Ohne Charakter kein Beitritt (kein „Gast", der dann als Figur überall
+        # mitspielt). Ausnahme: das Gerät hat schon eine Figur im Kampf.
+        if not msg.get("characterId") and not game.hat_eigene_figur(msg.get("playerId")):
+            diag.log(f"BEITRITT ABGELEHNT: ohne Charakter "
+                     f"({str(msg.get('name') or '?')[:40]!r}, ip={meta.get('ip', '?')})")
+            await ws.send_json({
+                "type": "joinError",
+                "grund": "ohne-charakter",
+                # Beim stillen Wiederbeitreten keine Meldung - das Handy zeigt
+                # einfach die Charakterwahl, niemand hat etwas falsch gemacht.
+                "message": "" if msg.get("auto") else "Bitte einen Charakter wählen oder neu erstellen.",
+            })
+            return
+
+        # Spieler tritt mit seinem Charakter bei (aus der Liste oder neu angelegt).
         player = game.register_player(
             name=(msg.get("name") or "Spieler").strip() or "Spieler",
             character_id=msg.get("characterId"),

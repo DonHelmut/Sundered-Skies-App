@@ -55,6 +55,8 @@ def test_stilles_wiederbeitreten_nur_fuer_bekannte_geraete(fresh_game, monkeypat
     assert fresh_game.combatants == [] and fresh_game.players == []
 
     # Von Hand beitreten (ohne auto) geht, und danach klappt auch das stille Wiederkommen.
+    fresh_game.apply({"type": "roster_upsert", "name": "Korgo", "isWildCard": True})
+    fremd["characterId"] = fresh_game.roster[-1]["id"]
     asyncio.run(A.handle_message(ws, meta, {**fremd, "auto": False}))
     assert ws.sent[-1]["type"] == "joined"
     pid = ws.sent[-1]["playerId"]
@@ -77,3 +79,27 @@ def test_spieler_setzt_nur_die_eigene_rueckseite(fresh_game, monkeypatch):
     asyncio.run(A.handle_message(FakeWS(), meta, {"type": "gm_action", "action": {
         "type": "set_figur_rueckseite", "id": andere["id"], "wert": "profil"}}))
     assert ich["rueckseite"] == "profil" and andere["rueckseite"] is None
+
+
+def test_beitritt_ohne_charakter_abgelehnt(fresh_game, monkeypatch):
+    """Kein „Nur zuschauen"/Gast mehr: ohne Charakter wird niemand Figur."""
+    monkeypatch.setattr(A, "game", fresh_game)
+    ws = FakeWS()
+    meta = {"role": "player", "playerId": None, "ip": "10.0.0.6"}
+    asyncio.run(A.handle_message(ws, meta, {"type": "join", "name": "Gast", "characterId": None, "playerId": None}))
+    assert ws.sent[-1]["type"] == "joinError" and ws.sent[-1]["grund"] == "ohne-charakter"
+    assert ws.sent[-1]["message"]
+    assert fresh_game.combatants == [] and fresh_game.players == []
+
+
+def test_stilles_wiederbeitreten_ohne_charakter_ohne_meldung(fresh_game, monkeypatch):
+    """Bekanntes Geraet ohne Figur und ohne Charakter-ID (z. B. Charakter
+    vergessen): zurueck zur Auswahl, aber ohne Fehlermeldung."""
+    monkeypatch.setattr(A, "game", fresh_game)
+    fresh_game.players.append({"id": "plr-da", "name": "Stefan", "connected": False, "characterId": None})
+    ws = FakeWS()
+    meta = {"role": "player", "playerId": None, "ip": "10.0.0.7"}
+    asyncio.run(A.handle_message(ws, meta, {"type": "join", "name": "Stefan", "characterId": None,
+                                            "playerId": "plr-da", "auto": True}))
+    assert ws.sent[-1] == {"type": "joinError", "grund": "ohne-charakter", "message": ""}
+    assert fresh_game.combatants == []

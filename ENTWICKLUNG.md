@@ -77,6 +77,20 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.10, 14.10.2026): Kein „Gast"/„Nur zuschauen" mehr
+
+- Anlass: Wer am Handy „👁 Nur zuschauen" tippte, wurde trotzdem als Figur
+  „Gast" angelegt und stand in Reihenfolge und Zonen (Kalle: „Gast macht ja
+  überall mit??").
+- Beitritt nur noch mit Charakter: aus der Liste, „Weiter als …" oder „Neuen
+  Charakter erstellen". Knopf entfernt (`renderJoin`), `doJoin` sendet ohne
+  Charakter nichts, `add_guest_combatant` gelöscht.
+- Server lehnt `join` ohne `characterId` ab (`joinError`, `grund:
+  "ohne-charakter"`; beim stillen Wiederbeitreten ohne Meldung → Handy zeigt
+  die Charakterwahl). Ausnahme `hat_eigene_figur`: Gerät hat schon eine Figur
+  im Kampf (Gast aus alter Sitzung) → bekommt sie zurück, keine zweite.
+- Zuschauen ohne Figur: TV-Ansicht (unverändert).
+
 ## 1.5.10 (14.10.2026): Reihenfolge schneidet nichts mehr ab
 
 - SL-Reihenfolge (v. a. zweispaltig): Abzeichen hinter dem Namen wurden rechts
