@@ -20,7 +20,10 @@ function startHeartbeat() {
     const ws = App.ws;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (Date.now() - (App.lastRecv || 0) > 9000) {
-      try { ws.close(); } catch { /* onclose übernimmt den Reconnect */ }
+      try { ws.close(); } catch { /* egal, wird ohnehin ersetzt */ }
+      // NICHT auf onclose warten: bei toter Leitung kommt das erst nach dem
+      // Schliess-Handshake, der ins Leere laeuft - so lange stuende alles still.
+      leitungVerloren(ws);
       return;
     }
     try { ws.send(JSON.stringify({ type: "ping" })); } catch { /* nächster Tick */ }
@@ -55,7 +58,12 @@ function connect() {
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
   App.ws = ws;
 
+  // Jeder Handler prueft, ob ER noch die aktuelle Leitung ist. Sonst kam das
+  // spaete onclose einer laengst ersetzten Leitung (Handy aufgeweckt: Heartbeat
+  // kappt die alte, Fokus baut sofort eine neue) und stellte die NEUE auf
+  // „Getrennt": Hinweis blieb stehen, Heartbeat aus, beim SL „offline".
   ws.onopen = () => {
+    if (App.ws !== ws) return;
     App.lastRecv = Date.now();
     App.reconnectTries = 0;
     setStatus("online");
@@ -71,21 +79,10 @@ function connect() {
       try { ws.send(JSON.stringify({ type: "clientlog", event, gapMs })); } catch { /* egal */ }
     }
   };
-  ws.onclose = () => {
-    stopHeartbeat();
-    if (aufMobilfunk()) App.warMobilfunk = true;
-    if (!App.wentOfflineAt) App.wentOfflineAt = Date.now();
-    App.reconnectTries = (App.reconnectTries || 0) + 1;
-    setStatus("offline");
-    zeigeOfflineHinweis();
-    // Kommt die Leitung 20 s nicht zurück, könnte der Laptop eine ANDERE
-    // Adresse haben (WLAN-Aussetzer, Router-Neustart). Dann die übrigen
-    // bekannten Adressen durchprobieren und dorthin umleiten.
-    if (Date.now() - App.wentOfflineAt > 20000) adressFallback();
-    setTimeout(connect, 1500);
-  };
-  ws.onerror = () => setStatus("reconnect");
+  ws.onclose = () => leitungVerloren(ws);
+  ws.onerror = () => { if (App.ws === ws) setStatus("reconnect"); };
   ws.onmessage = (ev) => {
+    if (App.ws !== ws) return;
     App.lastRecv = Date.now();   // jede Nachricht (auch Pong) hält die Leitung „frisch"
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
@@ -145,6 +142,25 @@ function connect() {
       render();
     }
   };
+}
+
+// Leitung weg (onclose oder Heartbeat): nur fuer die AKTUELLE Leitung handeln
+// und sie sofort vergessen - ein spaeteres onclose derselben Leitung ist dann
+// wirkungslos, und connect() darf gleich eine neue aufbauen.
+function leitungVerloren(ws) {
+  if (App.ws !== ws) return;
+  App.ws = null;
+  stopHeartbeat();
+  if (aufMobilfunk()) App.warMobilfunk = true;
+  if (!App.wentOfflineAt) App.wentOfflineAt = Date.now();
+  App.reconnectTries = (App.reconnectTries || 0) + 1;
+  setStatus("offline");
+  zeigeOfflineHinweis();
+  // Kommt die Leitung 20 s nicht zurück, könnte der Laptop eine ANDERE
+  // Adresse haben (WLAN-Aussetzer, Router-Neustart). Dann die übrigen
+  // bekannten Adressen durchprobieren und dorthin umleiten.
+  if (Date.now() - App.wentOfflineAt > 20000) adressFallback();
+  setTimeout(connect, 1500);
 }
 
 // Verbindung weg: großer, ruhiger Hinweis statt nur der kleinen Pille oben.

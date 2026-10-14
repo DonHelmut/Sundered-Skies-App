@@ -62,11 +62,16 @@ async def _stille_verbindungen_pruefen() -> None:
         try:
             jetzt = time.monotonic()
             geaendert = False
+            # Pro SPIELER die frischeste Leitung zaehlen: nach einem Neuverbinden
+            # haengt die alte, tote Leitung oft noch eine Weile mit derselben ID
+            # da. Einzeln betrachtet kippte der Status sonst alle 5 s hin und her.
+            letzte: dict = {}
             for meta in list(hub.sockets.values()):
                 pid = meta.get("playerId")
-                if not pid:
-                    continue
-                stille = jetzt - meta.get("letzte", jetzt)
+                if pid:
+                    letzte[pid] = max(letzte.get(pid, 0), meta.get("letzte", jetzt))
+            for pid, zuletzt in letzte.items():
+                stille = jetzt - zuletzt
                 lebt = stille <= 15
                 p = next((x for x in game.players if x["id"] == pid), None)
                 if not p or bool(p.get("connected")) == lebt:
@@ -176,6 +181,17 @@ def _player_name(pid):
     return p.get("name") if p else None
 
 
+# So lange darf ein einzelnes Handy beim Verteilen des Spielstands brauchen.
+SENDE_FRIST = 3.0
+
+
+async def _leise_schliessen(ws: WebSocket) -> None:
+    try:
+        await asyncio.wait_for(ws.close(), 5)
+    except Exception:
+        pass
+
+
 class Hub:
     """Verwaltet alle offenen WebSocket-Verbindungen und verteilt den State."""
 
@@ -191,6 +207,14 @@ class Hub:
         async with self.lock:
             self.sockets.pop(ws, None)
 
+    @staticmethod
+    async def _senden(ws: WebSocket, daten: dict) -> bool:
+        try:
+            await asyncio.wait_for(ws.send_json(daten), SENDE_FRIST)
+            return True
+        except Exception:
+            return False
+
     async def broadcast_state(self) -> None:
         # ZWEI Fassungen: der SL sieht alles, die Spieler bekommen verdeckte
         # Gegner nur als Tarnnamen. Beide einmal bauen statt pro Verbindung.
@@ -198,14 +222,31 @@ class Hub:
             "gm": {"type": "state", "state": game.snapshot()},
             "player": {"type": "state", "state": game.snapshot(fuer_spieler=True)},
         }
-        dead = []
-        for ws, meta in list(self.sockets.items()):
-            try:
-                await ws.send_json(fassung.get(meta.get("role"), fassung["player"]))
-            except Exception:
-                dead.append(ws)
-        for ws in dead:
-            await self.remove(ws)
+        # An alle GLEICHZEITIG und mit Frist. Vorher nacheinander und ohne:
+        # ein Handy, das nichts mehr annimmt (WLAN weg, Leitung aber noch
+        # nicht tot), liess den Sendepuffer volllaufen, und ab da hing JEDES
+        # Senden an diesem einen Handy - der ganze Tisch stand still, bis die
+        # Leitung nach Minuten endgueltig starb (im Test: ueber 2 Minuten).
+        ziele = list(self.sockets.items())
+        ok = await asyncio.gather(*(self._senden(ws, fassung.get(meta.get("role"), fassung["player"]))
+                                    for ws, meta in ziele))
+        for (ws, meta), gesendet in zip(ziele, ok):
+            if not gesendet:
+                await self.rauswerfen(ws, meta)
+
+    async def rauswerfen(self, ws: WebSocket, meta: dict) -> None:
+        """Leitung, die nichts mehr annimmt, aufgeben. Das Handy verbindet sich
+        von selbst neu, sobald es wieder da ist."""
+        if ws not in self.sockets:
+            return
+        await self.remove(ws)
+        diag.log(f"RAUSGEWORFEN {meta.get('role', '?')} ip={meta.get('ip', '?')} "
+                 f"({_player_name(meta.get('playerId')) or '-'}): nimmt nichts mehr an")
+        pid = meta.get("playerId")
+        if pid and not any(m.get("playerId") == pid for m in list(self.sockets.values())):
+            game.set_player_connected(pid, False)
+        # Schliessen kann selbst an der vollen Leitung haengen - nicht warten.
+        asyncio.ensure_future(_leise_schliessen(ws))
 
 
 hub = Hub()
@@ -372,10 +413,15 @@ async def websocket_endpoint(ws: WebSocket):
         diag.log(f"GETRENNT   {meta['role']:6s} ip={client_ip} ({who}) — {reason} "
                  f"nach {dauer / 60:.1f} min, zuletzt gehoert vor {stille:.0f} s "
                  f"[{art}]")
-        if meta.get("playerId"):
-            game.set_player_connected(meta["playerId"], False)
-            game.save_session()
         await hub.remove(ws)
+        # Nur offline, wenn KEINE andere Leitung dieses Spielers mehr da ist:
+        # das Handy hat sich oft schon neu verbunden, bevor die alte Leitung
+        # hier endgueltig stirbt - sonst stand es beim SL faelschlich „offline"
+        # und sein Charakter war fuer andere Geraete frei.
+        pid = meta.get("playerId")
+        if pid and not any(m.get("playerId") == pid for m in list(hub.sockets.values())):
+            game.set_player_connected(pid, False)
+            game.save_session()
         await hub.broadcast_state()
 
 
@@ -483,7 +529,8 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         if meta["role"] == "gm":
             # Der Laptop hat volle Kontrolle.
             if atype == "resume_session":
-                game.resume_session()
+                if not game.resume_session():
+                    diag.log("FORTSETZEN gescheitert: gespeicherte Sitzung unlesbar - frischer Kampf")
                 # Handys, die sich schon vor dem Fortsetzen wieder gemeldet haben,
                 # stehen in der geladenen Sitzung als „offline" - sie sind aber da.
                 for m in list(hub.sockets.values()):
