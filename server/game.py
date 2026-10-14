@@ -485,8 +485,15 @@ class Game:
         fremde Datei soll die Charakterliste nicht mit Muell fuellen -
         Importieren ERSETZT sie schliesslich."""
         gut, verworfen = [], 0
+        gesehen: set = set()
         for e in roh:
             if isinstance(e, dict) and isinstance(e.get("name"), str) and e["name"].strip():
+                # Ohne (eindeutige) ID warf der naechste Beitritt mit KeyError -
+                # dann kam KEIN Spieler mehr an seinen Charakter (Datei von Hand
+                # gebaut oder aus einem anderen Werkzeug).
+                if not isinstance(e.get("id"), str) or not e["id"] or e["id"] in gesehen:
+                    e = {**e, "id": _new_id("imp")}
+                gesehen.add(e["id"])
                 gut.append(e)
             else:
                 verworfen += 1

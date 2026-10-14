@@ -141,3 +141,14 @@ def test_unlesbare_sitzung_beendet_die_fortsetzen_frage(fresh_game):
         assert g.resume_available is False
         g.apply({"type": "add_npc", "name": "Ork"})
         assert json.loads(G.SESSION_FILE.read_text("utf-8"))["combatants"]
+
+
+def test_import_ohne_ids_legt_beitritt_nicht_lahm(fresh_game):
+    """Eine Sicherung mit Charakteren ohne ID (von Hand gebaut) liess jeden
+    folgenden Beitritt mit KeyError scheitern."""
+    bericht = fresh_game.import_data({"roster": [
+        {"name": "Ohne ID"}, {"name": "Tessa", "id": "char-1"}, {"name": "Doppelt", "id": "char-1"}]})
+    assert bericht["ok"]
+    ids = [r["id"] for r in fresh_game.roster]
+    assert len(set(ids)) == 3 and "char-1" in ids
+    assert fresh_game.register_player("Tessa", "char-1", None) is not None

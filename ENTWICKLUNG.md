@@ -105,7 +105,17 @@ Spielstand bleiben sauber). Behoben:
   Datei wird zur .bak.
 - **Unlesbare session.json**: „Fortsetzen" tat nichts, die Frage blieb stehen,
   Spieleraktionen zählten nicht, gespeichert wurde nichts. Jetzt endet die Frage.
+- **Handyfotos zu groß** (aktionen.js `bildFuersHochladen`): 4–20 MB pro Foto,
+  über 8 MB lehnte der Server ab, darunter lud jedes Handy am Tisch das Bild in
+  voller Größe. Jetzt vor dem Hochladen auf max. 1600 px (JPEG 0,85, PNG bleibt
+  PNG wegen Transparenz; GIF und kleine Dateien unverändert). Test: 11,4 MB →
+  0,9 MB.
+- **Import ohne Charakter-IDs** (von Hand gebaute Sicherung): jeder folgende
+  Beitritt scheiterte mit KeyError. `_gepruefte_liste` vergibt fehlende/doppelte IDs.
+- Geprüft ohne Befund: lange Sitzung (400 Runden: Speicher, Sitzungsdatei,
+  Tempo bleiben gleich), Updater (abgebrochener Download fasst nichts an).
 - Tests: tests/test_stabilitaet.py (ohne Fix rot).
+
 ## Unveröffentlicht (nach 1.5.10, 14.10.2026): Kein „Gast"/„Nur zuschauen" mehr
 
 - Anlass: Wer am Handy „👁 Nur zuschauen" tippte, wurde trotzdem als Figur
