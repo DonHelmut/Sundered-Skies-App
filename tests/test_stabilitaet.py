@@ -2,7 +2,7 @@
 import asyncio
 import json
 
-from fastapi.testclient import TestClient
+from fastapi import WebSocketDisconnect
 
 from server import app as A
 from server import game as G
@@ -45,37 +45,64 @@ def test_haengendes_handy_bremst_die_anderen_nicht(fresh_game, monkeypatch):
     assert fresh_game.players[0]["connected"] is False
 
 
-def _client(fresh_game, monkeypatch):
-    monkeypatch.setattr(A, "game", fresh_game)
-    monkeypatch.setattr(A, "hub", A.Hub())
-    fresh_game.resume_available = False
-    return TestClient(A.app)
+class Leitung:
+    """Handy-Leitung fuer websocket_endpoint - ohne TestClient (der braucht je
+    nach Starlette-Version ein Zusatzpaket, das auf GitHub fehlt)."""
+    class client:
+        host = "10.0.0.5"
+    query_params: dict = {}
 
+    def __init__(self):
+        self.sent = []
+        self.rein = asyncio.Queue()
 
-def _bis(ws, typ):
-    while True:
-        m = ws.receive_json()
-        if m.get("type") == typ:
-            return m
+    async def accept(self):
+        pass
+
+    async def send_json(self, data):
+        self.sent.append(data)
+
+    async def receive_json(self):
+        m = await self.rein.get()
+        if m is None:
+            raise WebSocketDisconnect()
+        return m
+
+    async def bis(self, typ):
+        for _ in range(200):
+            treffer = [m for m in self.sent if m.get("type") == typ]
+            if treffer:
+                return treffer[-1]
+            await asyncio.sleep(0.01)
+        raise AssertionError(f"kein {typ}")
 
 
 def test_alte_leitung_stirbt_nach_neuverbinden_spieler_bleibt_online(fresh_game, monkeypatch):
     """Handy verbindet sich neu, BEVOR der Server die alte Leitung beerdigt.
     Deren Ende setzte den Spieler auf „offline" - obwohl er gerade spielt, und
     sein Charakter war fuer jedes andere Geraet frei."""
-    with _client(fresh_game, monkeypatch) as c:
-        with c.websocket_connect("/ws") as alt:
-            alt.send_json({"type": "join", "name": "Tessa", "neuerCharakter": "Tessa"})
-            pid = _bis(alt, "joined")["playerId"]
-            with c.websocket_connect("/ws") as neu:
-                neu.send_json({"type": "join", "name": "Tessa", "playerId": pid, "auto": True,
-                               "characterId": fresh_game.roster[0]["id"]})
-                _bis(neu, "joined")
-                alt.close()
-                neu.send_json({"type": "ping"})
-                _bis(neu, "pong")
-                spieler = [p for p in fresh_game.players if p["id"] == pid]
-                assert spieler and spieler[0]["connected"] is True
+    monkeypatch.setattr(A, "game", fresh_game)
+    monkeypatch.setattr(A, "hub", A.Hub())
+    fresh_game.resume_available = False
+
+    async def ablauf():
+        alt, neu = Leitung(), Leitung()
+        t_alt = asyncio.create_task(A.websocket_endpoint(alt))
+        await alt.rein.put({"type": "join", "name": "Tessa", "neuerCharakter": "Tessa"})
+        pid = (await alt.bis("joined"))["playerId"]
+        t_neu = asyncio.create_task(A.websocket_endpoint(neu))
+        await neu.rein.put({"type": "join", "name": "Tessa", "playerId": pid, "auto": True,
+                            "characterId": fresh_game.roster[0]["id"]})
+        await neu.bis("joined")
+        await alt.rein.put(None)            # alte Leitung stirbt jetzt erst
+        await t_alt
+        spieler = [p for p in fresh_game.players if p["id"] == pid]
+        assert spieler and spieler[0]["connected"] is True
+        await neu.rein.put(None)
+        await t_neu
+        assert fresh_game.players[0]["connected"] is False   # jetzt wirklich weg
+
+    asyncio.run(ablauf())
 
 
 def test_kaputte_charakterliste_nimmt_die_sicherung(fresh_game):
