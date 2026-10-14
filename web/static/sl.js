@@ -1044,6 +1044,13 @@ function zurAktivenZeile(sanft, nurWennNoetig) {
   }, 500);
 }
 
+// SL-Sicht eines verdeckten Namens: 🫥 vorn + gestrichelt. Früher ein
+// „🫥 verdeckt"-Abzeichen hinter dem Namen - in der zweispaltigen Liste wurde
+// es hinten abgeschnitten, der SL sah nicht mehr, wer verdeckt ist.
+function anonName(name) {
+  return `<span class="anon-marke" title="Verdeckt: die Spieler sehen statt des Namens nur Unlesbares">🫥</span><span class="anon-name" title="Verdeckt: die Spieler sehen statt des Namens nur Unlesbares">${esc(name)}</span>`;
+}
+
 // Eine Zeile für alle Statisten auf derselben Gruppenkarte. Zustand als
 // Zusammenfassung (😵 angeschlagen / 🩸 Wunden / ☠ raus), aufklappbar zu den
 // einzelnen Figuren - dort gehen Treffer, Zustände usw. wie gewohnt.
@@ -1070,7 +1077,7 @@ function gruppenZeile(gruppe, nr, auf) {
     <div class="mini">${cardSlot(erster.id, erster.card, {}, "", { open: true, tappable: false })}</div>
     <span class="avatar"><span class="av-init">${esc(zoneInitials(name))}</span></span>
     <div class="who">
-      <div class="name">${esc(name)} <span class="gk-anzahl">×${gruppe.length}</span></div>
+      <div class="name">${gruppe.some((x) => x.anon) ? anonName(name) : esc(name)} <span class="gk-anzahl">×${gruppe.length}</span></div>
       <div class="badges">
         ${zonen.length === 1 ? `<span class="tag zone-chip z${zonen[0]}">${esc(zoneLabel(zonen[0]))}</span>`
           : `<span class="tag" title="Die Figuren stehen in verschiedenen Zonen">${zonen.length} Zonen</span>`}
@@ -1264,7 +1271,8 @@ function combatantRow(c, num, isGM, isOpen) {
     <div class="mini">${cardSlot(c.id, c.card, c.status, "", { open: showCard, tappable: false })}</div>
     ${avatarEl}
     <div class="who">
-      <div class="name">${c.anon && !isGM ? `<span class="verdeckt" title="Der Spielleiter hält verborgen, wer das ist">${esc(c.name)}</span>` : esc(c.name)}${isGM && c.playerName && c.playerName !== c.name ? ` <span class="spieler-name" title="Gespielt von">🎲 ${esc(c.playerName)}</span>` : ""} ${heldPill}</div>
+      <div class="name">${c.anon && !isGM ? `<span class="verdeckt" title="Der Spielleiter hält verborgen, wer das ist">${esc(c.name)}</span>`
+        : c.anon ? anonName(c.name) : esc(c.name)}${isGM && c.playerName && c.playerName !== c.name ? ` <span class="spieler-name" title="Gespielt von">🎲 ${esc(c.playerName)}</span>` : ""} ${heldPill}</div>
       ${c.playerName && c.playerName !== c.name && !isGM ? `<div class="muted" style="font-size:0.72rem">🎲 ${esc(c.playerName)}</div>` : ""}
       ${isGM && c.note ? `<div class="combatant-note" title="SL-Notiz">📝 ${esc(c.note)}</div>` : ""}
       <div class="badges">
@@ -1272,9 +1280,6 @@ function combatantRow(c, num, isGM, isOpen) {
           ? `<span class="tag" style="color:var(--muted);border-color:var(--muted)">⏸ Nicht im Kampf</span>`
           : `<span class="tag zone-chip z${Zones.zoneOf(c)}">${esc(zoneLabel(Zones.zoneOf(c)))}</span>`}
         ${c.ally ? `<span class="tag" style="color:var(--good);border-color:var(--good)">🤝 Verbündet</span>` : ""}
-        ${/* "verdeckt" hier statt direkt am Namen - dort nahm es dem Namen den
-             Platz weg, und lange Namen brachen mitten im Wort um. */ ""}
-        ${c.anon && isGM ? `<span class="tag" style="color:var(--muted);border-color:var(--muted)" title="Die Spieler sehen statt des Namens nur Unlesbares">🫥 verdeckt</span>` : ""}
         ${duTag}${naechsterTag}${jokerBadge}
         ${c.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card">WC</span>' : ""}
         ${showCard ? (isGM ? talentKurz(c.talents) : talentBadges(c.talents)) : ""}${showCard ? talentTrail(c) : ""} ${hints}

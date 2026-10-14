@@ -1809,18 +1809,31 @@ body.sl-ansicht details[data-sec="bibliothek"] .field input { padding: 5px 8px; 
 body.sl-ansicht details[data-sec="bibliothek"] .panel-body > .row > button,
 body.sl-ansicht details[data-sec="bibliothek"] .feld-kasten { padding: 6px 10px; font-size: 0.9rem; }
 
-/* Ruhige Liste: alle Zeilen gleich hoch, nichts bricht um. Wird es eng,
-   schrumpfen die Abzeichen (abgeschnitten) - Zustände wie Angeschlagen/Wunden
-   bleiben immer ganz sichtbar. Nur das "⋯"-Feld darf eine Zeile aufklappen. */
+/* Ruhige Liste: Name oben, Abzeichen darunter. Früher stand alles in EINER
+   Zeile und die Abzeichen wurden hinten abgeschnitten („verdeckt",
+   „Gruppenkarte", Bennies) - in der zweispaltigen Ansicht fast immer. Die
+   Kartenminiatur macht die Zeile ohnehin so hoch, zwei Textzeilen kosten also
+   nichts. Reicht der Platz trotzdem nicht, bricht die Abzeichen-Zeile um
+   (lieber eine höhere Zeile als ein verschwundenes „verdeckt").
+   Nur das "⋯"-Feld klappt eine Zeile auf. */
 body.sl-ansicht .combatant { min-height: 46px; box-sizing: border-box; }
-body.sl-ansicht .combatant .who { flex-wrap: nowrap; overflow: hidden; }
-body.sl-ansicht .combatant .who .name { white-space: nowrap; flex-shrink: 0; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
-body.sl-ansicht .combatant .who .badges { flex-wrap: nowrap; flex-shrink: 1; min-width: 0; overflow: hidden; }
+body.sl-ansicht .combatant .who { flex-wrap: wrap; row-gap: 2px; column-gap: 6px; }
+body.sl-ansicht .combatant .who .name { white-space: nowrap; flex: 1 0 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+body.sl-ansicht .combatant .who .badges { flex-wrap: wrap; min-width: 0; }
 body.sl-ansicht .combatant .who .badges > * { flex-shrink: 0; }
-/* Wird es eng, gibt zuerst die Zone nach („👣 Nahb…" bis nur 👣 - steht auch
-   im Board), dann „↓ danach" (die Zeile ist ohnehin markiert). Sonst wurden WC, Talente und Bennies hinten abgeschnitten. */
+/* Bevor die Abzeichen umbrechen, gibt zuerst die Zone nach („👣 Nahb…" bis
+   nur 👣 - steht auch im Board), dann „↓ danach" (die Zeile ist ohnehin
+   markiert). Trick: Grundbreite 27 px, wachsen bis zur vollen Breite - so
+   rechnet der Umbruch mit der kleinen Breite und WC, Talente, Bennies bleiben
+   ganz. */
 body.sl-ansicht .combatant .who .badges > .zone-chip,
-body.sl-ansicht .combatant .who .badges > .naechster-tag { flex-shrink: 1; min-width: 27px; }
+body.sl-ansicht .combatant .who .badges > .naechster-tag { flex: 1 1 27px; min-width: 27px; max-width: max-content;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Verdeckt (nur SL): Marke vorn am Namen statt als Abzeichen - sie steht so
+   in jeder Zeile an derselben Stelle und kann nicht hinten wegfallen. Der
+   gestrichelte Unterstrich wiederholt es am Namen selbst. */
+.name .anon-marke { margin-right: 4px; }
+.name .anon-name { text-decoration: underline dashed var(--muted); text-underline-offset: 3px; text-decoration-thickness: 1px; }
 body.sl-ansicht .combatant .who .status-badges { flex-shrink: 0; display: flex; gap: 4px; white-space: nowrap; }
 body.sl-ansicht .combatant .who .combatant-note { flex-shrink: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
 body.sl-ansicht .combatant .who .spieler-name { white-space: nowrap; }
