@@ -172,8 +172,8 @@ function sendMessage() {
   App.pendingImageUrl = null;
 }
 
-// characterId: Charakter aus der Liste ("" = nur zuschauen); neu = true: der
-// Server legt den Charakter aus dem Namensfeld an.
+// characterId: Charakter aus der Liste; neu = true: der Server legt den
+// Charakter aus dem Namensfeld an. Ohne beides kein Beitritt (kein „Gast" mehr).
 function doJoin(characterId, neu) {
   const E = App.joinEntwurf;
   const roster = App.state.roster || [];
@@ -187,11 +187,12 @@ function doJoin(characterId, neu) {
     return;
   }
   const char = characterId ? roster.find((r) => r.id === characterId) : null;
+  if (!char && !neuerCharakter) { E.modus = "liste"; render(); return; }
   let spieler = (E.spielerName || "").trim();
   // Früher wurde der Charaktername als „Spielername" gemerkt. Steht da noch
   // ein ANDERER Charakter, wäre man „Korgo, gespielt von Tessa".
   if (spieler && roster.some((r) => gleich(r.name, spieler)) && !gleich(spieler, char ? char.name : neuerCharakter)) spieler = "";
-  const name = spieler || (char && char.name) || neuerCharakter || "Gast";
+  const name = spieler || (char && char.name) || neuerCharakter;
   App.joinFehler = null;              // alte Meldung verwerfen
   App.myName = name; App.myCharacterId = char ? char.id : null;
   try {

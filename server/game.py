@@ -1199,36 +1199,6 @@ class Game:
         self.combatants.append(c)
         return c
 
-    def add_guest_combatant(self, name: str, player_id: str) -> dict:
-        c = {
-            "id": _new_id("cbt"),
-            "name": name.strip() or "Gast",
-            "playerName": name.strip() or "Gast",
-            "kind": "player",
-            "isWildCard": True,
-            "talents": [],
-            "gluck": False,
-            "grosses_gluck": False,
-            "bennies": self.benny_start,
-            "characterId": None,
-            "playerId": player_id,
-            "card": None,
-            "held": False,
-            "done": False,
-            "revealed": False,
-            "zone": DEFAULT_ZONE_PLAYER,
-            "ran": False,
-            "moved": False,
-            "benched": False,
-            "ally": False,
-            "note": "",
-            "image": None,
-            "status": default_status(),
-            "createdAt": now_ms(),
-        }
-        self.combatants.append(c)
-        return c
-
     _NUMMER_AM_ENDE = re.compile(r"^(.*?)\s+(\d+)$")
 
     def _grundname(self, name: str) -> str:
@@ -2330,8 +2300,14 @@ class Game:
 
     def register_player(self, name: str, character_id: Optional[str],
                         existing_player_id: Optional[str]) -> Optional[dict]:
-        """Spieler anmelden. Rueckgabe None = Charakter unbekannt (der Aufrufer
-        meldet das dem Handy, statt einen Spieler ohne Figur anzulegen)."""
+        """Spieler anmelden. Rueckgabe None = Charakter unbekannt oder fehlt (der
+        Aufrufer meldet das dem Handy, statt einen Spieler ohne Figur anzulegen)."""
+        # Ohne Charakter kein Beitritt mehr. Frueher wurde daraus ein „Gast", der
+        # als volle Figur in Reihenfolge und Zonen mitspielte (Kalle, 14.10.2026:
+        # „Gast macht ja überall mit??"). Nur wer schon eine Figur hat (z. B. ein
+        # Gast aus einer alten Sitzung), kommt so wieder rein.
+        if not character_id and not self.hat_eigene_figur(existing_player_id):
+            return None
         # Unbekannter Charakter: typischerweise eine ID aus einer FRUEHEREN Runde,
         # die noch im Handy-Speicher lag. Frueher entstand daraus still ein
         # Spieler OHNE Figur - das Handy sah keine eigene Figur, zeigte wieder
@@ -2386,6 +2362,9 @@ class Game:
                 char = next((r for r in self.roster if r["id"] == character_id), None)
                 if char:
                     self.add_combatant_from_character(char, player_id, player_name=name)
-        else:
-            self.add_guest_combatant(name, player_id)
         return player
+
+    def hat_eigene_figur(self, player_id: Optional[str]) -> bool:
+        """Steht schon eine Figur dieses Geraets im Kampf? Dann darf es auch ohne
+        Charakter-ID wieder beitreten (es bekommt seine Figur zurueck)."""
+        return bool(player_id) and any(c.get("playerId") == player_id for c in self.combatants)

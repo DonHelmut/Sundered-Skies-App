@@ -302,10 +302,9 @@ function renderJoin() {
       <div class="join-liste">${knoepfe}</div>
       ${neuKnopf}
       ${spielerFeld}
-      <div class="join-links">
-        ${letzter ? `<button class="ghost small" data-act="join-modus" data-modus="weiter">← zurück</button>` : ""}
-        <button class="ghost small" data-act="join-als" data-id="" title="Ohne eigene Figur mitschauen">👁 Nur zuschauen</button>
-      </div>`;
+      ${letzter ? `<div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="weiter">← zurück</button></div>` : ""}`;
+    // „Nur zuschauen" gibt es nicht mehr: der „Gast" landete als Figur in
+    // Reihenfolge und Zonen (Kalle). Zuschauen geht über die TV-Ansicht.
   } else {
     // Klar sagen, dass hier ein Charakter ENTSTEHT - „Beitreten" allein las
     // sich beim ersten Start, als fehle die Charakterwahl (Stefan).
