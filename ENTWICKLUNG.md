@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (14.10.2026): Stabilitätstest Runde 2
+## 1.5.11 (14.10.2026): Stabilitätstest Runde 2
 
 Kalle: „weiter testen, Stabilität und Bugs". Diesmal Verbindungen, viele Handys,
 Speichern/Laden, Zufalls-Aktionen (Fuzzing aller SL-Aktionen: Deck und
@@ -116,7 +116,7 @@ Spielstand bleiben sauber). Behoben:
   Tempo bleiben gleich), Updater (abgebrochener Download fasst nichts an).
 - Tests: tests/test_stabilitaet.py (ohne Fix rot).
 
-## Unveröffentlicht (nach 1.5.10, 14.10.2026): Kein „Gast"/„Nur zuschauen" mehr
+## 1.5.11 (14.10.2026): Kein „Gast"/„Nur zuschauen" mehr
 
 - Anlass: Wer am Handy „👁 Nur zuschauen" tippte, wurde trotzdem als Figur
   „Gast" angelegt und stand in Reihenfolge und Zonen (Kalle: „Gast macht ja
