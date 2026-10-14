@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (nach 1.5.8, 11.10.2026): Spieltest – Zugfolge repariert
+## 1.5.9 (14.10.2026): Spieltest – Zugfolge repariert
 
 Kalle: „testen und szenarien". Kampf im Browser durchgespielt (SL + 4 Handys:
 Beitritt, neuer Charakter am Handy, Aufdecken, Angriffe, Abwarten/Eingreifen,
