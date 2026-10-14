@@ -180,16 +180,46 @@ def _read_json(path: Path) -> Optional[Any]:
         return None
 
 
+def _lade_liste(path: Path) -> list:
+    """Dauerhafte Liste (Charaktere, Bibliotheken) laden - ist die Datei kaputt,
+    die .bak nehmen. Laptop-Akku leer oder Strom weg mitten im Speichern: dann
+    stand die Datei voller Nullbytes da, die App startete mit LEERER
+    Charakterliste, und die erste Änderung überschrieb auch noch die .bak mit
+    dem Müll - alle Charaktere weg."""
+    daten = _read_json(path)
+    if isinstance(daten, list):
+        return daten
+    if path.exists():
+        reserve = _read_json(path.with_suffix(path.suffix + ".bak"))
+        try:
+            # Kaputte Datei aufheben statt wegwerfen (zum Nachsehen).
+            path.replace(path.with_suffix(path.suffix + ".kaputt"))
+        except OSError:
+            pass
+        from . import diag
+        diag.log(f"DATEI KAPUTT: {path.name} unlesbar -> "
+                 f"{'Sicherung (.bak) geladen' if isinstance(reserve, list) else 'keine brauchbare .bak'}")
+        if isinstance(reserve, list):
+            return reserve
+    return []
+
+
 def _write_json(path: Path, data: Any, backup: bool = False) -> None:
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(path.suffix + ".tmp")
         with tmp.open("w", encoding="utf-8") as fh:
             json.dump(data, fh, ensure_ascii=False, indent=2)
+            # Erst wirklich auf die Platte, dann tauschen: ohne das kann nach
+            # einem Stromausfall der Tausch schon passiert sein, der Inhalt aber
+            # noch nicht - übrig bleibt eine Datei voller Nullbytes.
+            fh.flush()
+            os.fsync(fh.fileno())
         # Bei dauerhaften Dateien (Roster/Bibliotheken) die ALTE Version als .bak
         # behalten -> schützt gegen einen kaputten Schreibvorgang. Original bleibt
-        # bis zum atomaren Tausch unangetastet.
-        if backup and path.exists():
+        # bis zum atomaren Tausch unangetastet. Nur eine LESBARE alte Version
+        # wird zur .bak - sonst ersetzte Müll die letzte gute Sicherung.
+        if backup and path.exists() and _read_json(path) is not None:
             try:
                 path.with_suffix(path.suffix + ".bak").write_bytes(path.read_bytes())
             except OSError:
@@ -285,10 +315,10 @@ class Game:
         except OSError:
             pass
 
-        self.roster: list[dict] = _read_json(ROSTER_FILE) or []
-        self.bestiary: list[dict] = _read_json(BESTIARY_FILE) or []
-        self.allies: list[dict] = _read_json(ALLIES_FILE) or []
-        self.encounters: list[dict] = _read_json(ENCOUNTERS_FILE) or []
+        self.roster: list[dict] = _lade_liste(ROSTER_FILE)
+        self.bestiary: list[dict] = _lade_liste(BESTIARY_FILE)
+        self.allies: list[dict] = _lade_liste(ALLIES_FILE)
+        self.encounters: list[dict] = _lade_liste(ENCOUNTERS_FILE)
         self.combatants: list[dict] = []
         self.players: list[dict] = []
         self.messages: list[dict] = []
@@ -455,8 +485,15 @@ class Game:
         fremde Datei soll die Charakterliste nicht mit Muell fuellen -
         Importieren ERSETZT sie schliesslich."""
         gut, verworfen = [], 0
+        gesehen: set = set()
         for e in roh:
             if isinstance(e, dict) and isinstance(e.get("name"), str) and e["name"].strip():
+                # Ohne (eindeutige) ID warf der naechste Beitritt mit KeyError -
+                # dann kam KEIN Spieler mehr an seinen Charakter (Datei von Hand
+                # gebaut oder aus einem anderen Werkzeug).
+                if not isinstance(e.get("id"), str) or not e["id"] or e["id"] in gesehen:
+                    e = {**e, "id": _new_id("imp")}
+                gesehen.add(e["id"])
                 gut.append(e)
             else:
                 verworfen += 1
@@ -539,7 +576,12 @@ class Game:
 
     def resume_session(self) -> bool:
         data = _read_json(SESSION_FILE)
-        if not data:
+        if not isinstance(data, dict) or not data:
+            # Unlesbare Sitzung (Strom weg beim Speichern): Fortsetzen geht
+            # nicht - dann wenigstens die Abfrage beenden. Sonst blieb sie
+            # stehen, Spieler-Aktionen zählten nicht, und gespeichert wurde
+            # den ganzen Abend nichts (save_session wartet auf die Antwort).
+            self.resume_available = False
             return False
         self.combatants = data.get("combatants", [])
         for c in self.combatants:
@@ -606,8 +648,9 @@ class Game:
         if any(p.get("id") == player_id for p in self.players):
             return True
         if self.resume_available:
-            gespeichert = _read_json(SESSION_FILE) or {}
-            return any(p.get("id") == player_id for p in gespeichert.get("players", []))
+            gespeichert = _read_json(SESSION_FILE)
+            spieler = gespeichert.get("players") if isinstance(gespeichert, dict) else None
+            return any(isinstance(p, dict) and p.get("id") == player_id for p in spieler or [])
         return False
 
     def discard_saved_session(self) -> None:

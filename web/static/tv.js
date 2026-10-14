@@ -70,7 +70,7 @@ function connect() {
   // dann stuenden verdeckte Gegner mit Klarnamen fuer den ganzen Tisch da.
   const ws = new WebSocket(`${proto}://${location.host}/ws?tv=1`);
   TV.ws = ws;
-  ws.onopen = () => { TV.lastRecv = Date.now(); setStatus("online");
+  ws.onopen = () => { if (TV.ws !== ws) return; TV.lastRecv = Date.now(); setStatus("online");
     clearInterval(tvHeartbeat);
     tvHeartbeat = setInterval(() => {
       if (!TV.ws || TV.ws.readyState !== WebSocket.OPEN) return;
@@ -82,8 +82,11 @@ function connect() {
       try { TV.ws.send(JSON.stringify({ type: "clientlog", event: "TV wieder verbunden", gapMs })); } catch {}
     }
   };
-  ws.onclose = () => { clearInterval(tvHeartbeat); if (!TV.wentOfflineAt) TV.wentOfflineAt = Date.now(); setStatus("offline"); setTimeout(connect, 1500); };
+  // Nur die AKTUELLE Leitung zaehlt: das spaete onclose einer schon ersetzten
+  // stellte sonst die neue auf „offline" und stoppte ihren Heartbeat (wie app).
+  ws.onclose = () => { if (TV.ws !== ws) return; clearInterval(tvHeartbeat); if (!TV.wentOfflineAt) TV.wentOfflineAt = Date.now(); setStatus("offline"); setTimeout(connect, 1500); };
   ws.onmessage = (ev) => {
+    if (TV.ws !== ws) return;
     TV.lastRecv = Date.now();
     let msg; try { msg = JSON.parse(ev.data); } catch { return; }
     if (msg.type === "hello") {

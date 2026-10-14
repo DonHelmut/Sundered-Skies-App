@@ -77,6 +77,45 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (14.10.2026): Stabilitätstest Runde 2
+
+Kalle: „weiter testen, Stabilität und Bugs". Diesmal Verbindungen, viele Handys,
+Speichern/Laden, Zufalls-Aktionen (Fuzzing aller SL-Aktionen: Deck und
+Spielstand bleiben sauber). Behoben:
+
+- **Ein hängendes Handy fror den ganzen Tisch ein** (`Hub.broadcast_state`):
+  Spielstand ging nacheinander und ohne Frist raus. Nimmt ein Handy nichts mehr
+  an (WLAN weg, Leitung noch nicht tot), läuft der Sendepuffer voll und JEDES
+  Senden hing daran – im Test über 2 Minuten Stillstand, SL und andere Handys
+  flogen raus. Jetzt an alle gleichzeitig mit 3 s Frist (`SENDE_FRIST`); wer
+  nicht annimmt, wird aufgegeben und verbindet sich selbst neu.
+- **Handy zeigte „Getrennt", obwohl verbunden** (verbindung.js, tv.js): nach dem
+  Aufwachen kappt der Heartbeat die alte Leitung, Fokus baut sofort eine neue.
+  Das späte `onclose` der alten stellte die NEUE auf getrennt: Hinweis blieb
+  stehen, Heartbeat aus, beim SL „offline". Handler prüfen jetzt, ob sie noch
+  die aktuelle Leitung sind (`leitungVerloren`); der Heartbeat wartet nicht mehr
+  auf `onclose`.
+- **Server: Spieler „offline" nach Neuverbinden**: das Ende der alten Leitung
+  setzte den Spieler offline, obwohl die neue schon lief; die Stille-Wache ließ
+  den Status alle 5 s kippen. Jetzt zählt pro Spieler die frischeste Leitung.
+- **Strom/Akku weg beim Speichern → alle Charaktere weg**: roster.json voller
+  Nullbytes, App startete leer, erste Änderung überschrieb auch die .bak.
+  Jetzt `fsync` vor dem Tausch, Laden fällt auf die .bak zurück
+  (`_lade_liste`, kaputte Datei bleibt als `.kaputt`), und nur eine lesbare
+  Datei wird zur .bak.
+- **Unlesbare session.json**: „Fortsetzen" tat nichts, die Frage blieb stehen,
+  Spieleraktionen zählten nicht, gespeichert wurde nichts. Jetzt endet die Frage.
+- **Handyfotos zu groß** (aktionen.js `bildFuersHochladen`): 4–20 MB pro Foto,
+  über 8 MB lehnte der Server ab, darunter lud jedes Handy am Tisch das Bild in
+  voller Größe. Jetzt vor dem Hochladen auf max. 1600 px (JPEG 0,85, PNG bleibt
+  PNG wegen Transparenz; GIF und kleine Dateien unverändert). Test: 11,4 MB →
+  0,9 MB.
+- **Import ohne Charakter-IDs** (von Hand gebaute Sicherung): jeder folgende
+  Beitritt scheiterte mit KeyError. `_gepruefte_liste` vergibt fehlende/doppelte IDs.
+- Geprüft ohne Befund: lange Sitzung (400 Runden: Speicher, Sitzungsdatei,
+  Tempo bleiben gleich), Updater (abgebrochener Download fasst nichts an).
+- Tests: tests/test_stabilitaet.py (ohne Fix rot).
+
 ## Unveröffentlicht (nach 1.5.10, 14.10.2026): Kein „Gast"/„Nur zuschauen" mehr
 
 - Anlass: Wer am Handy „👁 Nur zuschauen" tippte, wurde trotzdem als Figur

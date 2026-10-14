@@ -4,6 +4,35 @@
 // index.html zählt (app.js zuerst, start.js zuletzt) – Code, der beim LADEN
 // läuft, darf nur auf Dinge aus früheren Dateien zugreifen.
 
+// --- Bilder vor dem Hochladen verkleinern ------------------------------------
+// Handyfotos haben 4-20 MB. Über 8 MB lehnte der Server ab („zu groß"), und
+// alles darunter lud danach JEDES Handy am Tisch in voller Größe herunter
+// (Charakterbild, Kartenrückseite) - über wackliges WLAN, bei jedem Neuladen.
+// Darum hier auf höchstens BILD_MAX_KANTE verkleinern. GIFs (Animation) und
+// kleine Dateien bleiben, wie sie sind; geht etwas schief, das Original.
+const BILD_MAX_KANTE = 1600;
+
+async function bildFuersHochladen(file) {
+  try {
+    if (!file || !/^image\//.test(file.type) || file.type === "image/gif") return file;
+    if (file.size < 400 * 1024) return file;
+    const bild = await createImageBitmap(file);
+    const faktor = Math.min(1, BILD_MAX_KANTE / Math.max(bild.width, bild.height));
+    const w = Math.round(bild.width * faktor), h = Math.round(bild.height * faktor);
+    const leinwand = document.createElement("canvas");
+    leinwand.width = w; leinwand.height = h;
+    leinwand.getContext("2d").drawImage(bild, 0, 0, w, h);
+    if (bild.close) bild.close();
+    // PNG/WebP koennen durchsichtig sein -> PNG behalten, sonst JPEG.
+    const typ = /png|webp/.test(file.type) ? "image/png" : "image/jpeg";
+    const blob = await new Promise((ok) => leinwand.toBlob(ok, typ, 0.85));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], typ === "image/png" ? "bild.png" : "bild.jpg", { type: typ });
+  } catch {
+    return file;   // z. B. Format, das der Browser nicht malen kann
+  }
+}
+
 // --- Aktionen ---------------------------------------------------------------
 
 function saveChar() {
@@ -33,7 +62,7 @@ function saveBestiary() {
 async function uploadBestiaryImage(file) {
   if (!file) return;
   const fd = new FormData();
-  fd.append("file", file);
+  fd.append("file", await bildFuersHochladen(file));
   try {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) {
@@ -62,7 +91,7 @@ function saveAlly() {
 async function uploadAllyImage(file) {
   if (!file) return;
   const fd = new FormData();
-  fd.append("file", file);
+  fd.append("file", await bildFuersHochladen(file));
   try {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) {
@@ -77,11 +106,12 @@ async function uploadAllyImage(file) {
 async function uploadImage(file) {
   if (!file) return;
   const fd = new FormData();
-  fd.append("file", file);
+  fd.append("file", await bildFuersHochladen(file));
   try {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) { const j = await res.json(); App.pendingImageUrl = j.url; render(); }
-    else hinweis("Upload nicht erlaubt (nur vom Laptop).");
+    else if (res.status === 413) hinweis("Bild ist zu groß (max. 8 MB).");
+    else hinweis("Upload fehlgeschlagen.");
   } catch { hinweis("Upload fehlgeschlagen."); }
 }
 
@@ -90,7 +120,7 @@ async function uploadImage(file) {
 async function uploadRueckseite(file) {
   if (!file) return;
   const fd = new FormData();
-  fd.append("file", file);
+  fd.append("file", await bildFuersHochladen(file));
   try {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) {
@@ -106,7 +136,7 @@ async function uploadRueckseite(file) {
 async function uploadCharImage(file, cid) {
   if (!file || !cid) return;
   const fd = new FormData();
-  fd.append("file", file);
+  fd.append("file", await bildFuersHochladen(file));
   try {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) { const j = await res.json(); gmActionOrPlayer({ type: "set_image", id: cid, url: j.url }); }
@@ -121,7 +151,7 @@ async function uploadFigurRueckseite(file, profil) {
   const mine = myCombatant();
   if (!file || !mine) return;
   const fd = new FormData();
-  fd.append("file", file);
+  fd.append("file", await bildFuersHochladen(file));
   try {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     if (res.ok) {
