@@ -28,7 +28,7 @@ function render() {
     const latest = mimi[mimi.length - 1];
     if (App._lastMimiTs === undefined) App._lastMimiTs = latest ? latest.ts : 0;
     else if (latest && latest.ts > App._lastMimiTs) { App._lastMimiTs = latest.ts; showMimiToast(latest.text); }
-    const kampf = (App.state.messages || []).filter((m) => m.sender === "kampf" && m.target === App.myPlayerId);
+    const kampf = (App.state.messages || []).filter((m) => m.sender === "kampf" && [].concat(m.target).includes(App.myPlayerId));
     const neu = kampf[kampf.length - 1];
     if (App._lastKampfTs === undefined) App._lastKampfTs = neu ? neu.ts : 0;
     else if (neu && neu.ts > App._lastKampfTs) { App._lastKampfTs = neu.ts; showKampfToast(neu.text); }

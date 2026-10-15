@@ -1942,3 +1942,20 @@ def test_fluestern_an_mehrere(fresh_game):
     n = len(g.messages)
     g.apply({"type": "message", "target": [], "text": "Niemand"})
     assert len(g.messages) == n
+
+
+def test_treffer_und_ko_sehen_auch_die_anderen(fresh_game):
+    """Trifft ein Spieler oder schaltet er wen aus, bekommen die übrigen Spieler
+    eine kurze Meldung - daneben bleibt beim Angreifer."""
+    g = fresh_game
+    held = _held(g)
+    g.players = [{"id": "plr-test", "name": "Ich"}, {"id": "plr-b", "name": "B"}]
+    ork = _add_npc(g, "Ork")
+    sieht_b = lambda: [m["text"] for m in g.snapshot(fuer_spieler=True, player_id="plr-b")["messages"]]
+    g.apply({"type": "resolve_attack", "id": _angriff_melden(g, held, ork)["id"], "ergebnis": "daneben"})
+    assert sieht_b() == []
+    g.apply({"type": "resolve_attack", "id": _angriff_melden(g, held, ork)["id"], "ergebnis": "treffer", "steigerungen": 3})
+    assert sieht_b() == ["☠ Held schaltet Ork aus"]
+    # Der Angreifer bekommt nur seine eigene Meldung, nicht doppelt.
+    eigene = [m["text"] for m in g.snapshot(fuer_spieler=True, player_id="plr-test")["messages"]]
+    assert len(eigene) == 2 and "ausgeschaltet" in eigene[-1]

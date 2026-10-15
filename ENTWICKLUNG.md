@@ -77,7 +77,17 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (nach 1.5.13, 15.10.2026): SL-Nachrichten + Flüstern
+## Unveröffentlicht (nach 1.5.14, 15.10.2026): Treffer/KO für alle
+
+Kalle: „Wenn ein Spieler jemanden ausschaltet oder trifft, kriegen die anderen
+keine Nachricht." War nie drin (seit 1.1 ging die Meldung nur an den Angreifer).
+`_do_resolve_attack` schickt jetzt bei Treffer/KO zusätzlich eine kurze
+Meldung („☠ Tessa schaltet Ork aus") an alle übrigen Spieler – Ziel ist die
+Liste der anderen Spieler-IDs, der Angreifer bekommt nicht doppelt. Daneben /
+„steckt es weg" bleibt beim Angreifer. Am Handy als Kampf-Toast, nicht im
+SL-Nachrichtenfeld. Test: `test_treffer_und_ko_sehen_auch_die_anderen`.
+
+## 1.5.14 (15.10.2026): SL-Nachrichten + Flüstern
 
 Kalle: „Nachrichten vom SL sehen aus wie ein Kampf-Log … und wenn der SL einem
 einzelnen Spieler was schickt, sollen die anderen nichts mitbekommen."
