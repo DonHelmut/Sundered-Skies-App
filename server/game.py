@@ -872,6 +872,7 @@ class Game:
             # Zustand vor der Änderung sichern (für Rückgängig).
             self._push_history()
             handler(action)
+            self._offline_aufdecken()
             if self._bennies_merken() or t == "benny_refresh":
                 self.save_roster()
             self.save_session()
@@ -2309,6 +2310,22 @@ class Game:
         for p in self.players:
             if p["id"] == player_id:
                 p["connected"] = connected
+        if not connected and self._offline_aufdecken():
+            self.save_session()
+
+    def _offline_aufdecken(self) -> bool:
+        """Ist eine Spielerfigur dran, deren Handy nicht verbunden ist, deckt
+        der Server ihre Karte auf. Sonst blieb sie den ganzen Zug (und danach)
+        verdeckt - Akku leer, WLAN weg oder SL-gesteuert ohne Handy: niemand
+        konnte tippen. Mit Handy deckt der Spieler weiter selbst auf (Kalle)."""
+        c = self._combatant(self.active_id) if self.active_id else None
+        if not c or not c.get("card") or c.get("revealed") or c.get("kind") == "npc":
+            return False
+        p = next((p for p in self.players if p["id"] == c.get("playerId")), None)
+        if p and p.get("connected"):
+            return False
+        c["revealed"] = True
+        return True
 
     def charakter_aktiv_belegt(self, character_id, ausser_player_id=None) -> Optional[str]:
         """Wird dieser Charakter gerade von einem VERBUNDENEN Geraet gespielt?

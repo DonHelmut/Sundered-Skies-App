@@ -393,6 +393,10 @@ function toast(text) {
     document.body.appendChild(el);
   }
   el.textContent = text;
+  // Über der festen Leiste unten erscheinen - sonst lag die Meldung genau
+  // auf „danach: …" und den Knöpfen (Höhe schwankt: Handy bricht um).
+  const leiste = document.querySelector(".aktionsleiste");
+  el.style.bottom = leiste ? `${leiste.offsetHeight + 12}px` : "";
   el.classList.add("sichtbar");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("sichtbar"), 2600);
