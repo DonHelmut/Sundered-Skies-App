@@ -583,6 +583,47 @@ window.mimiSend = function (text) {
   gmAction({ type: "message", sender: "mimi", target, text });
 };
 
+// --- Dateiauswahl über EIN festes Feld ---------------------------------------
+// Die <input type=file> stehen in der Ansicht, und die baut render() bei jedem
+// Server-Update neu. Am Handy liegt die Seite im Hintergrund, solange Galerie
+// oder Kamera offen ist - kommt in der Zeit ein Update (ein anderer Spieler
+// tut etwas, die Leitung war kurz weg), ist das angetippte Feld schon ersetzt.
+// Sein „change" erreicht document dann nicht mehr: Bild gewählt, und es
+// passierte einfach nichts, ohne Meldung. Darum öffnet jedes dieser Felder
+// stattdessen ein festes Feld direkt an <body>, das render() nie anfasst; es
+// übernimmt data-act/data-id/... und läuft danach durch den change-Handler unten.
+let _dateiWaehler = null;
+function dateiWaehler() {
+  if (_dateiWaehler && _dateiWaehler.isConnected) return _dateiWaehler;
+  const w = document.createElement("input");
+  w.type = "file";
+  // Nicht display:none - per click() geöffnet, verweigern manche Handy-Browser
+  // sonst die Auswahl. Unsichtbar und außerhalb des Bildschirms reicht.
+  w.setAttribute("aria-hidden", "true");
+  w.tabIndex = -1;
+  w.style.cssText = "position:fixed; left:-1000px; top:0; width:1px; height:1px; opacity:0";
+  // Der Klick aufs Ersatzfeld soll keine Menüs schließen o. Ä. (Bubble-Handler).
+  w.addEventListener("click", (e) => e.stopPropagation());
+  // Leeren, NACHDEM der change-Handler die Datei genommen hat - sonst lässt
+  // sich dasselbe Bild kein zweites Mal wählen.
+  w.addEventListener("change", () => setTimeout(() => { w.value = ""; }, 0));
+  document.body.appendChild(w);
+  _dateiWaehler = w;
+  return w;
+}
+document.addEventListener("click", (e) => {
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement) || t.type !== "file" || !t.dataset.act) return;
+  if (t === _dateiWaehler) return;
+  e.preventDefault();                  // nicht das vergängliche Feld öffnen ...
+  const w = dateiWaehler();
+  for (const a of [...w.attributes]) if (a.name.startsWith("data-")) w.removeAttribute(a.name);
+  for (const a of t.attributes) if (a.name.startsWith("data-")) w.setAttribute(a.name, a.value);
+  w.accept = t.accept || "";
+  w.value = "";
+  w.click();                           // ... sondern das feste (gleicher Tipp)
+}, true);
+
 document.addEventListener("change", (e) => {
   const t = e.target.closest("[data-act]");
   if (!t) return;
