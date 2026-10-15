@@ -738,6 +738,10 @@ code.url { background: rgba(0, 0, 0, 0.28); padding: 4px 8px; border-radius: 6px
    Skin-Farbe - alle Skins nutzen Gold/Grün/Rot schon für anderes. */
 .msg.gefluestert { border-color: #8f6cc4; border-left-width: 4px; background: rgba(143, 108, 196, 0.14); }
 .msg.gefluestert .to { color: color-mix(in srgb, #9a6be0 65%, var(--text)); font-weight: 600; }  /* mit Textfarbe gemischt: lesbar auf hellen UND dunklen Skins */
+.ziel-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.ziel-chip { padding: 4px 10px; border-radius: 999px; font-size: 0.85rem; }
+.ziel-chip.on { border-color: #8f6cc4; background: rgba(143, 108, 196, 0.28); font-weight: 600; }
+.ziel-chip.on::before { content: "🤫 "; }
 .msg-card.gefluestert { border-color: #a884e0; box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 24px rgba(168, 132, 224, 0.35); }
 
 /* --- Talent-Checkliste --- */

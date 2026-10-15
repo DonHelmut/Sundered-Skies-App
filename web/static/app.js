@@ -29,6 +29,8 @@ const App = {
   revealed: new Set(),      // welche Karten schon aufgedeckt animiert wurden
   seenDealt: new Set(),     // versiegelte Karten, deren Einflieg-Animation schon lief
   pendingImageUrl: null,
+  msgZiel: "all",       // SL-Nachricht: "all" | "beamer" | Spieler-ID | "mehrere" - übersteht Server-Updates
+  msgMehrere: new Set(), // bei "mehrere": angetippte Spieler (Flüstern an mehrere)
   overlayImage: null,
   overlayName: null,
   soundCtx: null,

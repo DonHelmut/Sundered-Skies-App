@@ -384,7 +384,8 @@ document.addEventListener("click", (e) => {
     "nochmal-senden": () => {
       const m = (S.messages || []).find((x) => x.id === target.getAttribute("data-msg"));
       if (!m) return;
-      const ziel = ($("msgtarget") || {}).value || m.target || "all";
+      const ziel = msgZiel();
+      if (ziel === null) return;
       gmAction({ type: "message", target: ziel, text: m.text, imageUrl: m.imageUrl });
       toast(ziel === "all" ? "Nochmal an alle geschickt" : "Nochmal geschickt");
     },
@@ -393,10 +394,16 @@ document.addEventListener("click", (e) => {
       toast("📺 Bild liegt auf dem TV");
     },
     "benny-geben": () => {
-      const ziel = ($("msgtarget") || {}).value || "all";
+      const ziel = msgZiel();
+      if (ziel === null) return;
       if (ziel === "beamer") { toast("Bennies gehen nur an Spieler"); return; }
       gmAction({ type: "message", target: ziel, text: "", bennies: 1 });
       toast(ziel === "all" ? "🪙 Jeder Spieler bekommt einen Benny" : "🪙 Benny verteilt");
+    },
+    "msg-ziel-toggle": () => {
+      const pid = target.getAttribute("data-id");
+      if (App.msgMehrere.has(pid)) App.msgMehrere.delete(pid); else App.msgMehrere.add(pid);
+      render();
     },
     "benny-refresh": async () => { if (await frage("Alle Wildcards auf Startwert auffrischen?", "Auffrischen", false)) gmAction({ type: "benny_refresh" }); },
     "sl-benny-plus": () => gmAction({ type: "sl_benny_adjust", delta: 1 }),
@@ -634,6 +641,9 @@ document.addEventListener("change", (e) => {
   } else if (act === "set-benny-start") {
     const v = parseInt(t.value, 10);
     if (!isNaN(v)) gmAction({ type: "set_benny_start", value: v });
+  } else if (act === "msg-ziel") {
+    App.msgZiel = t.value;
+    render();
   } else if (act === "pick-image") {
     uploadImage(t.files[0]);
   } else if (act === "pick-char-image") {

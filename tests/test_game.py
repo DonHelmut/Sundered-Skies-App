@@ -1919,3 +1919,26 @@ def test_gefluestertes_nur_beim_empfaenger(fresh_game):
     assert texte(g.snapshot(fuer_spieler=True, player_id="plr-b")) == ["Alle herhören"]
     assert texte(g.snapshot(fuer_spieler=True)) == ["Alle herhören"]       # TV / noch nicht beigetreten
     assert texte(g.snapshot()) == ["Alle herhören", "Psst, nur du"]       # SL sieht alles
+
+
+def test_fluestern_an_mehrere(fresh_game):
+    """Liste als Ziel: genau die genannten Handys bekommen es, Bennies auch nur sie."""
+    g = fresh_game
+    pids, figuren = [], []
+    for n in ("Aya", "Bo", "Cid"):
+        g.apply({"type": "roster_upsert", "name": n, "isWildCard": True})
+        pids.append(g.register_player(n, g.roster[-1]["id"], None)["id"])
+        figuren.append(next(c for c in g.combatants if c["name"] == n))
+    a, b, c = pids
+    vorher = [f["bennies"] for f in figuren]
+    g.apply({"type": "message", "target": [a, b, a], "text": "Ihr zwei", "bennies": 1})
+    assert g.messages[-1]["target"] == [a, b]          # doppelt raus
+    sieht = lambda pid: any(m["text"].startswith("Ihr zwei") for m in g.snapshot(fuer_spieler=True, player_id=pid)["messages"])
+    assert sieht(a) and sieht(b) and not sieht(c)
+    assert [f["bennies"] - v for f, v in zip(figuren, vorher)] == [1, 1, 0]
+    # Liste mit einem Eintrag = normale Einzel-Nachricht; leere Liste = nichts.
+    g.apply({"type": "message", "target": [c], "text": "Nur C"})
+    assert g.messages[-1]["target"] == c
+    n = len(g.messages)
+    g.apply({"type": "message", "target": [], "text": "Niemand"})
+    assert len(g.messages) == n

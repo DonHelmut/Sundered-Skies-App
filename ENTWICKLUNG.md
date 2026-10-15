@@ -91,7 +91,13 @@ einzelnen Spieler was schickt, sollen die anderen nichts mitbekommen."
   Vorher ging alles an alle Handys und wurde nur im Browser ausgeblendet.
 - Optik: Geflüstertes violett umrandet („🤫 Nur an dich" / „🤫 Der Spielleiter
   flüstert dir zu"), beim SL „🤫 nur an Tessa" im Verlauf, Empfänger-Liste mit 🤫.
-- Tests: `test_gefluestertes_nur_beim_empfaenger`, `test_broadcast_fluestern_nur_an_ziel_handy`.
+- **Flüstern an mehrere** (Kalle: „Kann man auch an 2 flüstern?"): Empfänger
+  „🤫 Mehrere flüstern …" zeigt Antipp-Knöpfe je Spieler. `target` ist dann eine
+  Liste von Spieler-IDs (`_nachricht_an` in game.py); Bennies gehen nur an die
+  Gewählten. Am Handy: „🤫 Nur an dich und Korgo". Die Empfänger-Wahl beim SL
+  merkt sich jetzt `App.msgZiel` – sprang vorher bei jedem Update auf „Alle".
+- Tests: `test_gefluestertes_nur_beim_empfaenger`, `test_fluestern_an_mehrere`,
+  `test_broadcast_fluestern_nur_an_ziel_handy`.
 
 ## Unveröffentlicht (nach 1.5.12, 15.10.2026): Bild-Upload vom Handy
 
