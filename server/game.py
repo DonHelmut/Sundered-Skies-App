@@ -2111,6 +2111,8 @@ class Game:
         # Verdeckte Gegner: auch in der Ergebnis-Meldung nur der Tarnname -
         # Nachrichten gehen an alle Handys, der echte Name soll dort nicht landen.
         name = (self._tarnname(ziel) if ziel.get("anon") else ziel.get("name", "?")) if ziel else "das Ziel"
+        andere = ""   # Meldung für die übrigen Spieler, nur bei echter Wirkung
+        wer = angreifer.get("name", "?") if angreifer else "Jemand"
         if ergebnis == "treffer" and ziel and not (ziel.get("status") or {}).get("out"):
             st = ziel.setdefault("status", default_status())
             vorher_w, vorher_s = st.get("wounds", 0), st.get("shaken", False)
@@ -2119,16 +2121,30 @@ class Game:
             neue_w = st.get("wounds", 0) - vorher_w
             if st.get("out"):
                 text = f"⚔ Treffer! {name} ist ausgeschaltet ☠"
+                andere = f"☠ {wer} schaltet {name} aus"
             elif neue_w > 0:
-                text = f"⚔ Treffer! {name} erleidet {neue_w} Wunde{'n' if neue_w > 1 else ''}"
+                wunden = f"{neue_w} Wunde{'n' if neue_w > 1 else ''}"
+                text = f"⚔ Treffer! {name} erleidet {wunden}"
+                andere = f"⚔ {wer} trifft – {name} erleidet {wunden}"
             elif st.get("shaken") and not vorher_s:
                 text = f"⚔ Treffer! {name} ist angeschlagen"
+                andere = f"⚔ {wer} trifft – {name} ist angeschlagen"
             else:
                 text = f"⚔ Treffer auf {name}"
+                andere = f"⚔ {wer} trifft {name}"
         elif ergebnis == "kein_schaden":
             text = f"🛡 Getroffen – aber {name} steckt es weg"
         else:
             text = f"⚔ Daneben – {name} wurde nicht getroffen"
+        # Die anderen am Tisch sollen Treffer und KOs auch mitbekommen (Kalle,
+        # 15.10.2026) - bis dahin erfuhr nur der Angreifer davon. Daneben/
+        # „steckt es weg" bleibt beim Angreifer, das wäre am Tisch nur Rauschen.
+        # Eigene Liste statt "all": der Angreifer hat seine Meldung schon.
+        if andere:
+            uebrige = [p["id"] for p in self.players
+                       if not angreifer or p["id"] != angreifer.get("playerId")]
+            if uebrige:
+                self._do_message({"target": uebrige, "sender": "kampf", "text": andere})
         if angreifer and angreifer.get("playerId"):
             self._do_message({"target": angreifer["playerId"], "sender": "kampf", "text": text})
         if a.get("zugEnde") and angreifer and self.active_id == angreifer["id"]:
