@@ -1764,17 +1764,25 @@ function spielerAnzeige(p) {
 
 function renderMessagePanel() {
   const s = App.state;
-  const opts = [`<option value="all">Alle Spieler</option>`, `<option value="beamer">📺 Beamer / TV (Bild groß)</option>`]
-    .concat(s.players.map((p) =>
-      `<option value="${p.id}">${esc(spielerAnzeige(p))}${p.connected ? "" : " (offline)"}</option>`))
+  // Empfänger merkt sich App.msgZiel. Vorher sprang die Auswahl bei jedem
+  // Server-Update (z. B. gerade verschickt) zurück auf „Alle Spieler" - beim
+  // Flüstern hätte die nächste Nachricht dann versehentlich jeder gelesen.
+  if (App.msgZiel !== "all" && App.msgZiel !== "beamer" && App.msgZiel !== "mehrere"
+      && !s.players.some((p) => p.id === App.msgZiel)) App.msgZiel = "all";
+  const opt = (v, t) => `<option value="${v}"${App.msgZiel === v ? " selected" : ""}>${t}</option>`;
+  const opts = [opt("all", "Alle Spieler"), opt("beamer", "📺 Beamer / TV (Bild groß)")]
+    .concat(s.players.map((p) => opt(p.id, `🤫 ${esc(spielerAnzeige(p))}${p.connected ? "" : " (offline)"}`)))
+    .concat(s.players.length > 1 ? [opt("mehrere", "🤫 Mehrere flüstern …")] : [])
     .join("");
+  const mehrere = App.msgZiel === "mehrere" ? `<div class="ziel-chips">${s.players.map((p) =>
+    `<button class="ziel-chip${App.msgMehrere.has(p.id) ? " on" : ""}" data-act="msg-ziel-toggle" data-id="${p.id}">${esc(spielerAnzeige(p))}</button>`).join("")}</div>` : "";
   const preview = App.pendingImageUrl
     ? `<div class="msg"><img src="${esc(App.pendingImageUrl)}"><button class="ghost small" data-act="clear-image" style="margin-top:6px">Bild entfernen</button></div>`
     : "";
   // Das Panel ist jetzt dauerhaft offen -> nur die letzten drei Nachrichten,
   // sonst waechst die linke Spalte mit jedem verschickten Benny.
   const log = s.messages.filter((m) => m.sender !== "kampf").slice(-3).reverse().map((m) => `
-    <div class="msg"><div class="to">an ${m.target === "all" ? "alle" : esc(spielerAnzeige(s.players.find((p) => p.id === m.target)))}
+    <div class="msg${m.target === "all" ? "" : " gefluestert"}"><div class="to">${m.target === "all" ? "an alle" : `🤫 nur an ${[].concat(m.target).map((id) => esc(spielerAnzeige(s.players.find((p) => p.id === id)))).join(", ")}`}
         <button class="st-btn" data-act="nochmal-senden" data-msg="${m.id}" title="Nochmal senden – an den oben gewählten Empfänger">🔁</button>
         ${m.imageUrl ? `<button class="st-btn" data-act="auf-tv" data-url="${esc(m.imageUrl)}" title="Bild groß auf den TV/Beamer">📺</button>` : ""}
       </div>
@@ -1799,9 +1807,10 @@ function renderMessagePanel() {
 
   return section("message", "Nachricht / Bild / Bennies", `
     <div class="nachricht-zeile">
-      <select id="msgtarget" title="Empfänger">${opts}</select>
+      <select id="msgtarget" data-act="msg-ziel" title="Empfänger">${opts}</select>
       <button data-act="benny-geben" title="Der gewählte Empfänger (bei „Alle Spieler“ jeder) bekommt einen Benny – mit kurzem Hinweis aufs Handy">🪙 +1 Benny</button>
     </div>
+    ${mehrere}
     <div class="nachricht-zeile">
       <input id="msgtext" placeholder="Nachricht…">
       <label class="ghost knopf-label${App.pendingImageUrl ? " on" : ""}" title="Bild anhängen">🖼<input type="file" id="msgimage" accept="image/*" data-act="pick-image" style="display:none"></label>
@@ -1817,7 +1826,7 @@ function renderMessagePanel() {
     </div>
     ${s.tvImage ? `<div class="row" style="margin-top:8px"><span class="pill good">📺 TV zeigt gerade ein Bild</span><button class="ghost small" data-act="clear-tv">TV-Bild entfernen</button></div>` : ""}
     ${log ? `<details class="unter-klapp" data-merk="verlauf"${App.offeneUnter.has("verlauf") ? " open" : ""}>
-      <summary>Verlauf (letzte ${Math.min(3, s.messages.length)})</summary>${log}
+      <summary>Verlauf (letzte ${Math.min(3, s.messages.filter((m) => m.sender !== "kampf").length)})</summary>${log}
       <button class="ghost small" data-act="clear-messages" style="margin-top:6px">Verlauf leeren</button></details>` : ""}
     ${archivHtml}`);
 }

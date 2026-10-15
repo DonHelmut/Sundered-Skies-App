@@ -193,10 +193,20 @@ function rueckseiteWahlHtml(mine) {
   return `<div class="rs-wahl offen">${kopf}<div class="rs-kacheln">${std}${prof}${eig}</div>${neu}</div>`;
 }
 
+// Empfänger für Nachricht/Benny: "all" | "beamer" | Spieler-ID | Liste von IDs.
+// null = „Mehrere" gewählt, aber noch niemand angetippt.
+function msgZiel() {
+  if (App.msgZiel !== "mehrere") return App.msgZiel || "all";
+  const ids = [...App.msgMehrere].filter((id) => App.state.players.some((p) => p.id === id));
+  if (!ids.length) { toast("Erst oben die Spieler antippen, die es lesen sollen"); return null; }
+  return ids.length === 1 ? ids[0] : ids;
+}
+
 function sendMessage() {
-  const target = $("msgtarget").value;
+  const target = msgZiel();
   const text = $("msgtext").value;
   if (!text.trim() && !App.pendingImageUrl) return;
+  if (target === null) return;
   gmAction({ type: "message", target, text, imageUrl: App.pendingImageUrl });
   $("msgtext").value = "";
   App.pendingImageUrl = null;

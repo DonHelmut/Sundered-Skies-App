@@ -305,6 +305,16 @@ def _bogen_sauber(roh: dict) -> dict:
     }
 
 
+
+def _nachricht_an(target, player_id) -> bool:
+    """Geht eine Nachricht mit diesem Ziel an diesen Spieler? Ziel ist "all",
+    eine Spieler-ID oder eine Liste davon (Flüstern an mehrere)."""
+    if target == "all":
+        return True
+    if not player_id:
+        return False
+    return target == player_id or (isinstance(target, list) and player_id in target)
+
 class Game:
     def __init__(self) -> None:
         # Darf NIE den Start verhindern - ohne Schreibrechte laeuft die Runde
@@ -754,7 +764,13 @@ class Game:
                 raus.append(c)
         return raus
 
-    def snapshot(self, fuer_spieler: bool = False) -> dict:
+    def nachrichten_fuer(self, player_id: str | None) -> list[dict]:
+        """Nachrichten, die EIN Handy sehen darf: an alle plus die an diesen
+        Spieler. Geflüstertes an andere bleibt auf dem Server - nur im Handy
+        ausblenden reichte nicht, im Entwicklerwerkzeug stand sonst alles."""
+        return [m for m in self.messages[-MAX_MESSAGES:] if _nachricht_an(m.get("target"), player_id)]
+
+    def snapshot(self, fuer_spieler: bool = False, player_id: str | None = None) -> dict:
         # Verdeckte Gegner: der SL markiert sie einzeln, die Spieler bekommen
         # dann Tarnnamen statt der echten.
         anon = fuer_spieler and any(c.get("anon") or c.get("spielwerte") for c in self.combatants)
@@ -795,7 +811,7 @@ class Game:
             "effektMeldungen": [] if fuer_spieler else self.effekt_meldungen,
             "slAnsicht": {} if fuer_spieler else self.sl_ansicht,
             "combatants": self._fuer_spieler(self.combatants) if anon else self.combatants,
-            "messages": self.messages[-MAX_MESSAGES:],
+            "messages": self.nachrichten_fuer(player_id) if fuer_spieler else self.messages[-MAX_MESSAGES:],
             "requests": self.requests,
             "tvImage": self.tv_image,
             "talents": TALENTS,
@@ -2037,7 +2053,15 @@ class Game:
     # Nachrichten -------------------------------------------------------------
 
     def _do_message(self, a: dict) -> None:
-        target = a.get("target", "all")   # "all" | playerId | "beamer"
+        target = a.get("target", "all")   # "all" | playerId | "beamer" | [playerId, …]
+        # Flüstern an mehrere: Liste von Spielern. Eine Liste mit nur einem
+        # Eintrag wird zur normalen Einzel-Nachricht (einheitlich im Verlauf).
+        if isinstance(target, list):
+            target = list(dict.fromkeys(t for t in target if isinstance(t, str) and t))
+            if not target:
+                return
+            if len(target) == 1:
+                target = target[0]
         text = (a.get("text") or "").strip()
         image_url = a.get("imageUrl")
         # Bennies gleich mitschicken („Gut gespielt! +1 Benny"). An „alle" bekommt
@@ -2049,7 +2073,7 @@ class Game:
         if bennies and target != "beamer":
             empfaenger = [c for c in self.combatants
                           if c.get("kind") == "player" and c.get("isWildCard") and c.get("playerId")
-                          and (target == "all" or c.get("playerId") == target)]
+                          and _nachricht_an(target, c.get("playerId"))]
             for c in empfaenger:
                 c["bennies"] = max(0, int(c.get("bennies", 0))) + bennies
             if empfaenger:

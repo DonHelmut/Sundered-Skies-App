@@ -227,9 +227,17 @@ class Hub:
         # nicht tot), liess den Sendepuffer volllaufen, und ab da hing JEDES
         # Senden an diesem einen Handy - der ganze Tisch stand still, bis die
         # Leitung nach Minuten endgueltig starb (im Test: ueber 2 Minuten).
+        # Geflüstertes (SL an EINEN Spieler) darf nur auf dessen Handy landen -
+        # deshalb bekommt jedes Handy seine eigene Nachrichtenliste. Der Rest der
+        # Spieler-Fassung bleibt geteilt (nur flache Kopie mit anderer Liste).
+        def fuer(meta: dict) -> dict:
+            if meta.get("role") == "gm":
+                return fassung["gm"]
+            pid = meta.get("playerId")
+            return {"type": "state",
+                    "state": {**fassung["player"]["state"], "messages": game.nachrichten_fuer(pid)}}
         ziele = list(self.sockets.items())
-        ok = await asyncio.gather(*(self._senden(ws, fassung.get(meta.get("role"), fassung["player"]))
-                                    for ws, meta in ziele))
+        ok = await asyncio.gather(*(self._senden(ws, fuer(meta)) for ws, meta in ziele))
         for (ws, meta), gesendet in zip(ziele, ok):
             if not gesendet:
                 await self.rauswerfen(ws, meta)
@@ -384,7 +392,8 @@ async def websocket_endpoint(ws: WebSocket):
     # sich daran selbst neu, statt mit veralteter Logik weiterzulaufen.
     await ws.send_json({"type": "hello", "role": meta["role"], "version": APP_VERSION})
     await ws.send_json({"type": "state",
-                        "state": game.snapshot(fuer_spieler=meta["role"] != "gm")})
+                        "state": game.snapshot(fuer_spieler=meta["role"] != "gm",
+                                               player_id=meta.get("playerId"))})
 
     reason = "Abbruch"
     try:

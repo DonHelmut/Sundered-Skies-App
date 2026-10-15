@@ -91,17 +91,31 @@ function renderPlayer() {
       ${recoverGemeldet ? `<div class="zone-hint">An den Spielleiter geschickt ⏳</div>` : ""}
     </div>` : "";
 
-  const myMsgs = s.messages.filter((m) => m.target === "all" || m.target === App.myPlayerId);
-  const msgs = myMsgs.slice().reverse().slice(0, 8)
-    .map((m) => `<div class="msg"><div class="to">${m.sender === "mimi" ? "🐈 Mimi" : m.sender === "kampf" ? "⚔ Kampf" : "Spielleiter"}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
+  // Nur was der SL schreibt. Angriffsergebnisse („⚔ Daneben …") und Mimis Miau
+  // standen hier früher mit drin - das las sich wie ein Kampf-Log, und die
+  // eigentlichen SL-Nachrichten gingen darin unter. Beide kommen als Toast.
+  // Der Server schickt nur „an alle" und die an mich; der Filter hier ist
+  // nur die zweite Sicherung.
+  const gmMsgs = s.messages.filter((m) => (m.target === "all" || [].concat(m.target).includes(App.myPlayerId))
+    && m.sender !== "mimi" && m.sender !== "kampf");
+  const geflustert = (m) => m.target !== "all";
+  // Flüstern an mehrere: sagen, wer es noch weiß - sonst redet man am Tisch
+  // aneinander vorbei („Hast du das auch gekriegt?").
+  const mitwisser = (m) => [].concat(m.target).filter((id) => id !== App.myPlayerId)
+    .map((id) => esc(spielerAnzeige(s.players.find((p) => p.id === id))));
+  const anWen = (m) => !geflustert(m) ? "An alle"
+    : mitwisser(m).length ? `🤫 Nur an dich und ${mitwisser(m).join(", ")}` : "🤫 Nur an dich";
+  const msgs = gmMsgs.slice().reverse().slice(0, 8)
+    .map((m) => `<div class="msg${geflustert(m) ? " gefluestert" : ""}"><div class="to">${anWen(m)}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
 
-  // Blockierendes Banner NUR für echte SL-Nachrichten (Mimis Miau ist ein Toast).
-  const gmMsgs = myMsgs.filter((m) => m.sender !== "mimi" && m.sender !== "kampf");
+  // Blockierendes Banner für jede neue SL-Nachricht.
   const newest = gmMsgs[gmMsgs.length - 1];
   const msgBanner = newest && newest.ts > App.lastSeenMsgTs
     ? `<div class="msg-overlay">
-         <div class="msg-card">
-           <div class="muted small">${newest.sender === "mimi" ? "🐈 Nachricht von Mimi" : "✉ Nachricht vom Spielleiter"}</div>
+         <div class="msg-card${geflustert(newest) ? " gefluestert" : ""}">
+           <div class="muted small">${!geflustert(newest) ? "✉ Nachricht vom Spielleiter an alle"
+             : mitwisser(newest).length ? `🤫 Der Spielleiter flüstert dir und ${mitwisser(newest).join(", ")} zu`
+             : "🤫 Der Spielleiter flüstert dir zu"}</div>
            ${newest.text ? `<div class="msg-text">${mehrzeilig(newest.text)}</div>` : ""}
            ${newest.imageUrl ? `<img src="${esc(newest.imageUrl)}">` : ""}
            <button class="primary big" data-act="dismiss-msg" data-ts="${newest.ts}" style="margin-top:14px;width:100%">Verstanden</button>
