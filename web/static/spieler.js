@@ -91,17 +91,23 @@ function renderPlayer() {
       ${recoverGemeldet ? `<div class="zone-hint">An den Spielleiter geschickt ⏳</div>` : ""}
     </div>` : "";
 
-  const myMsgs = s.messages.filter((m) => m.target === "all" || m.target === App.myPlayerId);
-  const msgs = myMsgs.slice().reverse().slice(0, 8)
-    .map((m) => `<div class="msg"><div class="to">${m.sender === "mimi" ? "🐈 Mimi" : m.sender === "kampf" ? "⚔ Kampf" : "Spielleiter"}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
+  // Nur was der SL schreibt. Angriffsergebnisse („⚔ Daneben …") und Mimis Miau
+  // standen hier früher mit drin - das las sich wie ein Kampf-Log, und die
+  // eigentlichen SL-Nachrichten gingen darin unter. Beide kommen als Toast.
+  // Der Server schickt nur „an alle" und die an mich; der Filter hier ist
+  // nur die zweite Sicherung.
+  const gmMsgs = s.messages.filter((m) => (m.target === "all" || m.target === App.myPlayerId)
+    && m.sender !== "mimi" && m.sender !== "kampf");
+  const geflustert = (m) => m.target !== "all";
+  const msgs = gmMsgs.slice().reverse().slice(0, 8)
+    .map((m) => `<div class="msg${geflustert(m) ? " gefluestert" : ""}"><div class="to">${geflustert(m) ? "🤫 Nur an dich" : "An alle"}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
 
-  // Blockierendes Banner NUR für echte SL-Nachrichten (Mimis Miau ist ein Toast).
-  const gmMsgs = myMsgs.filter((m) => m.sender !== "mimi" && m.sender !== "kampf");
+  // Blockierendes Banner für jede neue SL-Nachricht.
   const newest = gmMsgs[gmMsgs.length - 1];
   const msgBanner = newest && newest.ts > App.lastSeenMsgTs
     ? `<div class="msg-overlay">
-         <div class="msg-card">
-           <div class="muted small">${newest.sender === "mimi" ? "🐈 Nachricht von Mimi" : "✉ Nachricht vom Spielleiter"}</div>
+         <div class="msg-card${geflustert(newest) ? " gefluestert" : ""}">
+           <div class="muted small">${geflustert(newest) ? "🤫 Der Spielleiter flüstert dir zu" : "✉ Nachricht vom Spielleiter an alle"}</div>
            ${newest.text ? `<div class="msg-text">${mehrzeilig(newest.text)}</div>` : ""}
            ${newest.imageUrl ? `<img src="${esc(newest.imageUrl)}">` : ""}
            <button class="primary big" data-act="dismiss-msg" data-ts="${newest.ts}" style="margin-top:14px;width:100%">Verstanden</button>

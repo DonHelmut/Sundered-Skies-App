@@ -77,6 +77,22 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.13, 15.10.2026): SL-Nachrichten + Flüstern
+
+Kalle: „Nachrichten vom SL sehen aus wie ein Kampf-Log … und wenn der SL einem
+einzelnen Spieler was schickt, sollen die anderen nichts mitbekommen."
+
+- Handy-Feld „Nachrichten vom Spielleiter" zeigt nur noch, was der SL schreibt.
+  Angriffsergebnisse (`sender: "kampf"`) und Mimis Miau bleiben reine Toasts.
+- **Flüstern serverseitig:** `Game.nachrichten_fuer(player_id)` – jedes Handy
+  bekommt nur „an alle" + die an sich selbst. `broadcast_state` baut dafür pro
+  Handy eine flache Kopie der Spieler-Fassung mit eigener Nachrichtenliste
+  (Rest geteilt). TV und noch nicht beigetretene Handys sehen nur „an alle".
+  Vorher ging alles an alle Handys und wurde nur im Browser ausgeblendet.
+- Optik: Geflüstertes violett umrandet („🤫 Nur an dich" / „🤫 Der Spielleiter
+  flüstert dir zu"), beim SL „🤫 nur an Tessa" im Verlauf, Empfänger-Liste mit 🤫.
+- Tests: `test_gefluestertes_nur_beim_empfaenger`, `test_broadcast_fluestern_nur_an_ziel_handy`.
+
 ## Unveröffentlicht (nach 1.5.12, 15.10.2026): Bild-Upload vom Handy
 
 Kalle: „Bild hochladen vom Handy – es passiert einfach nichts." Ursache: die

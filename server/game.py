@@ -754,7 +754,14 @@ class Game:
                 raus.append(c)
         return raus
 
-    def snapshot(self, fuer_spieler: bool = False) -> dict:
+    def nachrichten_fuer(self, player_id: str | None) -> list[dict]:
+        """Nachrichten, die EIN Handy sehen darf: an alle plus die an diesen
+        Spieler. Geflüstertes an andere bleibt auf dem Server - nur im Handy
+        ausblenden reichte nicht, im Entwicklerwerkzeug stand sonst alles."""
+        return [m for m in self.messages[-MAX_MESSAGES:]
+                if m.get("target") == "all" or (player_id and m.get("target") == player_id)]
+
+    def snapshot(self, fuer_spieler: bool = False, player_id: str | None = None) -> dict:
         # Verdeckte Gegner: der SL markiert sie einzeln, die Spieler bekommen
         # dann Tarnnamen statt der echten.
         anon = fuer_spieler and any(c.get("anon") or c.get("spielwerte") for c in self.combatants)
@@ -795,7 +802,7 @@ class Game:
             "effektMeldungen": [] if fuer_spieler else self.effekt_meldungen,
             "slAnsicht": {} if fuer_spieler else self.sl_ansicht,
             "combatants": self._fuer_spieler(self.combatants) if anon else self.combatants,
-            "messages": self.messages[-MAX_MESSAGES:],
+            "messages": self.nachrichten_fuer(player_id) if fuer_spieler else self.messages[-MAX_MESSAGES:],
             "requests": self.requests,
             "tvImage": self.tv_image,
             "talents": TALENTS,

@@ -1906,3 +1906,16 @@ def test_spieler_trennt_sich_waehrend_er_dran_ist(fresh_game):
     assert fresh_game._combatant(c["id"])["revealed"] is False
     fresh_game.set_player_connected(p["id"], False)
     assert fresh_game._combatant(c["id"])["revealed"] is True
+
+
+def test_gefluestertes_nur_beim_empfaenger(fresh_game):
+    """SL schreibt EINEM Spieler: die anderen Handys bekommen die Nachricht gar
+    nicht erst geschickt (nicht nur ausgeblendet)."""
+    g = fresh_game
+    g.apply({"type": "message", "target": "all", "text": "Alle herhören"})
+    g.apply({"type": "message", "target": "plr-a", "text": "Psst, nur du"})
+    texte = lambda snap: [m["text"] for m in snap["messages"]]
+    assert texte(g.snapshot(fuer_spieler=True, player_id="plr-a")) == ["Alle herhören", "Psst, nur du"]
+    assert texte(g.snapshot(fuer_spieler=True, player_id="plr-b")) == ["Alle herhören"]
+    assert texte(g.snapshot(fuer_spieler=True)) == ["Alle herhören"]       # TV / noch nicht beigetreten
+    assert texte(g.snapshot()) == ["Alle herhören", "Psst, nur du"]       # SL sieht alles

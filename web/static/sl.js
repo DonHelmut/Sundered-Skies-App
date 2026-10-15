@@ -1766,7 +1766,7 @@ function renderMessagePanel() {
   const s = App.state;
   const opts = [`<option value="all">Alle Spieler</option>`, `<option value="beamer">📺 Beamer / TV (Bild groß)</option>`]
     .concat(s.players.map((p) =>
-      `<option value="${p.id}">${esc(spielerAnzeige(p))}${p.connected ? "" : " (offline)"}</option>`))
+      `<option value="${p.id}">🤫 ${esc(spielerAnzeige(p))}${p.connected ? "" : " (offline)"}</option>`))
     .join("");
   const preview = App.pendingImageUrl
     ? `<div class="msg"><img src="${esc(App.pendingImageUrl)}"><button class="ghost small" data-act="clear-image" style="margin-top:6px">Bild entfernen</button></div>`
@@ -1774,7 +1774,7 @@ function renderMessagePanel() {
   // Das Panel ist jetzt dauerhaft offen -> nur die letzten drei Nachrichten,
   // sonst waechst die linke Spalte mit jedem verschickten Benny.
   const log = s.messages.filter((m) => m.sender !== "kampf").slice(-3).reverse().map((m) => `
-    <div class="msg"><div class="to">an ${m.target === "all" ? "alle" : esc(spielerAnzeige(s.players.find((p) => p.id === m.target)))}
+    <div class="msg${m.target === "all" ? "" : " gefluestert"}"><div class="to">${m.target === "all" ? "an alle" : `🤫 nur an ${esc(spielerAnzeige(s.players.find((p) => p.id === m.target)))}`}
         <button class="st-btn" data-act="nochmal-senden" data-msg="${m.id}" title="Nochmal senden – an den oben gewählten Empfänger">🔁</button>
         ${m.imageUrl ? `<button class="st-btn" data-act="auf-tv" data-url="${esc(m.imageUrl)}" title="Bild groß auf den TV/Beamer">📺</button>` : ""}
       </div>
@@ -1817,7 +1817,7 @@ function renderMessagePanel() {
     </div>
     ${s.tvImage ? `<div class="row" style="margin-top:8px"><span class="pill good">📺 TV zeigt gerade ein Bild</span><button class="ghost small" data-act="clear-tv">TV-Bild entfernen</button></div>` : ""}
     ${log ? `<details class="unter-klapp" data-merk="verlauf"${App.offeneUnter.has("verlauf") ? " open" : ""}>
-      <summary>Verlauf (letzte ${Math.min(3, s.messages.length)})</summary>${log}
+      <summary>Verlauf (letzte ${Math.min(3, s.messages.filter((m) => m.sender !== "kampf").length)})</summary>${log}
       <button class="ghost small" data-act="clear-messages" style="margin-top:6px">Verlauf leeren</button></details>` : ""}
     ${archivHtml}`);
 }

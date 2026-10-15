@@ -103,3 +103,18 @@ def test_stilles_wiederbeitreten_ohne_charakter_ohne_meldung(fresh_game, monkeyp
                                             "playerId": "plr-da", "auto": True}))
     assert ws.sent[-1] == {"type": "joinError", "grund": "ohne-charakter", "message": ""}
     assert fresh_game.combatants == []
+
+
+def test_broadcast_fluestern_nur_an_ziel_handy(fresh_game, monkeypatch):
+    """Jedes Handy bekommt seine eigene Nachrichtenliste - Geflüstertes an
+    Spieler A landet nicht bei Spieler B oder am TV."""
+    monkeypatch.setattr(A, "game", fresh_game)
+    hub = A.Hub()
+    a, b, tv, gm = FakeWS(), FakeWS(), FakeWS(), FakeWS()
+    hub.sockets = {a: {"role": "player", "playerId": "plr-a"}, b: {"role": "player", "playerId": "plr-b"},
+                   tv: {"role": "tv", "playerId": None}, gm: {"role": "gm", "playerId": None}}
+    fresh_game.apply({"type": "message", "target": "plr-a", "text": "Psst"})
+    asyncio.run(hub.broadcast_state())
+    hat = lambda ws: any(m["text"] == "Psst" for m in ws.sent[-1]["state"]["messages"])
+    assert hat(a) and hat(gm)
+    assert not hat(b) and not hat(tv)
