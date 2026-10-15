@@ -77,6 +77,24 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.12, 15.10.2026): Bild-Upload vom Handy
+
+Kalle: „Bild hochladen vom Handy – es passiert einfach nichts." Ursache: die
+`<input type=file>` stehen in der Ansicht, die `render()` bei jedem
+Server-Update neu baut. Solange am Handy Galerie/Kamera offen ist, liegt die
+Seite im Hintergrund; kommt in der Zeit ein Update (anderer Spieler, Leitung
+kurz weg), ist das angetippte Feld schon ersetzt und sein `change` erreicht den
+Handler an `document` nicht mehr – kein Upload, keine Meldung. Nachgestellt mit
+Playwright (Handy-Ansicht, zweiter Spieler tritt bei, während die Auswahl offen ist).
+
+- Fix (`ereignisse.js`, „Dateiauswahl über EIN festes Feld"): ein Klick auf ein
+  Datei-Feld öffnet stattdessen ein festes, unsichtbares Feld direkt an
+  `<body>`, das `data-act`/`data-id`/... übernimmt. Gilt für alle Upload-Stellen
+  (Spieler: Charakterbild, Kartenrückseite; SL: Nachrichtenbild, Vorlagen,
+  Rückseite, Sicherung laden). Dasselbe Bild zweimal wählen geht weiterhin.
+- Neue Datei-Felder brauchen nichts Besonderes: `data-act` setzen, im
+  change-Handler behandeln – fertig.
+
 ## 1.5.12 (15.10.2026): Spieltest Optik Handy + SL
 
 Kalle: „wie es für Spieler und SL aussieht, erst Vorschläge". Kampf mit SL,
