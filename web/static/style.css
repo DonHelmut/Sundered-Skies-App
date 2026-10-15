@@ -641,12 +641,6 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
 .combatant.benched .name::after { content: " ⏸"; }
 
 /* --- Spieler-Hauptkarte --- */
-.myturn-banner {
-  text-align: center; font-size: 1.5rem; font-weight: 800; color: #04121f;
-  background: linear-gradient(90deg, var(--gold), var(--warn));
-  border-radius: 12px; padding: 12px; margin-bottom: 12px;
-  animation: pulse 1.2s ease-in-out infinite;
-}
 @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 .big-card { max-width: 240px; margin: 0 auto; }
 
@@ -1597,7 +1591,9 @@ body.panel-zieht .grid2 .sp.leer::after {
   border-radius: 0 0 10px 10px; text-align: center; font-weight: 700; font-size: 0.92rem;
   border: 1px solid var(--line); border-top: 0;
   background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(3px); }
-.dran-leiste.ich { color: var(--gold); border-color: var(--gold); }
+.dran-leiste.ich { color: #04121f; font-size: 1.2rem; font-weight: 800; padding: 10px;
+  border-color: var(--gold); background: linear-gradient(90deg, var(--gold), var(--warn));
+  animation: pulse 1.2s ease-in-out infinite; }
 
 /* Charakterbogen: Würfelfelder und Waffen (Nah-/Fernkampf) */
 .wuerfel-feld { width: 5.5em; text-align: center; }
@@ -2028,6 +2024,9 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
 .dl-neben { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
 .dl-neben button { padding: 7px 10px; font-size: 0.85rem; white-space: nowrap; }
 .dl-neben button.big { padding: 7px 10px; font-size: 0.85rem; }
+.daumen-leiste.gleich .dl-haupt, .daumen-leiste.gleich .dl-neben { flex: 1 1 0; }
+.daumen-leiste.gleich .dl-neben button, .daumen-leiste.gleich .dl-haupt button.big {
+  flex: 1; padding: 12px 8px; font-size: 1rem; white-space: normal; line-height: 1.2; }
 
 /* --- Beitritt in einem Tippen -------------------------------------------- */
 .join-weiter { width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; }
@@ -2042,7 +2041,8 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
 }
 .join-char.zuletzt { border-color: var(--gold); }
 .join-char.join-neu { border-style: dashed; color: var(--muted); }
-.join-char-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.2; }
+/* Silbentrennung statt Bruch mitten im Wort („Windreiteri|n") */
+.join-char-name { min-width: 0; overflow-wrap: break-word; hyphens: auto; line-height: 1.2; }
 .join-spieler { margin-top: 12px; }
 .join-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
 .join-links:has(> :only-child) { justify-content: center; }
@@ -2135,6 +2135,18 @@ body.blatt-offen { overflow: hidden; }
 .aw-art.aw-weg { color: var(--muted); }
 .aw-ziel.zu-weit { opacity: 0.55; }
 .aw-warn { font-size: 0.72rem; font-weight: 700; color: var(--warn); }
+/* Zielwahl: Bild links, Name/Abzug und Zustand rechts daneben */
+.angriff-wahl .aw-ziel { flex-direction: row; align-items: center; gap: 8px; }
+.aw-bild { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem;
+  border: 2px solid var(--bad); background: #4b2620; color: #f6ecd2; }
+.aw-ziel.freund .aw-bild { border-color: #35b57e; background: #1d3b2e; }
+.aw-bild img { width: 100%; height: 100%; object-fit: cover; }
+.aw-text { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; flex: 1; }
+.angriff-wahl .aw-ziel .aw-name { overflow-wrap: break-word; hyphens: auto; line-height: 1.15; }
+.aw-ziel .aw-zustand { flex-wrap: wrap; gap: 4px 8px; font-size: 0.8rem; }
+.aw-angeschlagen { color: var(--warn); font-weight: 700; }
+.aw-heil { color: var(--muted); }
 
 /* Eigene Rückfragen (statt confirm/alert/prompt – die kann der Browser sperren). */
 .app-dialog-hg {
@@ -2282,3 +2294,34 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
 .sw-attr-kachel span { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.05em; color: var(--muted); }
 .sw-attr-kachel b { font-size: 1.05rem; }
 .spielwerte .bogen-titel { margin-top: 8px; }
+
+/* Handy: Kampfzonen kompakt. Bisher stand bei schmalem Bildschirm jede Figur
+   in einer eigenen Zeile (breite Bahn-Beschriftung + lange Namen) und die Seite
+   wurde endlos lang. Beschriftung schmal untereinander, Figuren kleiner. */
+@media (max-width: 520px) {
+  body:not(.sl-ansicht) .zone-band { gap: 6px; padding: 4px 6px; min-height: 38px; }
+  body:not(.sl-ansicht) .zone-band.empty { min-height: 26px; }
+  body:not(.sl-ansicht) .zone-band .zb-label { flex: 0 0 58px; flex-direction: column; align-items: flex-start;
+    gap: 0; font-size: 0.66rem; line-height: 1.15; }
+  body:not(.sl-ansicht) .zone-band .zb-emoji { font-size: 0.95rem; }
+  body:not(.sl-ansicht) .zone-band .zb-hint { margin-left: 0; white-space: normal; }
+  body:not(.sl-ansicht) .zone-band .zb-tokens { gap: 4px; }
+  body:not(.sl-ansicht) .zone-token { gap: 4px; padding: 2px 7px 2px 2px; }
+  body:not(.sl-ansicht) .zone-token .tdisc { width: 24px; height: 24px; flex-basis: 24px; font-size: 0.62rem; }
+  body:not(.sl-ansicht) .zone-token .tname { font-size: 0.74rem; max-width: 84px; }
+}
+
+/* Handy-Kopf: Runde + „Verlassen" bleiben rechts in derselben Zeile, ein
+   langer Name bricht lieber selbst um, statt sie in eine zweite Zeile zu schieben. */
+.spieler-kopf { flex-wrap: nowrap; align-items: center; }
+.spieler-kopf > .row:first-child { flex-wrap: nowrap; min-width: 0; flex: 1; }
+.spieler-kopf > .row:first-child > div { min-width: 0; }
+.spieler-kopf h1 { overflow-wrap: break-word; hyphens: auto; line-height: 1.15; }
+.spieler-kopf > .row:last-child { flex-wrap: nowrap; flex: 0 0 auto; }
+/* Schmales Handy: Bild etwas kleiner, damit lange Namen („Windreiterin") ganz
+   in die Zeile passen - Silbentrennung kann nicht jeder Browser. */
+@media (max-width: 420px) {
+  .join-char { gap: 8px; padding: 8px; }
+  .join-char .join-av { width: 34px; height: 34px; flex-basis: 34px; }
+  .join-char-name { font-size: 0.92rem; }
+}

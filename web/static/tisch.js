@@ -679,11 +679,24 @@ function angriffWahlHtml(mine) {
     // Ins Getümmel schießen: bei einer 1 auf dem Fertigkeitswürfel trifft man
     // einen Nachbarn (Savage Worlds, „Unschuldige Umstehende").
     const getuemmel = a.art === "fern" && Zones.zoneOf(c) === 0;
+    // Bild und Zustand ausgeschrieben: vorher nur Name plus leere Zeile -
+    // wer schon angeschlagen oder verwundet ist, sah man erst im Board.
+    // Verdeckte Gegner bleiben auch hier unkenntlich (wie im Board).
+    const tarnen = !!c.anon;
+    const bild = c.image ? `<img src="${esc(c.image)}" alt="">` : esc(zoneInitials(c.name));
+    const zustand = [
+      st.shaken ? `<span class="aw-angeschlagen">😵 angeschlagen</span>` : "",
+      st.wounds ? `<span class="aw-wunden">🩸 ${st.wounds} ${st.wounds === 1 ? "Wunde" : "Wunden"}</span>` : "",
+    ].join("") || `<span class="aw-heil">unverletzt</span>`;
     return `<button type="button" class="aw-ziel${st.shaken ? " angeschlagen" : ""}${freund ? " freund" : ""}${a.art === "weg" ? " zu-weit" : ""}"
         data-act="angriff-auf" data-id="${c.id}" title="${esc(a.titel)}">
-      <span class="aw-oben"><span class="aw-name">${esc(c.name)}</span><span class="aw-art aw-${a.art}">${a.text}</span></span>
-      <span class="aw-zustand">${st.shaken ? `<span title="angeschlagen">😵</span>` : ""}${st.wounds ? `<span class="aw-wunden" title="Wunden">🩸${st.wounds}</span>` : ""}${
-        getuemmel ? `<span class="aw-warn" title="Bei einer 1 auf dem Fertigkeitswürfel trifft der Schuss jemanden daneben">⚠ ins Getümmel</span>` : ""}</span>
+      <span class="aw-bild${tarnen ? " verdeckt" : ""}">${bild}</span>
+      <span class="aw-text">
+        <span class="aw-name">${esc(c.name)}</span>
+        <span class="aw-art aw-${a.art}">${a.text}</span>
+        <span class="aw-zustand">${zustand}</span>${
+          getuemmel ? `<span class="aw-warn" title="Bei einer 1 auf dem Fertigkeitswürfel trifft der Schuss jemanden daneben">⚠ ins Getümmel</span>` : ""}
+      </span>
     </button>`;
   };
   const gruppen = (liste, freund) => [...new Set(liste.map((c) => Zones.zoneOf(c)))].map((z) => `<div class="aw-zone">

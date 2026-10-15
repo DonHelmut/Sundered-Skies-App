@@ -77,6 +77,31 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (15.10.2026): Spieltest Optik Handy + SL
+
+Kalle: „wie es für Spieler und SL aussieht, erst Vorschläge". Kampf mit SL,
+4 Handys und TV durchgespielt, 11 Vorschläge, Kalle wählte (TV vorerst egal):
+
+- **Karte aufdecken bei getrenntem Handy** (`Game._offline_aufdecken`): ist
+  eine Spielerfigur dran, deren Handy nicht verbunden ist (oder die gar keins
+  hat), deckt der Server ihre Karte auf - beim Drankommen und wenn das Handy
+  während des Zugs wegbricht. Sonst blieb sie den ganzen Zug und danach
+  verdeckt. Mit Handy deckt der Spieler weiter selbst auf (Kalle: „nur wenn
+  Spieler disconnect"). Tests in test_game.py.
+- **„Du bist dran!" nur noch einmal**: der große Balken unter dem Namen ist
+  weg, die mitlaufende Leiste oben wird dafür golden. Vor der Freigabe stand am
+  eigenen Handy „Vela ist dran" - jetzt „Du bist dran, sobald der Spielleiter
+  freigibt".
+- **Zielwahl am Handy** mit Bild und ausgeschriebenem Zustand („angeschlagen",
+  „1 Wunde", sonst „unverletzt"); verdeckte Gegner bleiben unscharf.
+- **Kampfzonen am Handy kompakter** (unter 520 px): schmale Beschriftung,
+  kleinere Figuren, zwei pro Zeile statt einer - Board etwa halb so hoch.
+- **Lange Namen**: Beitritts-Kacheln trennten „Windreiteri|n" (jetzt kleineres
+  Bild, ganze Wörter); im Handy-Kopf bleiben Runde und „Verlassen" rechts, der
+  Name bricht selbst um.
+- **Erholen-Knöpfe gleich groß** („Erholt" und „Benny ausgeben").
+- **SL-Hinweis** (`toast`) erscheint über der unteren Leiste statt auf ihr.
+
 ## 1.5.11 (14.10.2026): Stabilitätstest Runde 2
 
 Kalle: „weiter testen, Stabilität und Bugs". Diesmal Verbindungen, viele Handys,

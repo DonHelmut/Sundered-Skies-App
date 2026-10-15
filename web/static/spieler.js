@@ -24,15 +24,16 @@ function renderPlayer() {
   }
 
   const isMyTurn = s.activeId === mine.id && s.phase === "running";
-  const banner = isMyTurn ? `<div class="myturn-banner">Du bist dran!</div>` : "";
   // Der Sekunden-Ring nur bei dem, der WIRKLICH dran ist - bei allen anderen
   // tickte er mit und machte unnoetig Druck. Wer als Naechster kommt, bekommt
   // stattdessen eine Vorwarnung, alle anderen sehen nur, wer gerade dran ist.
   const aktiv = s.combatants.find((c) => c.id === s.activeId);
   const binNaechster = !isMyTurn && !mine.benched && (naechsterAkteur(s) || {}).id === mine.id;
-  const werDran = aktiv
-    ? (aktiv.kind === "npc" && !aktiv.ally ? "Ein Gegner ist dran" : `${esc(aktiv.name)} ist dran`)
-    : "";
+  // Die eigene Figur nie beim Namen nennen: vor der Freigabe stand am eigenen
+  // Handy „Vela ist dran", als wäre jemand anderes gemeint.
+  const werDran = !aktiv ? ""
+    : aktiv.id === mine.id ? "⏳ Du bist dran, sobald der Spielleiter freigibt"
+    : (aktiv.kind === "npc" && !aktiv.ally ? "Ein Gegner ist dran" : `${esc(aktiv.name)} ist dran`);
   const vorwarnung = binNaechster && s.phase !== "idle"
     ? `<div class="gleich-dran">⏳ Gleich bist du dran – mach dich bereit!</div>` : "";
   const timer = s.phase === "running"
@@ -143,6 +144,8 @@ function renderPlayer() {
   // Reihenfolge: Eigene Karte → Reihenfolge → Kampfzonen → Aktionen → Zustände.
   // Schmale Leiste, die beim Scrollen oben stehen bleibt: „wer ist dran" war
   // sonst nur ganz oben zu sehen - bei langer Seite scrollt man daran vorbei.
+  // Ist man selbst dran, wird sie zum goldenen Balken; der zweite große
+  // „Du bist dran!"-Balken darunter sagte dasselbe nochmal und kostete Platz.
   const dranLeiste = s.round && werDran
     ? `<div class="dran-leiste${isMyTurn ? " ich" : ""}">${isMyTurn ? "▶ Du bist dran!" : esc(werDran)}${
         binNaechster && !isMyTurn ? " · du kommst als Nächstes" : ""}</div>`
@@ -161,7 +164,7 @@ function renderPlayer() {
     ${wuerfelListe}
     ${msgBanner}
     ${dranLeiste}
-    <div class="row spread" style="margin-bottom:6px">
+    <div class="row spread spieler-kopf" style="margin-bottom:6px">
       <div class="row tight" style="align-items:center">
         <label class="avatar big" title="Eigenes Bild wählen/ändern" style="cursor:pointer">
           ${mine.image ? `<img src="${esc(mine.image)}" alt="">` : esc(zoneInitials(mine.name))}
@@ -174,7 +177,6 @@ function renderPlayer() {
         <button class="ghost small" data-act="leave">Verlassen</button>
       </div>
     </div>
-    ${banner}
     ${cardPanel}
     ${renderBogen(mine)}
     ${orderPanel}
@@ -195,7 +197,7 @@ function renderPlayer() {
 // selbst; ansonsten die eigene Karte aufdecken. Nichts zu tun: keine Leiste.
 function daumenKnopf(o) {
   const { mine, isMyTurn, angriffMoeglich, meinAngriff, angriffZiel } = o;
-  let haupt = "", neben = "", blatt = "";
+  let haupt = "", neben = "", blatt = "", gleich = false;
   // Sofort zeigen, dass „Erholt" angekommen ist - nicht erst, wenn der Server
   // antwortet. Vorher blieb der Knopf kurz unverändert, dann stand an GENAU
   // der Stelle „Angreifen": wer nochmal tippte, griff ungewollt an.
@@ -205,7 +207,9 @@ function daumenKnopf(o) {
   } else if (o.canRecover && erholWartet) {
     haupt = `<div class="angriff-wartet">✓ Erholung gemeldet ⏳</div>`;
   } else if (o.canRecover) {
-    haupt = o.recoverFreeBtn; neben = o.recoverBennyBtn;
+    // Zwei gleichwertige Wege (Probe oder Benny): gleich große Knöpfe. Als
+    // kleiner Neben-Knopf war „Benny ausgeben" winzig und „Erholt" dreizeilig.
+    haupt = o.recoverFreeBtn; neben = o.recoverBennyBtn; gleich = !!neben;
   } else if (isMyTurn && meinAngriff) {
     // Kein „Zug beenden" daneben: sonst endet der Zug, bevor der SL entschieden hat.
     haupt = `<div class="angriff-wartet">⚔ Angriff auf <b>${esc(angriffZiel ? angriffZiel.name : "?")}</b> – der Spielleiter entscheidet ⏳</div>`;
@@ -226,7 +230,7 @@ function daumenKnopf(o) {
     haupt = `<button class="primary big" data-act="daumen-aufdecken">🂠 Karte aufdecken</button>`;
   }
   if (!haupt) return "";
-  return `${blatt}<div class="aktionsleiste daumen-leiste">
+  return `${blatt}<div class="aktionsleiste daumen-leiste${gleich ? " gleich" : ""}">
     <div class="dl-haupt">${haupt}</div>${neben ? `<div class="dl-neben">${neben}</div>` : ""}
   </div>`;
 }

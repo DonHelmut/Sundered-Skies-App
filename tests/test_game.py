@@ -1874,3 +1874,35 @@ def test_spieler_waehlt_eigene_kartenrueckseite(fresh_game):
     fresh_game.apply({"type": "remove_combatant", "id": c["id"]})
     wieder = fresh_game.add_combatant_from_character(fresh_game.roster[-1], "plr-1")
     assert wieder["rueckseite"] == "/uploads/eigen.png"
+
+
+def _spieler_mit_figur(g, name="Tessa"):
+    g.apply({"type": "roster_upsert", "name": name})
+    p = g.register_player(name=name, character_id=g.roster[-1]["id"], existing_player_id=None)
+    c = next(c for c in g.combatants if c.get("playerId") == p["id"])
+    return p, c
+
+
+def test_verbundener_spieler_deckt_selbst_auf(fresh_game):
+    p, c = _spieler_mit_figur(fresh_game)
+    fresh_game.apply({"type": "new_round"})
+    fresh_game.apply({"type": "set_active", "id": c["id"]})
+    assert fresh_game._combatant(c["id"])["revealed"] is False
+
+
+def test_getrennter_spieler_karte_wird_aufgedeckt_wenn_dran(fresh_game):
+    # Handy weg (Akku, WLAN): sonst blieb die Karte den ganzen Zug verdeckt.
+    p, c = _spieler_mit_figur(fresh_game)
+    fresh_game.apply({"type": "new_round"})
+    fresh_game.set_player_connected(p["id"], False)
+    fresh_game.apply({"type": "set_active", "id": c["id"]})
+    assert fresh_game._combatant(c["id"])["revealed"] is True
+
+
+def test_spieler_trennt_sich_waehrend_er_dran_ist(fresh_game):
+    p, c = _spieler_mit_figur(fresh_game)
+    fresh_game.apply({"type": "new_round"})
+    fresh_game.apply({"type": "set_active", "id": c["id"]})
+    assert fresh_game._combatant(c["id"])["revealed"] is False
+    fresh_game.set_player_connected(p["id"], False)
+    assert fresh_game._combatant(c["id"])["revealed"] is True
