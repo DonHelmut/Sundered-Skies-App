@@ -194,21 +194,46 @@ function playerQuickControls(c) {
   </div>`;
 }
 
-// Große, deutliche Status-Anzeige für die Spieler-Ansicht.
-function bigStatusDisplay(c) {
+// Zustand der eigenen Figur als schmale Zeile unter dem Namen (Kalle,
+// 22.10.2026, Variante 1B). Vorher standen „Angeschlagen" und „1 Wunde (−1)"
+// als zwei große farbige Kästen unter der Karte: sie sahen aus wie Knöpfe,
+// waren aber keine, und schoben alles darunter aus dem Bild. Wunden als
+// Punkte wie beim SL (●○○), mindestens drei Plätze.
+function kopfZustand(c) {
   const st = c.status || {};
   const conds = (App.state && App.state.conditions) || {};
   const b = [];
   if (st.out) {
-    b.push(`<span class="big-status s-out">☠ Ausgeschaltet</span>`);
+    b.push(`<span class="kz kz-out">☠ Ausgeschaltet</span>`);
   } else {
-    if (st.shaken) b.push(`<span class="big-status s-shaken">😵 Angeschlagen</span>`);
-    if (st.wounds > 0) b.push(`<span class="big-status s-wound">🩸 ${st.wounds} Wunde${st.wounds > 1 ? "n" : ""} (−${st.wounds})</span>`);
-    Object.keys(conds).forEach((k) => { if (st[k]) b.push(`<span class="big-status s-cond">${esc(conds[k])}</span>`); });
+    if (st.shaken) b.push(`<span class="kz kz-shaken">😵 Angeschlagen</span>`);
+    if (st.wounds > 0) {
+      const pips = Array.from({ length: Math.max(3, st.wounds) }, (_, i) => `<i class="pip${i < st.wounds ? " voll" : ""}"></i>`).join("");
+      b.push(`<span class="kz kz-wunden" title="${st.wounds} Wunde${st.wounds > 1 ? "n" : ""}"><span class="pips">${pips}</span> −${st.wounds}</span>`);
+    }
+    Object.keys(conds).forEach((k) => { if (st[k]) b.push(`<span class="kz kz-cond">${esc(conds[k])}</span>`); });
   }
-  if (!b.length) b.push(`<span class="big-status s-ok">✓ Gesund</span>`);
-  (c.effekte || []).forEach((e) => b.push(`<span class="big-status s-cond">⏱ ${esc(e.name)}${e.runden ? ` · noch ${e.runden} Runde${e.runden > 1 ? "n" : ""}` : ""}</span>`));
-  return `<div class="big-status-row">${b.join("")}</div>`;
+  if (!b.length) b.push(`<span class="kz kz-ok">✓ Gesund</span>`);
+  (c.effekte || []).forEach((e) => b.push(`<span class="kz kz-cond">⏱ ${esc(e.name)}${e.runden ? ` · ${e.runden} R.` : ""}</span>`));
+  return `<div class="kopf-zustand">${b.join("")}</div>`;
+}
+
+// Bennies als kleine Münzen in der Kopfzeile (Kalle, 22.10.2026, Variante
+// 4B). Vorher stand der Vorrat am Handy nur als „🪙 3" irgendwo in der
+// Reihenfolge. Antippen = Benny ausgeben (Rückfrage, dann Anfrage an den SL
+// wie bisher über „Etwas anfragen"). Ohne Anfragen nur Anzeige.
+function muenzenKopf(c) {
+  if (!c.isWildCard) return "";
+  const n = c.bennies || 0;
+  const tippbar = !(App.state && App.state.requestsEnabled === false);
+  const muenze = tippbar
+    ? `<button type="button" class="muenze" data-act="benny-muenze" title="Benny ausgeben">✦</button>`
+    : `<span class="muenze" title="Bennies">✦</span>`;
+  // Mehr als vier passen neben „Runde" nicht - dann eine Münze mit Zahl.
+  const inhalt = !n ? `<span class="muenze leer" title="Keine Bennies mehr"></span>`
+    : n <= 4 ? muenze.repeat(n)
+    : `${muenze}<span class="muenzen-zahl">×${n}</span>`;
+  return `<span class="muenzen" title="${n} Benn${n === 1 ? "y" : "ies"}">${inhalt}</span>`;
 }
 
 function bennyBadge(c) {
