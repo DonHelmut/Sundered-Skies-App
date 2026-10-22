@@ -1,0 +1,299 @@
+<!doctype html>
+<!-- ENTWICKLER-MUSTERSEITE – nicht Teil des Spiels.
+     Aufruf bei laufendem Server: http://localhost:8000/static/_lab_design.html
+     Design-Varianten zum Anschauen (Kalle hat am 22.10.2026 die Vorschläge
+     1, 2, 3, 4 und 10 gewählt): jeweils „Jetzt" neben den Varianten, in
+     Handy-Rahmen mit der echten style.css. Nichts davon ist im Spiel - erst
+     nach Auswahl wird die gewählte Variante in spieler.js/tisch.js/zones.js
+     gebaut. Alles mit _lab* wird beim Paketbau aus der .exe gefiltert. -->
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Design-Varianten</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { padding: 18px; height: auto; }
+    .kopf { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+    .vorschlag { margin: 26px 0 8px; }
+    .vorschlag h2 { margin: 0 0 2px; font-size: 1.15rem; }
+    .vorschlag .warum { color: var(--muted); font-size: .9rem; max-width: 900px; }
+    .reihe { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; margin-top: 10px; }
+    .spalte { display: flex; flex-direction: column; gap: 6px; }
+    .etikett { font-weight: 800; font-size: .85rem; letter-spacing: .04em; }
+    .etikett small { font-weight: 500; color: var(--muted); letter-spacing: 0; display: block; max-width: 340px; }
+
+    /* Handy-Rahmen: die Seite selbst im Kleinen. position:relative + overflow,
+       damit Daumen-Leiste und Goldrand (im Spiel position:fixed) im Rahmen
+       bleiben statt am Laborfenster zu kleben. */
+    .handy { width: 340px; height: 640px; position: relative; overflow: hidden; border-radius: 22px;
+      border: 6px solid #2a2016; background: var(--bg); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+    .handy.kurz { height: auto; min-height: 0; padding-bottom: 8px; }
+    .handy .innen { padding: 6px 10px 120px; height: 100%; overflow: hidden; }
+    .handy.kurz .innen { padding-bottom: 8px; height: auto; }
+    .handy .aktionsleiste { position: absolute; }
+    .handy .dran-leiste { position: relative; top: 0; }
+    .handy .big-card { margin: 0 auto; }
+
+    /* =================== Varianten (Vorlagen für den Bau) =================== */
+
+    /* 1A – Zustand als EINE schmale Leiste unter der Karte. */
+    .zl { display: flex; justify-content: center; align-items: center; gap: 0; margin: 8px auto 0;
+      border: 1px solid var(--line); border-radius: 10px; overflow: hidden; width: fit-content;
+      background: var(--panel2); font-size: .92rem; font-weight: 700; }
+    .zl > span { padding: 6px 11px; display: inline-flex; align-items: center; gap: 6px; }
+    .zl > span + span { border-left: 1px solid var(--line); }
+    .zl .zl-shaken { background: var(--warn); color: #1a1206; }
+    .zl .zl-ok { color: var(--good); }
+    .zl .zl-abzug { color: var(--bad); }
+    /* Wunden-Pips: wie die ○○○ beim SL, nur größer. 3 Plätze (danach außer Gefecht). */
+    .pips { display: inline-flex; gap: 4px; }
+    .pip { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--bad); display: inline-block; }
+    .pip.voll { background: var(--bad); box-shadow: inset 0 -2px 2px rgba(0,0,0,.25); }
+
+    /* 1B – Zustand in der Kopfzeile unter dem Namen. */
+    .kopf-zustand { font-size: .85rem; font-weight: 700; display: flex; gap: 8px; align-items: center; margin-top: 2px; white-space: nowrap; }
+    .kopf-zustand .kz-shaken { color: var(--warn); }
+
+    /* 2A – Angeschlagen-Hinweis einzeilig, Rest hinter ⓘ. */
+    .ah-kurz { margin-top: 10px; padding: 8px 10px; border-radius: 10px; display: flex; align-items: center; gap: 8px;
+      border: 2px solid var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); font-size: .95rem; }
+    .ah-kurz .grow { flex: 1; text-align: left; }
+    .ah-kurz button { padding: 2px 9px; border-radius: 50%; font-size: .9rem; }
+    .ah-mehr { font-size: .88rem; margin-top: 6px; padding: 0 4px; color: var(--muted); }
+    /* 2B – kein Kasten: eine Zeile direkt über den Daumen-Knöpfen. */
+    .daumen-frage { position: absolute; left: 0; right: 0; bottom: 70px; z-index: 91; text-align: center;
+      font-size: .92rem; font-weight: 700; padding: 7px 10px 2px; color: var(--warn);
+      background: var(--panel); border-top: 2px solid var(--gold); }
+    .daumen-frage + .aktionsleiste { border-top: 0; box-shadow: none; }
+
+    /* 3 – Goldrand um den ganzen Bildschirm, wenn man dran ist. Im Spiel
+       position:fixed. Gepulst wird NUR die Deckkraft eines fertig gemalten
+       Rahmens - das kann der Browser ohne Neuzeichnen (anders als ein
+       animierter box-shadow oder filter, die am Handy ruckeln). */
+    .dran-rahmen { position: absolute; inset: 0; pointer-events: none; z-index: 95; border-radius: inherit;
+      box-shadow: inset 0 0 0 5px var(--gold), inset 0 0 30px 8px color-mix(in srgb, var(--gold) 55%, transparent); }
+    .dran-rahmen.puls { animation: rahmen-puls 1.6s ease-in-out infinite; }
+    @keyframes rahmen-puls { 50% { opacity: .3; } }
+    @media (prefers-reduced-motion: reduce) { .dran-rahmen.puls { animation: none; } }
+
+    /* 4 – Bennies als Münzen. Gemalt mit Verläufen (kein Bild, kein filter). */
+    .muenzen { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .muenze { width: 34px; height: 34px; border-radius: 50%; padding: 0; position: relative;
+      border: 1px solid #7a5310; color: #6b4708; font-size: .95rem; font-weight: 900;
+      background: radial-gradient(circle at 34% 28%, #fff6c2 0 12%, #f0c64a 38%, #c48d22 72%, #8a5d12 100%);
+      box-shadow: inset 0 -3px 4px rgba(0,0,0,.3), inset 0 2px 2px rgba(255,255,255,.5), 0 2px 3px rgba(0,0,0,.35); }
+    .muenze::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; border: 1px dashed rgba(107,71,8,.55); }
+    .muenze:hover { transform: translateY(-2px); }
+    .muenze.leer { background: none; border: 2px dashed var(--line); box-shadow: none; color: transparent; }
+    .muenze.leer::after { display: none; }
+    .muenzen .mz-text { font-size: .78rem; color: var(--muted); width: 100%; text-align: center; }
+    .muenzen.klein { margin: 0; gap: 3px; flex-wrap: nowrap; }
+    .muenzen.klein .muenze { width: 22px; height: 22px; font-size: .62rem; }
+    .muenzen.klein .muenze::after { inset: 3px; }
+    .muenze.weg { animation: muenze-weg .6s ease-in forwards; }
+    @keyframes muenze-weg { to { transform: translateY(-40px) scale(.6); opacity: 0; } }
+
+    /* 10 – gleiche Gegner in derselben Zone als EIN Chip. */
+    .zone-token.stapel .tstapel { display: inline-flex; }
+    .zone-token.stapel .tdisc { margin-left: -12px; box-shadow: -2px 0 3px rgba(0,0,0,.35); }
+    .zone-token.stapel .tdisc:first-child { margin-left: 0; box-shadow: none; }
+    .zone-token.stapel .tzst { font-size: .72rem; font-weight: 700; margin-left: 2px; white-space: nowrap; }
+    .zone-token.stapel .tname { max-width: none; }
+    .zone-token.stapel .tname b { color: var(--muted); }
+    .zone-token.stapel.auf { outline: 2px dashed var(--bad); outline-offset: 2px; }
+    .rahmen-sl { width: 640px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+    .rahmen-sl.schmal { width: 340px; }
+  </style>
+</head>
+<body class="theme-pergament">
+  <div class="kopf">
+    <h1 style="margin:0; font-size:1.4rem">Design-Varianten · Vorschläge 1, 2, 3, 4, 10</h1>
+    <button type="button" id="skin">Skin: Pergament ⇄ Sand</button>
+  </div>
+  <div class="muted small">Nur Ansicht – nichts davon ist im Spiel. Antippen geht (ⓘ, Münzen, Ork-Stapel).</div>
+
+  <section class="vorschlag">
+    <h2>1 · Zustand als Leiste</h2>
+    <div class="warum">Zwei große farbige Knöpfe „Angeschlagen" + „1 Wunde (−1)" sehen aus wie Knöpfe, sind aber keine – und schieben alles nach unten.</div>
+    <div class="reihe" id="v1"></div>
+  </section>
+
+  <section class="vorschlag">
+    <h2>2 · Angeschlagen-Erklärung kürzer</h2>
+    <div class="warum">Der Kasten sagt dasselbe wie die beiden Knöpfe unten und ist fünf Zeilen hoch.</div>
+    <div class="reihe" id="v2"></div>
+  </section>
+
+  <section class="vorschlag">
+    <h2>3 · „Du bist dran" am Rand</h2>
+    <div class="warum">Die goldene Leiste oben sieht man nur, wenn man oben ist. Ein Rahmen um den ganzen Bildschirm ist auch beim Blättern im Bogen da.</div>
+    <div class="reihe" id="v3"></div>
+  </section>
+
+  <section class="vorschlag">
+    <h2>4 · Bennies als Münzen</h2>
+    <div class="warum">Bennies stehen am Handy heute nur als „🪙 3" in der Reihenfolge. Münzen zeigen den Vorrat; Antippen = Benny ausgeben (mit Rückfrage, geht als Anfrage an den SL wie jetzt).</div>
+    <div class="reihe" id="v4"></div>
+  </section>
+
+  <section class="vorschlag">
+    <h2>10 · Gleiche Gegner zusammenfassen</h2>
+    <div class="warum">In der <b>Reihenfolge</b> gibt es das schon: Kampf-Einstellungen → „🃏 Gleiche Statisten teilen sich eine Karte" macht „Ork-Pirat ×3" als aufklappbare Zeile. Neu wäre es in den <b>Kampfzonen</b>: gleiche Gegner in derselben Zone als ein Chip, Antippen klappt auf. Spart vor allem am Handy viel Platz.</div>
+    <div class="reihe" id="v10"></div>
+  </section>
+
+  <section class="vorschlag">
+    <h2>Alles zusammen (Handy)</h2>
+    <div class="warum">1A + 2B + 3A + 4A – so sähe Broms Zug aus.</div>
+    <div class="reihe" id="vAlle"></div>
+  </section>
+
+  <script src="/static/cards.js"></script>
+  <script src="/static/zones.js"></script>
+  <script>
+    // ---------- Bausteine (Markup wie in spieler.js/tisch.js) ----------
+    const rueckseite = (b = 190) => '<div class="big-card" style="max-width:' + b + 'px"><div class="card-holder is-shaken"><div class="flip revealed"><div class="flip-inner">'
+      + '<div class="flip-face flip-front">' + Cards.renderBackSVG() + '</div><div class="flip-face flip-back"></div></div></div>'
+      + '<div class="tap-hint">👆 Antippen zum Aufdecken</div></div></div>';
+    const pips = (n, max = 3) => '<span class="pips">' + Array.from({ length: max }, (_, i) => '<i class="pip' + (i < n ? ' voll' : '') + '"></i>').join("") + '</span>';
+    function kopf(unterName = "", extra = "") {
+      return '<div class="row spread spieler-kopf" style="margin-bottom:6px"><div class="row tight" style="align-items:center">'
+        + '<span class="avatar big" style="background:#2a3550;color:#f6ecd2">BE</span>'
+        + '<div><h1 style="margin:0; font-size:1.15rem">Brom Eisenfaust</h1>' + unterName + '</div></div>'
+        + '<div class="row tight" style="align-items:center">' + extra + '<span class="runden-zaehler">Runde <b>3</b></span></div></div>';
+    }
+    const dranLeiste = (ich = true) => ich ? '<div class="dran-leiste ich">▶ Du bist dran!</div>' : '<div class="dran-leiste">Tessa Windreiterin ist dran</div>';
+    const statusJetzt = '<div class="big-status-row"><span class="big-status s-shaken">😵 Angeschlagen</span><span class="big-status s-wound">🩸 1 Wunde (−1)</span></div>';
+    const status1A = '<div class="zl"><span class="zl-shaken">😵 Angeschlagen</span><span>🩸 ' + pips(1) + ' <span class="zl-abzug">−1</span></span></div>';
+    const status1AGesund = '<div class="zl"><span class="zl-ok">✓ Gesund</span><span>🩸 ' + pips(0) + '</span></div>';
+    const status1B = '<div class="kopf-zustand"><span class="kz-shaken">😵 Angeschl.</span><span>' + pips(1) + ' <span style="color:var(--bad)">−1</span></span></div>';
+    const ahJetzt = '<div class="angeschlagen-hinweis"><div class="ah-titel">😵 Du bist angeschlagen</div><div>Würfle zuerst <b>Willenskraft</b> oder <b>Konstitution</b>. Geschafft? Dann bist du erholt und kannst normal handeln. Oder gib einen <b>Benny</b> aus – dann sofort.</div></div>';
+    const ah2A = '<div class="ah-kurz"><span class="grow">😵 Erst <b>Willenskraft</b> oder <b>Konstitution</b> würfeln</span><button type="button" class="ghost" data-ah>ⓘ</button></div>'
+      + '<div class="ah-mehr" hidden>Geschafft? Dann bist du erholt und kannst normal handeln. Oder gib einen Benny aus – dann sofort.</div>';
+    const anfragen = '<div style="margin-top:10px"><button class="ghost big" style="width:100%">✋ Etwas beim Spielleiter anfragen</button></div>';
+    const daumenErholen = (kurz) => '<div class="aktionsleiste daumen-leiste gleich"><div class="dl-haupt"><button class="primary big">' + (kurz ? '✓ Geschafft' : '😵➜✓ Erholt (Probe geschafft)')
+      + '</button></div><div class="dl-neben"><button class="good big">' + (kurz ? '🪙 Benny' : '🪙➜✓ Benny ausgeben') + '</button></div></div>';
+    const daumenAngriff = '<div class="aktionsleiste daumen-leiste"><div class="dl-haupt"><button class="primary big">⚔ Angreifen</button></div>'
+      + '<div class="dl-neben"><button class="ghost">Zug beenden ✓</button><button>Abwarten ⏸</button></div></div>';
+    const bogenZu = '<div class="panel" style="margin-top:10px; padding:10px"><b>📜 Mein Charakter</b> <span class="muted small">▾</span></div>';
+    const muenzen = (n, klein) => '<div class="muenzen' + (klein ? ' klein' : '') + '" data-muenzen>'
+      + Array.from({ length: n }, () => '<button type="button" class="muenze" title="Benny ausgeben">✦</button>').join("")
+      + (klein ? '' : '<div class="mz-text">Bennies · antippen zum Ausgeben</div>') + '</div>';
+
+    const handy = (inhalt, leiste = "", rahmen = "", kurz = false) => '<div class="handy' + (kurz ? ' kurz' : '') + '"><div class="innen">' + inhalt + '</div>' + leiste + rahmen + '</div>';
+    const spalte = (titel, sub, html) => '<div class="spalte"><div class="etikett">' + titel + (sub ? '<small>' + sub + '</small>' : '') + '</div>' + html + '</div>';
+    const panel = (x) => '<div class="panel" style="padding:12px">' + x + '</div>';
+
+    // ---------- 1 ----------
+    document.getElementById("v1").innerHTML = [
+      spalte("JETZT", "zwei große Kästen", handy(dranLeiste() + kopf() + panel(rueckseite() + statusJetzt) + bogenZu, "", "", true)),
+      spalte("VARIANTE A", "eine Zeile unter der Karte, Wunden als Punkte wie beim SL", handy(dranLeiste() + kopf() + panel(rueckseite() + status1A) + bogenZu, "", "", true)
+        + '<div class="muted small" style="margin-top:4px">gesund:</div>' + status1AGesund),
+      spalte("VARIANTE B", "Zustand unter dem Namen – Karte steht frei", handy(dranLeiste() + kopf(status1B) + panel(rueckseite()) + bogenZu, "", "", true)),
+    ].join("");
+
+    // ---------- 2 ----------
+    document.getElementById("v2").innerHTML = [
+      spalte("JETZT", "Kasten mit Erklärung", handy(dranLeiste() + kopf() + panel(rueckseite(120) + statusJetzt + ahJetzt + anfragen), daumenErholen(false))),
+      spalte("VARIANTE A", "ein Satz, Rest hinter ⓘ (antippen)", handy(dranLeiste() + kopf() + panel(rueckseite(120) + statusJetzt + ah2A + anfragen), daumenErholen(false))),
+      spalte("VARIANTE B", "kein Kasten – die Frage steht direkt über den Knöpfen", handy(dranLeiste() + kopf() + panel(rueckseite(120) + statusJetzt + anfragen),
+        '<div class="daumen-frage">😵 Willenskraft oder Konstitution geschafft?</div>' + daumenErholen(true))),
+    ].join("");
+
+    // ---------- 3 ----------
+    // Hier absichtlich weiter unten gescrollt (Bogen offen): genau da fehlt heute der Hinweis.
+    const bogenOffen = '<div class="panel" style="padding:10px"><b>📜 Mein Charakter</b><div class="muted small" style="margin-top:8px">Kampf · Werte · Talente · Ausrüstung</div>'
+      + '<div style="margin-top:8px; line-height:1.9">Kämpfen W8 · Schießen W6<br>Parade 6 · Robustheit 7 (2)<br>Axt: Stä+W8 · Armbrust 2W6<br>Talente: Kampfreflexe, Erstschlag<br>Ausrüstung: Kettenhemd, Seil, Fackeln …</div></div>';
+    document.getElementById("v3").innerHTML = [
+      spalte("JETZT", "runtergescrollt: kein Hinweis zu sehen", handy(bogenOffen + '<div style="height:200px"></div>', daumenAngriff)),
+      spalte("VARIANTE A", "Goldrand, pulsiert sanft", handy(bogenOffen, daumenAngriff, '<div class="dran-rahmen puls"></div>')),
+      spalte("VARIANTE B", "Goldrand fest, ohne Bewegung", handy(bogenOffen, daumenAngriff, '<div class="dran-rahmen"></div>')),
+    ].join("");
+
+    // ---------- 4 ----------
+    document.getElementById("v4").innerHTML = [
+      spalte("JETZT", "kein eigener Platz – nur „🪙 3“ in der Reihenfolge", handy(kopf() + panel(rueckseite() + statusJetzt) + bogenZu, "", "", true)),
+      spalte("VARIANTE A", "Münzreihe unter der Karte (antippen)", handy(kopf() + panel(rueckseite() + statusJetzt + muenzen(3)) + bogenZu, "", "", true)),
+      spalte("VARIANTE B", "klein in der Kopfzeile", handy(kopf("", muenzen(3, true)) + panel(rueckseite() + statusJetzt) + bogenZu, "", "", true)),
+    ].join("");
+
+    // ---------- 10 ----------
+    const fig = (id, name, kind, zone, extra = {}) => Object.assign({ id, name, kind, zone, status: {} }, extra);
+    const figuren = [
+      fig("k", "Ork-Kapitän", "npc", 3, { isWildCard: true, status: { shaken: true, wounds: 1 } }),
+      fig("o2", "Ork-Pirat 2", "npc", 2, { status: { shaken: true, wounds: 1 } }),
+      fig("o3", "Ork-Pirat 3", "npc", 2, { status: { shaken: true } }),
+      fig("o4", "Ork-Pirat 4", "npc", 2),
+      fig("o5", "Ork-Pirat 5", "npc", 2),
+      fig("o6", "Ork-Pirat 6", "npc", 1),
+      fig("o7", "Ork-Pirat 7", "npc", 1),
+      fig("ka", "Kael der Elfe", "pc", 1), fig("ve", "Vela", "pc", 1),
+      fig("br", "Brom Eisenfaust", "pc", 1), fig("te", "Tessa Windreiterin", "pc", 1),
+    ];
+    const zonenJetzt = () => Zones.renderTarget(figuren, { activeId: "br" });
+    // Variante: in jeder Bahn gleichnamige Gegner (Name ohne Nummer) ab 2 Stück
+    // zu einem Chip stapeln. Im Spiel käme das in zones.js renderTarget().
+    function zonenGestapelt(wurzel) {
+      wurzel.querySelectorAll(".zb-tokens").forEach((bahn) => {
+        const gruppen = {};
+        bahn.querySelectorAll(".zone-token.enemy").forEach((t) => {
+          const name = t.title.replace(/\s+\d+$/, "");
+          if (name === t.title) return;                 // ohne Nummer: Einzelfigur
+          (gruppen[name] = gruppen[name] || []).push(t);
+        });
+        Object.entries(gruppen).forEach(([name, toks]) => {
+          if (toks.length < 2) return;
+          const ids = toks.map((t) => t.dataset.id);
+          const st = ids.map((id) => figuren.find((f) => f.id === id).status);
+          const angeschl = st.filter((s) => s.shaken).length, wunden = st.reduce((n, s) => n + (s.wounds || 0), 0);
+          const scheiben = toks.slice(0, 2).map((t) => t.querySelector(".tdisc").outerHTML).join("");
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "zone-token enemy stapel";
+          chip.title = name + " ×" + toks.length + " – antippen zeigt die einzelnen";
+          chip.innerHTML = '<span class="tstapel">' + scheiben + '</span><span class="tname">' + name + ' <b>×' + toks.length + '</b></span>'
+            + ((angeschl || wunden) ? '<span class="tzst">' + (angeschl ? '😵' + angeschl : '') + (wunden ? ' 🩸' + wunden : '') + '</span>' : '');
+          toks[0].before(chip);
+          toks.forEach((t) => { t.style.display = "none"; });
+          chip.addEventListener("click", () => {
+            const auf = chip.classList.toggle("auf");
+            toks.forEach((t) => { t.style.display = auf ? "" : "none"; });
+          });
+        });
+      });
+    }
+    document.getElementById("v10").innerHTML = [
+      spalte("JETZT · SL", "", '<div class="rahmen-sl" id="z1">' + zonenJetzt() + '</div>'),
+      spalte("VARIANTE · SL", "Ork-Pirat ×4 und ×2 als Stapel; antippen klappt auf", '<div class="rahmen-sl" id="z2">' + zonenJetzt() + '</div>'),
+      spalte("JETZT · HANDY", "", '<div class="rahmen-sl schmal">' + zonenJetzt() + '</div>'),
+      spalte("VARIANTE · HANDY", "", '<div class="rahmen-sl schmal" id="z4">' + zonenJetzt() + '</div>'),
+    ].join("");
+    zonenGestapelt(document.getElementById("z2"));
+    zonenGestapelt(document.getElementById("z4"));
+
+    // ---------- Alles zusammen ----------
+    document.getElementById("vAlle").innerHTML = [
+      spalte("DRAN, ANGESCHLAGEN", "", handy(dranLeiste() + kopf() + panel(rueckseite(150) + status1A + muenzen(3) + anfragen),
+        '<div class="daumen-frage">😵 Willenskraft oder Konstitution geschafft?</div>' + daumenErholen(true), '<div class="dran-rahmen puls"></div>')),
+      spalte("ERHOLT, ANGRIFF", "", handy(dranLeiste() + kopf() + panel(rueckseite(150).replace(" is-shaken", "") + '<div class="zl"><span>🩸 ' + pips(1) + ' <span class="zl-abzug">−1</span></span></div>' + muenzen(2) + anfragen),
+        daumenAngriff, '<div class="dran-rahmen puls"></div>')),
+      spalte("NICHT DRAN", "", handy(dranLeiste(false) + kopf() + panel(rueckseite(150).replace(" is-shaken", "") + status1AGesund + muenzen(3) + anfragen))),
+    ].join("");
+
+    // ---------- Antippen ----------
+    document.addEventListener("click", (e) => {
+      const i = e.target.closest("[data-ah]");
+      if (i) { const m = i.closest(".panel").querySelector(".ah-mehr"); m.hidden = !m.hidden; return; }
+      const mz = e.target.closest(".muenze:not(.leer)");
+      if (mz) {   // im Spiel vorher frage("Benny ausgeben?") aus dialoge.js
+        mz.classList.add("weg");
+        setTimeout(() => { mz.classList.remove("weg"); mz.classList.add("leer"); }, 600);
+      }
+    });
+    document.getElementById("skin").addEventListener("click", () => {
+      document.body.classList.toggle("theme-pergament");
+      document.body.classList.toggle("theme-sand");
+    });
+  </script>
+</body>
+</html>

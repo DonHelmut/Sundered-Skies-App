@@ -77,6 +77,20 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.15, 22.10.2026): Design-Varianten zum Anschauen
+
+- Kalle hat aus zehn Design-Vorschlägen 1, 2, 3, 4 und 10 gewählt. Noch NICHT
+  im Spiel – erst Varianten in `web/static/_lab_design.html` (Handy-Rahmen mit
+  echter style.css, „Jetzt" neben Variante A/B):
+  1 Zustand als schmale Leiste (A) bzw. unter dem Namen (B), Wunden als Pips;
+  2 Angeschlagen-Hinweis einzeilig mit ⓘ (A) bzw. als Frage über den
+  Daumen-Knöpfen (B); 3 Goldrand um den Bildschirm, wenn man dran ist –
+  pulsiert wird nur `opacity` (kein animierter box-shadow/filter); 4 Bennies als
+  gemalte Münzen (unter der Karte / in der Kopfzeile), Antippen = Benny-Anfrage;
+  10 gleiche Gegner pro Zone als Stapel-Chip „Ork-Pirat ×4" (Reihenfolge kann
+  das schon per Kampf-Einstellung „Gleiche Statisten teilen sich eine Karte").
+- Nach Kalles Wahl die Varianten in spieler.js / tisch.js / zones.js bauen.
+
 ## Unveröffentlicht (nach 1.5.14, 15.10.2026): Treffer/KO für alle
 
 Kalle: „Wenn ein Spieler jemanden ausschaltet oder trifft, kriegen die anderen
