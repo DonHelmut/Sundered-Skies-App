@@ -82,12 +82,34 @@ function Finde-Blockierregeln {
         $programm = ($regel | Get-NetFirewallApplicationFilter).Program
         if (-not $programm -or $programm -eq 'Any') { continue }
         $voll = [Environment]::ExpandEnvironmentVariables($programm)
+        # Ohne Leerzeichen vergleichen: Windows benennt die Sperre nach der
+        # Dateibeschreibung, am Jonsbo "...\sundered skies initiative.exe".
+        $datei = [IO.Path]::GetFileName($voll) -replace ' ', ''
         if ($voll.StartsWith($AppOrdner + '\', [StringComparison]::OrdinalIgnoreCase) -or
-            [IO.Path]::GetFileName($voll) -eq $AppExe) {
+            $datei -eq $AppExe) {
             $treffer += $regel
         }
     }
     return $treffer
+}
+
+# Gibt eine vorhandene Regel schon alle Ports der App frei? LocalPort kommt als
+# Liste aus Zahlen, Bereichen ("8000-8899") oder "Any".
+function Deckt-Ports($regel) {
+    $filter = $regel | Get-NetFirewallPortFilter
+    if ("$($filter.Protocol)" -notin @('TCP', 'Any')) { return $false }
+    $eintraege = @($filter.LocalPort | ForEach-Object { "$_" })
+    if ($eintraege -contains 'Any') { return $true }
+    foreach ($port in $Ports) {
+        $gedeckt = $false
+        foreach ($e in $eintraege) {
+            $teile = $e -split '-'
+            if ($teile.Count -eq 2 -and $port -ge [int]$teile[0] -and $port -le [int]$teile[1]) { $gedeckt = $true }
+            elseif ($e -eq "$port") { $gedeckt = $true }
+        }
+        if (-not $gedeckt) { return $false }
+    }
+    return $true
 }
 
 function Firewall-Freigeben {
@@ -96,7 +118,7 @@ function Firewall-Freigeben {
     if ($neu) {
         $sicherung = [pscustomobject]@{
             Angelegt         = (Get-Date).ToString('dd.MM.yyyy HH:mm')
-            RegelVorher      = [bool](Get-NetFirewallRule -DisplayName $RegelName -ErrorAction SilentlyContinue)
+            AngelegteRegeln  = @()
             DeaktivierteSperren = @()
             Profile          = @()
         }
@@ -107,22 +129,41 @@ function Firewall-Freigeben {
     }
     $gesperrt = @(Liste $sicherung.DeaktivierteSperren)
     $profilListe = @(Liste $sicherung.Profile)
+    $angelegt = @(Liste $sicherung.AngelegteRegeln)
 
-    # 1) Unsere Freigabe. Ohne -Profile gilt sie fuer Privat, Oeffentlich und
-    #    Domaene - ein als "oeffentlich" eingestuftes WLAN ist damit kein Problem.
-    Get-NetFirewallRule -DisplayName $RegelName -ErrorAction SilentlyContinue | Remove-NetFirewallRule
-    New-NetFirewallRule -DisplayName $RegelName -Direction Inbound -Action Allow -Protocol TCP `
-        -LocalPort $Ports -Profile Any | Out-Null
-    Ok "Freigabe fuer die App angelegt (Ports $($Ports -join ', '))."
+    # 1) Unsere Freigabe. Vorhandene Regeln (z. B. vom Knopf in der App) bleiben
+    #    unangetastet - frueher wurden sie geloescht und neu angelegt, dann kam
+    #    beim Rueckgaengig nicht exakt der alte Stand heraus. Angelegt wird nur,
+    #    was fehlt, und genau das merkt sich die Sicherung (per Regel-ID).
+    #    -Profile Any: gilt auch in einem als "oeffentlich" eingestuften WLAN.
+    $vorhanden = @(Get-NetFirewallRule -DisplayName $RegelName -ErrorAction SilentlyContinue |
+        Where-Object { "$($_.Enabled)" -eq 'True' -and "$($_.Action)" -eq 'Allow' -and "$($_.Direction)" -eq 'Inbound' })
+    if ($vorhanden | Where-Object { Deckt-Ports $_ }) {
+        Ok "Freigabe fuer die Ports war schon da - bleibt wie sie ist."
+    } else {
+        $regel = New-NetFirewallRule -DisplayName $RegelName -Direction Inbound -Action Allow -Protocol TCP `
+            -LocalPort $Ports -Profile Any
+        $angelegt += $regel.Name
+        $sicherung.AngelegteRegeln = $angelegt
+        Schreib-Sicherung $FirewallDatei $sicherung
+        Ok "Freigabe fuer die App angelegt (Ports $($Ports -join ', '))."
+    }
     # Zusaetzlich eine Regel fuer die .exe selbst: Kennt Windows das Programm,
     # fragt es beim Start nicht mehr "Zugriff zulassen?" - und ein erneutes
-    # "Abbrechen" kann keine neue Sperre anlegen. Gleicher Name, damit der Knopf
-    # in der App und "rueckgaengig" beide Regeln zusammen finden.
+    # "Abbrechen" kann keine neue Sperre anlegen.
     $exe = Join-Path $AppOrdner $AppExe
     if (Test-Path -LiteralPath $exe) {
-        New-NetFirewallRule -DisplayName $RegelName -Direction Inbound -Action Allow -Program $exe `
-            -Profile Any | Out-Null
-        Ok "Freigabe fuer $AppExe angelegt."
+        $schon = $vorhanden | Where-Object { ($_ | Get-NetFirewallApplicationFilter).Program -eq $exe }
+        if ($schon) {
+            Ok "Freigabe fuer $AppExe war schon da."
+        } else {
+            $regel = New-NetFirewallRule -DisplayName $RegelName -Direction Inbound -Action Allow -Program $exe `
+                -Profile Any
+            $angelegt += $regel.Name
+            $sicherung.AngelegteRegeln = $angelegt
+            Schreib-Sicherung $FirewallDatei $sicherung
+            Ok "Freigabe fuer $AppExe angelegt."
+        }
     }
 
     # 2) Blockier-Regeln der App ausschalten (nicht loeschen - rueckgaengig schaltet sie wieder ein).
@@ -198,12 +239,14 @@ function Firewall-Zurueck {
     $alles = $true
     Info "Stelle den Zustand vom $($sicherung.Angelegt) wieder her."
 
-    if ($sicherung.RegelVorher) {
-        Ok "Freigabe der App bleibt - sie war schon vorher da."
-    } else {
-        Get-NetFirewallRule -DisplayName $RegelName -ErrorAction SilentlyContinue | Remove-NetFirewallRule
-        Ok "Freigabe der App entfernt."
+    # Nur die Regeln, die "freigeben" selbst angelegt hat - schon vorher
+    # vorhandene bleiben mit ihrer ID stehen.
+    $angelegt = @(Liste $sicherung.AngelegteRegeln)
+    foreach ($name in $angelegt) {
+        Get-NetFirewallRule -Name $name -ErrorAction SilentlyContinue | Remove-NetFirewallRule
     }
+    if ($angelegt) { Ok "Freigabe der App entfernt." }
+    else { Ok "Freigabe der App bleibt - sie war schon vorher da." }
     foreach ($name in (Liste $sicherung.DeaktivierteSperren)) {
         try {
             $regel = Get-NetFirewallRule -Name $name -ErrorAction Stop

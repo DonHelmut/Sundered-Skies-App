@@ -90,7 +90,9 @@ Details stehen in den einzelnen Abschnitten darunter.
   Adminrechte selbst, Doppelklick reicht) und `netzwerk-hilfe.ps1`, das die
   Arbeit macht:
   - Firewall: Port-Regel + Programm-Regel für die .exe (dann fragt Windows
-    nicht mehr und kann keine neue Sperre anlegen), Blockier-Regeln der App
+    nicht mehr und kann keine neue Sperre anlegen) – nur wenn noch keine
+    passende Regel da ist; vorhandene bleiben samt ID stehen, die Sicherung
+    merkt sich die IDs der neu angelegten. Blockier-Regeln der App
     **ausschalten** (nicht löschen), „alle eingehenden blockieren" aufheben.
     Warnt bei Fremd-Firewall und Firmen-Richtlinie.
   - WLAN: Haken „Computer kann das Gerät ausschalten" weg (Ausweg über
