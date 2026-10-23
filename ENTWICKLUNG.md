@@ -77,6 +77,45 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.16, 23.10.2026): Netzwerk-Hilfe mit Rückgängig
+
+- Anlass: Kalle fragte, ob die Skripte wirklich helfen – die App läuft oft auf
+  dem Laptop eines Kumpels, dessen Einstellungen danach wieder stimmen müssen.
+- **Befund:** `WLAN-Stromsparen-aus.bat` war kaputt (PowerShell-Befehl ohne
+  Anführungszeichen → Syntaxfehler, tat nie etwas). `Firewall-freigeben.bat`
+  half nicht, wenn Windows die App still sperrt: Nach „Abbrechen" im Fenster
+  „Zugriff zulassen?" legt Windows Blockier-Regeln für die .exe an (am Jonsbo
+  zwei, Profil Öffentlich), und Blockieren schlägt Freigeben.
+- **Neu:** Ordner `paket/Netzwerk-Hilfe/` mit vier .bat (holen sich die
+  Adminrechte selbst, Doppelklick reicht) und `netzwerk-hilfe.ps1`, das die
+  Arbeit macht:
+  - Firewall: Port-Regel + Programm-Regel für die .exe (dann fragt Windows
+    nicht mehr und kann keine neue Sperre anlegen) – nur wenn noch keine
+    passende Regel da ist; vorhandene bleiben samt ID stehen, die Sicherung
+    merkt sich die IDs der neu angelegten. Blockier-Regeln der App
+    **ausschalten** (nicht löschen), „alle eingehenden blockieren" aufheben.
+    Warnt bei Fremd-Firewall und Firmen-Richtlinie.
+  - WLAN: Haken „Computer kann das Gerät ausschalten" weg (Ausweg über
+    Registry `PnPCapabilities=24`, wenn das Cmdlet scheitert – am Jonsbo bei
+    „WLAN 2") und Energieplan → Drahtlosadapter → Energiesparmodus auf
+    Höchstleistung (Netz + Akku).
+  - **Rückgängig:** Vorher-Zustand liegt in `%ProgramData%\Sundered Skies
+    Initiative\*.json` (nicht im App-Ordner – sonst weg beim frischen
+    Entpacken). Mehrfaches Freigeben überschreibt die erste Sicherung nicht.
+    `…-rueckgaengig.bat` stellt exakt her und löscht die Sicherung.
+  - Mit nachgebauten Windows-Befehlen unter pwsh (Linux) durchgespielt:
+    Hin und zurück ergibt genau den Ausgangszustand. **Am Jonsbo echt
+    getestet (23.10.2026)** mit `werkzeuge/netzwerk-test.ps1` (in Admin-
+    PowerShell): 2 Blockier-Regeln aus und wieder an, .exe-Regel angelegt und
+    entfernt, WLAN über Registry-Ausweg, Ergebnis „GLEICH".
+- Der Knopf „Firewall freigeben" in der App nutzt jetzt dasselbe Skript
+  (fällt auf netsh zurück, wenn es fehlt).
+- **App hält den Laptop wach**, solange sie läuft (`winnet.wach_halten`,
+  `SetThreadExecutionState`) – ändert keine Einstellung. Deckel zu = schläft.
+- Alte Skripte im Hauptordner räumt der Updater weg (`AUSGEMUSTERT`).
+- Test `tests/test_netzwerk_hilfe.py`: Ports/Regelname wie in der App, nur
+  ASCII, CRLF, jede .bat ruft eine gültige Aktion.
+
 ## Unveröffentlicht (nach 1.5.16, 23.10.2026): SL-Treffer in einem Tipp
 
 Kalle: „Drücke meistens Treffer, wähle den Spieler – dann kommt halt

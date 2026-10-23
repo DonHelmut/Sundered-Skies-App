@@ -557,8 +557,9 @@ function verbindungsHilfeHtml() {
       <li><b>Feste Adresse im Router vergeben.</b> Diesem Laptop eine feste IP zuweisen
         (Fritzbox: Netzwerk → Gerät → „Immer die gleiche IP-Adresse zuweisen"). Sonst kann er
         nach einem WLAN-Aussetzer eine neue Adresse bekommen, und die Handys finden ihn nicht mehr.</li>
-      <li><b>WLAN-Stromsparen abschalten:</b> im App-Ordner <code>WLAN-Stromsparen-aus.bat</code>
-        per Rechtsklick als Administrator ausführen. Sonst schaltet Windows die WLAN-Karte im Akkubetrieb ab.</li>
+      <li><b>WLAN-Stromsparen abschalten:</b> im App-Ordner unter <code>Netzwerk-Hilfe</code>
+        <code>WLAN-Stromsparen-aus.bat</code> doppelklicken. Sonst drosselt Windows die WLAN-Karte im Akkubetrieb.
+        Auf fremden Laptops danach <code>WLAN-Stromsparen-rueckgaengig.bat</code> – stellt alles wie vorher.</li>
       <li><b>Handys: mobile Daten aus</b> (Flugmodus an, dann nur WLAN an). Hat das WLAN kein
         Internet, springen Handys still auf Mobilfunk – dann ist der Laptop unerreichbar.</li>
       <li><b>Bei Verbindungsverlust nicht neu laden</b> – die App kommt von selbst zurück.</li>

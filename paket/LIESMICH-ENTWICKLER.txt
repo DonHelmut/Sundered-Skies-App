@@ -12,7 +12,7 @@ Paket bauen:
      dist\Aktualisieren (Aktualisieren.exe + _aktualisieren) plus
      START-HIER.txt, START.bat,
      "WICHTIG - ganzen Ordner behalten.txt",
-     Firewall-*.bat und WLAN-Stromsparen-aus.bat in einen Ordner
+     den Ordner Netzwerk-Hilfe (4 .bat + netzwerk-hilfe.ps1) in einen Ordner
      "SunderedSkies-App" legen
   3. Ordner als SunderedSkies-App.zip zippen, Tag setzen und pushen,
      dann: gh release create vX.Y --verify-tag ... SunderedSkies-App.zip
