@@ -67,19 +67,40 @@ def rule_active() -> bool | None:
         return None
 
 
+def _netzwerk_hilfe() -> str | None:
+    """Pfad zu netzwerk-hilfe.ps1 (im Paket neben der .exe, beim Entwickeln in paket/)."""
+    from .paths import BASE_DIR
+    for ordner in (BASE_DIR / "Netzwerk-Hilfe", BASE_DIR / "paket" / "Netzwerk-Hilfe"):
+        if (ordner / "netzwerk-hilfe.ps1").is_file():
+            return str(ordner / "netzwerk-hilfe.ps1")
+    return None
+
+
 def allow_firewall() -> bool:
-    """Legt die eingehende Firewall-Regel für Port 8000 an – per ERHÖHTEM Prozess
-    (UAC-Abfrage beim SL). True, wenn die Elevation gestartet wurde."""
+    """Gibt die App in der Firewall frei – per ERHÖHTEM Prozess (UAC-Abfrage beim
+    SL). True, wenn die Elevation gestartet wurde.
+
+    Bevorzugt dasselbe Skript wie „Firewall-freigeben.bat": Das schaltet auch
+    die Sperren ab, die Windows nach „Abbrechen" im Zugriff-zulassen-Fenster
+    still anlegt (Blockieren schlägt Freigeben – die Regel allein half dann
+    nicht), und sichert vorher den Zustand für „Firewall-rueckgaengig.bat"."""
     if not _is_windows():
         return False
     try:
         import ctypes
-        params = (
-            f'/c netsh advfirewall firewall delete rule name="{FIREWALL_RULE_NAME}" >nul 2>&1 '
-            f'& netsh advfirewall firewall add rule name="{FIREWALL_RULE_NAME}" '
-            f'dir=in action=allow protocol=TCP localport={PORT_LIST}'
-        )
-        rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", params, None, 0)
+        skript = _netzwerk_hilfe()
+        if skript:
+            programm = "powershell.exe"
+            params = (f'-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden '
+                      f'-File "{skript}" -Aktion FirewallFrei')
+        else:
+            programm = "cmd.exe"
+            params = (
+                f'/c netsh advfirewall firewall delete rule name="{FIREWALL_RULE_NAME}" >nul 2>&1 '
+                f'& netsh advfirewall firewall add rule name="{FIREWALL_RULE_NAME}" '
+                f'dir=in action=allow protocol=TCP localport={PORT_LIST}'
+            )
+        rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", programm, params, None, 0)
         ok = int(rc) > 32   # >32 = Prozess gestartet (UAC bestätigt)
         if ok:
             detect_public()   # Status neu erfassen
@@ -98,6 +119,29 @@ def ist_admin() -> bool | None:
         return bool(ctypes.windll.shell32.IsUserAnAdmin())
     except Exception:
         return None
+
+
+def wach_halten() -> bool:
+    """Laptop nicht einschlafen lassen, solange die App laeuft.
+
+    Anlass: Im Akkubetrieb schlaeft ein Laptop nach ein paar Minuten ohne
+    Tastendruck ein - beim Spielabend tippt der SL oft lange nichts, und alle
+    Handys fliegen raus. Statt den Energiesparplan des Gastgebers umzustellen
+    (muesste man hinterher zurueckstellen) meldet sich die App bei Windows als
+    "System wird gebraucht" an. Das gilt nur, solange der Prozess laeuft, und
+    verschwindet beim Beenden von selbst. Bildschirm darf trotzdem ausgehen;
+    Deckel zuklappen schickt den Laptop weiterhin schlafen.
+
+    Muss im Hauptthread aufgerufen werden (der Zustand haengt am Thread, und der
+    Hauptthread lebt so lange wie der Server)."""
+    if not _is_windows():
+        return False
+    try:
+        import ctypes
+        ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+        return bool(ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED))
+    except Exception:
+        return False
 
 
 # Eine einzige PowerShell-Abfrage fuer alles, was auf einem verwalteten Laptop

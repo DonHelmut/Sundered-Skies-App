@@ -393,6 +393,7 @@ def main() -> None:
         print("    (oder WLAN auf Privat stellen).")
         print()
     umgebung_protokollieren()
+    diag.log(f"Laptop wach halten: {winnet.wach_halten()}")
     netz_waechter_starten()
     zc = register_mdns(ip)
     open_browser_later()

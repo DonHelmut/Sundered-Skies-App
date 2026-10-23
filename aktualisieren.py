@@ -36,7 +36,11 @@ SELBST_ORDNER = "_aktualisieren"
 # Nie anfassen: der Spielstand.
 BEHALTEN = {"data"}
 # Vorgänger des Updaters (1.4.1) – fliegen raus, sobald es die .exe gibt.
-AUSGEMUSTERT = ("Aktualisieren.bat", "Aktualisieren.ps1")
+# Dazu die alten Netzwerk-Skripte (bis 1.5.16 lose im Hauptordner, jetzt in
+# „Netzwerk-Hilfe"): das alte WLAN-Skript war kaputt, und doppelt herumliegende
+# Skripte verwirren nur.
+AUSGEMUSTERT = ("Aktualisieren.bat", "Aktualisieren.ps1", "Firewall-freigeben.bat",
+                "Firewall-sperren.bat", "WLAN-Stromsparen-aus.bat")
 
 
 # --- Reine Hilfsfunktionen (getestet) ---------------------------------------

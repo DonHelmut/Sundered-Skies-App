@@ -739,6 +739,8 @@ async function allowFirewall() {
   } catch { /* egal – UAC läuft ggf. trotzdem */ }
   // Nachsehen, ob die Regel jetzt TATSÄCHLICH existiert. Nur „gestartet" zu
   // melden hilft niemandem – auf Firmen-Laptops scheitert die Elevation still.
+  // 8 s: Die Freigabe läuft über PowerShell (netzwerk-hilfe.ps1), das braucht
+  // zum Starten ein paar Sekunden länger als früher das nackte netsh.
   setTimeout(() => {
     fetch("/api/info").then((r) => r.json()).then((info) => {
       App._info = info;
@@ -747,7 +749,7 @@ async function allowFirewall() {
       App._firewallFail = info.firewallRuleActive === false;
       render();
     }).catch(() => {});
-  }, 5000);
+  }, 8000);
 }
 
 // Sicherung wiederherstellen: ersetzt Charaktere + Bibliotheken + Begegnungen.
