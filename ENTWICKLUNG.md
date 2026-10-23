@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (nach 1.5.17, 23.10.2026): Netzwerk-Hilfe in EINEM Skript
+## 1.5.18 (23.10.2026): Netzwerk-Hilfe in EINEM Skript
 
 - Kalle: vier Skripte (Firewall/WLAN je hin und zurück) sind zu viel. Jetzt
   nur noch `Netzwerk-einrichten.bat` (Firewall + WLAN) und
