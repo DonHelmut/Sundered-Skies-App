@@ -133,6 +133,13 @@ document.addEventListener("click", (e) => {
     "clear-tv": () => gmAction({ type: "clear_tv_image" }),
     // Spieler-Anfragen
     "toggle-req-mode": () => { App.reqMode = !App.reqMode; render(); },
+    // Münze in der Kopfzeile: erst fragen - ein Tipp aus Versehen beim
+    // Scrollen sollte keinen Benny kosten.
+    "benny-muenze": async () => {
+      if (await frage("Einen Benny ausgeben?\n\nDer Spielleiter bestätigt es.", "🪙 Ausgeben")) {
+        gmActionOrPlayer({ type: "request", kind: "benny", detail: { delta: -1 }, label: "🪙 Benny ausgeben" });
+      }
+    },
     "player-request": () => {
       const k = target.getAttribute("data-kind");
       if (target.closest(".daumen-leiste") && (k === "recover" || k === "status")) {

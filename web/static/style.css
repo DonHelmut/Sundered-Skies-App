@@ -1962,10 +1962,36 @@ body.ziel-modus .zone-token:hover .tdisc { box-shadow: 0 0 0 3px var(--bad); }
 body.sl-ansicht .combatant.gk-mitglied { padding-left: 26px; background: color-mix(in srgb, var(--panel2) 70%, transparent); }
 body.sl-ansicht .combatant.gk-mitglied .idx { width: 0; overflow: hidden; }
 
-/* Spieler: angeschlagen und dran */
-.angeschlagen-hinweis { margin-top: 10px; padding: 10px 12px; border-radius: 10px; text-align: center;
-  border: 2px solid var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
-.angeschlagen-hinweis .ah-titel { font-weight: 800; font-size: 1.1rem; color: var(--warn); margin-bottom: 4px; }
+/* Spieler: Zustand unter dem Namen (kopfZustand) */
+/* Unter dem Namen: Zustand links, Bennies daneben. Eigene Zeile, weil rechts
+   neben dem Namen kein Platz ist - dort gequetscht brach der Name buchstabenweise. */
+.kopf-unterzeile { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 3px; }
+.kopf-zustand { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center;
+  font-size: 0.85rem; font-weight: 700; line-height: 1.3; }
+.kz { white-space: nowrap; }
+.kz-ok { color: var(--good); }
+.kz-shaken { color: var(--warn); }
+.kz-wunden { color: var(--bad); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.kz-out { color: var(--bad); font-size: 1rem; }
+.kz-cond { color: var(--accent); }
+.pips { display: inline-flex; gap: 3px; }
+.pip { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--bad); display: inline-block; }
+.pip.voll { background: var(--bad); }
+
+/* Spieler: Bennies als Münzen in der Kopfzeile. Gemalt mit Verläufen. */
+.muenzen { display: inline-flex; align-items: center; gap: 3px; }
+.muenze { width: 22px; height: 22px; padding: 0; border-radius: 50%; position: relative; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid #7a5310; color: #6b4708; font-size: 0.62rem; font-weight: 900; line-height: 1;
+  background: radial-gradient(circle at 34% 28%, #fff6c2 0 12%, #f0c64a 38%, #c48d22 72%, #8a5d12 100%);
+  box-shadow: inset 0 -2px 3px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.5), 0 1px 2px rgba(0,0,0,0.35); }
+button.muenze:hover { background: radial-gradient(circle at 34% 28%, #fff6c2 0 12%, #f0c64a 38%, #c48d22 72%, #8a5d12 100%); border-color: #7a5310; }
+.muenze.leer { background: none; border: 2px dashed var(--line); box-shadow: none; }
+.muenzen-zahl { font-size: 0.85rem; font-weight: 800; color: var(--gold); }
+
+/* Spieler: Goldrand, solange man dran ist. Fest gemalt, keine Animation. */
+.dran-rahmen { position: fixed; inset: 0; z-index: 96; pointer-events: none;
+  box-shadow: inset 0 0 0 5px var(--gold), inset 0 0 30px 8px color-mix(in srgb, var(--gold) 55%, transparent); }
 
 /* Tastenkürzel-Übersicht */
 .tasten-hilfe-hg { position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,0.45); display: flex;
@@ -2035,6 +2061,10 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
 .dl-neben button { padding: 7px 10px; font-size: 0.85rem; white-space: nowrap; }
 .dl-neben button.big { padding: 7px 10px; font-size: 0.85rem; }
 .daumen-leiste.gleich .dl-haupt, .daumen-leiste.gleich .dl-neben { flex: 1 1 0; }
+/* Angeschlagen: die Frage steht als eigene Zeile über den beiden Knöpfen. */
+.daumen-leiste.mit-frage { flex-wrap: wrap; row-gap: 6px; }
+.dl-frage { flex: 1 0 100%; text-align: center; font-weight: 700; font-size: 0.95rem; color: var(--warn); }
+body.hat-leiste:has(.mit-frage) .wrap { padding-bottom: 124px; }
 .daumen-leiste.gleich .dl-neben button, .daumen-leiste.gleich .dl-haupt button.big {
   flex: 1; padding: 12px 8px; font-size: 1rem; white-space: normal; line-height: 1.2; }
 

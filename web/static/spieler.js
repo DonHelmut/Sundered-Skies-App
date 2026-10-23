@@ -78,18 +78,18 @@ function renderPlayer() {
   // Erholen ist keine Anfrage mehr (gilt sofort) - geht auch ohne Anfragen.
   const canRecover = binDran && mySt.shaken && !mySt.out;
   const recoverFreeBtn = canRecover
-    ? `<button class="primary big" data-act="player-request" data-kind="status" data-detail='{"shaken":false}' data-label="ist nicht mehr angeschlagen">😵➜✓ Erholt (Probe geschafft)</button>`
+    ? `<button class="primary big" data-act="player-request" data-kind="status" data-detail='{"shaken":false}' data-label="ist nicht mehr angeschlagen">✓ Geschafft</button>`
     : "";
   const recoverBennyBtn = (canRecover && mine.isWildCard && (mine.bennies || 0) > 0)
-    ? `<button class="good big" data-act="player-request" data-kind="recover" data-detail='{"benny":true}' data-label="gibt einen Benny aus und ist erholt">🪙➜✓ Benny ausgeben</button>`
+    ? `<button class="good big" data-act="player-request" data-kind="recover" data-detail='{"benny":true}' data-label="gibt einen Benny aus und ist erholt">🪙 Benny</button>`
     : "";
   const recoverGemeldet = (s.requests || []).some((r) => r.combatantId === mine.id && (r.kind === "recover" || (r.kind === "status" && (r.detail || {}).shaken === false)));
-  const angeschlagenHinweis = binDran && mySt.shaken && !mySt.out ? `<div class="angeschlagen-hinweis">
-      <div class="ah-titel">😵 Du bist angeschlagen</div>
-      <div>Würfle zuerst <b>Willenskraft</b> oder <b>Konstitution</b>. Geschafft? Dann bist du erholt und kannst normal handeln.${
-        mine.isWildCard ? " Oder gib einen <b>Benny</b> aus – dann sofort." : ""}</div>
-      ${recoverGemeldet ? `<div class="zone-hint">An den Spielleiter geschickt ⏳</div>` : ""}
-    </div>` : "";
+  // Der große Erklär-Kasten („Du bist angeschlagen – würfle zuerst …") ist weg
+  // (Kalle, Variante 2B): er sagte dasselbe wie die beiden Knöpfe unten und war
+  // fünf Zeilen hoch. Die Frage steht jetzt direkt über den Knöpfen (daumenKnopf).
+  // Bleibt nur die Rückmeldung, wenn der Benny-Wunsch beim SL liegt.
+  const angeschlagenHinweis = binDran && mySt.shaken && !mySt.out && recoverGemeldet
+    ? `<div class="zone-hint center">😵 Erholung an den Spielleiter geschickt ⏳</div>` : "";
 
   // Nur was der SL schreibt. Angriffsergebnisse („⚔ Daneben …") und Mimis Miau
   // standen hier früher mit drin - das las sich wie ein Kampf-Log, und die
@@ -132,11 +132,9 @@ function renderPlayer() {
          <div style="font-size:1.6rem">⏸</div>
          <div style="font-weight:600; margin-top:4px">Du bist gerade nicht im Kampf.</div>
          <div class="muted small" style="margin-top:4px">Der Spielleiter nimmt dich wieder rein (z. B. zum Rundenende). Solange bekommst du keine Karten.</div>
-         ${bigStatusDisplay(mine)}
        </div>`
     : `<div class="panel" style="padding:12px">
       <div class="big-card tilt3d" id="bigcard" style="max-width:250px">${cardSlot(mine.id, mine.card, mine.status, "", { open: !!mine.revealed, tappable: !mine.revealed })}</div>
-      ${bigStatusDisplay(mine)}
       ${hints ? `<div class="center" style="margin-top:6px">${hints}</div>` : ""}
       ${s.phase !== "idle" ? `<div style="margin-top:8px">${timer}</div>` : ""}
       ${angeschlagenHinweis}
@@ -172,11 +170,17 @@ function renderPlayer() {
   const daumen = daumenKnopf({ mine, isMyTurn, angriffMoeglich, meinAngriff, angriffZiel,
     canRecover: canRecover && !recoverGemeldet, recoverFreeBtn, recoverBennyBtn, confirmBtn, holdBtn, angriffBtn });
 
+  // Goldrand um den ganzen Bildschirm, solange man dran ist (Kalle, Variante
+  // 3B): die goldene Leiste oben sah man nur, wenn man oben war - wer im Bogen
+  // blätterte, merkte nicht, dass er dran ist. Fest, ohne Animation.
+  const dranRahmen = isMyTurn ? `<div class="dran-rahmen"></div>` : "";
+
   const wuerfelListe = `<datalist id="wuerfel-vorschlaege">${WUERFEL.map((w) => `<option value="${w}">`).join("")}</datalist>`;
 
   return `
     ${wuerfelListe}
     ${msgBanner}
+    ${dranRahmen}
     ${dranLeiste}
     <div class="row spread spieler-kopf" style="margin-bottom:6px">
       <div class="row tight" style="align-items:center">
@@ -184,7 +188,7 @@ function renderPlayer() {
           ${mine.image ? `<img src="${esc(mine.image)}" alt="">` : esc(zoneInitials(mine.name))}
           <input type="file" accept="image/*" data-act="pick-char-image" data-id="${mine.id}" style="display:none">
         </label>
-        <div><h1 style="margin:0; font-size:1.25rem">${esc(mine.name)}</h1>${playerTag}</div>
+        <div><h1 style="margin:0; font-size:1.25rem">${esc(mine.name)}</h1>${playerTag}<div class="kopf-unterzeile">${kopfZustand(mine)}${muenzenKopf(mine)}</div></div>
       </div>
       <div class="row tight" style="align-items:center">
         ${rundenZaehler(s)}
@@ -211,7 +215,7 @@ function renderPlayer() {
 // selbst; ansonsten die eigene Karte aufdecken. Nichts zu tun: keine Leiste.
 function daumenKnopf(o) {
   const { mine, isMyTurn, angriffMoeglich, meinAngriff, angriffZiel } = o;
-  let haupt = "", neben = "", blatt = "", gleich = false;
+  let haupt = "", neben = "", blatt = "", gleich = false, frage = "";
   // Sofort zeigen, dass „Erholt" angekommen ist - nicht erst, wenn der Server
   // antwortet. Vorher blieb der Knopf kurz unverändert, dann stand an GENAU
   // der Stelle „Angreifen": wer nochmal tippte, griff ungewollt an.
@@ -224,6 +228,7 @@ function daumenKnopf(o) {
     // Zwei gleichwertige Wege (Probe oder Benny): gleich große Knöpfe. Als
     // kleiner Neben-Knopf war „Benny ausgeben" winzig und „Erholt" dreizeilig.
     haupt = o.recoverFreeBtn; neben = o.recoverBennyBtn; gleich = !!neben;
+    frage = `😵 Willenskraft oder Konstitution geschafft?`;
   } else if (isMyTurn && meinAngriff) {
     // Kein „Zug beenden" daneben: sonst endet der Zug, bevor der SL entschieden hat.
     haupt = `<div class="angriff-wartet">⚔ Angriff auf <b>${esc(angriffZiel ? angriffZiel.name : "?")}</b> – der Spielleiter entscheidet ⏳</div>`;
@@ -244,8 +249,8 @@ function daumenKnopf(o) {
     haupt = `<button class="primary big" data-act="daumen-aufdecken">🂠 Karte aufdecken</button>`;
   }
   if (!haupt) return "";
-  return `${blatt}<div class="aktionsleiste daumen-leiste${gleich ? " gleich" : ""}">
-    <div class="dl-haupt">${haupt}</div>${neben ? `<div class="dl-neben">${neben}</div>` : ""}
+  return `${blatt}<div class="aktionsleiste daumen-leiste${gleich ? " gleich" : ""}${frage ? " mit-frage" : ""}">
+    ${frage ? `<div class="dl-frage">${frage}</div>` : ""}<div class="dl-haupt">${haupt}</div>${neben ? `<div class="dl-neben">${neben}</div>` : ""}
   </div>`;
 }
 

@@ -77,6 +77,25 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.15, 22.10.2026): Handy-Design 1B, 2B, 3B, 4B
+
+- Kalle hat aus zehn Design-Vorschlägen gewählt; Varianten lagen in
+  `web/static/_lab_design.html` (bleibt als Musterseite). Gebaut, nur Handy:
+  - **Zustand unter dem Namen** (`kopfZustand` in tisch.js, ersetzt
+    `bigStatusDisplay`): „😵 Angeschlagen ●○○ −1" als schmale Zeile statt zwei
+    großer farbiger Kästen unter der Karte.
+  - **Angeschlagen ohne Erklär-Kasten:** die Frage „Willenskraft oder
+    Konstitution geschafft?" steht als Zeile über den Daumen-Knöpfen
+    („✓ Geschafft" / „🪙 Benny"), `daumenKnopf` → `.mit-frage`.
+  - **Goldrand um den Bildschirm**, solange man dran ist (`.dran-rahmen`, fest,
+    keine Animation, z-index über Daumen-Leiste und Zielwahl, unter Nachrichten).
+  - **Bennies als Münzen** neben dem Zustand (`muenzenKopf`); Antippen →
+    Rückfrage → Anfrage „🪙 Benny ausgeben" an den SL (wie über „Anfragen").
+    Ohne Anfragen nur Anzeige. Erst rechts neben „Runde" probiert: da brach der
+    Name buchstabenweise um.
+- Nicht gewählt: Zielwahl-Kacheln, leere Zonen einklappen, weniger Chips,
+  aktive Zeile fetter, Toast an die Leiste, Gegner in Zonen stapeln.
+
 ## Unveröffentlicht (nach 1.5.14, 15.10.2026): Treffer/KO für alle
 
 Kalle: „Wenn ein Spieler jemanden ausschaltet oder trifft, kriegen die anderen
