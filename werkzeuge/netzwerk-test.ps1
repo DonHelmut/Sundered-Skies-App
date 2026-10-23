@@ -1,5 +1,5 @@
-# Entwickler-Test der Netzwerk-Hilfe: merkt sich den Zustand, fuehrt Freigeben +
-# WLAN-Stromsparen-aus (je zweimal) aus, dann beide Rueckgaengig, und vergleicht.
+# Entwickler-Test der Netzwerk-Hilfe: merkt sich den Zustand, fuehrt Einrichten
+# (zweimal) aus, dann Zurueck, und vergleicht.
 # Start in PowerShell ALS ADMINISTRATOR (holt sich die ps1 vom Branch):
 #   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/DonHelmut/Sundered-Skies-App/claude/project-thread-tvx1jk/werkzeuge/netzwerk-test.ps1)))
 $ErrorActionPreference = 'Stop'
@@ -33,7 +33,7 @@ function Zustand {
 }
 
 $vorher = @(Zustand)
-foreach ($a in 'FirewallFrei', 'FirewallFrei', 'WlanAn', 'WlanAn') {
+foreach ($a in 'Einrichten', 'Einrichten') {
     Write-Host "===== $a" -ForegroundColor Cyan
     & powershell -NoProfile -ExecutionPolicy Bypass -File $skript -Aktion $a
 }
@@ -42,7 +42,7 @@ Get-ChildItem "$env:ProgramData\Sundered Skies Initiative" | ForEach-Object { "-
 $mitte = @(Zustand)
 Write-Host "===== GEAENDERT (vorher -> waehrenddessen)" -ForegroundColor Cyan
 Compare-Object $vorher $mitte | ForEach-Object { "$($_.SideIndicator) $($_.InputObject)" }
-foreach ($a in 'FirewallZurueck', 'WlanZurueck') {
+foreach ($a in @('Zurueck')) {
     Write-Host "===== $a" -ForegroundColor Cyan
     & powershell -NoProfile -ExecutionPolicy Bypass -File $skript -Aktion $a
 }

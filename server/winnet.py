@@ -80,10 +80,10 @@ def allow_firewall() -> bool:
     """Gibt die App in der Firewall frei – per ERHÖHTEM Prozess (UAC-Abfrage beim
     SL). True, wenn die Elevation gestartet wurde.
 
-    Bevorzugt dasselbe Skript wie „Firewall-freigeben.bat": Das schaltet auch
+    Bevorzugt dasselbe Skript wie „Netzwerk-einrichten.bat": Das schaltet auch
     die Sperren ab, die Windows nach „Abbrechen" im Zugriff-zulassen-Fenster
     still anlegt (Blockieren schlägt Freigeben – die Regel allein half dann
-    nicht), und sichert vorher den Zustand für „Firewall-rueckgaengig.bat"."""
+    nicht), und sichert vorher den Zustand für „Netzwerk-rueckgaengig.bat"."""
     if not _is_windows():
         return False
     try:

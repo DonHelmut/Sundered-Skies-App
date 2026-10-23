@@ -130,16 +130,15 @@ WLAN-Karte im Laptop oder eine geaenderte Adresse. Dafuer siehe unten.
      muss nur EINMAL pro Laptop gemacht werden.
    - Hilft der Knopf nicht (z. B. weil beim ersten Start im Windows-Fenster
      "Abbrechen" geklickt wurde - dann sperrt Windows die App still):
-     Ordner "Netzwerk-Hilfe" -> "Firewall-freigeben.bat" doppelklicken und
+     Ordner "Netzwerk-Hilfe" -> "Netzwerk-einrichten.bat" doppelklicken und
      die Windows-Nachfrage mit JA beantworten. Schaltet auch diese Sperren ab.
 
 >>> NETZWERK-HILFE: FREMDER LAPTOP? ALLES LAESST SICH ZURUECKSTELLEN <<<
 --------------------------------------------------------------------
-Im Ordner "Netzwerk-Hilfe" liegen vier Skripte (Doppelklick genuegt):
-  Firewall-freigeben.bat          -> Handys duerfen sich verbinden
-  Firewall-rueckgaengig.bat       -> Firewall wieder genau wie vorher
-  WLAN-Stromsparen-aus.bat        -> WLAN-Karte drosselt/schlaeft nicht mehr
-  WLAN-Stromsparen-rueckgaengig.bat -> WLAN wieder genau wie vorher
+Im Ordner "Netzwerk-Hilfe" liegen zwei Skripte (Doppelklick genuegt):
+  Netzwerk-einrichten.bat   -> Firewall frei fuer die App + WLAN-Karte
+                               drosselt/schlaeft nicht mehr
+  Netzwerk-rueckgaengig.bat -> beides wieder genau wie vorher
 Vor jeder Aenderung wird der alte Zustand gesichert (unter
 C:\ProgramData\Sundered Skies Initiative). "rueckgaengig" stellt genau den
 wieder her und raeumt die Sicherung danach weg. Mehrfach ausfuehren schadet

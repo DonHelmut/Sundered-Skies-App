@@ -1,7 +1,7 @@
 @echo off
-REM Verbietet Windows, die WLAN-Karte zum Stromsparen zu drosseln oder abzuschalten.
+REM Firewall freigeben + WLAN-Stromsparen aus, damit Handys sich verbinden und verbunden bleiben.
 REM Die eigentliche Arbeit macht netzwerk-hilfe.ps1 daneben (sichert vorher alles).
-title Sundered Skies - WLAN-Stromsparen aus
+title Sundered Skies - Netzwerk einrichten
 net session >nul 2>&1
 if not errorlevel 1 goto :admin
 REM Holt sich die Adminrechte selbst (Windows fragt nach) - frueher musste man
@@ -18,6 +18,6 @@ if errorlevel 1 (
 exit /b
 :admin
 echo.
-echo   WLAN-Stromsparen aus
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0netzwerk-hilfe.ps1" -Aktion WlanAn
+echo   Netzwerk einrichten
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0netzwerk-hilfe.ps1" -Aktion Einrichten
 pause

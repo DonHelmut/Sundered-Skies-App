@@ -1,7 +1,7 @@
 @echo off
-REM Stellt die Firewall genau so wieder her, wie sie vor Firewall-freigeben.bat war.
+REM Stellt Firewall und WLAN genau so wieder her, wie sie vor Netzwerk-einrichten.bat waren.
 REM Die eigentliche Arbeit macht netzwerk-hilfe.ps1 daneben (sichert vorher alles).
-title Sundered Skies - Firewall rueckgaengig
+title Sundered Skies - Netzwerk rueckgaengig
 net session >nul 2>&1
 if not errorlevel 1 goto :admin
 REM Holt sich die Adminrechte selbst (Windows fragt nach) - frueher musste man
@@ -18,6 +18,6 @@ if errorlevel 1 (
 exit /b
 :admin
 echo.
-echo   Firewall rueckgaengig
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0netzwerk-hilfe.ps1" -Aktion FirewallZurueck
+echo   Netzwerk rueckgaengig
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0netzwerk-hilfe.ps1" -Aktion Zurueck
 pause
