@@ -1889,6 +1889,17 @@ body.sl-ansicht .aktionsleiste .al-haupt button { white-space: nowrap; }
 .treffer-ziel:hover { border-color: var(--accent); background: color-mix(in srgb, var(--bad) 14%, var(--panel2)); }
 .treffer-ziel.gemeldet { box-shadow: 0 0 0 2px var(--gold); font-weight: 700; }
 .treffer-wunden { color: var(--bad); font-weight: 700; }
+/* Eine Zeile pro Ziel, Stärke direkt daneben: EIN Tipp (Vorschlag B, 23.10.2026) */
+.treffer-zeile { display: flex; align-items: center; gap: 6px; padding: 4px 6px; margin-top: 4px; border-radius: 8px;
+  background: var(--panel2); border-left: 4px solid #35b57e; }
+.treffer-zeile.feind { border-left-color: var(--bad); }
+.treffer-zeile.gemeldet { box-shadow: 0 0 0 2px var(--gold); }
+.tz-name { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tz-name .treffer-werte { font-weight: 500; }
+.tz-stufe { padding: 5px 10px; min-width: 52px; font-weight: 800; border-radius: 6px; border-color: var(--bad); white-space: nowrap; }
+.tz-stufe.erfolg { border-color: var(--warn); }
+.tz-stufe.heil { border-color: var(--good); min-width: 120px; }
+.tz-stufe:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 18%, var(--panel2)); }
 /* Die übers Fenster verlängerte Kopfleiste darf keine waagerechte
    Scrollleiste erzeugen (clip statt hidden: sticky funktioniert weiter). */
 html:has(body.sl-ansicht), body.sl-ansicht { overflow-x: clip; }
