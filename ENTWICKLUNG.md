@@ -104,8 +104,10 @@ Details stehen in den einzelnen Abschnitten darunter.
     Entpacken). Mehrfaches Freigeben überschreibt die erste Sicherung nicht.
     `…-rueckgaengig.bat` stellt exakt her und löscht die Sicherung.
   - Mit nachgebauten Windows-Befehlen unter pwsh (Linux) durchgespielt:
-    Hin und zurück ergibt genau den Ausgangszustand. Auf echtem Windows noch
-    nicht getestet.
+    Hin und zurück ergibt genau den Ausgangszustand. **Am Jonsbo echt
+    getestet (23.10.2026)** mit `werkzeuge/netzwerk-test.ps1` (in Admin-
+    PowerShell): 2 Blockier-Regeln aus und wieder an, .exe-Regel angelegt und
+    entfernt, WLAN über Registry-Ausweg, Ergebnis „GLEICH".
 - Der Knopf „Firewall freigeben" in der App nutzt jetzt dasselbe Skript
   (fällt auf netsh zurück, wenn es fehlt).
 - **App hält den Laptop wach**, solange sie läuft (`winnet.wach_halten`,
