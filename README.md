@@ -297,10 +297,10 @@ Eingebaute Hilfen:
   Heimnetz · 5 GHz · Wi-Fi 5 · 351 Mbit/s · Signal 82 %"); nur 2,4 GHz ist gelb.
 - `data/log.txt` protokolliert Firewall-Status, Adressen, Spielernamen und das
   WLAN des Laptops (bei jedem Wechsel) – die Datei, die bei Problemen weiterhilft.
-- Notfalls die Skripte in `paket/Netzwerk-Hilfe/` (Doppelklick, holen sich die
-  Adminrechte selbst): `Firewall-freigeben.bat` (schaltet auch stille
-  Windows-Sperren der App ab), `WLAN-Stromsparen-aus.bat` – jeweils mit
-  `…-rueckgaengig.bat`, das den vorher gesicherten Zustand exakt wiederherstellt.
+- Notfalls `paket/Netzwerk-Hilfe/Netzwerk-einrichten.bat` (Doppelklick, holt
+  sich die Adminrechte selbst): Firewall frei – schaltet auch stille
+  Windows-Sperren der App ab – und WLAN-Stromsparen aus. `Netzwerk-rueckgaengig.bat`
+  stellt den vorher gesicherten Zustand exakt wieder her.
 - Die App hält den Laptop wach, solange sie läuft (ohne Energieplan zu ändern).
 
 ## Technik

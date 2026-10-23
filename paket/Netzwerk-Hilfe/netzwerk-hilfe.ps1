@@ -16,7 +16,7 @@
 
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('FirewallFrei', 'FirewallZurueck', 'WlanAn', 'WlanZurueck')]
+    [ValidateSet('Einrichten', 'Zurueck', 'FirewallFrei', 'FirewallZurueck', 'WlanAn', 'WlanZurueck')]
     [string]$Aktion
 )
 
@@ -198,7 +198,7 @@ function Firewall-Freigeben {
     $sicherung.DeaktivierteSperren = $gesperrt
     $sicherung.Profile = $profilListe
     Schreib-Sicherung $FirewallDatei $sicherung
-    if ($neu) { Ok "Vorheriger Zustand gesichert - 'Firewall-rueckgaengig.bat' stellt ihn wieder her." }
+    if ($neu) { Ok "Vorheriger Zustand gesichert - 'Netzwerk-rueckgaengig.bat' stellt ihn wieder her." }
 
     # 4) Was dieses Skript NICHT loesen kann, wenigstens sagen.
     try {
@@ -400,7 +400,7 @@ function Wlan-An {
 
     $sicherung.Karten = $karten
     Schreib-Sicherung $WlanDatei $sicherung
-    if ($neu) { Ok "Vorheriger Zustand gesichert - 'WLAN-Stromsparen-rueckgaengig.bat' stellt ihn wieder her." }
+    if ($neu) { Ok "Vorheriger Zustand gesichert - 'Netzwerk-rueckgaengig.bat' stellt ihn wieder her." }
     Info ""
     Info "Einschlafen verhindert die App selbst, solange sie laeuft."
     Info "Aber: Deckel zuklappen schickt den Laptop trotzdem schlafen."
@@ -469,17 +469,31 @@ if (-not $admin) {
     exit 1
 }
 
-Write-Host ""
-try {
-    switch ($Aktion) {
-        'FirewallFrei'    { Firewall-Freigeben; $ok = $true }
-        'FirewallZurueck' { $ok = Firewall-Zurueck }
-        'WlanAn'          { Wlan-An; $ok = $true }
-        'WlanZurueck'     { $ok = Wlan-Zurueck }
+# Einrichten/Zurueck machen Firewall UND WLAN in einem Rutsch (Kalle: vier
+# Skripte waren zu viel). Jeder Teil fuer sich abgesichert - scheitert die
+# Firewall, soll das WLAN trotzdem drankommen und umgekehrt. Die Einzel-
+# Aktionen bleiben fuer den Knopf in der App (nur Firewall) und den Test.
+$teile = switch ($Aktion) {
+    'Einrichten' { @('FirewallFrei', 'WlanAn') }
+    'Zurueck'    { @('FirewallZurueck', 'WlanZurueck') }
+    default      { @($Aktion) }
+}
+$ueberschrift = @{ FirewallFrei = 'FIREWALL'; FirewallZurueck = 'FIREWALL'; WlanAn = 'WLAN'; WlanZurueck = 'WLAN' }
+$ok = $true
+foreach ($teil in $teile) {
+    Write-Host ""
+    if ($teile.Count -gt 1) { Write-Host "  --- $($ueberschrift[$teil]) ---" -ForegroundColor Cyan }
+    try {
+        switch ($teil) {
+            'FirewallFrei'    { Firewall-Freigeben }
+            'FirewallZurueck' { if (-not (Firewall-Zurueck)) { $ok = $false } }
+            'WlanAn'          { Wlan-An }
+            'WlanZurueck'     { if (-not (Wlan-Zurueck)) { $ok = $false } }
+        }
+    } catch {
+        Fehler $_.Exception.Message
+        $ok = $false
     }
-} catch {
-    Fehler $_.Exception.Message
-    $ok = $false
 }
 Write-Host ""
 if ($ok) { exit 0 } else { exit 1 }

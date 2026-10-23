@@ -31,7 +31,7 @@ def test_nur_ascii():
 def test_jede_bat_ruft_eine_vorhandene_aktion():
     erlaubt = re.search(r"ValidateSet\(([^)]*)\)", PS1.read_text()).group(1)
     bats = sorted(ORDNER.glob("*.bat"))
-    assert len(bats) == 4
+    assert [b.name for b in bats] == ["Netzwerk-einrichten.bat", "Netzwerk-rueckgaengig.bat"]
     for bat in bats:
         roh = bat.read_bytes()
         assert b"\r\n" in roh and b"\n" not in roh.replace(b"\r\n", b"")   # cmd braucht CRLF
