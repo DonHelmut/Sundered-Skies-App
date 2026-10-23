@@ -194,9 +194,15 @@ document.addEventListener("click", (e) => {
       render();
     },
     "leiste-einstellungen": () => { App.leisteEinstellungen = !App.leisteEinstellungen; App.trefferWahl = false; render(); },
-    "treffer-wahl": () => { App.trefferWahl = !App.trefferWahl; App.trefferSteigerung = 0; App.leisteEinstellungen = false; render(); },
-    "treffer-stufe": () => { App.trefferSteigerung = parseInt(target.dataset.n, 10) || 0; render(); },
-    "treffer-auf": () => trefferAuf(id, e.shiftKey),
+    "leiste-mehr": () => { App.leisteMehr = !App.leisteMehr; if (!App.leisteMehr) App.leisteEinstellungen = false; render(); },
+    // App.trefferWahl: false | "treffer" | "heil" - dieselbe Ziel-Liste
+    "treffer-wahl": () => { App.trefferWahl = App.trefferWahl === "treffer" ? false : "treffer"; App.trefferSteigerung = 0; App.leisteEinstellungen = false; render(); },
+    "heil-wahl": () => { App.trefferWahl = App.trefferWahl === "heil" ? false : "heil"; App.leisteEinstellungen = false; render(); },
+    "treffer-auf": () => {
+      const n = target.dataset.n;
+      trefferAuf(id, e.shiftKey, n === "s" ? "s" : n == null ? undefined : parseInt(n, 10) || 0);
+    },
+    "heil-auf": () => heilAuf(id, e.shiftKey),
     "auswahl-leeren": () => { App.auswahl.clear(); render(); },
     "auswahl-gruppe": async () => {
       const name = await eingabe("Name der Gruppe?", "Trupp", "Gruppe anlegen");
@@ -209,6 +215,7 @@ document.addEventListener("click", (e) => {
     // Ein echtes Ziehen löst gar keinen Klick aus - beides kommt sich nicht ins Gehege.
     // Im Ziel-Modus (🎯 Treffer offen) ist ein Token auf dem Board das Ziel.
     "token-info": () => {
+      if (App.role === "gm" && App.trefferWahl === "heil") { heilAuf(id, e.shiftKey); return; }
       if (App.role === "gm" && App.trefferWahl && id !== S.activeId) { trefferAuf(id, e.shiftKey); return; }
       App.tokenPopupId = id; render();
     },
@@ -454,7 +461,7 @@ document.addEventListener("keydown", (e) => {
   }
 
   const taste = e.key.toLowerCase();
-  if (App.trefferWahl && /^[0-3]$/.test(e.key)) {
+  if (App.trefferWahl === "treffer" && /^[0-3]$/.test(e.key)) {
     e.preventDefault();
     App.trefferSteigerung = parseInt(e.key, 10);
     render();
@@ -475,7 +482,7 @@ document.addEventListener("keydown", (e) => {
     gmAction({ type: "apply_heal", id: aktiv.id });
   } else if (taste === "z") {
     e.preventDefault();
-    App.trefferWahl = !App.trefferWahl;     // „Ziel": wen trifft der Aktive?
+    App.trefferWahl = App.trefferWahl === "treffer" ? false : "treffer";   // „Ziel": wen trifft der Aktive?
     App.leisteEinstellungen = false;
     render();
   }
@@ -555,6 +562,7 @@ document.addEventListener("pointerup", (e) => {
     // Ist „🎯 Treffer" offen, ist die angetippte Figur das Ziel. (Der Weg über
     // den Klick-Handler kam nie an: der Klick wird oben geschluckt - mit der
     // Maus öffnete sich darum nur das Info-Fenster.)
+    if (App.role === "gm" && App.trefferWahl === "heil") { heilAuf(s.id, e.shiftKey); return; }
     if (App.role === "gm" && App.trefferWahl && App.state && s.id !== App.state.activeId) {
       trefferAuf(s.id, e.shiftKey);
       return;

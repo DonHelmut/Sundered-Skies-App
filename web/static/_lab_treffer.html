@@ -1,0 +1,240 @@
+<!doctype html>
+<!-- ENTWICKLER-MUSTERSEITE – nicht Teil des Spiels.
+     Aufruf bei laufendem Server: http://localhost:8000/static/_lab_treffer.html
+     Vorschläge für die SL-Trefferauswahl (Kalle, 23.10.2026: „drücke meistens
+     Treffer, wähle den Spieler – dann kommt halt angeschlagen, nicht wie viele
+     Treffer"; dazu nur noch Treffer + Heilung als Knöpfe). Jetzt neben drei
+     Varianten, mit der echten style.css. Antippen geht. Erst nach Auswahl wird
+     gebaut (sl.js). Alles mit _lab* wird beim Paketbau herausgefiltert. -->
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Treffer-Varianten</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { padding: 18px; height: auto; }
+    .vorschlag { margin: 26px 0 8px; }
+    .vorschlag h2 { margin: 0 0 2px; font-size: 1.15rem; }
+    .vorschlag .warum { color: var(--muted); font-size: .9rem; max-width: 900px; }
+    /* SL-Fenster im Kleinen: Leiste (im Spiel position:fixed) klebt am Rahmen. */
+    .sl-rahmen { width: 900px; height: 430px; position: relative; overflow: hidden; margin-top: 10px;
+      border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+    .sl-rahmen .aktionsleiste { position: absolute; }
+    .sl-rahmen .liste-dummy { padding: 14px; color: var(--muted); font-size: .9rem; }
+
+    /* A – zweiter Schritt: große „wie schlimm?"-Knöpfe */
+    .wie-ziel { font-size: 1.05rem; margin-bottom: 10px; }
+    .wie-ziel .zst { color: var(--muted); font-size: .9rem; margin-left: 6px; }
+    .wie-knoepfe { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .wie-knoepfe button { padding: 14px 6px; font-size: 1.05rem; font-weight: 800; border-radius: 10px; line-height: 1.2; }
+    .wie-knoepfe button small { display: block; font-weight: 500; color: var(--muted); font-size: .78rem; margin-top: 3px; }
+    .wie-knoepfe .w0 { border-color: var(--warn); }
+    .wie-knoepfe .w1, .wie-knoepfe .w2, .wie-knoepfe .w3 { border-color: var(--bad); }
+    .wie-knoepfe button:hover { background: color-mix(in srgb, var(--bad) 18%, var(--panel2)); }
+    .wie-unten { display: flex; gap: 8px; margin-top: 10px; }
+
+    /* B – Ziel-Zeilen mit Stärke-Knöpfen direkt dran: EIN Tipp */
+    .bz { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; border-left: 4px solid #35b57e; background: var(--panel2); margin-bottom: 5px; }
+    .bz.feind { border-left-color: var(--bad); }
+    .bz.gemeldet { box-shadow: 0 0 0 2px var(--gold); }
+    .bz .bn { flex: 1; font-weight: 700; }
+    .bz .bn small { color: var(--muted); font-weight: 500; margin-left: 6px; }
+    .bz button { padding: 6px 12px; font-weight: 800; border-radius: 6px; min-width: 52px; }
+    .bz button.b0 { border-color: var(--warn); }
+    .bz button:not(.b0) { border-color: var(--bad); }
+
+    /* C – Chip antippen, Stärke klappt direkt am Chip auf */
+    .c-auf { display: inline-flex; gap: 4px; margin-left: 4px; padding: 4px; border-radius: 999px;
+      background: color-mix(in srgb, var(--bad) 14%, var(--panel2)); border: 1px solid var(--bad); }
+    .c-auf button { padding: 5px 11px; border-radius: 999px; font-weight: 800; }
+
+    .leiste-neu .st-btn.gross { font-size: 1.05rem; padding: 7px 16px; font-weight: 800; }
+    .mehr-menue { position: absolute; bottom: 100%; right: 260px; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 10px 10px 0 0; padding: 8px; display: flex; gap: 5px; }
+    .tipp { color: var(--muted); font-size: .85rem; margin-top: 6px; }
+    .ok-toast { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--good);
+      padding: 8px 14px; border-radius: 10px; font-weight: 700; z-index: 120; }
+  </style>
+</head>
+<body class="theme-pergament">
+  <div class="row" style="gap:12px; align-items:center">
+    <h1 style="margin:0; font-size:1.4rem">SL-Treffer · Vorschläge</h1>
+    <button type="button" id="skin">Skin: Pergament ⇄ Sand</button>
+  </div>
+  <div class="muted small">Nur Ansicht – nichts davon ist im Spiel. Antippen geht. Beispiel: Ork 2 ist dran und greift an.</div>
+
+  <section class="vorschlag">
+    <h2>Jetzt</h2>
+    <div class="warum">Stärke steht oben und ist immer „Erfolg" vorgewählt. Wer gleich das Ziel antippt, bekommt nur „angeschlagen". Sieben Knöpfe in der Leiste.</div>
+    <div class="sl-rahmen" id="jetzt"></div>
+  </section>
+
+  <section class="vorschlag">
+    <h2>A · Erst Ziel, dann „wie schlimm?"</h2>
+    <div class="warum">🎯 Treffer → Ziel antippen → vier große Knöpfe: Angeschlagen / 1 / 2 / 3 Wunden. Zwei Tipps, man kann die Stärke nicht vergessen. Leiste: nur 🎯 Treffer und 🩹 Heilung (Heilung fragt genauso: wen?). Der Rest (😵 ☠ 🔄 ⚙) hinter ⋯.</div>
+    <div class="sl-rahmen" id="va"></div>
+  </section>
+
+  <section class="vorschlag">
+    <h2>B · Ein Tipp: Stärke direkt am Ziel</h2>
+    <div class="warum">Jedes Ziel ist eine Zeile mit 😵 / 1 / 2 / 3 daneben. Ein Tipp erledigt alles. Braucht mehr Platz (eine Zeile pro Figur), bei 15 Orks wird's lang. Leiste wie A.</div>
+    <div class="sl-rahmen" id="vb"></div>
+  </section>
+
+  <section class="vorschlag">
+    <h2>C · Chip antippen, Stärke klappt am Chip auf</h2>
+    <div class="warum">Ziele bleiben kompakte Chips wie jetzt. Antippen → direkt am Chip klappen 😵 / 1 / 2 / 3 auf. Zwei Tipps, Finger bleibt an derselben Stelle. Leiste wie A.</div>
+    <div class="sl-rahmen" id="vc"></div>
+  </section>
+
+  <script>
+    const ZIELE = [
+      { id: "t", name: "Tessa", feind: false, gemeldet: true, zst: "" , werte: "P6 R7" },
+      { id: "k", name: "Korgo", feind: false, zst: "😵", werte: "P5 R9" },
+      { id: "m", name: "Mira", feind: false, zst: "1🩸", werte: "P7 R6" },
+      { id: "o1", name: "Ork 1", feind: true, zst: "", werte: "P5 R8" },
+      { id: "o3", name: "Ork 3", feind: true, zst: "😵", werte: "P5 R8" },
+    ];
+    const SPIELERSEITE = ZIELE.filter((z) => !z.feind), GEGNER = ZIELE.filter((z) => z.feind);
+    const kopf = `<div class="al-wer"><span class="al-platz">3</span><button class="al-name feind">Ork 2</button>
+      <span class="al-zustand"></span><span class="al-naechster">danach: <b>Tessa</b></span></div>`;
+    const haupt = `<div class="al-haupt"><button class="primary big">Weiter ⏭</button><button class="ghost">Freigeben ▶</button></div>`;
+    const liste = `<div class="liste-dummy">… Reihenfolge, Kampfzonen …</div>`;
+    const chip = (z, act = "") => `<button type="button" class="treffer-ziel${z.feind ? " feind" : ""}${z.gemeldet ? " gemeldet" : ""}" data-z="${z.id}" ${act}>
+      ${z.name}${z.zst ? ` <span class="treffer-wunden">${z.zst}</span>` : ""} <span class="treffer-werte">${z.werte}</span></button>`;
+    const gruppe = (titel, l, f) => `<div class="treffer-gruppe"><div class="muted small">${titel}</div><div class="treffer-chips">${l.map(f).join("")}</div></div>`;
+    // SWADE: schon angeschlagen + noch ein „angeschlagen" = 1 Wunde. Die Knöpfe sagen, was WIRKLICH passiert.
+    const ersterKnopf = (z) => z.zst.includes("😵") ? "1 Wunde<small>war schon 😵</small>" : "😵 Angeschlagen<small>Erfolg</small>";
+    const leisteNeu = (offen, extra = "") => `<div class="aktionsleiste leiste-neu">${extra}${kopf}
+      <div class="al-knoepfe">
+        <button class="st-btn treffer-knopf gross${offen === "treffer" ? " on" : ""}" data-a="treffer">🎯 Treffer</button>
+        <button class="st-btn gross${offen === "heil" ? " on" : ""}" data-a="heil">🩹 Heilung</button>
+        <button class="st-btn" data-a="mehr" title="Angeschlagen, K.O., neue Karte, Einstellungen">⋯</button>
+      </div>${haupt}</div>`;
+    const kasten = (titel, inhalt) => `<div class="al-treffer"><div class="row spread" style="align-items:center; margin-bottom:8px">
+      <strong>${titel}</strong><button class="ghost small" data-a="zu">Schließen</button></div>${inhalt}</div>`;
+    const mehr = `<div class="mehr-menue"><button class="st-btn">😵</button><button class="st-btn">☠</button><button class="st-btn">🔄</button><button class="st-btn">⚙</button></div>`;
+    const toast = (t) => `<div class="ok-toast">✓ ${t}</div>`;
+    const wieText = (n) => ["angeschlagen", "1 Wunde", "2 Wunden", "3 Wunden"][n];
+
+    // ---------- Jetzt ----------
+    function jetzt() {
+      const staerke = [0, 1, 2, 3].map((n) => `<button type="button" class="treffer-stufe${n === 0 ? " aktiv" : ""}">${n === 0 ? "Erfolg <small>😵</small>" : `+${n} Steigerung <small>😵+${n}🩸</small>`}</button>`).join("");
+      document.getElementById("jetzt").innerHTML = liste + `<div class="aktionsleiste">
+        ${kasten("🎯 Ork 2 trifft …", `<div class="treffer-staerke">${staerke}</div>
+          <div class="muted small" style="margin:-4px 0 8px">Ziel antippen – hier oder direkt im Kampfzonen-Board.</div>
+          ${gruppe("Spielerseite", SPIELERSEITE, (z) => chip(z))}${gruppe("Gegner", GEGNER, (z) => chip(z))}`)}
+        ${kopf}<div class="al-knoepfe">
+          <button class="st-btn treffer-knopf on">🎯<span class="tk-text"> Treffer</span></button>
+          <button class="st-btn">💥</button><button class="st-btn">🩹</button><button class="st-btn">😵</button>
+          <button class="st-btn">☠</button><button class="st-btn">🔄</button><button class="st-btn">⚙</button></div>${haupt}</div>`;
+    }
+
+    // ---------- A ----------
+    const A = { offen: "treffer", ziel: null, toast: "", mehr: false };
+    function va() {
+      let box = "";
+      const heil = A.offen === "heil";
+      if (A.offen && !A.ziel) {
+        box = kasten(heil ? "🩹 Wen heilen?" : "🎯 Ork 2 trifft … wen?",
+          `${gruppe("Spielerseite", SPIELERSEITE, (z) => chip(z, 'data-a="ziel"'))}${gruppe("Gegner", GEGNER, (z) => chip(z, 'data-a="ziel"'))}
+           <div class="tipp">Auch direkt im Kampfzonen-Board antippbar.</div>`);
+      } else if (A.offen && A.ziel) {
+        const z = ZIELE.find((x) => x.id === A.ziel);
+        box = heil
+          ? kasten(`🩹 ${z.name} heilen`, `<div class="wie-knoepfe" style="grid-template-columns:repeat(3,1fr)">
+              <button class="w0" data-a="wie" data-n="0">😵 weg<small>nicht mehr angeschlagen</small></button>
+              <button data-a="wie" data-n="1">−1 Wunde</button><button data-a="wie" data-n="2">−2 Wunden</button></div>
+              <div class="wie-unten"><button class="ghost small" data-a="zurueck">← anderes Ziel</button></div>`)
+          : kasten(`🎯 Ork 2 trifft <span style="color:var(--gold)">${z.name}</span> – wie schlimm?`,
+              `<div class="wie-knoepfe">
+                <button class="w0" data-a="wie" data-n="0">${ersterKnopf(z)}</button>
+                <button class="w1" data-a="wie" data-n="1">😵 + 1 Wunde<small>+1 Steigerung · Taste 1</small></button>
+                <button class="w2" data-a="wie" data-n="2">😵 + 2 Wunden<small>+2 Steigerungen · Taste 2</small></button>
+                <button class="w3" data-a="wie" data-n="3">😵 + 3 Wunden<small>+3 Steigerungen · Taste 3</small></button></div>
+              <div class="wie-unten"><button class="ghost small" data-a="zurueck">← anderes Ziel</button>
+                <button class="ghost small" data-a="wie" data-n="-1">🛡 kein Schaden</button>
+                <span class="tipp" style="margin:4px 0 0 auto">Shift: danach gleich nächstes Ziel (Flächenschaden)</span></div>`);
+      }
+      document.getElementById("va").innerHTML = liste + (A.toast ? toast(A.toast) : "") + leisteNeu(A.offen, box + (A.mehr ? mehr : ""));
+    }
+    document.getElementById("va").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-a]"); if (!b) return;
+      const a = b.dataset.a; A.toast = "";
+      if (a === "treffer" || a === "heil") { A.offen = A.offen === a ? null : a; A.ziel = null; }
+      else if (a === "zu") { A.offen = null; A.ziel = null; }
+      else if (a === "ziel") A.ziel = b.dataset.z;
+      else if (a === "zurueck") A.ziel = null;
+      else if (a === "mehr") A.mehr = !A.mehr;
+      else if (a === "wie") {
+        const z = ZIELE.find((x) => x.id === A.ziel), n = +b.dataset.n;
+        A.toast = A.offen === "heil" ? `${z.name} geheilt` : n < 0 ? `${z.name}: kein Schaden` : `${z.name}: ${n === 0 && z.zst.includes("😵") ? "1 Wunde" : wieText(n)}`;
+        A.offen = null; A.ziel = null;
+      }
+      va();
+    });
+
+    // ---------- B ----------
+    const B = { offen: "treffer", toast: "", mehr: false };
+    function vb() {
+      const zeile = (z) => `<div class="bz${z.feind ? " feind" : ""}${z.gemeldet ? " gemeldet" : ""}">
+        <span class="bn">${z.name}${z.zst ? ` <span class="treffer-wunden">${z.zst}</span>` : ""}<small>${z.werte}</small></span>
+        ${B.offen === "heil"
+          ? `<button class="b0" data-a="wie" data-z="${z.id}" data-n="0">🩹 heilen</button>`
+          : `<button class="b0" data-a="wie" data-z="${z.id}" data-n="0" title="Erfolg">😵</button>
+             <button data-a="wie" data-z="${z.id}" data-n="1" title="😵 + 1 Wunde">+1🩸</button>
+             <button data-a="wie" data-z="${z.id}" data-n="2" title="😵 + 2 Wunden">+2🩸</button>
+             <button data-a="wie" data-z="${z.id}" data-n="3" title="😵 + 3 Wunden">+3🩸</button>`}</div>`;
+      const box = B.offen ? kasten(B.offen === "heil" ? "🩹 Wen heilen?" : "🎯 Ork 2 trifft … wen, wie schlimm?",
+        `<div class="muted small">Spielerseite</div>${SPIELERSEITE.map(zeile).join("")}
+         <div class="muted small" style="margin-top:8px">Gegner</div>${GEGNER.map(zeile).join("")}`) : "";
+      document.getElementById("vb").innerHTML = liste + (B.toast ? toast(B.toast) : "") + leisteNeu(B.offen, box + (B.mehr ? mehr : ""));
+    }
+    document.getElementById("vb").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-a]"); if (!b) return;
+      const a = b.dataset.a; B.toast = "";
+      if (a === "treffer" || a === "heil") B.offen = B.offen === a ? null : a;
+      else if (a === "zu") B.offen = null;
+      else if (a === "mehr") B.mehr = !B.mehr;
+      else if (a === "wie") {
+        const z = ZIELE.find((x) => x.id === b.dataset.z), n = +b.dataset.n;
+        B.toast = B.offen === "heil" ? `${z.name} geheilt` : `${z.name}: ${n === 0 && z.zst.includes("😵") ? "1 Wunde" : wieText(n)}`;
+        B.offen = null;
+      }
+      vb();
+    });
+
+    // ---------- C ----------
+    const C = { offen: "treffer", ziel: "t", toast: "", mehr: false };
+    function vc() {
+      const f = (z) => chip(z, 'data-a="ziel"') + (C.ziel === z.id ? `<span class="c-auf">${C.offen === "heil"
+        ? `<button data-a="wie" data-n="0">🩹 heilen</button>`
+        : `<button data-a="wie" data-n="0" style="border-color:var(--warn)">${z.zst.includes("😵") ? "1🩸" : "😵"}</button>
+           <button data-a="wie" data-n="1">+1🩸</button><button data-a="wie" data-n="2">+2🩸</button><button data-a="wie" data-n="3">+3🩸</button>`}</span>` : "");
+      const box = C.offen ? kasten(C.offen === "heil" ? "🩹 Wen heilen?" : "🎯 Ork 2 trifft … wen?",
+        `${gruppe("Spielerseite", SPIELERSEITE, f)}${gruppe("Gegner", GEGNER, f)}`) : "";
+      document.getElementById("vc").innerHTML = liste + (C.toast ? toast(C.toast) : "") + leisteNeu(C.offen, box + (C.mehr ? mehr : ""));
+    }
+    document.getElementById("vc").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-a]"); if (!b) return;
+      const a = b.dataset.a; C.toast = "";
+      if (a === "treffer" || a === "heil") { C.offen = C.offen === a ? null : a; C.ziel = null; }
+      else if (a === "zu") { C.offen = null; C.ziel = null; }
+      else if (a === "mehr") C.mehr = !C.mehr;
+      else if (a === "ziel") C.ziel = C.ziel === b.dataset.z ? null : b.dataset.z;
+      else if (a === "wie") {
+        const z = ZIELE.find((x) => x.id === C.ziel), n = +b.dataset.n;
+        C.toast = C.offen === "heil" ? `${z.name} geheilt` : `${z.name}: ${n === 0 && z.zst.includes("😵") ? "1 Wunde" : wieText(n)}`;
+        C.offen = null; C.ziel = null;
+      }
+      vc();
+    });
+
+    jetzt(); va(); vb(); vc();
+    document.getElementById("skin").addEventListener("click", () => {
+      document.body.classList.toggle("theme-pergament");
+      document.body.classList.toggle("theme-sand");
+    });
+  </script>
+</body>
+</html>

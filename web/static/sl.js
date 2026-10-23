@@ -733,6 +733,9 @@ function renderAktionsleiste() {
     : s.phase === "running" ? `<span class="al-uhr" title="Uhr angehalten – der Spieler würfelt. Weiter mit „Weiter“.">⏸</span>`
     : "";
 
+  // Vorn nur noch Treffer + Heilung (Kalle, 23.10.2026). Vorher sieben Knöpfe,
+  // darunter „💥 selbst getroffen", leicht mit 🎯 zu verwechseln; der Rest
+  // (😵 ☠ 🔄 ⚙) wird selten gebraucht und liegt hinter ⋯.
   return `<div class="aktionsleiste">
     ${App.leisteEinstellungen ? leisteEinstellungenHtml() : ""}
     ${App.trefferWahl ? trefferWahlHtml(active) : ""}
@@ -748,72 +751,103 @@ function renderAktionsleiste() {
     </div>
     <div class="al-knoepfe">
       ${erholen}
-      <button class="st-btn treffer-knopf${App.trefferWahl ? " on" : ""}" data-act="treffer-wahl" title="${esc(active.name)} trifft jemanden: Ziel auswählen (Taste Z)">🎯<span class="tk-text"> Treffer</span></button>
-      <button class="st-btn" data-act="apply-hit" data-id="${active.id}" title="${esc(active.name)} selbst getroffen: angeschlagen bzw. +1 Wunde (Taste T)">💥</button>
-      <button class="st-btn" data-act="apply-heal" data-id="${active.id}" title="Heilung (Taste H)">🩹</button>
+      <button class="st-btn treffer-knopf${App.trefferWahl === "treffer" ? " on" : ""}" data-act="treffer-wahl" title="${esc(active.name)} trifft jemanden: Ziel und Stärke wählen (Taste Z)">🎯<span class="tk-text"> Treffer</span></button>
+      <button class="st-btn treffer-knopf${App.trefferWahl === "heil" ? " on" : ""}" data-act="heil-wahl" title="Jemand wird geheilt: Ziel wählen">🩹<span class="tk-text"> Heilung</span></button>
+      <button class="st-btn${App.leisteMehr ? " on" : ""}" data-act="leiste-mehr" title="Mehr: Angeschlagen, K.O., neue Karte, Kampf-Einstellungen">⋯</button>
+      ${App.leisteMehr ? `
       <button class="st-btn ${st.shaken ? "on-shaken" : ""}" data-act="st-shaken" data-id="${active.id}" title="Angeschlagen">😵</button>
       <button class="st-btn ${st.out ? "on-out" : ""}" data-act="st-out" data-id="${active.id}" title="K.O.">☠</button>
       <button class="st-btn" data-act="redraw" data-id="${active.id}" title="Neue Karte">🔄</button>
-      <button class="st-btn ${App.leisteEinstellungen ? "on" : ""}" data-act="leiste-einstellungen" title="Kampf-Einstellungen">⚙</button>
+      <button class="st-btn ${App.leisteEinstellungen ? "on" : ""}" data-act="leiste-einstellungen" title="Kampf-Einstellungen">⚙</button>` : ""}
     </div>
     <div class="al-haupt">${haupt}</div>
   </div>`;
 }
 
 // „🎯 Treffer": Wer gerade dran ist, greift an - der SL tippt nur noch das Ziel
-// an, statt die Figur in Liste oder Board zu suchen. Gegner stehen vorn, wenn
-// ein Spieler dran ist (und umgekehrt). Ein vom Spieler gemeldetes Ziel ist
-// hervorgehoben. Nach dem Treffer schließt die Wahl; mit Shift bleibt sie offen
-// (Flächenschaden, mehrere Ziele).
+// an, statt die Figur in Liste oder Board zu suchen. Jedes Ziel ist eine Zeile
+// mit der Stärke direkt daneben (😵 / +1 / +2 / +3): EIN Tipp. Vorher stand die
+// Stärke oben, vorgewählt „Erfolg" - wer gleich das Ziel antippte, bekam immer
+// nur „angeschlagen" (Kalle, 23.10.2026). Gegner stehen vorn, wenn ein Spieler
+// dran ist (und umgekehrt). Ein vom Spieler gemeldetes Ziel ist hervorgehoben.
+// Nach dem Treffer schließt die Wahl; mit Shift bleibt sie offen (Flächenschaden).
+// „🩹 Heilung" nutzt dieselbe Liste (App.trefferWahl = "heil").
 function trefferWahlHtml(active) {
   const s = App.state;
+  const heil = App.trefferWahl === "heil";
   const gemeldet = new Set((s.requests || []).filter((r) => r.kind === "attack")
     .map((r) => (r.detail || {}).targetId));
-  const ziele = s.combatants.filter((c) => !c.benched && !(c.status || {}).out && c.id !== active.id);
+  // Heilen darf auch Ausgeschaltete (wieder wach) und den Aktiven selbst.
+  const ziele = s.combatants.filter((c) => !c.benched && (heil || (!(c.status || {}).out && c.id !== active.id)));
   const feind = (c) => c.kind === "npc" && !c.ally;
   const gegner = ziele.filter(feind);
   const freunde = ziele.filter((c) => !feind(c));
-  const chip = (c) => {
+  const zeile = (c) => {
     const st = c.status || {};
     const werte = kampfwerteText(c);
-    return `<button type="button" class="treffer-ziel${feind(c) ? " feind" : ""}${gemeldet.has(c.id) ? " gemeldet" : ""}"
-        data-act="treffer-auf" data-id="${c.id}" title="${gemeldet.has(c.id) ? "Vom Spieler als Ziel gemeldet · " : ""}Treffer mit der oben gewählten Stärke (Shift: Auswahl bleibt offen)">
-        ${esc(c.name)}${st.shaken ? " 😵" : ""}${st.wounds ? ` <span class="treffer-wunden">${st.wounds}🩸</span>` : ""}${werte ? ` <span class="treffer-werte">${werte}</span>` : ""}</button>`;
+    let knoepfe;
+    if (heil) {
+      // Gleiche Reihenfolge wie apply_heal am Server: wach, Wunde, Angeschlagen.
+      const was = st.out ? "☠ wieder wach" : st.wounds ? "−1 🩸" : st.shaken ? "😵 weg" : "";
+      knoepfe = `<button type="button" class="tz-stufe heil" data-act="heil-auf" data-id="${c.id}" ${was ? "" : "disabled"}
+        title="Heilung (Shift: Auswahl bleibt offen)">🩹 ${was || "gesund"}</button>`;
+    } else {
+      // SWADE: schon angeschlagen + noch ein Erfolg = 1 Wunde. Der Knopf sagt,
+      // was wirklich passiert, damit der SL nicht nachrechnen muss.
+      const erst = st.shaken ? "1 🩸" : "😵";
+      knoepfe = [0, 1, 2, 3].map((n) => `<button type="button" class="tz-stufe${n ? "" : " erfolg"}" data-act="treffer-auf" data-id="${c.id}" data-n="${n}"
+          title="${n ? `+${n} Steigerung: angeschlagen + ${n} ${n === 1 ? "Wunde" : "Wunden"}` : (st.shaken ? "Erfolg: war schon angeschlagen → 1 Wunde" : "Erfolg: angeschlagen")} (Shift: Auswahl bleibt offen)">${n ? `+${n} 🩸` : erst}</button>`).join("")
+        + (s.schadenRechnen ? `<button type="button" class="tz-stufe" data-act="treffer-auf" data-id="${c.id}" data-n="s"
+          title="Mit dem oben eingetippten Schaden gegen die Robustheit rechnen">🧮</button>` : "");
+    }
+    return `<div class="treffer-zeile${feind(c) ? " feind" : ""}${gemeldet.has(c.id) && !heil ? " gemeldet" : ""}">
+        <span class="tz-name">${esc(c.name)}${st.out ? " ☠" : ""}${st.shaken ? " 😵" : ""}${st.wounds ? ` <span class="treffer-wunden">${st.wounds}🩸</span>` : ""}${werte ? ` <span class="treffer-werte">${werte}</span>` : ""}</span>
+        ${knoepfe}</div>`;
   };
   const gruppe = (titel, liste) => liste.length
-    ? `<div class="treffer-gruppe"><div class="muted small">${titel}</div><div class="treffer-chips">${liste.map(chip).join("")}</div></div>` : "";
+    ? `<div class="treffer-gruppe"><div class="muted small">${titel}</div>${liste.map(zeile).join("")}</div>` : "";
   const angreiferIstFeind = feind(active);
-  // Schaden mit Steigerung: angeschlagen PLUS je Steigerung eine Wunde. Erst
-  // die Stärke wählen (Standard: einfacher Erfolg), dann das Ziel antippen.
-  const stg = App.trefferSteigerung || 0;
-  const staerke = [0, 1, 2, 3].map((n) => `<button type="button" class="treffer-stufe${n === stg ? " aktiv" : ""}"
-      data-act="treffer-stufe" data-n="${n}" title="Taste ${n}">${n === 0 ? "Erfolg <small>😵</small>" : `+${n} Steigerung <small>😵+${n}🩸</small>`}</button>`).join("");
   return `<div class="al-treffer">
     <div class="row spread" style="align-items:center; margin-bottom:8px">
-      <strong>🎯 ${esc(active.name)} trifft …</strong>
-      <button class="ghost small" data-act="treffer-wahl">Schließen</button>
+      <strong>${heil ? "🩹 Wen heilen?" : `🎯 ${esc(active.name)} trifft … wen, wie schlimm?`}</strong>
+      <button class="ghost small" data-act="${heil ? "heil-wahl" : "treffer-wahl"}">Schließen</button>
     </div>
-    <div class="treffer-staerke">${staerke}${s.schadenRechnen ? `
-      <label class="treffer-schaden" title="Schadenswurf eintippen: die App vergleicht mit der Robustheit des Ziels und rechnet die Steigerungen selbst aus">
-        oder Schaden <input id="treffer-schaden" type="number" min="0" max="99" inputmode="numeric" value="${esc(App.trefferSchaden || "")}" placeholder="z. B. 14"></label>` : ""}</div>
-    <div class="muted small" style="margin:-4px 0 8px">Ziel antippen – hier oder direkt im Kampfzonen-Board.</div>
-    ${angreiferIstFeind
+    ${!heil && s.schadenRechnen ? `<div class="treffer-staerke">
+      <label class="treffer-schaden" title="Schadenswurf eintippen, dann beim Ziel 🧮: die App vergleicht mit der Robustheit und rechnet die Steigerungen selbst aus">
+        Schaden <input id="treffer-schaden" type="number" min="0" max="99" inputmode="numeric" value="${esc(App.trefferSchaden || "")}" placeholder="z. B. 14"> → beim Ziel 🧮</label></div>` : ""}
+    ${angreiferIstFeind || heil
       ? gruppe("Spielerseite", freunde) + gruppe("Gegner", gegner)
       : gruppe("Gegner", gegner) + gruppe("Spielerseite", freunde)}
-    ${ziele.length ? "" : `<div class="muted small">Niemand da, der getroffen werden kann.</div>`}
+    ${ziele.length ? "" : `<div class="muted small">Niemand da.</div>`}
+    <div class="muted small" style="margin-top:6px">${heil ? "Auch im Kampfzonen-Board antippbar."
+      : `Im Kampfzonen-Board antippen = ${App.trefferSteigerung ? `+${App.trefferSteigerung} Steigerung` : "Erfolg"} (vorher Taste 0–3).`}</div>
   </div>`;
 }
 
-function trefferAuf(id, offenLassen) {
+// Heilung aus der Liste: ein Schritt nach apply_heal (wach / −1 Wunde / 😵 weg).
+function heilAuf(id, offenLassen) {
+  const c = (App.state.combatants || []).find((x) => x.id === id);
+  if (!c) return;
+  gmAction({ type: "apply_heal", id });
+  toast(`🩹 ${c.name} geheilt – rückgängig mit ↶`);
+  if (!offenLassen) App.trefferWahl = false;
+  render();
+}
+
+// ``stufe``: 0..3 Steigerungen; "s" = aus dem eingetippten Schaden rechnen;
+// weggelassen = vorgewählte Stärke (Tasten 0–3, fürs Antippen im Board).
+function trefferAuf(id, offenLassen, stufe) {
   const S = App.state;
   const c = (S.combatants || []).find((x) => x.id === id);
   if (!c) return;
   const st = c.status || {};
-  let stg = App.trefferSteigerung || 0;
+  let stg = typeof stufe === "number" ? stufe : (App.trefferSteigerung || 0);
   let zusatz = "";
   // Optional: Schaden eingetippt -> gegen die Robustheit rechnen (SWADE:
   // Schaden >= Robustheit = angeschlagen, je volle 4 darüber eine Steigerung).
-  const schaden = S.schadenRechnen ? parseInt(App.trefferSchaden, 10) : NaN;
+  // Nur über 🧮 (bzw. Board-Tipp) - ein Tipp auf +2 meint +2, auch wenn im
+  // Feld noch eine Zahl steht.
+  const schaden = S.schadenRechnen && (stufe === "s" || stufe === undefined) ? parseInt(App.trefferSchaden, 10) : NaN;
   const wiederZu = () => {
     App.trefferSteigerung = 0;
     App.trefferSchaden = "";
@@ -935,7 +969,7 @@ function tastenHilfeHtml() {
         ${zeile(["Enter"], "wie Leertaste")}
         ${zeile(["W"], "Weiter: Zug beenden ohne Timer")}
         ${zeile(["Z"], "🎯 Treffer: Ziel wählen – wen trifft der Aktive?")}
-        ${zeile(["0", "1", "2", "3"], "in der Zielwahl: Erfolg / +1 / +2 / +3 Steigerungen")}
+        ${zeile(["0", "1", "2", "3"], "in der Zielwahl: Stärke fürs Antippen im Board (Erfolg / +1 / +2 / +3)")}
         ${zeile(["T"], "Der Aktive selbst wird getroffen (angeschlagen bzw. +1 Wunde)")}
         ${zeile(["H"], "Der Aktive wird geheilt")}
         ${zeile(["Strg", "Klick"], "Figuren sammeln (Board oder Liste), dann gemeinsam ziehen")}

@@ -116,6 +116,40 @@ Details stehen in den einzelnen Abschnitten darunter.
 - Test `tests/test_netzwerk_hilfe.py`: Ports/Regelname wie in der App, nur
   ASCII, CRLF, jede .bat ruft eine gültige Aktion.
 
+## Unveröffentlicht (nach 1.5.16, 23.10.2026): SL-Treffer in einem Tipp
+
+Kalle: „Drücke meistens Treffer, wähle den Spieler – dann kommt halt
+angeschlagen, nicht wie viele Treffer." Die Stärke stand oben in der Zielwahl,
+vorgewählt „Erfolg"; wer gleich das Ziel antippte, bekam nur 😵.
+Vorschläge A/B/C in `web/static/_lab_treffer.html`, Kalle wählte **B**:
+- 🎯 Treffer: eine Zeile pro Ziel mit 😵 / +1 / +2 / +3 daneben, ein Tipp
+  (`trefferWahlHtml`, `trefferAuf(id, shift, stufe)`). War das Ziel schon
+  angeschlagen, heißt der erste Knopf „1 🩸" (SWADE). Shift lässt offen.
+  Schadensfeld (Kampfhilfe) jetzt über 🧮 pro Zeile. Board-Tipp nimmt weiter
+  die per Taste 0–3 vorgewählte Stärke.
+- 🩹 Heilung: dieselbe Liste (`App.trefferWahl = "heil"`), auch Ausgeschaltete
+  und der Aktive; Knopf sagt, was passiert (wach / −1 🩸 / 😵 weg). `heilAuf`.
+- Leiste: vorn nur Treffer + Heilung, 😵 ☠ 🔄 ⚙ hinter ⋯ (`App.leisteMehr`).
+  „💥 selbst getroffen" ist aus der Leiste raus (Taste T geht weiter).
+- Nicht gewählt: A (Ziel, dann großes „wie schlimm?"), C (Stärke klappt am Chip auf).
+
+## Unveröffentlicht (nach 1.5.16, 23.10.2026): SL-Treffer in einem Tipp
+
+Kalle: „Drücke meistens Treffer, wähle den Spieler – dann kommt halt
+angeschlagen, nicht wie viele Treffer." Die Stärke stand oben in der Zielwahl,
+vorgewählt „Erfolg"; wer gleich das Ziel antippte, bekam nur 😵.
+Vorschläge A/B/C in `web/static/_lab_treffer.html`, Kalle wählte **B**:
+- 🎯 Treffer: eine Zeile pro Ziel mit 😵 / +1 / +2 / +3 daneben, ein Tipp
+  (`trefferWahlHtml`, `trefferAuf(id, shift, stufe)`). War das Ziel schon
+  angeschlagen, heißt der erste Knopf „1 🩸" (SWADE). Shift lässt offen.
+  Schadensfeld (Kampfhilfe) jetzt über 🧮 pro Zeile. Board-Tipp nimmt weiter
+  die per Taste 0–3 vorgewählte Stärke.
+- 🩹 Heilung: dieselbe Liste (`App.trefferWahl = "heil"`), auch Ausgeschaltete
+  und der Aktive; Knopf sagt, was passiert (wach / −1 🩸 / 😵 weg). `heilAuf`.
+- Leiste: vorn nur Treffer + Heilung, 😵 ☠ 🔄 ⚙ hinter ⋯ (`App.leisteMehr`).
+  „💥 selbst getroffen" ist aus der Leiste raus (Taste T geht weiter).
+- Nicht gewählt: A (Ziel, dann großes „wie schlimm?"), C (Stärke klappt am Chip auf).
+
 ## Unveröffentlicht (nach 1.5.15, 22.10.2026): Handy-Design 1B, 2B, 3B, 4B
 
 - Kalle hat aus zehn Design-Vorschlägen gewählt; Varianten lagen in
