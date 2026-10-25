@@ -61,6 +61,10 @@ function render() {
       if (scrollMerk[e.dataset.scrollMerk]) e.scrollTop = scrollMerk[e.dataset.scrollMerk];
     });
     document.body.classList.toggle("blatt-offen", !!root.querySelector(".angriff-blatt"));
+    // Spieler-Teil im ⚙-Menü (liegt außerhalb von #app) mit auffrischen.
+    const sm = $("spieler-menue");
+    const meine = App.role === "player" && App.joined ? myCombatant() : null;
+    if (sm) sm.innerHTML = meine ? spielerMenueHtml(meine) : "";
     // Platz für die fixierte Steuerleiste schaffen - über eine Klasse statt über
     // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
     document.body.classList.toggle("hat-leiste", !!root.querySelector(".aktionsleiste"));

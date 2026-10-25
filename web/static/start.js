@@ -68,7 +68,8 @@ function mountSkins() {
   box.className = "skins skin-menu";
   // „QR-Code zeigen" für JEDES Gerät: wer schon mitspielt, hält sein Handy
   // hin und der Nächste scannt davon - statt dass alle den Laptop abfilmen.
-  box.innerHTML = `<button type="button" class="qr-teilen-knopf" data-act="qr-gross">📱 QR-Code für Mitspieler zeigen</button>` +
+  // #spieler-menue füllt render() (Ton, Rückseite, Bereiche, Verlassen).
+  box.innerHTML = `<div id="spieler-menue"></div><button type="button" class="qr-teilen-knopf" data-act="qr-gross">📱 QR-Code für Mitspieler zeigen</button>` +
     SKINS.map((s) => `<button class="skin-dot skin-${s}" data-skin="${s}" title="${SKIN_NAMES[s]}"></button>`).join("") +
     `<div class="reveal-pick">
        <div class="muted small" style="margin-bottom:4px">Karten aufdecken</div>
@@ -116,7 +117,9 @@ function mountSkins() {
   document.body.appendChild(bar);
   // Klick außerhalb schließt das Menü.
   document.addEventListener("click", (e) => {
-    if (bar.classList.contains("open") && !bar.contains(e.target)) bar.classList.remove("open");
+    // Nicht mehr im Dokument = der Klick hat das Spieler-Menü neu zeichnen
+    // lassen (▲▼, Rückseite) - das war ein Klick IM Menü, nicht daneben.
+    if (bar.classList.contains("open") && e.target.isConnected && !bar.contains(e.target)) bar.classList.remove("open");
   });
 }
 function mountMist() {

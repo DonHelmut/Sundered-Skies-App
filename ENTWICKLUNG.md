@@ -77,6 +77,27 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.18, 25.10.2026): Handy aufgeräumt, Runde 2
+
+- Kalle wählte aus neuen Aufräum-Ideen (Handy 1–5, SL 7):
+  - **Ein Dran-Hinweis:** nur noch die Leiste oben; kommt man als Nächstes,
+    steht dort hervorgehoben „⏳ Gleich bist du dran". Kasten „Gleich bist du
+    dran" und Zeile „Warte auf Freigabe" unter der Karte sind weg (bleibt nur
+    die Uhr, wenn man dran ist).
+  - **Eigene Zeile in der Reihenfolge** ohne „Du", „WC", Bennies und Wunden
+    (steht alles im Kopf), `schlank` in `combatantRow`.
+  - **Reihenfolge am Handy einzeilig** (CSS `body.player .order …`).
+  - **Leerer Bogen = eine Zeile** „📜 Charakterbogen ausfüllen ✎".
+  - **Bereiche selbst sortieren:** ⚙ → „Reihenfolge der Bereiche" mit ▲▼,
+    gemerkt pro Handy (`localStorage.handyBereiche`). Standard: Reihenfolge,
+    Zonen, Bogen, Nachrichten. Ziehen wie beim SL geht am Handy nicht (HTML5-
+    Drag kennt keinen Touch), darum Pfeile.
+  - **⚙ am Handy:** Ton/Vibration, Kartenrückseite und „Spiel verlassen"
+    (`spielerMenueHtml`, render() füllt `#spieler-menue`). Das Menü schließt bei
+    Klicks darin nicht mehr (Ziel nach Neuzeichnen nicht mehr im Dokument).
+  - **SL: Nachricht/Bild/Bennies** startet zugeklappt, Pool im Titel; einmalig
+    zugeklappt auch bei gemerktem Zustand (`collapsed._nachrichtZu`).
+
 ## 1.5.18 (23.10.2026): Netzwerk-Hilfe in EINEM Skript
 
 - Kalle: vier Skripte (Firewall/WLAN je hin und zurück) sind zu viel. Jetzt
