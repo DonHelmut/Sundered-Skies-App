@@ -325,14 +325,18 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
    Neu-Rasterung und lässt das Umdrehen hängen. */
 /* Erst ab dem Aufdecken (.revealed): vorher pulsierte die VERDECKTE Rueckseite
    golden und verriet den Joker, bevor er umgedreht war. */
-.joker-slot .flip.revealed .flip-face { animation: jokerGlow 1.8s ease-in-out infinite; }
+/* Grundschein fest auf der Fläche, das Aufblühen auf der eigenen Leucht-Ebene
+   (.flip-inner::before, siehe Aufdeck-Leuchten), nur deren Deckkraft pulsiert.
+   Ein pulsierender box-shadow direkt auf der Fläche malte die Joker-Karte in
+   jedem Frame neu (gemessen 25.10.2026). */
+.joker-slot .flip.revealed .flip-face { box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 16px rgba(238, 194, 74, 0.6); }
+.joker-slot .flip.revealed .flip-inner::before {
+  box-shadow: 0 0 38px rgba(238, 194, 74, 1);
+  animation: glimmen 1.8s ease-in-out infinite;
+}
 /* Ebenso der Ausbruch: er ragt ueber die Karte hinaus und blitzte sonst an den
    Ecken der noch verdeckten Karte hervor. */
 .flip:not(.revealed) .joker-aussen { visibility: hidden; }
-@keyframes jokerGlow {
-  0%, 100% { box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 16px rgba(238, 194, 74, 0.6); }
-  50% { box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 38px rgba(238, 194, 74, 1); }
-}
 /* Foil-Sheen auf allen Karten (dezent); Joker stärker und schneller.
    WICHTIG: KEIN `position: relative` hier – das würde das `position:absolute`
    der .flip-face aufheben, die Vorderseite käme in den normalen Fluss und ihre
@@ -380,11 +384,21 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
    sichtbare Rückseite (.flip-back). */
 /* WICHTIG: box-shadow statt filter – dieser Puls läuft DAUERHAFT auf jeder
    verdeckten Karte; ein animierter Filter würde das SVG endlos neu rastern. */
-.flip.awaiting .flip-back { animation: awaitPulse 0.9s ease-in-out infinite; }
-@keyframes awaitPulse {
-  0%, 100% { box-shadow: 0 0 7px rgba(255, 220, 120, 0.3); }
-  50% { box-shadow: 0 0 20px rgba(255, 220, 120, 0.75); }
+/* Aber auch ein animierter box-shadow ist nicht gratis: der Browser malt die
+   GANZE Rückseite samt Bild in jedem Frame neu (am Handy das leichte Ruckeln,
+   gemessen 25.10.2026: ~75 % eines Mal-Kerns nur fürs Glimmen der Großkarte).
+   Darum liegt der Schein fest gemalt auf einer eigenen Ebene (::after) und nur
+   deren Deckkraft pulsiert – das erledigt die Grafikkarte ohne Neumalen. */
+.flip-back::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; opacity: 0;
 }
+.flip.awaiting .flip-back { box-shadow: 0 0 7px rgba(255, 220, 120, 0.3); }
+.flip.awaiting .flip-back::after {
+  box-shadow: 0 0 20px rgba(255, 220, 120, 0.75);
+  animation: glimmen 0.9s ease-in-out infinite;
+}
+@keyframes glimmen { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 /* „Pop" + Aufglühen im Moment des Umdrehens. */
 .flip.reveal-pop { z-index: 6; }
 /* Aufdeck-Leuchten als EIGENE Ebene hinter der Vorderseite: der Schein ist fest
@@ -413,10 +427,10 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
 #bigcard .flip-inner { transition: transform 0.85s cubic-bezier(0.2, 0.75, 0.2, 1); }
 /* box-shadow statt filter: ein animierter Filter kostet pro Frame eine
    Neu-Rasterung UND das mitwachsende Leuchten laesst die Karte „atmen". */
-#bigcard .flip.await-big .flip-back { animation: awaitBig 2.1s ease-in-out infinite; }
-@keyframes awaitBig {
-  0%, 100% { box-shadow: 0 0 8px rgba(255, 220, 120, 0.3); }
-  50% { box-shadow: 0 0 26px rgba(255, 220, 120, 0.85); }
+#bigcard .flip.await-big .flip-back { box-shadow: 0 0 8px rgba(255, 220, 120, 0.3); }
+#bigcard .flip.await-big .flip-back::after {
+  box-shadow: 0 0 26px rgba(255, 220, 120, 0.85);
+  animation: glimmen 2.1s ease-in-out infinite;
 }
 #bigcard .flip.reveal-big .flip-inner { transition: transform 1.7s cubic-bezier(0.2, 0.9, 0.25, 1); }
 #bigcard .flip.reveal-big { z-index: 6; }
@@ -436,10 +450,10 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
 /* Interaktiv: verdeckte eigene Großkarte lädt zum Antippen ein (Glühen auf der
    Rückseite, nicht auf .flip-inner – sonst bricht das 3D). */
 #bigcard .flip.await-tap { cursor: pointer; }
-#bigcard .flip.await-tap .flip-back { animation: tapInvite 1.7s ease-in-out infinite; }
-@keyframes tapInvite {
-  0%, 100% { box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45); }
-  50% { box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45), 0 0 20px rgba(255, 220, 120, 0.65); }
+#bigcard .flip.await-tap .flip-back { box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45); }
+#bigcard .flip.await-tap .flip-back::after {
+  box-shadow: 0 0 20px rgba(255, 220, 120, 0.65);
+  animation: glimmen 1.7s ease-in-out infinite;
 }
 .tap-hint {
   text-align: center; margin-top: 10px; font-weight: 700; font-size: 0.98rem;
@@ -512,7 +526,18 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
 .zone-token.ally .tname { color: var(--friend-name); }
 .zone-token.wc .tdisc { box-shadow: 0 0 0 2px var(--gold); }
 .zone-token.active { box-shadow: 0 0 0 2px var(--gold), 0 0 10px rgba(238,194,74,0.5); }
-.zone-token.active .tdisc { animation: jokerRow 1.4s ease-in-out infinite; }
+/* Leuchtender Ring um die Scheibe dessen, der dran ist: als eigene Ebene über
+   der Scheibe, nur die Deckkraft pulsiert (siehe Karten-Rückseite). Vorher
+   pulsierte der box-shadow der Scheibe selbst – das Handy malte dafür in jedem
+   Frame neu, solange jemand dran war, also praktisch den ganzen Kampf. */
+.zone-token { position: relative; }
+.zone-token.active .tdisc { box-shadow: 0 0 0 1px var(--gold), 0 0 6px rgba(238,194,74,0.35); }
+.zone-token.active::before {
+  content: ""; position: absolute; left: 3px; top: 50%; width: 30px; height: 30px; margin-top: -15px;
+  border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(238,194,74,0.85);
+  opacity: 0; animation: glimmen 1.4s ease-in-out infinite;
+}
 .zone-token.out { opacity: 0.55; }
 .zone-token.out .tdisc { filter: grayscale(0.6); }
 .zone-token.ran .tname::after { content: " 🏃"; }
@@ -600,10 +625,19 @@ label.field span { display: block; color: var(--muted); font-size: 0.85rem; marg
   background: linear-gradient(0deg, rgba(238,194,74,0.16), rgba(238,194,74,0.16)), var(--panel2); }
 .combatant.done { opacity: 0.5; }
 .combatant.held { border-color: var(--warn); }
-.combatant.joker-holder, .tv-tile.joker-holder {
-  border-color: var(--gold);
-  animation: jokerRow 1.6s ease-in-out infinite;
+.combatant.joker-holder, .tv-tile.joker-holder { border-color: var(--gold); }
+/* Zeile: Grundschein fest, das Aufleuchten als eigene Ebene, die nur in der
+   Deckkraft pulsiert (wie bei den Karten-Rückseiten) – sonst malt das Handy
+   die ganze Zeile in jedem Frame neu. .combatant hat will-change: transform
+   und ist damit Bezugsrahmen fürs ::after. TV bleibt wie gehabt (dort schneidet
+   overflow: hidden den Schein ab). */
+.combatant.joker-holder { box-shadow: 0 0 0 1px var(--gold), 0 0 6px rgba(238,194,74,0.35); }
+.combatant.joker-holder::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(238,194,74,0.85);
+  opacity: 0; animation: glimmen 1.6s ease-in-out infinite;
 }
+.tv-tile.joker-holder { animation: jokerRow 1.6s ease-in-out infinite; }
 @keyframes jokerRow {
   0%, 100% { box-shadow: 0 0 0 1px var(--gold), 0 0 6px rgba(238,194,74,0.35); }
   50% { box-shadow: 0 0 0 2px var(--gold), 0 0 18px rgba(238,194,74,0.85); }
@@ -2359,6 +2393,7 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
   body:not(.sl-ansicht) .zone-band .zb-tokens { gap: 4px; }
   body:not(.sl-ansicht) .zone-token { gap: 4px; padding: 2px 7px 2px 2px; }
   body:not(.sl-ansicht) .zone-token .tdisc { width: 24px; height: 24px; flex-basis: 24px; font-size: 0.62rem; }
+  body:not(.sl-ansicht) .zone-token.active::before { left: 2px; width: 24px; height: 24px; margin-top: -12px; }
   body:not(.sl-ansicht) .zone-token .tname { font-size: 0.74rem; max-width: 84px; }
 }
 

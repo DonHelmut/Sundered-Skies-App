@@ -77,6 +77,27 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.19, 25.10.2026): Karten am Handy flüssiger
+
+Kalle: Karten am Handy wirken „ganz leicht laggy". Gemessen (Chromium, Handy-
+Größe, CPU 4× gedrosselt, Leerlauf 3 s):
+- **Ursache:** pulsierende `box-shadow`-Animationen. Ein animierter Schatten
+  ist nicht komponiert – der Browser malt das Element samt Inhalt in JEDEM
+  Frame neu. Schlimmster Fall das Einladungs-Glimmen der verdeckten Großkarte
+  (`tapInvite`): ~2,3 s Mal-Arbeit in 3 s. Dazu `jokerRow` an der Zonen-Scheibe
+  dessen, der dran ist (läuft praktisch den ganzen Kampf) und an der Joker-Zeile,
+  `jokerGlow` auf der Joker-Karte, `awaitPulse`/`awaitBig` auf Rückseiten.
+- **Fix:** Schein fest gemalt auf eigener Ebene (`.flip-back::after`,
+  `.flip-inner::before`, `.combatant.joker-holder::after`,
+  `.zone-token.active::before`), animiert wird nur `opacity` (Keyframe
+  `glimmen`). Danach Leerlauf ≈ 0 ms Malen. Optik praktisch gleich.
+- TV-Kacheln unverändert (`overflow: hidden` schneidet den Schein ab, TV wird
+  nicht verbessert).
+- Bleibt: liegt ein Joker auf dem Tisch, laufen seine SVG-(SMIL-)Animationen
+  weiter und kosten am Handy etwas – gewollte Show.
+- Regel für später: **kein animierter `box-shadow`** auf Karten/Zeilen;
+  Leuchten = fester Schatten auf Pseudo-Ebene + `opacity`-Animation.
+
 ## 1.5.19 (25.10.2026): Handy aufgeräumt, Runde 2
 
 - Kalle wählte aus neuen Aufräum-Ideen (Handy 1–5, SL 7):

@@ -35,7 +35,9 @@ LAN-Adresse.
 - Keine Browser-Dialoge (`confirm`/`alert`/`prompt`) – der Browser lässt sie sperren;
   stattdessen `frage`/`hinweis`/`eingabe` aus `dialoge.js`.
 - Kein animierter CSS-`filter` auf Karten (ruckelt beim Drehen); Leuchten wird
-  mit Verläufen/`box-shadow` gemalt.
+  mit Verläufen/`box-shadow` gemalt. Auch `box-shadow` nicht animieren (malt
+  jedes Frame neu, am Handy spürbar): festen Schein auf `::before`/`::after`
+  legen und nur `opacity` pulsieren lassen (Keyframe `glimmen`).
 - Client-Logik ist auf mehrere klassische `<script>`-Dateien verteilt (`app.js`
   = Kern … `start.js` = Start, Liste oben in `app.js`), gemeinsamer globaler
   Bereich, kein Build. Reihenfolge in `index.html` zählt: Code, der beim Laden
