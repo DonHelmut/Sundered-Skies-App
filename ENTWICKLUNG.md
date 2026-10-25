@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (nach 1.5.18, 25.10.2026): Handy aufgeräumt, Runde 2
+## 1.5.19 (25.10.2026): Handy aufgeräumt, Runde 2
 
 - Kalle wählte aus neuen Aufräum-Ideen (Handy 1–5, SL 7):
   - **Ein Dran-Hinweis:** nur noch die Leiste oben; kommt man als Nächstes,
