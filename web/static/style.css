@@ -2376,3 +2376,40 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
   .join-char .join-av { width: 34px; height: 34px; flex-basis: 34px; }
   .join-char-name { font-size: 0.92rem; }
 }
+
+/* --- Handy aufgeräumt (25.10.2026) -------------------------------------- */
+/* Leiste oben: „Gleich bist du dran" hebt sich ab (ersetzt den Kasten unter der Karte). */
+.dran-leiste.gleich { border-color: var(--warn); color: var(--warn); font-size: 1rem;
+  background: color-mix(in srgb, var(--warn) 16%, var(--panel)); }
+.dran-leiste .dl-wer { font-weight: 600; font-size: 0.85rem; color: var(--muted); }
+
+/* Reihenfolge am Handy: eine Zeile pro Figur, kleine Karte - wie beim SL. */
+body.player .order { gap: 4px; }
+body.player .order .combatant { padding: 3px 8px; gap: 8px; flex-wrap: nowrap; border-radius: 8px; }
+body.player .order .combatant .mini { width: 26px; flex: 0 0 26px; }
+body.player .order .combatant .idx { font-size: 1rem; width: 18px; }
+body.player .order .combatant .avatar { width: 22px; height: 22px; flex-basis: 22px; }
+body.player .order .combatant .who { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+body.player .order .combatant .who .name { font-size: 0.95rem; }
+body.player .order .combatant .badges { margin-top: 0; }
+body.player .order .combatant .badges .tag { font-size: 0.7rem; padding: 1px 6px; }
+body.player .order .combatant .status-badges:empty { display: none; }
+
+/* Leerer Charakterbogen: eine Zeile. */
+.bogen-leer { padding: 8px 10px; }
+.bogen-leer > button { width: 100%; }
+
+/* Spieler-Teil im ⚙-Menü */
+#spieler-menue { flex-basis: 100%; display: flex; flex-direction: column; gap: 6px; }
+#spieler-menue:empty { display: none; }
+body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px));
+  max-height: calc(100vh - 20px); overflow-y: auto; }
+.sm-titel { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.sm-ton { align-items: center; gap: 6px; cursor: pointer; flex-wrap: nowrap; }
+.hb-liste { display: flex; flex-direction: column; gap: 4px; }
+.hb-zeile { display: flex; align-items: center; gap: 4px; font-size: 0.9rem; }
+.hb-zeile > span { flex: 1; }
+.hb-zeile .st-btn { padding: 3px 9px; }
+.sm-verlassen { margin: 4px 0 6px; color: var(--bad); border-color: var(--bad); }
+#spieler-menue .rs-wahl { margin: 0; }
+.sec-zusatz { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--muted); }

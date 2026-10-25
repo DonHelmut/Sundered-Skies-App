@@ -1295,7 +1295,10 @@ function combatantRow(c, num, isGM, isOpen) {
       <button class="ghost small" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}" title="${c.benched ? "Wieder in den Kampf" : "Aus dem Kampf (pausieren)"}">${c.benched ? "▶️ Wieder rein" : "⏸ Pausieren"}</button>
       <button class="ghost small bad" data-act="remove-combatant" data-id="${c.id}" title="${c.playerId ? "Spieler entfernen (Kick)" : "Entfernen"}">✕ Entfernen</button>
     </div>` : "";
-  const duTag = (!isGM && isOwn) ? `<span class="tag du-tag">Du</span>` : "";
+  // Eigene Zeile am Handy schlank (Kalle, 25.10.2026): „Du", „WC", Bennies und
+  // Wunden stehen schon im Kopf über der Karte; die goldene Kante reicht zum Finden.
+  const duTag = "";
+  const schlank = !isGM && isOwn;
   const naechsterTag = (isGM && !isActive && App._naechsterId === c.id)
     ? `<span class="tag naechster-tag" title="Kommt als Nächstes dran">↓ danach</span>` : "";
   const idxLabel = num != null ? num : `<span class="idx-hidden">?</span>`;
@@ -1320,11 +1323,11 @@ function combatantRow(c, num, isGM, isOpen) {
           : `<span class="tag zone-chip z${Zones.zoneOf(c)}">${esc(zoneLabel(Zones.zoneOf(c)))}</span>`}
         ${c.ally ? `<span class="tag" style="color:var(--good);border-color:var(--good)">🤝 Verbündet</span>` : ""}
         ${duTag}${naechsterTag}${jokerBadge}
-        ${c.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card">WC</span>' : ""}
+        ${c.isWildCard && !schlank ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card">WC</span>' : ""}
         ${showCard ? (isGM ? talentKurz(c.talents) : talentBadges(c.talents)) : ""}${showCard ? talentTrail(c) : ""} ${hints}
-        ${bennyBadge(c)}
+        ${schlank ? "" : bennyBadge(c)}
       </div>
-      <div class="status-badges">${statusBadges(c, isGM)}${
+      <div class="status-badges">${schlank ? "" : statusBadges(c, isGM)}${
         (isGM && isActive && (c.status || {}).shaken && !(c.status || {}).out)
           ? ` <button class="st-btn on-shaken" data-act="recover" data-id="${c.id}" data-benny="0" title="Angeschlagen aufheben (Willenskraft- oder Konstitutions-Probe geschafft)">✓ erholt</button>` +
             (c.isWildCard && (c.bennies || 0) > 0
@@ -1840,7 +1843,18 @@ function renderMessagePanel() {
         </div>`).join("")}</div>
     </details>` : "";
 
-  return section("message", "Nachricht / Bild / Bennies", `
+  // Startet zugeklappt (Kalle, 25.10.2026): wird nur ab und zu gebraucht und
+  // nahm links dauerhaft drei Zeilen. Der SL-Pool steht dafür im Titel.
+  // Einmalig zuklappen, auch wenn der Klappzustand schon gemerkt ist (sonst
+  // bliebe es bei jedem, der es je offen hatte, offen). Danach gilt wieder,
+  // was der SL selbst auf- oder zuklappt.
+  if (!App.collapsed._nachrichtZu) {
+    App.collapsed.message = true; App.collapsed._nachrichtZu = true;
+    // Nur lokal merken - slAnsichtSichern() mitten im Zeichnen könnte die am
+    // Laptop gespeicherte SL-Ansicht überschreiben, bevor sie geladen ist.
+    try { localStorage.setItem("collapsed", JSON.stringify(App.collapsed)); } catch { /* ignore */ }
+  }
+  return section("message", `✉ Nachricht / Bild / Bennies <span class="sec-zusatz">· 🪙 Pool ${s.slBennies}</span>`, `
     <div class="nachricht-zeile">
       <select id="msgtarget" data-act="msg-ziel" title="Empfänger">${opts}</select>
       <button data-act="benny-geben" title="Der gewählte Empfänger (bei „Alle Spieler“ jeder) bekommt einen Benny – mit kurzem Hinweis aufs Handy">🪙 +1 Benny</button>
@@ -1863,5 +1877,5 @@ function renderMessagePanel() {
     ${log ? `<details class="unter-klapp" data-merk="verlauf"${App.offeneUnter.has("verlauf") ? " open" : ""}>
       <summary>Verlauf (letzte ${Math.min(3, s.messages.filter((m) => m.sender !== "kampf").length)})</summary>${log}
       <button class="ghost small" data-act="clear-messages" style="margin-top:6px">Verlauf leeren</button></details>` : ""}
-    ${archivHtml}`);
+    ${archivHtml}`, false);
 }

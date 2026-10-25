@@ -34,12 +34,13 @@ function renderPlayer() {
   const werDran = !aktiv ? ""
     : aktiv.id === mine.id ? "⏳ Du bist dran, sobald der Spielleiter freigibt"
     : (aktiv.kind === "npc" && !aktiv.ally ? "Ein Gegner ist dran" : `${esc(aktiv.name)} ist dran`);
-  const vorwarnung = binNaechster && s.phase !== "idle"
-    ? `<div class="gleich-dran">⏳ Gleich bist du dran – mach dich bereit!</div>` : "";
-  const timer = s.phase === "running"
-    ? (isMyTurn ? (s.timerEndsAt ? timerRing() : `<div class="timer-halt">⏸ Uhr angehalten – würfle in Ruhe</div>`)
-      : `${vorwarnung}<div class="center muted small">${werDran}</div>`)
-    : (s.phase === "gate" ? `${vorwarnung}<div class="center muted small">Warte auf Freigabe durch den Spielleiter…</div>` : "");
+  // Wer dran ist / ob man gleich kommt, steht NUR in der Leiste oben (Kalle,
+  // 25.10.2026). Vorher sagten es drei Stellen gleichzeitig: Leiste („du kommst
+  // als Nächstes"), Kasten unter der Karte („Gleich bist du dran") und eine
+  // Zeile darunter („Warte auf Freigabe"). Unter der Karte bleibt nur die Uhr.
+  const timer = s.phase === "running" && isMyTurn
+    ? (s.timerEndsAt ? timerRing() : `<div class="timer-halt">⏸ Uhr angehalten – würfle in Ruhe</div>`)
+    : "";
 
   // Karten-Hinweise („Joker: +2 …", „Berechnend" bei niedriger Karte) erst,
   // wenn die eigene Karte aufgedeckt ist - sonst stand unter der verdeckten
@@ -136,7 +137,7 @@ function renderPlayer() {
     : `<div class="panel" style="padding:12px">
       <div class="big-card tilt3d" id="bigcard" style="max-width:250px">${cardSlot(mine.id, mine.card, mine.status, "", { open: !!mine.revealed, tappable: !mine.revealed })}</div>
       ${hints ? `<div class="center" style="margin-top:6px">${hints}</div>` : ""}
-      ${s.phase !== "idle" ? `<div style="margin-top:8px">${timer}</div>` : ""}
+      ${timer ? `<div style="margin-top:8px">${timer}</div>` : ""}
       ${angeschlagenHinweis}
       ${playerQuickControls(mine)}
     </div>`;
@@ -158,9 +159,12 @@ function renderPlayer() {
   // sonst nur ganz oben zu sehen - bei langer Seite scrollt man daran vorbei.
   // Ist man selbst dran, wird sie zum goldenen Balken; der zweite große
   // „Du bist dran!"-Balken darunter sagte dasselbe nochmal und kostete Platz.
-  const dranLeiste = s.round && werDran
-    ? `<div class="dran-leiste${isMyTurn ? " ich" : ""}">${isMyTurn ? "▶ Du bist dran!" : esc(werDran)}${
-        binNaechster && !isMyTurn ? " · du kommst als Nächstes" : ""}</div>`
+  // Kommt man als Nächstes, sagt die Leiste das zuerst und hebt sich ab - das
+  // übernimmt den früheren Kasten „Gleich bist du dran" unter der Karte.
+  const leisteText = werDran || (s.phase === "gate" ? "Warte auf den Spielleiter …" : "");
+  const dranLeiste = s.round && leisteText
+    ? `<div class="dran-leiste${isMyTurn ? " ich" : binNaechster ? " gleich" : ""}">${isMyTurn ? "▶ Du bist dran!"
+        : binNaechster ? `⏳ Gleich bist du dran <span class="dl-wer">· ${esc(werDran)}</span>` : esc(leisteText)}</div>`
     : "";
 
   // Der Daumen-Knopf: EIN großer Knopf unten, immer an derselben Stelle, der
@@ -192,22 +196,57 @@ function renderPlayer() {
       </div>
       <div class="row tight" style="align-items:center">
         ${rundenZaehler(s)}
-        <button class="ghost small" data-act="leave">Verlassen</button>
       </div>
     </div>
     ${cardPanel}
-    ${renderBogen(mine)}
-    ${orderPanel}
-    ${mine.benched ? "" : renderZonesPanel()}
-    <label class="row tight" style="align-items:center; justify-content:center; margin-top:10px; cursor:pointer">
-      <input type="checkbox" data-act="toggle-notify" ${localStorage.getItem("notifyTurn") !== "off" ? "checked" : ""} style="width:auto">
-      <span class="small muted">🔔 ${kannVibrieren ? "Vibration/Ton" : "Ton"}, wenn ich dran bin</span>
-      <button class="ghost small" data-act="ton-testen" title="Lautstärke prüfen – am iPhone muss der Lautlos-Schalter aus sein">▶ Test</button>
-    </label>
-    ${rueckseiteWahlHtml(mine)}
-    ${msgs ? `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs}</div>` : ""}
+    ${handyBereiche().map((k) => ({
+      order: orderPanel,
+      zones: mine.benched ? "" : renderZonesPanel(),
+      bogen: renderBogen(mine),
+      msgs: msgs ? `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs}</div>` : "",
+    })[k]).join("")}
     ${daumen}
   `;
+}
+
+// Reihenfolge der Bereiche unter der Karte - jeder Spieler stellt sie im ⚙
+// selbst ein (Kalle, 25.10.2026), gemerkt auf dem Handy. Standard: Bogen nach
+// unten, im Kampf braucht man zuerst Reihenfolge und Zonen.
+const HANDY_BEREICHE = { order: "Initiative-Reihenfolge", zones: "Kampfzonen", bogen: "Mein Charakter", msgs: "Nachrichten" };
+function handyBereiche() {
+  let liste = [];
+  try { liste = JSON.parse(localStorage.getItem("handyBereiche") || "[]"); } catch { /* egal */ }
+  liste = (Array.isArray(liste) ? liste : []).filter((k) => HANDY_BEREICHE[k]);
+  // Neue Bereiche (spätere Versionen) hinten anhängen statt sie zu verlieren.
+  ["order", "zones", "bogen", "msgs"].forEach((k) => { if (!liste.includes(k)) liste.push(k); });
+  return liste;
+}
+function handyBereichSchieben(k, dir) {
+  const liste = handyBereiche();
+  const i = liste.indexOf(k), j = i + dir;
+  if (i < 0 || j < 0 || j >= liste.length) return;
+  [liste[i], liste[j]] = [liste[j], liste[i]];
+  try { localStorage.setItem("handyBereiche", JSON.stringify(liste)); } catch { /* privates Fenster */ }
+}
+
+// Spieler-Teil des ⚙-Menüs: was man einmal einstellt, aber nicht im Kampf
+// braucht. Stand vorher unten auf der Seite (Ton, Rückseite) bzw. als
+// „Verlassen" direkt neben „Runde", wo man leicht draufkam.
+function spielerMenueHtml(mine) {
+  const liste = handyBereiche();
+  const zeilen = liste.map((k, i) => `<div class="hb-zeile"><span>${HANDY_BEREICHE[k]}</span>
+      <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="-1"${i === 0 ? " disabled" : ""} title="Nach oben">▲</button>
+      <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="1"${i === liste.length - 1 ? " disabled" : ""} title="Nach unten">▼</button></div>`).join("");
+  return `<div class="sm-titel">Mein Handy</div>
+    <label class="row tight sm-ton">
+      <input type="checkbox" data-act="toggle-notify" ${localStorage.getItem("notifyTurn") !== "off" ? "checked" : ""} style="width:auto">
+      <span class="small">🔔 ${kannVibrieren ? "Vibration/Ton" : "Ton"}, wenn ich dran bin</span>
+      <button type="button" class="ghost small" data-act="ton-testen" title="Lautstärke prüfen – am iPhone muss der Lautlos-Schalter aus sein">▶ Test</button>
+    </label>
+    ${rueckseiteWahlHtml(mine)}
+    <div class="sm-titel">Reihenfolge der Bereiche</div>
+    <div class="hb-liste">${zeilen}</div>
+    <button type="button" class="ghost small sm-verlassen" data-act="leave">🚪 Spiel verlassen</button>`;
 }
 
 // Was der große Knopf unten gerade anbietet - in dieser Reihenfolge: wer

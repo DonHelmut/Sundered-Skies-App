@@ -132,6 +132,10 @@ document.addEventListener("click", (e) => {
     "clear-messages": () => gmAction({ type: "clear_messages" }),
     "clear-tv": () => gmAction({ type: "clear_tv_image" }),
     // Spieler-Anfragen
+    "bereich-schieben": () => {
+      handyBereichSchieben(target.getAttribute("data-k"), Number(target.getAttribute("data-dir")));
+      render();
+    },
     "toggle-req-mode": () => { App.reqMode = !App.reqMode; render(); },
     // Münze in der Kopfzeile: erst fragen - ein Tipp aus Versehen beim
     // Scrollen sollte keinen Benny kosten.

@@ -40,6 +40,11 @@ function renderBogen(mine) {
   const b = edit ? App.bogenEntwurf : bogenVon(mine);
   const leiste = bogenReiterLeiste(reiter, "bogen-reiter");
   let inhalt;
+  // Ganz leerer Bogen: eine Zeile statt Reiter + Erklärtext + Regeltipp (Kalle,
+  // 25.10.2026) - das nahm am Handy einen halben Bildschirm für „nichts da".
+  if (!edit && bogenIstLeer(b) && !(mine.talents || []).length) {
+    return `<div class="panel bogen-leer"><button class="ghost" data-act="bogen-bearbeiten">📜 Charakterbogen ausfüllen ✎</button>${mitspielerBoegen(mine)}</div>`;
+  }
   if (!edit && bogenIstLeer(b) && reiter !== "talente") {
     inhalt = `<div class="muted small" style="padding:6px 0">Noch leer. Tippe auf <b>✎ Bearbeiten</b> und trag deine Werte ein – dann hast du sie im Kampf immer griffbereit.</div>`;
     if (reiter === "kampf") inhalt += regelTipp(b);
