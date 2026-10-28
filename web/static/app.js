@@ -103,6 +103,19 @@ function versionLine() {
     (stale ? `<div class="pill bad" style="margin-top:4px">⚠ Alte Seite im Cache (v${esc(ASSET_VERSION)} statt v${esc(server)}). Einmal Strg+F5 drücken.</div>` : "");
 }
 const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+// Adressbereich = die ersten drei Zahlen einer IPv4 („192.168.178.").
+// Handys müssen darin liegen wie der Laptop - sonst sind sie in einem anderen
+// Netz (Gast-WLAN der Fritzbox ist z. B. 192.168.179.x, Mobilfunk ganz anders)
+// und erreichen ihn nicht. Nennt man den Spielern die Zahl, können sie am Handy
+// selbst nachsehen, ob sie im richtigen WLAN sind - statt nur „geht nicht".
+// /24 ist bei Heim-Routern Standard; bei Exoten passt der Tipp evtl. nicht exakt.
+function adressBereich(ip) {
+  const m = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.)\d{1,3}$/.exec(String(ip || ""));
+  return m && m[1] !== "127.0.0." ? m[1] : "";
+}
+
+const HANDY_IP_FINDEN = "iPhone: Einstellungen → WLAN → ⓘ beim Netz · Android: Einstellungen → WLAN → Zahnrad beim Netz (ggf. „Erweitert“) → IP-Adresse";
+
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 // Einklappbares Panel (merkt sich den Zustand pro id in localStorage, Default offen).

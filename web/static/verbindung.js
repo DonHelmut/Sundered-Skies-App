@@ -205,6 +205,9 @@ function zeigeOfflineHinweis() {
         <b>Dauert es länger?</b> Hat das WLAN gerade kein Internet, schalten viele
         Handys still auf <b>Mobilfunk</b> um – dann ist der Laptop unerreichbar,
         obwohl „WLAN verbunden“ dasteht.<br>Abhilfe: mobile Daten kurz ausschalten.
+        ${adressBereich(location.hostname) ? `<br><b>Richtiges WLAN?</b> Die IP-Adresse deines Handys muss mit
+        <b>${esc(adressBereich(location.hostname))}</b> anfangen – sonst bist du in einem anderen Netz
+        (z. B. Gast-WLAN).<br><span style="opacity:0.8">${esc(HANDY_IP_FINDEN)}</span>` : ""}
       </div>` : ""}
       <div class="offline-text small">Adresse: ${esc(location.host)}</div>
       <button class="primary" data-act="jetzt-verbinden">Jetzt erneut versuchen</button>
