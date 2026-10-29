@@ -111,6 +111,14 @@ WLAN-Karte im Laptop oder eine geaenderte Adresse. Dafuer siehe unten.
    - Handys UND Laptop müssen im GLEICHEN WLAN sein.
    - Achtung: ein Gäste-WLAN oder getrennte 2,4-/5-GHz-Netze (oft
      unterschiedliche Namen!) zählen als VERSCHIEDENE Netze -> geht nicht.
+   - Schnelltest am Handy: seine IP-Adresse muss mit denselben drei Zahlen
+     anfangen wie die Adresse des Laptops (z. B. beide 192.168.178.x).
+     Steht dort etwas anderes (Fritzbox-Gast-WLAN: 192.168.179.x, oder gar
+     eine ganz andere Zahl = Mobilfunk) -> falsches Netz, ins Haupt-WLAN wechseln.
+       iPhone:  Einstellungen -> WLAN -> (i) beim Netz -> IP-Adresse
+       Android: Einstellungen -> WLAN -> Zahnrad beim Netz -> (Erweitert) IP
+   - Die Spielleiter-Ansicht nennt den passenden Bereich unter der Adresse,
+     ebenso die Einladung per WhatsApp/QR-Bild.
 
 2) RICHTIGE ADRESSE?
    - Das Terminal-Fenster und die Spielleiter-Ansicht zeigen jetzt ALLE

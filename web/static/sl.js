@@ -107,7 +107,21 @@ function joinUrlHtml() {
   if (loopback) {
     html += `<div class="pill bad" style="margin-top:8px">⚠ Keine WLAN-Adresse gefunden – ist der Laptop im WLAN? 127.0.0.1 erreicht keine Handys.</div>`;
   }
+  html += adressBereichHtml(info.ip);
   return html;
+}
+
+// Woran ein Spieler selbst erkennt, ob sein Handy im richtigen Netz ist: seine
+// WLAN-Adresse muss mit denselben drei Zahlen anfangen wie die des Laptops.
+// Sonst rätselt man am Tisch – Gast-WLAN und Mobilfunk sehen am Handy beide
+// nach „verbunden" aus.
+function adressBereichHtml(ip) {
+  const bereich = adressBereich(ip);
+  if (!bereich) return "";
+  return `<div class="muted small adress-bereich" style="margin-top:8px; line-height:1.5">
+    📶 Handys brauchen eine WLAN-Adresse, die mit <b>${esc(bereich)}</b>… anfängt (wie dieser Laptop).
+    Andere Zahl = falsches Netz (Gast-WLAN, Mobilfunk) → ins selbe WLAN wechseln, mobile Daten aus.
+    <span class="hilfe" style="display:block">Nachsehen am Handy – ${esc(HANDY_IP_FINDEN)}</span></div>`;
 }
 
 // Womit funkt der Laptop gerade: Netzname, Band, Wi-Fi-Standard (4/5/6/6E/7),
@@ -408,6 +422,13 @@ function toast(text) {
 // „http://" davor - nur so machen WhatsApp (Android wie iPhone) ihn zuverlässig
 // antippbar; Text direkt daneben oder ohne http:// blieb es oft reiner Text.
 // Vorweg der wichtigste Tipp gegen „plötzlich weg": mobile Daten aus.
+function bereichsTipp(url) {
+  const bereich = adressBereich((/\/\/([^:/]+)/.exec(url) || [])[1]);
+  return bereich ? `
+
+Klappt es nicht? In den WLAN-Einstellungen nachsehen: die IP-Adresse deines Handys muss mit ${bereich} anfangen – sonst bist du im falschen WLAN (z. B. Gast-WLAN).` : "";
+}
+
 function einladungstext() {
   const url = (App._info && App._info.url) || location.origin + "/";
   // Kein Emoji am Anfang: WhatsApp am PC zeigte den Würfel als „�".
@@ -420,7 +441,7 @@ So kommst du rein:
 
 ${url}
 
-Lässt sich der Link nicht antippen? Lange drücken → Kopieren → in Chrome oder Safari oben einfügen.`;
+Lässt sich der Link nicht antippen? Lange drücken → Kopieren → in Chrome oder Safari oben einfügen.${bereichsTipp(url)}`;
 }
 
 // Einladung als BILD mit QR-Code. Warum: WhatsApp macht Links auf reine
@@ -433,7 +454,8 @@ async function einladungsBild() {
   const qr = new Image();
   qr.src = "/qr.png?t=" + Date.now();
   await new Promise((ok, fehler) => { qr.onload = ok; qr.onerror = fehler; });
-  const B = 640, H = 900;
+  const bereich = adressBereich((/\/\/([^:/]+)/.exec(url) || [])[1]);
+  const B = 640, H = bereich ? 970 : 900;
   const c = document.createElement("canvas");
   c.width = B; c.height = H;
   const g = c.getContext("2d");
@@ -458,6 +480,7 @@ async function einladungsBild() {
     "    Auf dem eigenen Handy: Bild öffnen –",
     "    iPhone: lange auf den Code drücken",
     "    Android: Google Lens im Bild",
+    ...(bereich ? ["", `Geht nicht? Handy-IP (WLAN-Einstellungen)`, `muss mit ${bereich} anfangen – sonst falsches WLAN`] : []),
   ].forEach((z, i) => g.fillText(z, 60, 680 + i * 32));
   return new Promise((ok) => c.toBlob(ok, "image/png"));
 }

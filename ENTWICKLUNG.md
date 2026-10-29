@@ -77,6 +77,18 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.20, 28.10.2026): Hinweis Adressbereich
+
+Kalle: Info für Spieler, wenn ihre IP nicht im Adressbereich des SL-Laptops liegt.
+Erkennen kann die App das am Handy nicht (falsches Netz = Seite lädt gar nicht,
+eigene IP liest der Browser nicht aus). Darum nennt sie den Bereich überall dort,
+wo Spieler oder SL nachsehen:
+- `adressBereich(ip)` in app.js: erste drei Zahlen („192.168.178."), /24 angenommen.
+- SL „Beitritt": Zeile unter der Adresse, wie man am Handy die IP findet (hinter ⓘ).
+- Einladungstext + QR-Bild: „Geht nicht? Handy-IP muss mit … anfangen".
+- Handy-Offline-Hinweis (ab 25 s): „Richtiges WLAN?" mit Bereich + Weg zur IP.
+- START-HIER.txt Punkt 1: Schnelltest (Fritzbox-Gast = 192.168.179.x).
+
 ## 1.5.20 (25.10.2026): Karten am Handy flüssiger
 
 Kalle: Karten am Handy wirken „ganz leicht laggy". Gemessen (Chromium, Handy-
