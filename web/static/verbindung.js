@@ -186,32 +186,31 @@ function zeigeOfflineHinweis() {
     el.className = "offline-hinweis";
     document.body.appendChild(el);
   }
-  el.innerHTML = `
+  // Ruhig statt Textwand (Kalle 29.10.2026: „soll hochwertig wirken"): kurze
+  // Aussetzer sehen nur Ring + einen Satz. Erst wenn es länger dauert (oder
+  // das Handy erkennbar auf Mobilfunk ist), kommen die zwei Prüfpunkte - von
+  // selbst, sonst müsste man „Hilfe" erst finden.
+  const lange = seit > 25 || mobil;
+  const bereich = adressBereich(location.hostname);
+  const gemerkt = App.warteschlange.length;
+  const html = `
     <div class="offline-box">
-      <div class="offline-titel">📡 Verbindung unterbrochen</div>
-      ${mobil ? `<div class="offline-mobilfunk">
-        <div class="offline-mobilfunk-titel">📱 Dein Handy ist auf Mobilfunk umgesprungen</div>
-        Das WLAN hat gerade kein Internet – deshalb nutzt dein Handy mobile Daten und
-        findet den Spieltisch nicht mehr.<br>
-        <b>Mobile Daten ausschalten</b> (oder Flugmodus an und WLAN wieder an) –
-        dann geht es sofort weiter.
-      </div>` : ""}
-      <div class="offline-text">Die App versucht es von selbst weiter – <b>Versuch ${App.reconnectTries || 1}</b>, seit ${seit} s.</div>
-      <div class="offline-warn">Bitte die Seite <b>NICHT neu laden</b> und den Tab offen lassen.<br>Sobald das WLAN zurück ist, geht es automatisch weiter.</div>
-      ${App.warteschlange.length
-        ? `<div class="offline-warteschlange">✋ ${App.warteschlange.length} Eingabe${App.warteschlange.length === 1 ? "" : "n"} gemerkt – wird nachgereicht, sobald die Verbindung steht.</div>`
-        : `<div class="offline-text small">Was du jetzt tippst, wird gemerkt und nachgereicht.</div>`}
-      ${seit > 25 && !mobil ? `<div class="offline-text small" style="text-align:left; line-height:1.5">
-        <b>Dauert es länger?</b> Hat das WLAN gerade kein Internet, schalten viele
-        Handys still auf <b>Mobilfunk</b> um – dann ist der Laptop unerreichbar,
-        obwohl „WLAN verbunden“ dasteht.<br>Abhilfe: mobile Daten kurz ausschalten.
-        ${adressBereich(location.hostname) ? `<br><b>Richtiges WLAN?</b> Die IP-Adresse deines Handys muss mit
-        <b>${esc(adressBereich(location.hostname))}</b> anfangen – sonst bist du in einem anderen Netz
-        (z. B. Gast-WLAN).<br><span style="opacity:0.8">${esc(HANDY_IP_FINDEN)}</span>` : ""}
-      </div>` : ""}
-      <div class="offline-text small">Adresse: ${esc(location.host)}</div>
-      <button class="primary" data-act="jetzt-verbinden">Jetzt erneut versuchen</button>
+      <div class="offline-ring"></div>
+      <div class="offline-titel">${mobil ? "Handy ist auf Mobilfunk" : "Verbindung kurz weg"}</div>
+      <div class="offline-status">${lange ? "Dauert länger – bitte prüfen:" : "Verbinde neu …"}</div>
+      ${lange ? `<div class="offline-checks">
+        <div class="offline-check${mobil ? " ursache" : ""}"><div class="offline-nr">1</div><div><b>Mobile Daten aus</b>
+          <span>Ohne Internet im WLAN springt das Handy still auf Mobilfunk.</span></div></div>
+        ${bereich ? `<div class="offline-check"><div class="offline-nr">2</div><div><b>Handy-IP beginnt mit ${esc(bereich)}</b>
+          <span>Sonst falsches WLAN (z. B. Gast). Zu finden in den WLAN-Einstellungen beim Netz.</span></div></div>` : ""}
+      </div>` : `<div class="offline-ruhig">Tab offen lassen, nicht neu laden.</div>`}
+      ${gemerkt ? `<div class="offline-gemerkt">✓ ${gemerkt} Eingabe${gemerkt === 1 ? "" : "n"} gemerkt</div>` : ""}
+      <button class="primary" data-act="jetzt-verbinden">Jetzt versuchen</button>
+      ${lange ? `<div class="offline-fuss">Tab offen lassen · Eingaben werden nachgereicht</div>` : ""}
     </div>`;
+  // Nur bei echter Änderung neu setzen - sonst springt der Ring bei jedem
+  // Verbindungsversuch (alle 1,5 s) zurück auf Anfang.
+  if (el._html !== html) { el.innerHTML = html; el._html = html; }
 }
 
 function versteckeOfflineHinweis() {
