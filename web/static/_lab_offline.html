@@ -1,0 +1,121 @@
+<!doctype html>
+<!-- ENTWICKLER-MUSTERSEITE – nicht Teil des Spiels.
+     Aufruf bei laufendem Server: http://localhost:8000/static/_lab_offline.html
+     Varianten für den Handy-Hinweis „Verbindung unterbrochen" (29.10.2026):
+     Kalle fand ihn nach 1.5.21 überladen. „Jetzt" neben den Varianten, in
+     Handy-Rahmen mit der echten style.css. Kalle wählte B (gebaut in
+     verbindung.js), A und C nicht gewählt. -->
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Offline-Hinweis – Varianten</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { padding: 18px; height: auto; }
+    .reihe { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; margin-top: 10px; }
+    .spalte { display: flex; flex-direction: column; gap: 6px; }
+    .etikett { font-weight: 800; font-size: .9rem; }
+    .etikett small { font-weight: 500; color: var(--muted); display: block; max-width: 330px; }
+    .handy { width: 360px; height: 720px; position: relative; overflow: hidden; border-radius: 22px;
+      border: 6px solid #2a2016; background: var(--bg); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+    /* Platzhalter für den Tisch dahinter */
+    .tisch { padding: 50px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .tisch div { height: 54px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+    .tisch .karte { height: 220px; width: 150px; margin: 0 auto 10px; }
+    .handy .offline-hinweis { position: absolute; }
+
+    /* ===== Vorlagen für den Bau ===== */
+    .ol-box { max-width: 340px; width: 100%; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 16px; padding: 22px 20px 18px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+    .ol-titel { font-size: 1.15rem; font-weight: 700; color: var(--text); margin: 10px 0 4px; }
+    .ol-status { color: var(--muted); font-size: .9rem; margin-bottom: 14px; }
+    .ol-ruhig { color: var(--text); font-size: .92rem; line-height: 1.45; margin-bottom: 16px; }
+    .ol-box button { width: 100%; }
+    .ol-ring { width: 34px; height: 34px; margin: 0 auto; border-radius: 50%;
+      border: 3px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent);
+      animation: drehen 1.1s linear infinite; }
+    @keyframes drehen { to { transform: rotate(360deg); } }
+    .ol-link { background: none; border: 0; color: var(--muted); font-size: .85rem; padding: 10px 0 0;
+      text-decoration: underline; text-underline-offset: 3px; }
+    .ol-checks { text-align: left; margin: 0 0 16px; display: flex; flex-direction: column; gap: 8px; }
+    .ol-check { display: flex; gap: 10px; align-items: flex-start; background: var(--input-bg);
+      border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .ol-nr { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--accent2);
+      color: var(--on-accent); font-weight: 800; font-size: .8rem; display: grid; place-items: center; }
+    .ol-check b { display: block; font-size: .95rem; }
+    .ol-check span { color: var(--muted); font-size: .8rem; line-height: 1.4; }
+    .ol-fuss { color: var(--muted); font-size: .75rem; margin-top: 10px; opacity: .8; }
+    .ol-gemerkt { color: var(--good); font-size: .85rem; margin: -6px 0 14px; }
+    /* C: erst nur eine Leiste oben */
+    .ol-leiste { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; gap: 10px;
+      align-items: center; justify-content: center; padding: 10px; background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border-bottom: 1px solid var(--line); font-size: .9rem; color: var(--text); }
+    .ol-leiste .ol-ring { width: 16px; height: 16px; border-width: 2px; margin: 0; }
+    .gedimmt .tisch { opacity: .45; filter: grayscale(.4); }
+  </style>
+</head>
+<body class="theme-pergament">
+<h1>Offline-Hinweis am Handy</h1>
+<div class="reihe" id="reihe"></div>
+<script>
+const BEREICH = "192.168.178.";
+const handy = (inhalt, extraKlasse = "") =>
+  `<div class="handy ${extraKlasse}"><div class="tisch"><div class="karte"></div><div></div><div></div><div></div><div></div></div>${inhalt}</div>`;
+const spalte = (titel, text, html) =>
+  `<div class="spalte"><div class="etikett">${titel}<small>${text}</small></div>${html}</div>`;
+
+const jetzt = `<div class="offline-hinweis"><div class="offline-box">
+  <div class="offline-titel">📡 Verbindung unterbrochen</div>
+  <div class="offline-text">Die App versucht es von selbst weiter – <b>Versuch 10</b>, seit 40 s.</div>
+  <div class="offline-warn">Bitte die Seite <b>NICHT neu laden</b> und den Tab offen lassen.<br>Sobald das WLAN zurück ist, geht es automatisch weiter.</div>
+  <div class="offline-text small">Was du jetzt tippst, wird gemerkt und nachgereicht.</div>
+  <div class="offline-text small" style="text-align:left; line-height:1.5"><b>Dauert es länger?</b> Hat das WLAN gerade kein Internet, schalten viele Handys still auf <b>Mobilfunk</b> um – dann ist der Laptop unerreichbar, obwohl „WLAN verbunden“ dasteht.<br>Abhilfe: mobile Daten kurz ausschalten.<br><b>Richtiges WLAN?</b> Die IP-Adresse deines Handys muss mit <b>${BEREICH}</b> anfangen – sonst bist du in einem anderen Netz (z. B. Gast-WLAN).<br><span style="opacity:0.8">iPhone: Einstellungen → WLAN → ⓘ beim Netz · Android: Einstellungen → WLAN → Zahnrad beim Netz (ggf. „Erweitert“) → IP-Adresse</span></div>
+  <div class="offline-text small">Adresse: 192.168.178.20:8000</div>
+  <button class="primary">Jetzt erneut versuchen</button></div></div>`;
+
+const kopf = (status) => `<div class="ol-ring"></div>
+  <div class="ol-titel">Verbindung kurz weg</div>
+  <div class="ol-status">${status}</div>`;
+
+const aRuhig = `<div class="offline-hinweis"><div class="ol-box">
+  ${kopf("Verbinde neu … Versuch 10")}
+  <div class="ol-ruhig">Tab offen lassen, nicht neu laden –<br>es geht von selbst weiter.</div>
+  <button class="primary">Jetzt versuchen</button>
+  <button class="ol-link">Dauert es lange? Hilfe</button></div></div>`;
+
+const checks = `<div class="ol-checks">
+  <div class="ol-check"><div class="ol-nr">1</div><div><b>Mobile Daten aus</b><span>Ohne Internet im WLAN springt das Handy still auf Mobilfunk.</span></div></div>
+  <div class="ol-check"><div class="ol-nr">2</div><div><b>Handy-IP beginnt mit ${BEREICH}</b><span>Sonst falsches WLAN (z. B. Gast). Zu finden in den WLAN-Einstellungen beim Netz.</span></div></div>
+</div>`;
+
+const aOffen = `<div class="offline-hinweis"><div class="ol-box">
+  ${kopf("Verbinde neu … Versuch 10")}
+  <div class="ol-ruhig">Tab offen lassen, nicht neu laden –<br>es geht von selbst weiter.</div>
+  ${checks}
+  <button class="primary">Jetzt versuchen</button></div></div>`;
+
+const bKurz = `<div class="offline-hinweis"><div class="ol-box">
+  ${kopf("Verbinde neu …")}
+  <div class="ol-ruhig">Tab offen lassen, nicht neu laden.</div>
+  <div class="ol-gemerkt">✓ 1 Eingabe gemerkt</div>
+  <button class="primary">Jetzt versuchen</button></div></div>`;
+
+const bLang = `<div class="offline-hinweis"><div class="ol-box">
+  ${kopf("Seit 40 s – bitte prüfen:")}
+  ${checks}
+  <button class="primary">Jetzt versuchen</button>
+  <div class="ol-fuss">Tab offen lassen · Eingaben werden nachgereicht</div></div></div>`;
+
+const cLeiste = `<div class="ol-leiste"><div class="ol-ring"></div>Verbindung kurz weg – verbinde neu …</div>`;
+
+document.getElementById("reihe").innerHTML = [
+  spalte("JETZT", "nach 40 s, 1.5.21", handy(jetzt)),
+  spalte("A – Ruhig, Hilfe auf Tipp", "Kurz und ruhig. Tipps erst nach „Hilfe“ (rechts aufgeklappt).", handy(aRuhig)),
+  spalte("A – nach Tipp auf „Hilfe“", "Zwei Punkte statt Textblock.", handy(aOffen)),
+  spalte("B – erste 25 s", "Nur Ring + ein Satz.", handy(bKurz)),
+  spalte("B – ab 25 s von selbst", "Checkliste erscheint automatisch, Rest wird Fußzeile.", handy(bLang)),
+  spalte("C – erste 25 s: nur Leiste", "Kein Fenster, Tisch bleibt sichtbar (gedimmt). Ab 25 s Fenster wie B.", handy(cLeiste, "gedimmt")),
+].join("");
+</script>
+</body>
+</html>

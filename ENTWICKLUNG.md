@@ -77,6 +77,20 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Offline-Hinweis entschlackt (29.10.2026, nach 1.5.21)
+
+Kalle: Handy-Ansicht soll clean und hochwertig wirken, der Offline-Hinweis war
+ab 25 s eine Textwand (Rot-Titel, Warnkasten, Absätze, iPhone/Android-Pfade,
+Adresse). Varianten auf `_lab_offline.html`, Kalle wählte **B**:
+- Erste 25 s: Ring + „Verbindung kurz weg / Verbinde neu …" + ein Satz + Knopf.
+- Ab 25 s (oder sofort bei erkanntem Mobilfunk) von selbst zwei Prüfpunkte:
+  ① Mobile Daten aus ② Handy-IP beginnt mit … (Mobilfunk erkannt → Punkt 1
+  betont, Titel „Handy ist auf Mobilfunk").
+- Kein Rot, kein Warnkasten, keine Sekunden/Versuchszahl, keine Adresse mehr.
+- innerHTML nur bei echter Änderung neu setzen – sonst springt der Ring bei
+  jedem Verbindungsversuch zurück.
+- Nicht gewählt: A (Tipps erst auf „Hilfe"), C (erst nur Leiste oben).
+
 ## 1.5.21 (29.10.2026): Hinweis Adressbereich
 
 Kalle: Info für Spieler, wenn ihre IP nicht im Adressbereich des SL-Laptops liegt.
