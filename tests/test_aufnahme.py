@@ -157,8 +157,12 @@ def test_live_zeilen_landen_bei_der_laufenden_aufnahme(tmp_path):
     assert [z["text"] for z in a.live_ab(1)["zeilen"]] == ["Wer?"]
     a.stoppen()
     assert a.liste()[0]["hatLive"]
-    p = a.prompt_live(meta["name"])
+    p = a.prompt_aus(meta["name"], "live")
     assert "[00:01:05] S01: Ich ziehe meine Axt." in p
+    # Live-Prompt gilt nicht als genaues Transkript.
+    assert not a.liste()[0]["hatTranskript"]
+    assert a.prompt_aus(meta["name"], "genau") is None
+    assert a.prompt_aus(meta["name"], "../x") is None
     assert a.loeschen(meta["name"])
     assert not (tmp_path / f"{meta['name']}-live.txt").exists()
 
@@ -171,4 +175,4 @@ def test_live_anzeige_haelt_nur_die_letzten_zeilen(tmp_path):
     assert len(a.live_ab(0)["zeilen"]) == A.LIVE_MERKEN
     a.starten("audio/webm")                       # neue Aufnahme, Anzeige leer
     assert a.live_ab(0)["zeilen"] == []
-    assert a.prompt_live("2000-01-01_00-00") is None
+    assert a.prompt_aus("2000-01-01_00-00", "live") is None

@@ -4,3 +4,8 @@ uvicorn[standard]>=0.27
 qrcode>=7.4
 pillow>=10.0
 zeroconf>=0.131
+# Spracherkennung (Spielabend-Mitschrift, server/sprache.py) - alles ONNX auf
+# der CPU, kein PyTorch. Modelle lädt die App bei Bedarf nach data/modelle.
+sherpa-onnx>=1.12,<3
+av>=12          # Ton lesen (webm/Opus aus dem Browser), bringt ffmpeg mit
+numpy>=1.24

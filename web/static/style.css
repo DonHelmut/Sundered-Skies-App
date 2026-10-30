@@ -2491,6 +2491,14 @@ body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px))
 .aufn-live > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .aufn-live > div:last-child { color: var(--text); opacity: .8; }
 .aufn-sprecher { font-size: 10px; opacity: .7; font-variant-numeric: tabular-nums; }
+.aufn-mitschrift { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.aufn-mitschrift label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; margin: 0; }
+.aufn-mitschrift input[type=checkbox] { width: auto; margin: 0; }
+.aufn-job { display: inline-flex; align-items: center; gap: 6px; }
+/* Fortschritt: nur transform ändert sich (kein Neuzeichnen der Breite). */
+.aufn-balken { display: inline-block; width: 80px; height: 6px; border-radius: 3px; overflow: hidden;
+  background: color-mix(in srgb, var(--muted) 25%, transparent); }
+.aufn-balken > i { display: block; height: 100%; background: var(--good); transform-origin: left; transform: scaleX(0); }
 .aufn-kopf .aufn-punkt { width: 8px; height: 8px; }
 .aufn-kopf.still .aufn-punkt { background: var(--muted); animation: none; }
 .aufn-kopf .aufn-stille { font-size: 0.8rem; }

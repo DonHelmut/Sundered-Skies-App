@@ -27,6 +27,7 @@ from . import diag
 from . import winnet
 from . import sicherung
 from .aufnahme import Aufnahmen, MAX_TRANSKRIPT
+from .sprache import Sprache
 
 WEB_DIR = RESOURCE_DIR / "web"
 LOCAL_IP = local_ip()
@@ -375,13 +376,15 @@ async def firewall_allow(request: Request):
 # Der Browser des Laptops nimmt auf und schickt Stücke, siehe server/aufnahme.py.
 
 aufnahmen = Aufnahmen(DATA_DIR / "aufnahmen")
+# Modelle in data/: das Aktualisieren tauscht nur die Programmdateien.
+sprache = Sprache(DATA_DIR / "modelle", aufnahmen)
 
 
 @app.get("/api/aufnahme")
 async def aufnahme_status(request: Request):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
-    return JSONResponse(aufnahmen.status())
+    return JSONResponse({**aufnahmen.status(), "sprache": sprache.status()})
 
 
 @app.post("/api/aufnahme/start")
@@ -394,6 +397,7 @@ async def aufnahme_start(request: Request):
         body = {}
     meta = aufnahmen.starten(str((body or {}).get("mime") or ""), game)
     diag.log(f"AUFNAHME gestartet: {meta['name']}{meta['endung']}")
+    sprache.aufnahme_laeuft()
     return JSONResponse({"name": meta["name"]})
 
 
@@ -416,7 +420,7 @@ async def aufnahme_stop(request: Request):
     meta = aufnahmen.stoppen(game)
     if meta:
         diag.log(f"AUFNAHME beendet: {meta['name']} ({meta['dauerMs'] // 60000} min)")
-    return JSONResponse(aufnahmen.status())
+    return JSONResponse({**aufnahmen.status(), "sprache": sprache.status()})
 
 
 @app.post("/api/aufnahme/marke")
@@ -430,24 +434,6 @@ async def aufnahme_marke(request: Request):
     return JSONResponse({"ok": aufnahmen.marke(str((body or {}).get("text") or ""))})
 
 
-@app.post("/api/aufnahme/live")
-async def aufnahme_live(request: Request):
-    """Eine Zeile vom Transkribierer (Live-Modus, gleicher Laptop)."""
-    if not _is_loopback(request):
-        return JSONResponse({"error": "forbidden"}, status_code=403)
-    try:
-        body = await request.json()
-    except ValueError:
-        body = None
-    if not isinstance(body, dict):
-        return JSONResponse({"error": "kaputt"}, status_code=400)
-    if not aufnahmen.live(body.get("zeit"), body.get("sprecher"), body.get("text")):
-        # 409: in der App läuft keine Aufnahme - der Transkribierer schreibt
-        # dann nur in seine eigene Datei und sagt das einmal an.
-        return JSONResponse({"error": "nicht_aktiv"}, status_code=409)
-    return JSONResponse({"ok": True})
-
-
 @app.get("/api/aufnahme/live")
 async def aufnahme_live_lesen(request: Request, ab: int = 0):
     if not _is_loopback(request):
@@ -455,14 +441,59 @@ async def aufnahme_live_lesen(request: Request, ab: int = 0):
     return JSONResponse(aufnahmen.live_ab(ab))
 
 
-@app.post("/api/aufnahme/prompt-live/{name}")
-async def aufnahme_prompt_live(request: Request, name: str, extra: str = ""):
+@app.post("/api/aufnahme/prompt-aus/{name}")
+async def aufnahme_prompt_aus(request: Request, name: str, quelle: str = "genau", extra: str = ""):
+    """Prompt aus dem gespeicherten Transkript (genau) oder der Live-Mitschrift."""
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
-    prompt = aufnahmen.prompt_live(name, extra)
+    prompt = aufnahmen.prompt_aus(name, quelle, extra)
     if prompt is None:
         return JSONResponse({"error": "leer"}, status_code=400)
     return JSONResponse({"prompt": prompt})
+
+
+# Spracherkennung (server/sprache.py): Modelle laden, live an/aus, genau.
+
+@app.post("/api/sprache/modelle")
+async def sprache_modelle(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    sprache.modelle_holen()
+    return JSONResponse(sprache.status())
+
+
+@app.post("/api/sprache/einstellen")
+async def sprache_einstellen(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    try:
+        personen = int(body["personen"]) if "personen" in body else None
+    except (TypeError, ValueError):
+        personen = None
+    sprache.einstellen(live=body.get("live") if isinstance(body.get("live"), bool) else None, personen=personen)
+    return JSONResponse(sprache.status())
+
+
+@app.post("/api/sprache/genau/{name}")
+async def sprache_genau(request: Request, name: str):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if sprache.genau(name):
+        diag.log(f"TRANSKRIPTION gestartet: {name}")
+    return JSONResponse(sprache.status())
+
+
+@app.post("/api/sprache/abbrechen")
+async def sprache_abbrechen(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    sprache.genau_abbrechen()
+    return JSONResponse(sprache.status())
 
 
 @app.get("/api/aufnahme/datei/{name}")
