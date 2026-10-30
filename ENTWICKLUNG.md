@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (30.10.2026): Treffer-Meldung am Handy, alle Spieler heilen
+## 1.5.24 (30.10.2026): Treffer-Meldung am Handy, alle Spieler heilen
 
 - **Treffer-Meldung:** Trägt der SL einen Treffer gegen eine Spieler-Figur ein
   (`apply_hit`, auch über einen gemeldeten Spieler-Angriff), bekommt der
