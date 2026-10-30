@@ -8,7 +8,9 @@
 // fehlen höchstens die letzten Sekunden. Transkribiert wird danach lokal mit
 // noScribe; das Transkript kommt zurück und die App baut den Claude-Prompt.
 
-const NOSCRIBE_URL = "https://github.com/kaixxx/noScribe";
+// Offizielle Download-Seite (Kai Dröge, auch auf GitHub verlinkt): dort liegt
+// immer die neueste Windows-Version. Die GitHub-Releases haben keinen Installer.
+const NOSCRIBE_URL = "https://noscribe.de/en/docs/download-installation/";
 const AUFN_STUECK_MS = 10000;
 
 const Aufn = {
@@ -114,7 +116,7 @@ function renderAufnahmePanel() {
     ${oben}
     ${zeilen ? `<div class="aufn-liste">${zeilen}</div>` : ""}
     <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap; align-items:center">
-      <a href="${NOSCRIBE_URL}" target="_blank" rel="noopener"><button class="ghost small" title="Gratis, läuft offline. Nicht noscribe.ai – das kostet.">🔗 noScribe holen</button></a>
+      <a href="${NOSCRIBE_URL}" target="_blank" rel="noopener"><button class="ghost small" title="Neueste Version, gratis, läuft offline (Installer ca. 3 GB). Nicht noscribe.ai – das kostet.">⬇ noScribe herunterladen</button></a>
     </div>
     <div class="muted small hilfe" style="margin-top:6px; line-height:1.5">
       ① Aufnehmen ② „⬇ Ton“ in noScribe (Deutsch, Sprecher + Zeitstempel an)
