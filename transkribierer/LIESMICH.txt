@@ -1,0 +1,17 @@
+Sundered Skies – Transkribierer
+===============================
+
+Macht aus der Spielabend-Aufnahme ein Transkript mit Sprechern.
+Gratis, komplett offline, kein Konto.
+
+1. In der App: 🎙 Aufnahme & Protokoll -> "⬇ Ton".
+2. Tondatei auf Transkribierer.exe ziehen (oder Doppelklick und Datei waehlen).
+3. Anzahl Leute am Tisch eingeben (SL mitzaehlen). Enter = automatisch.
+4. Laufen lassen. Fertig liegt "…-transkript.txt" neben der Tondatei.
+5. In der App: "📝 Transkript -> Prompt" -> diese Datei -> in Claude einfuegen.
+
+Beim ersten Start laedt das Programm einmalig ca. 1 GB Modelle von GitHub
+(Ordner "modelle" daneben). Danach braucht es kein Internet mehr.
+
+Dauer: ungefaehr so lange wie die Aufnahme (4 h Ton -> 3–5 h auf einem
+normalen Laptop). Am besten ueber Nacht, Laptop am Strom, Energiesparen aus.

@@ -77,6 +77,34 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (30.10.2026): Transkribierer (Stufe 2, eigenes Werkzeug)
+
+Kalle: Transkription als **Extra-Download, unabhängig von der App**, später
+verschmelzbar; Ziel ein normaler 500-€-ThinkPad ohne NVIDIA. Ordner
+`transkribierer/` mit eigener `requirements.txt`/.venv und eigener Spec
+(`Transkribierer.spec`, Ordner-Variante, ~240 MB ohne Modelle).
+- **Alles über sherpa-onnx (ONNX, CPU)**, kein PyTorch: Sprechertrennung
+  (pyannote-Segmentierung 3.0 als ONNX + Stimmabdruck) und Whisper „turbo" int8.
+  pyannote direkt bräuchte ein Hugging-Face-Konto mit Lizenz-Klick – die
+  ONNX-Fassungen liegen frei auf GitHub (k2-fsa/sherpa-onnx Releases). Modelle
+  (~1,1 GB) lädt das Programm beim ersten Start nach `modelle/` daneben.
+- Ton lesen per PyAV (bringt ffmpeg mit) – die App speichert webm/Opus.
+- Ablauf: erst Sprecher trennen, dann jeden Beitrag (≤ 28 s Stücke) einzeln
+  durch Whisper. Ausgabe wie noScribe: `[hh:mm:ss] S00: …`, S00 = wer am meisten
+  redet (meist SL). Passt direkt in „📝 Transkript → Prompt".
+- Getestet mit erzeugtem deutschem Dialog (3 Piper-Stimmen, 2 männlich):
+  - Stimmabdruck **TitaNet** trennte als einziges alle 3 richtig (WeSpeaker und
+    3D-Speaker legten die Männer zusammen). Mit Personenzahl exakt, automatisch
+    (Schwelle 0,7) eine Stimme zu viel.
+  - Whisper verschluckte ohne Stille am Ende das letzte Wort jedes Beitrags →
+    0,2 s Stille vorne, 1 s hinten.
+  - Whisper „small" kaum schneller als „turbo", aber schlechter → nur turbo.
+  - Tempo: Faktor 0,7–0,9 auf 4 Kernen (Container). ThinkPad grob 3–5 h für 4 h Ton.
+- Echte Tischaufnahme (ein Mikro, Durcheinanderreden) noch ungetestet.
+- Release: eigenes Zip `Transkribierer.zip` am GitHub-Release (Build am
+  Windows-PC, Anleitung im Spec-Kopf). Danach in der App den noScribe-Knopf
+  auf den Transkribierer umstellen.
+
 ## 1.5.24 (30.10.2026): Treffer-Meldung am Handy, alle Spieler heilen
 
 - **Treffer-Meldung:** Trägt der SL einen Treffer gegen eine Spieler-Figur ein

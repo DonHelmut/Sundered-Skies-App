@@ -1,0 +1,5 @@
+# Transkribierer (eigenes Werkzeug, NICHT Teil der App-.venv - eigene .venv in diesem Ordner).
+# Kein PyTorch, keine Grafikkarte: alles laeuft ueber ONNX auf der CPU.
+sherpa-onnx>=1.12,<3
+av>=12          # Ton lesen (webm/Opus aus der App), bringt ffmpeg mit
+numpy>=1.24
