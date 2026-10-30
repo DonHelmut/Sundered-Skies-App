@@ -30,7 +30,10 @@ const Aufn = {
   pegel: 0,         // 0..1, geglättet
   stilleSeit: 0,    // seit wann praktisch nichts ankommt (falsches/stummes Mikro)
 };
-const AUFN_STILLE_MS = 30000;
+// Erst nach 90 s Stille melden, und dann nur leise: Pausen am Tisch (Pizza,
+// Regeln nachlesen) sind normal - die Anzeige soll informieren, nicht nerven
+// (Kalle, 30.10.2026: „eher im Hintergrund").
+const AUFN_STILLE_MS = 90000;
 
 function aufnZeit(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -72,8 +75,9 @@ function aufnMikroWahl() {
 // dass aufgenommen wird, und kann einen Moment merken.
 function aufnahmeKopfHtml() {
   if (!Aufn.rec) return "";
-  return `<span class="pill bad aufn-kopf" title="Spielabend wird aufgenommen"><span class="aufn-punkt"></span>
-      <span class="aufn-zeit">${aufnZeit(Date.now() - Aufn.start)}</span></span>
+  return `<span class="pill aufn-kopf" title="Spielabend wird aufgenommen"><span class="aufn-punkt"></span>
+      <span class="aufn-zeit">${aufnZeit(Date.now() - Aufn.start)}</span>
+      <span class="aufn-pegel klein"><i></i></span><span class="aufn-stille muted" style="display:none">kein Ton?</span></span>
     <button class="ghost" data-act="aufn-marke" title="Diesen Moment fürs Protokoll merken (wird dort besonders erwähnt)">📌 Merken</button>`;
 }
 
@@ -87,7 +91,7 @@ function renderAufnahmePanel() {
         <b class="aufn-zeit">${aufnZeit(Date.now() - Aufn.start)}</b>
         <span class="aufn-pegel" title="Pegel: zappelt der Balken beim Reden, kommt Ton an"><i></i></span>
         <span class="muted small aufn-groesse">${aufnGroesse(Aufn.bytes)} gespeichert</span></div>
-      <div class="pill warn aufn-stille" style="display:none; margin-top:6px">⚠ Seit 30 s kein Ton – richtiges Mikro? Stumm geschaltet?</div>
+      <div class="muted small aufn-stille" style="display:none; margin-top:4px">Seit über einer Minute kein Ton – falls das nicht stimmt: Mikro prüfen.</div>
       <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
         <button class="ghost" data-act="aufn-marke">📌 Moment merken</button>
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
@@ -258,7 +262,8 @@ function aufnPegelMessen() {
   if (rms > 0.003) Aufn.stilleSeit = Date.now();
   const still = Date.now() - Aufn.stilleSeit > AUFN_STILLE_MS;
   document.querySelectorAll(".aufn-pegel > i").forEach((x) => { x.style.transform = `scaleX(${Aufn.pegel.toFixed(3)})`; });
-  document.querySelectorAll(".aufn-stille").forEach((x) => { x.style.display = still ? "block" : "none"; });
+  document.querySelectorAll(".aufn-stille").forEach((x) => { x.style.display = still ? "" : "none"; });
+  document.querySelectorAll(".aufn-kopf").forEach((x) => x.classList.toggle("still", still));
 }
 setInterval(() => { if (Aufn.rec) aufnPegelMessen(); }, 150);
 
