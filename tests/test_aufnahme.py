@@ -131,3 +131,15 @@ def test_endung_passt_zum_browser():
     assert A.endung_fuer("audio/ogg;codecs=opus") == ".ogg"
     assert A.endung_fuer("audio/mp4") == ".m4a"
     assert A.uhrzeit(3_723_000) == "01:02:03"
+
+
+def test_dauer_nach_server_absturz_aus_der_tondatei(tmp_path):
+    import os
+    a = A.Aufnahmen(tmp_path)
+    meta = a.starten("audio/webm")
+    a.stueck(meta["name"], b"x")
+    pfad = a.audio_pfad(meta["name"])
+    t = (meta["start"] + 3_600_000) / 1000
+    os.utime(pfad, (t, t))
+    neu = A.Aufnahmen(tmp_path)          # Server neu gestartet, nichts aktiv
+    assert 3_590_000 <= neu.liste()[0]["dauerMs"] <= 3_610_000

@@ -2464,3 +2464,8 @@ body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px))
 .aufn-zeile { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
 .knopf-label.small { padding: 3px 8px; font-size: 0.85rem; }
+/* Pegel: Breite per transform (komponiert), nicht per width - malt nicht neu. */
+.aufn-pegel { display: inline-block; width: 90px; height: 8px; border-radius: 4px; overflow: hidden;
+  background: var(--line); vertical-align: middle; }
+.aufn-pegel > i { display: block; height: 100%; background: var(--good); transform-origin: left;
+  transform: scaleX(0); transition: transform 0.12s linear; }

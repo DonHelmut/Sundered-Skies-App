@@ -25,7 +25,12 @@ const Aufn = {
   wakeLock: null,
   geraete: [],
   neustart: false,
+  audioCtx: null,   // nur für die Pegelanzeige
+  analyser: null,
+  pegel: 0,         // 0..1, geglättet
+  stilleSeit: 0,    // seit wann praktisch nichts ankommt (falsches/stummes Mikro)
 };
+const AUFN_STILLE_MS = 30000;
 
 function aufnZeit(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -36,6 +41,9 @@ function aufnZeit(ms) {
 async function aufnStatusLaden() {
   Aufn.laedt = true;
   try { Aufn.status = await (await fetch("/api/aufnahme")).json(); } catch { /* bleibt alt */ }
+  // War das Mikro schon einmal erlaubt, kennt der Browser die Namen jetzt
+  // schon - dann lässt sich das Tischmikro VOR dem Start auswählen.
+  if (!Aufn.geraete.length) await aufnGeraeteLaden();
   Aufn.laedt = false;
   render();
 }
@@ -77,7 +85,9 @@ function renderAufnahmePanel() {
   if (Aufn.rec) {
     oben = `<div class="aufn-laeuft"><span class="aufn-punkt"></span> Aufnahme läuft
         <b class="aufn-zeit">${aufnZeit(Date.now() - Aufn.start)}</b>
+        <span class="aufn-pegel" title="Pegel: zappelt der Balken beim Reden, kommt Ton an"><i></i></span>
         <span class="muted small aufn-groesse">${aufnGroesse(Aufn.bytes)} gespeichert</span></div>
+      <div class="pill warn aufn-stille" style="display:none; margin-top:6px">⚠ Seit 30 s kein Ton – richtiges Mikro? Stumm geschaltet?</div>
       <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
         <button class="ghost" data-act="aufn-marke">📌 Moment merken</button>
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
@@ -174,6 +184,7 @@ async function aufnahmeStarten() {
     if (Aufn.rec === rec) { aufnahmeBeenden(); hinweis("Das Mikro ist weg – Aufnahme beendet. Der Ton bis hierher ist gespeichert."); }
   }; });
   rec.start(AUFN_STUECK_MS);
+  aufnPegelStarten(stream);
   aufnWachHalten();
   aufnGeraeteLaden();
   toast("● Aufnahme läuft");
@@ -211,6 +222,8 @@ async function aufnahmeBeenden(still = false) {
     try { rec.stop(); } catch { fertig(); }
   });
   stream.getTracks().forEach((t) => t.stop());
+  if (Aufn.audioCtx) { try { Aufn.audioCtx.close(); } catch { /* egal */ } }
+  Aufn.audioCtx = null; Aufn.analyser = null;
   await Aufn.kette;                         // letzte Stücke noch abliefern
   Aufn.name = null;
   if (Aufn.wakeLock) { try { Aufn.wakeLock.release(); } catch { /* egal */ } Aufn.wakeLock = null; }
@@ -218,6 +231,36 @@ async function aufnahmeBeenden(still = false) {
   if (!still) toast("■ Aufnahme beendet und gespeichert");
   render();
 }
+
+// Pegel messen: Beim ersten Test lief die Aufnahme sonst gern über das
+// eingebaute Laptop-Mikro oder ein stummes Headset, und das fiel erst nach
+// dem Abend auf.
+function aufnPegelStarten(stream) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const an = ctx.createAnalyser();
+    an.fftSize = 1024;
+    ctx.createMediaStreamSource(stream).connect(an);
+    Object.assign(Aufn, { audioCtx: ctx, analyser: an, pegel: 0, stilleSeit: Date.now() });
+  } catch { Aufn.analyser = null; }
+}
+function aufnPegelMessen() {
+  const an = Aufn.analyser;
+  if (!an) return;
+  const daten = new Float32Array(an.fftSize);
+  an.getFloatTimeDomainData(daten);
+  let summe = 0;
+  for (const v of daten) summe += v * v;
+  const rms = Math.sqrt(summe / daten.length);
+  // Sprache am Tisch liegt grob bei 0,01–0,2 RMS -> auf 0..1 strecken.
+  const roh = Math.min(1, Math.sqrt(rms) * 2.2);
+  Aufn.pegel = Math.max(roh, Aufn.pegel * 0.8);
+  if (rms > 0.003) Aufn.stilleSeit = Date.now();
+  const still = Date.now() - Aufn.stilleSeit > AUFN_STILLE_MS;
+  document.querySelectorAll(".aufn-pegel > i").forEach((x) => { x.style.transform = `scaleX(${Aufn.pegel.toFixed(3)})`; });
+  document.querySelectorAll(".aufn-stille").forEach((x) => { x.style.display = still ? "block" : "none"; });
+}
+setInterval(() => { if (Aufn.rec) aufnPegelMessen(); }, 150);
 
 // Bildschirm wach halten: Geht der Laptop schlafen, endet die Aufnahme.
 async function aufnWachHalten() {

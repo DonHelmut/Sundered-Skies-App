@@ -247,9 +247,15 @@ class Aufnahmen:
                 continue
             audio = self.audio_pfad(meta["name"])
             ev = meta.get("ereignisse", [])
+            dauer = meta.get("dauerMs", 0)
+            if not meta.get("ende") and audio and not (self.aktiv and self.aktiv["name"] == meta["name"]):
+                # Server mittendrin beendet (Absturz, Fenster zu): die Länge
+                # steht dann nur im Speicher. Letzte Änderung der Tondatei
+                # = letztes angekommenes Stück.
+                dauer = max(dauer, int(audio.stat().st_mtime * 1000) - (meta.get("start") or 0))
             erg.append({
                 "name": meta["name"], "start": meta.get("start"),
-                "dauerMs": meta.get("dauerMs", 0),
+                "dauerMs": dauer,
                 "laeuft": bool(self.aktiv and self.aktiv["name"] == meta["name"]),
                 "bytes": audio.stat().st_size if audio else 0,
                 "datei": audio.name if audio else None,

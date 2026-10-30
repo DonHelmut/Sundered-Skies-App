@@ -104,6 +104,12 @@ Ordner (`recherche/spielabend-protokoll.md`). Gebaut „Stufe 1":
   `…-transkript.txt`/`…-prompt.txt` daneben. Dialog: kopieren + claude.ai öffnen
   oder als Datei.
 - Panel „🎙 Aufnahme & Protokoll" startet zugeklappt (Vorbereitungs-Panel).
+- **Pegelbalken** während der Aufnahme + Warnung nach 30 s Stille (sonst
+  merkt man erst nach dem Abend, dass das Laptop-Mikro oder ein stummes Headset
+  lief). Breite per `transform`, nicht `width`. Mikro-Auswahl erscheint schon
+  vor dem Start, sobald der Browser das Mikro einmal erlaubt hat.
+- Knopf „⬇ noScribe herunterladen" → noscribe.de (offizielle Seite, neueste
+  Version; die GitHub-Releases haben keinen Windows-Installer).
 - Offen: Stufe 2 = Transkription direkt in der App (faster-whisper + pyannote,
   mehrere GB) – erst, wenn noScribe nervt. Tondatei hat keine Längenangabe im
   Kopf (MediaRecorder); ffmpeg/noScribe stört das nicht, manche Player zeigen
