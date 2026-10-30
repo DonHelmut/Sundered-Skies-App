@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (30.10.2026): Transkribierer in der App
+## 1.5.26 (30.10.2026): Transkribierer in der App
 
 Kalle: „eigentlich will ich den Transkribierer mit drin haben – auch wenn ich
 aktualisiere". Der Extra-Download (1.5.25) ist damit wieder raus, der Ordner
