@@ -80,7 +80,7 @@ function renderAufnahmePanel() {
         <button class="ghost" data-act="aufn-marke">📌 Moment merken</button>
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
       </div>
-      <div class="muted small hilfe" style="margin-top:6px">Diesen Tab offen lassen. Laptop nicht zuklappen, sonst stoppt die Aufnahme. Kämpfe merkt sich die App von selbst.</div>`;
+      <div class="muted small hilfe" style="margin-top:6px">Tab offen lassen, Laptop nicht zuklappen.</div>`;
   } else {
     const wahl = aufnMikroWahl();
     const auswahl = Aufn.geraete.length > 1
@@ -113,14 +113,12 @@ function renderAufnahmePanel() {
   return section("aufnahme", "🎙 Aufnahme &amp; Protokoll", `
     ${oben}
     ${zeilen ? `<div class="aufn-liste">${zeilen}</div>` : ""}
-    <div class="muted small hilfe" style="margin-top:8px; line-height:1.5">
-      <b>So wird ein Protokoll daraus:</b><br>
-      1. Tischmikro an den Laptop, hier „Aufnahme starten“.<br>
-      2. Nach dem Abend „⬇ Ton“ und die Datei in <b>noScribe</b> öffnen (gratis, offline:
-        <code>github.com/kaixxx/noScribe</code> – nicht noscribe.ai, das kostet).
-        Sprache Deutsch, Sprechererkennung an, Zeitstempel an.<br>
-      3. Das fertige Transkript hier bei „📝 Transkript → Prompt“ wählen, Prompt kopieren, in Claude einfügen.
-      ${st.ordner ? `<br>Ordner: <code>${esc(st.ordner)}</code>` : ""}
+    <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap; align-items:center">
+      <a href="${NOSCRIBE_URL}" target="_blank" rel="noopener"><button class="ghost small" title="Gratis, läuft offline. Nicht noscribe.ai – das kostet.">🔗 noScribe holen</button></a>
+    </div>
+    <div class="muted small hilfe" style="margin-top:6px; line-height:1.5">
+      ① Aufnehmen ② „⬇ Ton“ in noScribe (Deutsch, Sprecher + Zeitstempel an)
+      ③ „📝 Transkript → Prompt“ → in Claude einfügen
     </div>`);
 }
 
