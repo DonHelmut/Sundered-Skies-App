@@ -2469,3 +2469,9 @@ body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px))
   background: var(--line); vertical-align: middle; }
 .aufn-pegel > i { display: block; height: 100%; background: var(--good); transform-origin: left;
   transform: scaleX(0); transition: transform 0.12s linear; }
+/* Kopfleiste: bewusst unauffällig (neutrale Pille), Pegel im Kleinformat.
+   Bei langer Stille wird nur der Punkt grau - keine Warnfarbe. */
+.aufn-pegel.klein { width: 36px; height: 5px; }
+.aufn-kopf .aufn-punkt { width: 8px; height: 8px; }
+.aufn-kopf.still .aufn-punkt { background: var(--muted); animation: none; }
+.aufn-kopf .aufn-stille { font-size: 0.8rem; }
