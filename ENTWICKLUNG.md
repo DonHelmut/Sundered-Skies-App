@@ -77,6 +77,34 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (30.10.2026): Live-Mitschrift
+
+Kalle: „noch viel geiler, wenn das Gesprochene mehr oder weniger live
+transkribiert wird". Der Transkribierer hat dafür einen Live-Modus
+(`transkribierer/live.py`, Menü beim Doppelklick: 1 = live, 2 = Datei).
+- Hört selbst am Mikro mit (`sounddevice`, parallel zur Browser-Aufnahme –
+  Windows teilt das Mikro). Schickt jede Zeile per `POST /api/aufnahme/live` an
+  die App (sucht sie auf den Ports aus `PORT_CANDIDATES`, nur localhost).
+  Läuft keine Aufnahme → 409, Text nur in `transkribierer/live/…`.
+- Server hängt Zeilen an `<aufnahme>-live.txt` (Zeit ab Aufnahmebeginn aus der
+  Wanduhr des Transkribierers) und hält die letzten 60 für die Anzeige.
+  SL-Panel zeigt während der Aufnahme die letzten 4 Zeilen klein und grau
+  (alle 3 s abgefragt). Liste: „📝 Live-Text → Prompt" (sofort, ohne Durchgang).
+- Pipeline je Sprechpause: Silero-VAD (≤ 12 s Stücke) → pyannote-Segmentierung
+  im Stück (Sprecherwechsel ohne Pause; VAD allein klebte im Test Sprecher
+  zusammen) → TitaNet-Abdruck, online gegen Mittelwerte je Sprecher
+  (Ähnlichkeit ≥ 0,5; Test: gleiche Person 0,57–0,91, verschiedene ≤ 0,29) →
+  **Parakeet TDT 0.6B v3** (int8, ~650 MB, Deutsch) mit Wort-Zeitstempeln: ein
+  Aufruf je Stück, Wörter gehen an den, der gerade redet.
+- Warum nicht Whisper live: rechnet jedes Stück auf 30 s aufgefüllt, je
+  Sprecher ein Aufruf → im Test ~so langsam wie der Ton. Parakeet: Faktor
+  ~0,15 (3 Threads), Text ~2 s nach Ende des Stücks, Qualität gleich gut.
+  → Kandidat, auch den Durchgang danach (Stufe 2) schneller zu machen.
+- Rechner zu langsam → älteste wartende Stücke werden übersprungen (live
+  bleibt live), Hinweis in der Konsole; die Aufnahme ist ja vollständig.
+- Test ohne Mikro: `python transkribieren.py --live-test DATEI --app http://127.0.0.1:PORT`.
+- Echte Mikro-Nutzung unter Windows und Tischaufnahme noch ungetestet.
+
 ## Unveröffentlicht (30.10.2026): Transkribierer (Stufe 2, eigenes Werkzeug)
 
 Kalle: Transkription als **Extra-Download, unabhängig von der App**, später

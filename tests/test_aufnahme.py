@@ -143,3 +143,32 @@ def test_dauer_nach_server_absturz_aus_der_tondatei(tmp_path):
     os.utime(pfad, (t, t))
     neu = A.Aufnahmen(tmp_path)          # Server neu gestartet, nichts aktiv
     assert 3_590_000 <= neu.liste()[0]["dauerMs"] <= 3_610_000
+
+
+def test_live_zeilen_landen_bei_der_laufenden_aufnahme(tmp_path):
+    a = A.Aufnahmen(tmp_path)
+    assert not a.live(A.now_ms(), "S00", "Ohne Aufnahme")      # -> 409, nichts geschrieben
+    meta = a.starten("audio/webm")
+    assert a.live(meta["start"] + 65_000, "S01", "Ich  ziehe\nmeine Axt.")
+    assert a.live(meta["start"] + 70_000, "../x", "Wer?")        # Unsinn -> „S??"
+    zeilen = (tmp_path / f"{meta['name']}-live.txt").read_text(encoding="utf-8").splitlines()
+    assert zeilen == ["[00:01:05] S01: Ich ziehe meine Axt.", "[00:01:10] S??: Wer?"]
+    assert [z["n"] for z in a.live_ab(0)["zeilen"]] == [1, 2]
+    assert [z["text"] for z in a.live_ab(1)["zeilen"]] == ["Wer?"]
+    a.stoppen()
+    assert a.liste()[0]["hatLive"]
+    p = a.prompt_live(meta["name"])
+    assert "[00:01:05] S01: Ich ziehe meine Axt." in p
+    assert a.loeschen(meta["name"])
+    assert not (tmp_path / f"{meta['name']}-live.txt").exists()
+
+
+def test_live_anzeige_haelt_nur_die_letzten_zeilen(tmp_path):
+    a = A.Aufnahmen(tmp_path)
+    a.starten("audio/webm")
+    for i in range(A.LIVE_MERKEN + 10):
+        a.live(None, "S00", f"Satz {i}")
+    assert len(a.live_ab(0)["zeilen"]) == A.LIVE_MERKEN
+    a.starten("audio/webm")                       # neue Aufnahme, Anzeige leer
+    assert a.live_ab(0)["zeilen"] == []
+    assert a.prompt_live("2000-01-01_00-00") is None
