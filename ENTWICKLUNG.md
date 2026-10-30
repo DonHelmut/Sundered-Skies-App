@@ -77,6 +77,36 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (30.10.2026): Transkribierer in der App
+
+Kalle: „eigentlich will ich den Transkribierer mit drin haben – auch wenn ich
+aktualisiere". Der Extra-Download (1.5.25) ist damit wieder raus, der Ordner
+`transkribierer/` gelöscht; alles steckt in `server/sprache.py`.
+- **Modelle in `data/modelle`** (Aktualisieren behält `data`). Einmalig ca.
+  540 MB per „⬇ Mitschrift einrichten" im Aufnahme-Panel, mit Balken.
+- **Live ohne zweites Programm:** der Server liest die wachsende Aufnahme-Datei
+  mit (`Mitlesen`, wie `tail -f`, PyAV dekodiert webm im Strom). Browser schickt
+  dafür alle 3 s ein Stück (vorher 10 s). Kein zweiter Mikro-Zugriff,
+  `sounddevice` entfällt. Startet automatisch mit jeder Aufnahme, wenn „Live
+  mitschreiben" an ist (Standard; Einstellung in `aufnahmen/einstellungen.json`,
+  dort auch „Leute am Tisch").
+- **Genau transkribieren** pro Aufnahme im Hintergrund-Thread, Fortschritt im
+  Panel (nur Balken/Text werden nachgeführt, kein render() alle 2,5 s). Jetzt
+  auch mit **Parakeet** statt Whisper: 3 min Test-Ton in 67 s inkl. Laden
+  (Faktor ~0,35; Whisper vorher ~0,8). Whisper-Modelle braucht es nicht mehr.
+- sherpa-onnx gibt beim Rechnen das GIL frei (gemessen: Hauptthread hing max.
+  0,04 s) → in Threads im Server-Prozess, die Handys merken nichts.
+- Ende zu Ende getestet: Chromium mit `--use-file-for-fake-audio-capture`
+  (Sprach-Datei als Mikro) → Live-Zeilen mit richtigen Zeiten und Sprechern →
+  „Genau" → „📝 Prompt".
+- Paket: `requirements.txt` + Specs um `sherpa_onnx`, `av`, `numpy`. App-Zip
+  wächst von ~36 auf ~90 MB. Fremde Transkripte (noScribe) einlesen nur noch,
+  wenn die Spracherkennung fehlt (Entwickler-.venv).
+- Prompt: `POST /api/aufnahme/prompt-aus/{name}?quelle=genau|live`. Ein
+  Live-Prompt legt kein `…-transkript.txt` mehr an (sonst galt es als genau).
+- Noch ungetestet: Windows-Build (PyInstaller sammelt av/sherpa wie beim
+  Transkribierer 1.5.25) und echter Tisch.
+
 ## 1.5.25 (30.10.2026): Live-Mitschrift
 
 Kalle: „noch viel geiler, wenn das Gesprochene mehr oder weniger live

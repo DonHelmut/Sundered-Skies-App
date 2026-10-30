@@ -4,14 +4,14 @@
 //
 // Aufgenommen wird im Browser des Laptops: über localhost darf er ohne HTTPS
 // aufs Mikro. Die Handys fielen aus (kein HTTPS, Mikro stoppt bei Bildschirm
-// aus, Akku). Alle 10 s geht ein Stück an den Server - stürzt der Browser ab,
-// fehlen höchstens die letzten Sekunden. Transkribiert wird danach lokal mit
-// noScribe; das Transkript kommt zurück und die App baut den Claude-Prompt.
+// aus, Akku). Alle paar Sekunden geht ein Stück an den Server - stürzt der
+// Browser ab, fehlen höchstens die letzten Sekunden. Der Server schreibt live
+// mit und transkribiert danach genau (server/sprache.py, alles lokal); daraus
+// baut die App den Claude-Prompt.
 
-// Offizielle Download-Seite (Kai Dröge, auch auf GitHub verlinkt): dort liegt
-// immer die neueste Windows-Version. Die GitHub-Releases haben keinen Installer.
-const NOSCRIBE_URL = "https://noscribe.de/en/docs/download-installation/";
-const AUFN_STUECK_MS = 10000;
+// 3 s statt vorher 10 s: die Live-Mitschrift liest die wachsende Datei mit,
+// jedes Stück Wartezeit kommt sonst obendrauf.
+const AUFN_STUECK_MS = 3000;
 
 const Aufn = {
   status: null,     // Antwort von /api/aufnahme (Liste, laufende Aufnahme)
@@ -29,7 +29,7 @@ const Aufn = {
   analyser: null,
   pegel: 0,         // 0..1, geglättet
   stilleSeit: 0,    // seit wann praktisch nichts ankommt (falsches/stummes Mikro)
-  live: [],         // letzte Zeilen der Live-Mitschrift (Transkribierer, live.py)
+  live: [],         // letzte Zeilen der Live-Mitschrift (server/sprache.py)
   liveN: 0,
 };
 // Erst nach 90 s Stille melden, und dann nur leise: Pausen am Tisch (Pizza,
@@ -86,6 +86,7 @@ function aufnahmeKopfHtml() {
 function renderAufnahmePanel() {
   if (!Aufn.status && !Aufn.laedt) aufnStatusLaden();
   const st = Aufn.status || { liste: [], aktiv: null };
+  const sp = st.sprache || {};
   const kannAufnehmen = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
   let oben;
   if (Aufn.rec) {
@@ -93,7 +94,8 @@ function renderAufnahmePanel() {
         <b class="aufn-zeit">${aufnZeit(Date.now() - Aufn.start)}</b>
         <span class="aufn-pegel" title="Pegel: zappelt der Balken beim Reden, kommt Ton an"><i></i></span>
         <span class="muted small aufn-groesse">${aufnGroesse(Aufn.bytes)} gespeichert</span></div>
-      <div class="aufn-live" title="Live-Mitschrift vom Transkribierer – grob, fürs Protokoll gibt es danach den genauen Durchgang">${aufnLiveHtml()}</div>
+      <div class="aufn-live" title="Live-Mitschrift – grob, fürs Protokoll gibt es danach „Genau transkribieren“">${aufnLiveHtml()}</div>
+      ${sp.live && sp.live.hinweis ? `<div class="muted small">${esc(sp.live.hinweis)}</div>` : ""}
       <div class="muted small aufn-stille" style="display:none; margin-top:4px">Seit über einer Minute kein Ton – falls das nicht stimmt: Mikro prüfen.</div>
       <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
         <button class="ghost" data-act="aufn-marke">📌 Moment merken</button>
@@ -116,30 +118,78 @@ function renderAufnahmePanel() {
       : `<div class="pill bad">Dieser Browser kann nicht aufnehmen – Chrome oder Edge nehmen.</div>`;
   }
   const liste = (st.liste || []).filter((x) => !(x.laeuft && Aufn.rec));
-  const zeilen = liste.map((x) => {
-    const datum = x.start ? new Date(x.start).toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : x.name;
-    const infos = [aufnDauer(x.dauerMs), aufnGroesse(x.bytes),
-      x.kaempfe ? `${x.kaempfe} Kampf${x.kaempfe === 1 ? "" : "e"}` : "", x.marken ? `${x.marken} 📌` : ""].filter(Boolean);
-    return `<div class="aufn-zeile">
-      <div><b>${esc(datum)}</b> <span class="muted small">${esc(infos.join(" · "))}</span></div>
-      <div class="row tight" style="flex-wrap:wrap">
-        ${x.datei ? `<a href="/api/aufnahme/datei/${encodeURIComponent(x.name)}"><button class="ghost small" title="Tondatei herunterladen – die kommt in noScribe">⬇ Ton</button></a>` : ""}
-        ${x.hatLive ? `<button class="ghost small" data-act="aufn-prompt-live" data-name="${esc(x.name)}" title="Sofort-Prompt aus der Live-Mitschrift (gröber als der genaue Durchgang)">📝 Live-Text → Prompt</button>` : ""}
-        <label class="ghost knopf-label small" title="Transkript aus noScribe (.html oder .txt) wählen – daraus wird der Prompt für Claude">📝 Transkript → Prompt
-          <input type="file" accept=".html,.htm,.txt,.vtt,.srt,text/plain,text/html" data-act="aufn-transkript" data-name="${esc(x.name)}" style="display:none"></label>
-        <button class="ghost small bad" data-act="aufn-loeschen" data-name="${esc(x.name)}" title="Aufnahme, Transkript und Prompt löschen">🗑</button>
-      </div></div>`;
-  }).join("");
+  const zeilen = liste.map((x) => aufnZeileHtml(x, sp)).join("");
   return section("aufnahme", "🎙 Aufnahme &amp; Protokoll", `
     ${oben}
+    ${aufnMitschriftHtml(sp)}
     ${zeilen ? `<div class="aufn-liste">${zeilen}</div>` : ""}
-    <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap; align-items:center">
-      <a href="${NOSCRIBE_URL}" target="_blank" rel="noopener"><button class="ghost small" title="Neueste Version, gratis, läuft offline (Installer ca. 3 GB). Nicht noscribe.ai – das kostet.">⬇ noScribe herunterladen</button></a>
-    </div>
     <div class="muted small hilfe" style="margin-top:6px; line-height:1.5">
-      ① Aufnehmen ② „⬇ Ton“ in noScribe (Deutsch, Sprecher + Zeitstempel an)
-      ③ „📝 Transkript → Prompt“ → in Claude einfügen
+      Live läuft beim Aufnehmen mit. Danach „🎧 Genau transkribieren“ (dauert etwa
+      ein Drittel der Aufnahme) → „📝 Prompt“ → in Claude einfügen.
     </div>`);
+}
+
+function aufnZeileHtml(x, sp) {
+  const datum = x.start ? new Date(x.start).toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : x.name;
+  const infos = [aufnDauer(x.dauerMs), aufnGroesse(x.bytes),
+    x.kaempfe ? `${x.kaempfe} Kampf${x.kaempfe === 1 ? "" : "e"}` : "", x.marken ? `${x.marken} 📌` : ""].filter(Boolean);
+  const job = sp.job && sp.job.name === x.name ? sp.job : null;
+  const knoepfe = [];
+  if (x.datei) knoepfe.push(`<a href="/api/aufnahme/datei/${encodeURIComponent(x.name)}"><button class="ghost small" title="Tondatei herunterladen">⬇ Ton</button></a>`);
+  if (job && !job.fehler) {
+    knoepfe.push(`<span class="aufn-job small"><span class="aufn-balken"><i style="transform:scaleX(${job.anteil})"></i></span>
+      <span class="aufn-fortschritt muted">${esc(aufnJobText(job))}</span></span>
+      <button class="ghost small" data-act="aufn-abbrechen" title="Transkription abbrechen">✕</button>`);
+  } else {
+    if (x.hatTranskript) {
+      knoepfe.push(`<button class="ghost small" data-act="aufn-prompt" data-quelle="genau" data-name="${esc(x.name)}" title="Prompt aus dem genauen Transkript – in Claude einfügen">📝 Prompt</button>`);
+    } else {
+      if (sp.bereit && x.datei && !x.laeuft) knoepfe.push(`<button class="ghost small" data-act="aufn-genau" data-name="${esc(x.name)}" title="Ganze Aufnahme genau transkribieren, mit Sprechern. Läuft im Hintergrund, Laptop an lassen.">🎧 Genau transkribieren</button>`);
+      if (x.hatLive) knoepfe.push(`<button class="ghost small" data-act="aufn-prompt" data-quelle="live" data-name="${esc(x.name)}" title="Sofort-Prompt aus der Live-Mitschrift (gröber als genau)">📝 Prompt (live)</button>`);
+    }
+    if (job && job.fehler) knoepfe.push(`<span class="small muted">${esc(job.fehler)}</span>`);
+    if (!sp.verfuegbar) {
+      // Ohne eingebaute Spracherkennung (Entwickler-Umgebung): fremdes
+      // Transkript (noScribe o. ä.) einlesen geht weiterhin.
+      knoepfe.push(`<label class="ghost knopf-label small" title="Transkript (.txt/.html) wählen – daraus wird der Prompt">📄 Transkript → Prompt
+        <input type="file" accept=".html,.htm,.txt,.vtt,.srt,text/plain,text/html" data-act="aufn-transkript" data-name="${esc(x.name)}" style="display:none"></label>`);
+    }
+  }
+  knoepfe.push(`<button class="ghost small bad" data-act="aufn-loeschen" data-name="${esc(x.name)}" title="Aufnahme, Transkript und Prompt löschen">🗑</button>`);
+  return `<div class="aufn-zeile">
+    <div><b>${esc(datum)}</b> <span class="muted small">${esc(infos.join(" · "))}</span></div>
+    <div class="row tight" style="flex-wrap:wrap; align-items:center">${knoepfe.join("")}</div></div>`;
+}
+
+// Mitschrift einrichten / Live an-aus. Bewusst eine Zeile: Kalle will das
+// Panel ruhig („nicht so viel Text").
+function aufnMitschriftHtml(sp) {
+  if (!sp.verfuegbar) return "";
+  if (sp.laden && !sp.laden.fehler) {
+    const anteil = Math.min(1, sp.laden.b / Math.max(1, sp.laden.gesamt));
+    return `<div class="aufn-mitschrift small"><span class="aufn-balken"><i style="transform:scaleX(${anteil.toFixed(3)})"></i></span>
+      <span class="aufn-fortschritt muted">Mitschrift wird eingerichtet … ${Math.round(anteil * 100)} %</span></div>`;
+  }
+  if (!sp.bereit) {
+    return `<div class="aufn-mitschrift small">
+      <button class="ghost small" data-act="aufn-modelle" title="Lädt einmalig die Sprachmodelle (gratis, danach offline). Bleiben beim Aktualisieren erhalten.">⬇ Mitschrift einrichten</button>
+      <span class="muted">${sp.laden && sp.laden.fehler ? esc(sp.laden.fehler) : `einmalig ca. ${sp.groesseMb} MB`}</span></div>`;
+  }
+  const personen = [0, 2, 3, 4, 5, 6, 7, 8].map((n) =>
+    `<option value="${n}"${n === sp.personen ? " selected" : ""}>${n ? `${n} am Tisch` : "Leute: automatisch"}</option>`).join("");
+  return `<div class="aufn-mitschrift small">
+    <label title="Schreibt während der Aufnahme mit; der Text läuft klein darunter mit"><input type="checkbox" data-act="aufn-live-an"${sp.liveAn ? " checked" : ""}> Live mitschreiben</label>
+    <select data-act="aufn-personen" title="Leute am Tisch, SL mitgezählt – mit Zahl trennt die Sprechererkennung besser" style="width:auto">${personen}</select>
+  </div>`;
+}
+function aufnJobText(job) {
+  const pro = Math.round((job.anteil || 0) * 100);
+  let rest = "";
+  if (job.anteil > 0.03) {
+    const lief = Date.now() - job.start;
+    rest = ` · noch ca. ${aufnDauer(lief / job.anteil * (1 - job.anteil))}`;
+  }
+  return `${job.schritt === "Text erkennen" ? "Transkribiere" : job.schritt} … ${pro} %${rest}`;
 }
 
 // --- Aufnehmen -----------------------------------------------------------------
@@ -301,7 +351,7 @@ async function aufnMarke() {
 }
 
 // --- Live-Mitschrift ---------------------------------------------------------------
-// Der Transkribierer (Live-Modus) liefert Zeilen an den Server; hier nur die
+// Der Server schreibt live mit (server/sprache.py); hier nur die
 // letzten paar, klein und grau unter der laufenden Aufnahme. Lesen, wenn man
 // mag - es soll nicht ablenken, darum kein Hochploppen, kein Ton.
 
@@ -326,6 +376,36 @@ async function aufnLiveHolen() {
 }
 setInterval(() => { if (Aufn.rec) aufnLiveHolen(); }, 3000);
 
+// --- Spracherkennung (Modelle, genau) ----------------------------------------------
+
+async function aufnSprache(url, body) {
+  try {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+    const sp = await r.json();
+    if (Aufn.status) Aufn.status.sprache = sp;
+  } catch { /* nächster Abruf zeigt den Stand */ }
+  aufnStatusLaden();
+}
+
+// Fortschritt (Modelle laden, genau transkribieren) nachführen. Nur Balken und
+// Text anfassen - ein ganzes render() alle paar Sekunden über eine Stunde
+// würde am Spieltisch stören (Eingaben, Aufklappen).
+let aufnLetzterStand = "";
+setInterval(async () => {
+  const sp = Aufn.status && Aufn.status.sprache;
+  if (App.role !== "gm" || !sp || !(sp.laden || sp.job)) return;
+  let st;
+  try { st = await (await fetch("/api/aufnahme")).json(); } catch { return; }
+  const neu = st.sprache || {};
+  const stand = JSON.stringify([!!neu.laden, neu.laden && neu.laden.fehler, neu.job && neu.job.name, neu.job && neu.job.fehler, neu.bereit]);
+  Aufn.status = st;
+  if (stand !== aufnLetzterStand) { aufnLetzterStand = stand; render(); return; }
+  const anteil = neu.job ? neu.job.anteil : neu.laden ? neu.laden.b / Math.max(1, neu.laden.gesamt) : 0;
+  const text = neu.job ? aufnJobText(neu.job) : `Mitschrift wird eingerichtet … ${Math.round(anteil * 100)} %`;
+  document.querySelectorAll(".aufn-balken > i").forEach((x) => { x.style.transform = `scaleX(${anteil.toFixed(3)})`; });
+  document.querySelectorAll(".aufn-fortschritt").forEach((x) => { x.textContent = text; });
+}, 2500);
+
 // --- Transkript -> Prompt --------------------------------------------------------
 
 async function aufnPromptBauen(name, datei) {
@@ -341,10 +421,10 @@ async function aufnPromptBauen(name, datei) {
   aufnPromptZeigen(name, erg.prompt);
 }
 
-async function aufnPromptAusLive(name) {
+async function aufnPromptAus(name, quelle) {
   let erg;
-  try { erg = await (await fetch(`/api/aufnahme/prompt-live/${encodeURIComponent(name)}`, { method: "POST" })).json(); } catch { /* unten */ }
-  if (!erg || !erg.prompt) { hinweis("Die Live-Mitschrift ist leer."); return; }
+  try { erg = await (await fetch(`/api/aufnahme/prompt-aus/${encodeURIComponent(name)}?quelle=${quelle}`, { method: "POST" })).json(); } catch { /* unten */ }
+  if (!erg || !erg.prompt) { hinweis(quelle === "live" ? "Die Live-Mitschrift ist leer." : "Das Transkript ist leer."); return; }
   aufnPromptZeigen(name, erg.prompt);
 }
 
@@ -387,7 +467,13 @@ document.addEventListener("click", async (e) => {
     e.preventDefault();
     if (await frage("Aufnahme beenden?", "Beenden")) aufnahmeBeenden();
   } else if (act === "aufn-marke") { e.preventDefault(); aufnMarke(); }
-  else if (act === "aufn-prompt-live") { e.preventDefault(); aufnPromptAusLive(t.dataset.name); }
+  else if (act === "aufn-prompt") { e.preventDefault(); aufnPromptAus(t.dataset.name, t.dataset.quelle); }
+  else if (act === "aufn-modelle") { e.preventDefault(); aufnSprache("/api/sprache/modelle"); }
+  else if (act === "aufn-genau") { e.preventDefault(); aufnSprache(`/api/sprache/genau/${encodeURIComponent(t.dataset.name)}`); }
+  else if (act === "aufn-abbrechen") {
+    e.preventDefault();
+    if (await frage("Transkription abbrechen?", "Abbrechen", true)) aufnSprache("/api/sprache/abbrechen");
+  }
   else if (act === "aufn-loeschen") {
     e.preventDefault();
     if (!await frage("Diese Aufnahme löschen?\n\nTon, Transkript und Prompt sind dann weg.", "Löschen", true)) return;
@@ -398,7 +484,11 @@ document.addEventListener("click", async (e) => {
 document.addEventListener("change", (e) => {
   const t = e.target;
   if (!t.dataset || App.role !== "gm") return;
-  if (t.dataset.act === "aufn-mikro") {
+  if (t.dataset.act === "aufn-live-an") {
+    aufnSprache("/api/sprache/einstellen", { live: t.checked });
+  } else if (t.dataset.act === "aufn-personen") {
+    aufnSprache("/api/sprache/einstellen", { personen: Number(t.value) });
+  } else if (t.dataset.act === "aufn-mikro") {
     try { localStorage.setItem("aufnahmeMikro", t.value); } catch { /* egal */ }
   } else if (t.dataset.act === "aufn-transkript") {
     aufnPromptBauen(t.dataset.name, t.files && t.files[0]);

@@ -7,16 +7,15 @@ schickt alle paar Sekunden ein Stück, der Server hängt es an die Datei an:
 stürzt der Browser nach drei Stunden ab, ist trotzdem fast alles da.
 
 Nebenbei merkt sich der Server, wann Kämpfe anfangen und enden und wer welchen
-Charakter spielt. Die Transkription selbst macht noScribe (lokal, gratis) - das
-Transkript kommt danach zurück in die App, und die baut daraus einen fertigen
-Prompt für Claude: Namen, Kampfzeiten (dort nur kurz zusammenfassen), Marken.
+Charakter spielt. Die Transkription macht server/sprache.py (live und danach,
+lokal) - aus dem Transkript baut die App einen fertigen Prompt für Claude:
+Namen, Kampfzeiten (dort nur kurz zusammenfassen), Marken.
 Ein Kampf-Protokoll ist das bewusst NICHT (Kalle hat das abgelehnt) - nur
 Zeitmarken, damit die Zusammenfassung Kämpfe kurz halten kann.
 
-Läuft daneben der Transkribierer im Live-Modus (transkribierer/live.py), schickt
-er jede erkannte Zeile hierher: sie landet in „…-live.txt" der laufenden
-Aufnahme und erscheint dezent in der SL-Ansicht. Aus der Live-Mitschrift geht
-der Prompt dann sofort nach dem Abend, ohne Durchgang über Nacht.
+Die Live-Mitschrift landet Zeile für Zeile in „…-live.txt" der laufenden
+Aufnahme und erscheint dezent in der SL-Ansicht. Daraus geht der Prompt sofort
+nach dem Abend; der genaue Durchgang („…-transkript.txt") ist besser.
 """
 
 from __future__ import annotations
@@ -196,7 +195,7 @@ class Aufnahmen:
     # --- Live-Mitschrift -------------------------------------------------------------
 
     def live(self, zeit_ms, sprecher: str, text: str) -> bool:
-        """Eine Zeile vom Transkribierer. zeit_ms = Wanduhr, als das Gesagte
+        """Eine Zeile der Live-Mitschrift. zeit_ms = Wanduhr, als das Gesagte
         anfing; daraus wird die Zeit ab Aufnahmebeginn wie im Transkript."""
         if not self.aktiv:
             return False
@@ -326,7 +325,10 @@ class Aufnahmen:
 
     # --- Prompt -------------------------------------------------------------------
 
-    def prompt(self, name: str, transkript_roh: str, extra: str = "") -> Optional[str]:
+    def prompt(self, name: str, transkript_roh: str, extra: str = "", speichern: bool = True) -> Optional[str]:
+        """Transkript (Text oder noScribe-HTML) -> Prompt. speichern: das
+        Transkript als „…-transkript.txt" ablegen (nur bei fremden Dateien -
+        ein Live-Prompt soll nicht als genaues Transkript gelten)."""
         if not name_gueltig(name):
             return None
         meta = self._meta_lesen(name)
@@ -337,22 +339,24 @@ class Aufnahmen:
             return None
         p = baue_prompt(meta, text, extra)
         try:
-            (self.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
+            if speichern:
+                (self.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
             (self.ordner / f"{name}-prompt.txt").write_text(p, encoding="utf-8")
         except OSError:
             pass
         return p
 
 
-    def prompt_live(self, name: str, extra: str = "") -> Optional[str]:
-        """Prompt aus der Live-Mitschrift - gleich nach dem Abend, ohne Durchgang."""
-        if not name_gueltig(name):
+    def prompt_aus(self, name: str, quelle: str = "genau", extra: str = "") -> Optional[str]:
+        """Prompt aus dem genauen Transkript oder der Live-Mitschrift."""
+        if not name_gueltig(name) or quelle not in ("genau", "live"):
             return None
+        datei = f"{name}-transkript.txt" if quelle == "genau" else f"{name}-live.txt"
         try:
-            text = (self.ordner / f"{name}-live.txt").read_text(encoding="utf-8")
+            text = (self.ordner / datei).read_text(encoding="utf-8")
         except OSError:
             return None
-        return self.prompt(name, text, extra)
+        return self.prompt(name, text, extra, speichern=False)
 
 
 def _gezaehlt(figuren: list[dict]) -> list[str]:

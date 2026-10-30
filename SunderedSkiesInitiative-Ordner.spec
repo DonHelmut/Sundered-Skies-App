@@ -12,8 +12,11 @@ datas = [('web', 'web')]
 binaries = []
 hiddenimports = ['qrcode', 'ifaddr']
 hiddenimports += collect_submodules('PIL')
+# sherpa_onnx/av: Spracherkennung für die Spielabend-Aufnahme (server/sprache.py),
+# bringt onnxruntime und ffmpeg mit (~55 MB im Zip). Die Modelle sind NICHT
+# dabei, die lädt der SL einmalig nach data/modelle.
 for paket in ('uvicorn', 'websockets', 'httptools', 'anyio', 'zeroconf',
-              'pydantic', 'pydantic_core'):
+              'pydantic', 'pydantic_core', 'sherpa_onnx', 'av'):
     d, b, h = collect_all(paket)
     datas += d; binaries += b; hiddenimports += h
 
