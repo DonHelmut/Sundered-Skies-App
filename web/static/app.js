@@ -129,6 +129,8 @@ const VORBEREITUNGS_PANELS = new Set([
   // Kampf. Ein Klick klappt es auf, die Wahl bleibt. (Nachricht / Bild /
   // Bennies ist dagegen bewusst offen: das braucht der SL mitten im Spiel.)
   "groups",
+  // Aufnahme: einmal am Abend starten, danach zeigt die Kopfleiste ● und 📌.
+  "aufnahme",
 ]);
 
 function section(id, title, body, defaultOpen) {

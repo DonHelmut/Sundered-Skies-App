@@ -1,0 +1,354 @@
+"""Spielabend aufnehmen und daraus einen Protokoll-Prompt bauen.
+
+Der SL-Laptop nimmt im Browser übers Tischmikro auf (MediaRecorder). Über
+``localhost`` darf der Browser das ohne HTTPS - an den Handys ging das nicht,
+und dort stoppt das Mikro ohnehin, sobald der Bildschirm ausgeht. Der Browser
+schickt alle paar Sekunden ein Stück, der Server hängt es an die Datei an:
+stürzt der Browser nach drei Stunden ab, ist trotzdem fast alles da.
+
+Nebenbei merkt sich der Server, wann Kämpfe anfangen und enden und wer welchen
+Charakter spielt. Die Transkription selbst macht noScribe (lokal, gratis) - das
+Transkript kommt danach zurück in die App, und die baut daraus einen fertigen
+Prompt für Claude: Namen, Kampfzeiten (dort nur kurz zusammenfassen), Marken.
+Ein Kampf-Protokoll ist das bewusst NICHT (Kalle hat das abgelehnt) - nur
+Zeitmarken, damit die Zusammenfassung Kämpfe kurz halten kann.
+"""
+
+from __future__ import annotations
+
+import html
+import json
+import re
+import time
+from pathlib import Path
+from typing import Optional
+
+# Dateiname = Startzeit, z. B. „2026-10-30_19-42". Mehr Zeichen sind nie
+# erlaubt - der Name kommt vom Browser zurück und landet in einem Pfad.
+_NAME_MUSTER = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}(-\d+)?$")
+_ENDUNGEN = (".webm", ".ogg", ".m4a")
+MAX_STUECK = 8 * 1024 * 1024        # ein Stück alle 10 s ist ein paar 100 KB
+MAX_TRANSKRIPT = 20 * 1024 * 1024   # 4 h Transkript sind ca. 0,5 MB Text
+
+
+def now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def uhrzeit(ms: int) -> str:
+    """Millisekunden seit Aufnahmebeginn -> „01:23:45" (wie noScribe stempelt)."""
+    s = max(0, int(ms // 1000))
+    return f"{s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d}"
+
+
+def name_gueltig(name) -> bool:
+    return isinstance(name, str) and bool(_NAME_MUSTER.match(name))
+
+
+def endung_fuer(mime: str) -> str:
+    """Chrome/Edge liefern webm/opus, Firefox ogg, Safari mp4."""
+    m = (mime or "").lower()
+    if "ogg" in m:
+        return ".ogg"
+    if "mp4" in m or "aac" in m:
+        return ".m4a"
+    return ".webm"
+
+
+def transkript_text(roh: str) -> str:
+    """noScribe speichert standardmäßig HTML (sonst TXT/VTT). Für den Prompt
+    reicht der reine Text - Tags und Kopf-Gerümpel würden Claude nur Platz
+    kosten."""
+    if "<" not in roh or not re.search(r"<(html|p|body|span|br|div)\b", roh, re.I):
+        return roh.strip()
+    t = re.sub(r"(?is)<(head|style|script)\b.*?</\1>", "", roh)
+    t = re.sub(r"(?i)<br\s*/?>", "\n", t)
+    t = re.sub(r"(?i)</(p|div|h\d|li|tr)>", "\n", t)
+    t = re.sub(r"<[^>]+>", "", t)
+    t = html.unescape(t).replace("\xa0", " ")
+    zeilen = [z.strip() for z in t.splitlines()]
+    return "\n".join(z for z in zeilen if z).strip()
+
+
+class Aufnahmen:
+    """Alle Aufnahmen in ``ordner``: je Abend eine Audiodatei plus eine
+    gleichnamige .json mit Zeitmarken und Namen."""
+
+    def __init__(self, ordner: Path) -> None:
+        self.ordner = ordner
+        self.aktiv: Optional[dict] = None      # Metadaten der laufenden Aufnahme
+        self._letztes_stueck = 0
+        self._war_im_kampf = False
+        self._runden = 0
+
+    # --- Dateien ---------------------------------------------------------------
+
+    def _meta_pfad(self, name: str) -> Path:
+        return self.ordner / f"{name}.json"
+
+    def audio_pfad(self, name: str) -> Optional[Path]:
+        if not name_gueltig(name):
+            return None
+        for e in _ENDUNGEN:
+            p = self.ordner / f"{name}{e}"
+            if p.exists():
+                return p
+        return None
+
+    def _meta_lesen(self, name: str) -> Optional[dict]:
+        try:
+            return json.loads(self._meta_pfad(name).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
+    def _meta_schreiben(self, meta: dict) -> None:
+        # Nach jeder Marke sofort schreiben: Laptop aus, Akku leer - die
+        # Kampfzeiten bis dahin sind trotzdem da.
+        try:
+            self.ordner.mkdir(parents=True, exist_ok=True)
+            pfad = self._meta_pfad(meta["name"])
+            tmp = pfad.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+            tmp.replace(pfad)
+        except OSError:
+            pass
+
+    # --- Aufnehmen -------------------------------------------------------------
+
+    def starten(self, mime: str, game=None) -> dict:
+        """Neue Aufnahme. Läuft noch eine (Seite neu geladen, Browser
+        abgestürzt), wird die sauber beendet - ihr Ton bleibt erhalten."""
+        if self.aktiv:
+            self.stoppen(game)
+        self.ordner.mkdir(parents=True, exist_ok=True)
+        jetzt = now_ms()
+        name = time.strftime("%Y-%m-%d_%H-%M", time.localtime(jetzt / 1000))
+        basis, n = name, 2
+        while self._meta_pfad(name).exists() or self.audio_pfad(name):
+            name = f"{basis}-{n}"
+            n += 1
+        meta = {
+            "name": name, "start": jetzt, "ende": None, "dauerMs": 0,
+            "endung": endung_fuer(mime), "mime": str(mime or "")[:80],
+            "personen": {}, "ereignisse": [],
+        }
+        self.aktiv = meta
+        self._letztes_stueck = jetzt
+        self._war_im_kampf = False
+        self._runden = 0
+        if game is not None:
+            self.beobachten(game)
+        self._meta_schreiben(meta)
+        return meta
+
+    def stueck(self, name: str, daten: bytes) -> bool:
+        if not self.aktiv or self.aktiv["name"] != name or not daten:
+            return False
+        if len(daten) > MAX_STUECK:
+            return False
+        pfad = self.ordner / f"{name}{self.aktiv['endung']}"
+        with open(pfad, "ab") as f:
+            f.write(daten)
+        self._letztes_stueck = now_ms()
+        self.aktiv["dauerMs"] = self._letztes_stueck - self.aktiv["start"]
+        return True
+
+    def stoppen(self, game=None) -> Optional[dict]:
+        meta = self.aktiv
+        if not meta:
+            return None
+        if game is not None:
+            self.beobachten(game)
+        # Ende = letztes angekommenes Stück, nicht „jetzt": nach einem Absturz
+        # käme sonst die ganze Zeit bis zum Neustart als Tonlänge dazu.
+        ende_ms = max(self._letztes_stueck, meta["start"])
+        if self._war_im_kampf:
+            self._ereignis({"art": "kampf_ende", "runden": self._runden}, ende_ms)
+        meta["ende"] = ende_ms
+        meta["dauerMs"] = ende_ms - meta["start"]
+        self._meta_schreiben(meta)
+        self.aktiv = None
+        self._war_im_kampf = False
+        return meta
+
+    def marke(self, text: str = "") -> bool:
+        """SL tippt 📌: „das hier war wichtig" - kommt betont ins Protokoll."""
+        if not self.aktiv:
+            return False
+        self._ereignis({"art": "marke", "text": str(text or "")[:200]})
+        self._meta_schreiben(self.aktiv)
+        return True
+
+    def _ereignis(self, e: dict, zeit_ms: Optional[int] = None) -> None:
+        t = (zeit_ms if zeit_ms is not None else now_ms()) - self.aktiv["start"]
+        self.aktiv["ereignisse"].append({"t": max(0, t), **e})
+
+    # --- Spielstand mitschreiben ------------------------------------------------
+
+    def beobachten(self, game) -> None:
+        """Nach jeder Änderung aufgerufen. Erkennt Kampfbeginn (Runde 0 -> 1)
+        und Kampfende (Runde zurück auf 0: Abräumen/Zurücksetzen) und merkt
+        sich, wer welchen Charakter spielt."""
+        if not self.aktiv:
+            return
+        geaendert = False
+        for c in game.combatants:
+            if c.get("kind") != "player":
+                continue
+            figur = str(c.get("name") or "").strip()
+            spieler = str(c.get("playerName") or "").strip()
+            if figur and self.aktiv["personen"].get(figur) != spieler:
+                self.aktiv["personen"][figur] = spieler
+                geaendert = True
+        # Kampf = Karten liegen UND noch ein Gegner steht. Nur auf „Abräumen"
+        # zu warten reichte nicht: viele SL lassen nach dem letzten Treffer
+        # alles liegen, dann wäre der halbe Abend ein einziger Kampf.
+        dabei = [c for c in game.combatants if not c.get("benched")]
+        gegner = [c for c in dabei if c.get("kind") == "npc" and not c.get("ally")]
+        im_kampf = (game.round or 0) > 0 and any(not (c.get("status") or {}).get("out") for c in gegner)
+        if im_kampf and not self._war_im_kampf:
+            self._ereignis({
+                "art": "kampf_start",
+                "gegner": _gezaehlt(gegner),
+                "verbuendete": _gezaehlt([c for c in dabei if c.get("kind") == "npc" and c.get("ally")]),
+                "spieler": [str(c.get("name") or "?") for c in dabei if c.get("kind") == "player"],
+            })
+            geaendert = True
+        elif not im_kampf and self._war_im_kampf:
+            self._ereignis({"art": "kampf_ende", "runden": self._runden})
+            geaendert = True
+        # Rundenzahl nur als Zähler („Kampf über 4 Runden"), kein Verlauf.
+        self._runden = max(self._runden, game.round or 0) if im_kampf else 0
+        self._war_im_kampf = im_kampf
+        if geaendert:
+            self._meta_schreiben(self.aktiv)
+
+    # --- Übersicht ---------------------------------------------------------------
+
+    def status(self) -> dict:
+        a = self.aktiv
+        return {
+            "aktiv": None if not a else {
+                "name": a["name"], "start": a["start"],
+                "letztesStueck": self._letztes_stueck,
+                "marken": sum(1 for e in a["ereignisse"] if e.get("art") == "marke"),
+            },
+            "liste": self.liste(),
+            "ordner": str(self.ordner),
+        }
+
+    def liste(self) -> list[dict]:
+        erg = []
+        if not self.ordner.exists():
+            return erg
+        for p in self.ordner.glob("*.json"):
+            meta = self._meta_lesen(p.stem)
+            if not meta or not name_gueltig(meta.get("name")):
+                continue
+            audio = self.audio_pfad(meta["name"])
+            ev = meta.get("ereignisse", [])
+            erg.append({
+                "name": meta["name"], "start": meta.get("start"),
+                "dauerMs": meta.get("dauerMs", 0),
+                "laeuft": bool(self.aktiv and self.aktiv["name"] == meta["name"]),
+                "bytes": audio.stat().st_size if audio else 0,
+                "datei": audio.name if audio else None,
+                "kaempfe": sum(1 for e in ev if e.get("art") == "kampf_start"),
+                "marken": sum(1 for e in ev if e.get("art") == "marke"),
+                "personen": meta.get("personen", {}),
+                "hatTranskript": (self.ordner / f"{meta['name']}-transkript.txt").exists(),
+            })
+        # Neueste oben. Nach Startzeit, nicht nach Namen: „…_19-42-2" (zweite
+        # Aufnahme derselben Minute) sortiert als Text VOR „…_19-42".
+        erg.sort(key=lambda x: (x.get("start") or 0, len(x["name"])), reverse=True)
+        return erg
+
+    def loeschen(self, name: str) -> bool:
+        if not name_gueltig(name) or (self.aktiv and self.aktiv["name"] == name):
+            return False
+        weg = False
+        for p in [self._meta_pfad(name), self.audio_pfad(name),
+                  self.ordner / f"{name}-transkript.txt", self.ordner / f"{name}-prompt.txt"]:
+            if p and p.exists():
+                p.unlink()
+                weg = True
+        return weg
+
+    # --- Prompt -------------------------------------------------------------------
+
+    def prompt(self, name: str, transkript_roh: str, extra: str = "") -> Optional[str]:
+        if not name_gueltig(name):
+            return None
+        meta = self._meta_lesen(name)
+        if not meta:
+            return None
+        text = transkript_text(transkript_roh)
+        if not text:
+            return None
+        p = baue_prompt(meta, text, extra)
+        try:
+            (self.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
+            (self.ordner / f"{name}-prompt.txt").write_text(p, encoding="utf-8")
+        except OSError:
+            pass
+        return p
+
+
+def _gezaehlt(figuren: list[dict]) -> list[str]:
+    """„Ork 1", „Ork 2", „Ork 3" -> „3× Ork" (die App nummeriert Statisten)."""
+    zahl: dict[str, int] = {}
+    for c in figuren:
+        basis = re.sub(r"\s+\d+$", "", str(c.get("name") or "?").strip()) or "?"
+        zahl[basis] = zahl.get(basis, 0) + 1
+    return [f"{n}× {b}" if n > 1 else b for b, n in sorted(zahl.items())]
+
+
+def _kampf_zeilen(ereignisse: list[dict]) -> list[str]:
+    zeilen, start = [], None
+    for e in ereignisse:
+        if e.get("art") == "kampf_start":
+            start = e
+        elif e.get("art") == "kampf_ende" and start is not None:
+            wer = ", ".join(start.get("gegner") or []) or "unbekannte Gegner"
+            runden = e.get("runden") or 0
+            zusatz = f", {runden} Runde{'n' if runden != 1 else ''}" if runden else ""
+            zeilen.append(f"- {uhrzeit(start['t'])} bis {uhrzeit(e['t'])}: Kampf gegen {wer}{zusatz}")
+            start = None
+    return zeilen
+
+
+def baue_prompt(meta: dict, transkript: str, extra: str = "") -> str:
+    datum = time.strftime("%d.%m.%Y", time.localtime((meta.get("start") or now_ms()) / 1000))
+    personen = meta.get("personen") or {}
+    namen = [f"- {figur}" + (f" (gespielt von {sp})" if sp else "")
+             for figur, sp in sorted(personen.items())]
+    kaempfe = _kampf_zeilen(meta.get("ereignisse", []))
+    marken = [f"- {uhrzeit(e['t'])}" + (f": {e['text']}" if e.get("text") else "")
+              for e in meta.get("ereignisse", []) if e.get("art") == "marke"]
+    teile = [
+        f"Du bist Chronist einer Pen-&-Paper-Runde (Savage Worlds: Sundered Skies). "
+        f"Unten steht das automatische Transkript des Spielabends vom {datum}. "
+        "Schreib daraus ein Story-Protokoll auf Deutsch, 1–2 Seiten.",
+        "",
+        "SO SOLL ES SEIN:",
+        "- Erzählend, in der Vergangenheit, aus Sicht der Gruppe – wie ein Kapitel einer Chronik.",
+        "- Nur was in der Spielwelt passiert. Regelfragen, Würfelergebnisse, Pausen und Gespräche außerhalb des Spiels weglassen.",
+        "- Kämpfe nur kurz: 1–2 Sätze (gegen wen, wie ging es aus, Folgen). Kein Rundenverlauf.",
+        "- Danach kurze Listen: Wichtige NSCs (mit einem Halbsatz), Orte, Beute/Belohnungen, offene Fäden und Fragen für nächstes Mal.",
+        "",
+        "ZUM TRANSKRIPT:",
+        "- Es ist automatisch erkannt und enthält Hörfehler. Namen und Begriffe sinnvoll korrigieren.",
+        "- Sprecher heißen dort S00, S01 … Ordne sie den Personen über den Inhalt zu. "
+        "Wer am meisten erzählt und NSCs spricht, ist der Spielleiter.",
+        "- Zeitstempel [hh:mm:ss] (falls vorhanden) zählen ab Beginn der Aufnahme.",
+    ]
+    if namen:
+        teile += ["", "CHARAKTERE DER SPIELER:", *namen]
+    if kaempfe:
+        teile += ["", "KÄMPFE (laut Initiative-App, Zeit ab Aufnahmebeginn – hier nur kurz zusammenfassen):", *kaempfe]
+    if marken:
+        teile += ["", "VOM SPIELLEITER MARKIERTE MOMENTE (besonders erwähnen):", *marken]
+    if extra and extra.strip():
+        teile += ["", "HINWEISE DES SPIELLEITERS:", extra.strip()[:2000]]
+    teile += ["", "TRANSKRIPT:", "<<<", transkript.strip(), ">>>"]
+    return "\n".join(teile) + "\n"

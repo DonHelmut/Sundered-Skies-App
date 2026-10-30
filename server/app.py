@@ -21,11 +21,12 @@ from fastapi import FastAPI, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .game import Game, UPLOAD_DIR
+from .game import Game, UPLOAD_DIR, DATA_DIR
 from .paths import RESOURCE_DIR, HOSTNAME, APP_VERSION, local_ip, all_lan_ips, active_port
 from . import diag
 from . import winnet
 from . import sicherung
+from .aufnahme import Aufnahmen, MAX_TRANSKRIPT
 
 WEB_DIR = RESOURCE_DIR / "web"
 LOCAL_IP = local_ip()
@@ -216,6 +217,12 @@ class Hub:
             return False
 
     async def broadcast_state(self) -> None:
+        # Läuft eine Aufnahme, Kampfbeginn/-ende mitschreiben. Hier, weil jede
+        # Änderung am Spiel hier vorbeikommt. Darf das Spiel nie aufhalten.
+        try:
+            aufnahmen.beobachten(game)
+        except Exception as e:  # noqa: BLE001
+            diag.log(f"AUFNAHME: Mitschreiben fehlgeschlagen: {e!r}")
         # ZWEI Fassungen: der SL sieht alles, die Spieler bekommen verdeckte
         # Gegner nur als Tarnnamen. Beide einmal bauen statt pro Verbindung.
         fassung = {
@@ -362,6 +369,100 @@ async def firewall_allow(request: Request):
     aktiv = await asyncio.get_event_loop().run_in_executor(None, winnet.rule_active)
     diag.log(f"Firewall-Freigabe: Elevation={ok}, Regel jetzt aktiv={aktiv}")
     return JSONResponse({"ok": bool(ok)})
+
+
+# --- Spielabend aufnehmen (nur SL/Laptop) -------------------------------------
+# Der Browser des Laptops nimmt auf und schickt Stücke, siehe server/aufnahme.py.
+
+aufnahmen = Aufnahmen(DATA_DIR / "aufnahmen")
+
+
+@app.get("/api/aufnahme")
+async def aufnahme_status(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    return JSONResponse(aufnahmen.status())
+
+
+@app.post("/api/aufnahme/start")
+async def aufnahme_start(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    meta = aufnahmen.starten(str((body or {}).get("mime") or ""), game)
+    diag.log(f"AUFNAHME gestartet: {meta['name']}{meta['endung']}")
+    return JSONResponse({"name": meta["name"]})
+
+
+@app.post("/api/aufnahme/stueck")
+async def aufnahme_stueck(request: Request, name: str = ""):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    daten = await request.body()
+    if not aufnahmen.stueck(name, daten):
+        # 409: Browser nimmt für eine Aufnahme auf, die der Server nicht (mehr)
+        # führt (Server neu gestartet) -> er startet eine neue.
+        return JSONResponse({"error": "nicht_aktiv"}, status_code=409)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/api/aufnahme/stop")
+async def aufnahme_stop(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    meta = aufnahmen.stoppen(game)
+    if meta:
+        diag.log(f"AUFNAHME beendet: {meta['name']} ({meta['dauerMs'] // 60000} min)")
+    return JSONResponse(aufnahmen.status())
+
+
+@app.post("/api/aufnahme/marke")
+async def aufnahme_marke(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    return JSONResponse({"ok": aufnahmen.marke(str((body or {}).get("text") or ""))})
+
+
+@app.get("/api/aufnahme/datei/{name}")
+async def aufnahme_datei(request: Request, name: str):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    pfad = aufnahmen.audio_pfad(name)
+    if not pfad:
+        return Response(status_code=404)
+    return FileResponse(pfad, filename=f"spielabend-{pfad.name}")
+
+
+@app.post("/api/aufnahme/prompt/{name}")
+async def aufnahme_prompt(request: Request, name: str, file: UploadFile, extra: str = ""):
+    """Transkript (aus noScribe) rein, fertiger Claude-Prompt raus."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    roh = await file.read()
+    if len(roh) > MAX_TRANSKRIPT:
+        return JSONResponse({"error": "too_large"}, status_code=413)
+    text = roh.decode("utf-8", errors="replace")
+    prompt = aufnahmen.prompt(name, text, extra)
+    if prompt is None:
+        return JSONResponse({"error": "leer"}, status_code=400)
+    return JSONResponse({"prompt": prompt})
+
+
+@app.post("/api/aufnahme/loeschen/{name}")
+async def aufnahme_loeschen(request: Request, name: str):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    ok = aufnahmen.loeschen(name)
+    if ok:
+        diag.log(f"AUFNAHME gelöscht: {name}")
+    return JSONResponse({"ok": ok})
 
 
 @app.get("/uploads/{name}")
