@@ -2485,6 +2485,12 @@ body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px))
 /* Kopfleiste: bewusst unauffällig (neutrale Pille), Pegel im Kleinformat.
    Bei langer Stille wird nur der Punkt grau - keine Warnfarbe. */
 .aufn-pegel.klein { width: 36px; height: 5px; }
+/* Live-Mitschrift: klein, grau, ohne Rahmen - liest man, wenn man mag. */
+.aufn-live { margin-top: 6px; font-size: 12px; line-height: 1.45; color: var(--muted); max-width: 60ch; }
+.aufn-live:empty { display: none; }
+.aufn-live > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aufn-live > div:last-child { color: var(--text); opacity: .8; }
+.aufn-sprecher { font-size: 10px; opacity: .7; font-variant-numeric: tabular-nums; }
 .aufn-kopf .aufn-punkt { width: 8px; height: 8px; }
 .aufn-kopf.still .aufn-punkt { background: var(--muted); animation: none; }
 .aufn-kopf .aufn-stille { font-size: 0.8rem; }

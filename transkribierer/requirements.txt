@@ -3,3 +3,4 @@
 sherpa-onnx>=1.12,<3
 av>=12          # Ton lesen (webm/Opus aus der App), bringt ffmpeg mit
 numpy>=1.24
+sounddevice>=0.4   # Live-Mitschrift: Mikro lesen (Windows-Wheel bringt PortAudio mit)

@@ -11,9 +11,11 @@
 from PyInstaller.utils.hooks import collect_all
 
 datas, binaries, hiddenimports = [], [], []
-for paket in ('sherpa_onnx', 'av'):
+for paket in ('sherpa_onnx', 'av', '_sounddevice_data'):
     d, b, h = collect_all(paket)
     datas += d; binaries += b; hiddenimports += h
+# live.py wird erst im Menü importiert - ausdrücklich mitnehmen.
+hiddenimports += ['live', 'sounddevice']
 
 a = Analysis(
     ['transkribieren.py'],

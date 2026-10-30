@@ -23,3 +23,4 @@ dist/
 
 # Transkribierer: Modelle (ca. 1 GB) laedt das Programm selbst von GitHub
 transkribierer/modelle/
+transkribierer/live/

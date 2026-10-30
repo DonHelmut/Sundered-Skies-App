@@ -12,6 +12,11 @@ Transkript kommt danach zurück in die App, und die baut daraus einen fertigen
 Prompt für Claude: Namen, Kampfzeiten (dort nur kurz zusammenfassen), Marken.
 Ein Kampf-Protokoll ist das bewusst NICHT (Kalle hat das abgelehnt) - nur
 Zeitmarken, damit die Zusammenfassung Kämpfe kurz halten kann.
+
+Läuft daneben der Transkribierer im Live-Modus (transkribierer/live.py), schickt
+er jede erkannte Zeile hierher: sie landet in „…-live.txt" der laufenden
+Aufnahme und erscheint dezent in der SL-Ansicht. Aus der Live-Mitschrift geht
+der Prompt dann sofort nach dem Abend, ohne Durchgang über Nacht.
 """
 
 from __future__ import annotations
@@ -29,6 +34,8 @@ _NAME_MUSTER = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}(-\d+)?$")
 _ENDUNGEN = (".webm", ".ogg", ".m4a")
 MAX_STUECK = 8 * 1024 * 1024        # ein Stück alle 10 s ist ein paar 100 KB
 MAX_TRANSKRIPT = 20 * 1024 * 1024   # 4 h Transkript sind ca. 0,5 MB Text
+LIVE_MERKEN = 60                    # so viele Live-Zeilen hält der Server für die Anzeige
+_SPRECHER_MUSTER = re.compile(r"^S\d{2}$")
 
 
 def now_ms() -> int:
@@ -80,6 +87,8 @@ class Aufnahmen:
         self._letztes_stueck = 0
         self._war_im_kampf = False
         self._runden = 0
+        self.live_zeilen: list[dict] = []      # letzte Live-Zeilen der laufenden Aufnahme
+        self._live_n = 0
 
     # --- Dateien ---------------------------------------------------------------
 
@@ -136,6 +145,7 @@ class Aufnahmen:
         self._letztes_stueck = jetzt
         self._war_im_kampf = False
         self._runden = 0
+        self.live_zeilen = []
         if game is not None:
             self.beobachten(game)
         self._meta_schreiben(meta)
@@ -182,6 +192,38 @@ class Aufnahmen:
     def _ereignis(self, e: dict, zeit_ms: Optional[int] = None) -> None:
         t = (zeit_ms if zeit_ms is not None else now_ms()) - self.aktiv["start"]
         self.aktiv["ereignisse"].append({"t": max(0, t), **e})
+
+    # --- Live-Mitschrift -------------------------------------------------------------
+
+    def live(self, zeit_ms, sprecher: str, text: str) -> bool:
+        """Eine Zeile vom Transkribierer. zeit_ms = Wanduhr, als das Gesagte
+        anfing; daraus wird die Zeit ab Aufnahmebeginn wie im Transkript."""
+        if not self.aktiv:
+            return False
+        text = " ".join(str(text or "").split())[:2000]
+        if not text:
+            return True
+        sprecher = sprecher if isinstance(sprecher, str) and _SPRECHER_MUSTER.match(sprecher) else "S??"
+        try:
+            t = int(zeit_ms) - self.aktiv["start"]
+        except (TypeError, ValueError):
+            t = now_ms() - self.aktiv["start"]
+        t = max(0, t)
+        try:
+            with open(self.ordner / f"{self.aktiv['name']}-live.txt", "a", encoding="utf-8") as f:
+                f.write(f"[{uhrzeit(t)}] {sprecher}: {text}\n")
+        except OSError:
+            pass
+        self._live_n += 1
+        self.live_zeilen.append({"n": self._live_n, "t": t, "sprecher": sprecher, "text": text,
+                                 "empfangen": now_ms()})
+        del self.live_zeilen[:-LIVE_MERKEN]
+        return True
+
+    def live_ab(self, n: int = 0) -> dict:
+        """Zeilen nach Nummer n (die Anzeige fragt nur nach Neuem)."""
+        return {"zeilen": [z for z in self.live_zeilen if z["n"] > n],
+                "aufnahme": self.aktiv["name"] if self.aktiv else None}
 
     # --- Spielstand mitschreiben ------------------------------------------------
 
@@ -263,6 +305,7 @@ class Aufnahmen:
                 "marken": sum(1 for e in ev if e.get("art") == "marke"),
                 "personen": meta.get("personen", {}),
                 "hatTranskript": (self.ordner / f"{meta['name']}-transkript.txt").exists(),
+                "hatLive": (self.ordner / f"{meta['name']}-live.txt").exists(),
             })
         # Neueste oben. Nach Startzeit, nicht nach Namen: „…_19-42-2" (zweite
         # Aufnahme derselben Minute) sortiert als Text VOR „…_19-42".
@@ -274,7 +317,8 @@ class Aufnahmen:
             return False
         weg = False
         for p in [self._meta_pfad(name), self.audio_pfad(name),
-                  self.ordner / f"{name}-transkript.txt", self.ordner / f"{name}-prompt.txt"]:
+                  self.ordner / f"{name}-transkript.txt", self.ordner / f"{name}-prompt.txt",
+                  self.ordner / f"{name}-live.txt"]:
             if p and p.exists():
                 p.unlink()
                 weg = True
@@ -298,6 +342,17 @@ class Aufnahmen:
         except OSError:
             pass
         return p
+
+
+    def prompt_live(self, name: str, extra: str = "") -> Optional[str]:
+        """Prompt aus der Live-Mitschrift - gleich nach dem Abend, ohne Durchgang."""
+        if not name_gueltig(name):
+            return None
+        try:
+            text = (self.ordner / f"{name}-live.txt").read_text(encoding="utf-8")
+        except OSError:
+            return None
+        return self.prompt(name, text, extra)
 
 
 def _gezaehlt(figuren: list[dict]) -> list[str]:

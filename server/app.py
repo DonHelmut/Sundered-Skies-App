@@ -430,6 +430,41 @@ async def aufnahme_marke(request: Request):
     return JSONResponse({"ok": aufnahmen.marke(str((body or {}).get("text") or ""))})
 
 
+@app.post("/api/aufnahme/live")
+async def aufnahme_live(request: Request):
+    """Eine Zeile vom Transkribierer (Live-Modus, gleicher Laptop)."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = None
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "kaputt"}, status_code=400)
+    if not aufnahmen.live(body.get("zeit"), body.get("sprecher"), body.get("text")):
+        # 409: in der App läuft keine Aufnahme - der Transkribierer schreibt
+        # dann nur in seine eigene Datei und sagt das einmal an.
+        return JSONResponse({"error": "nicht_aktiv"}, status_code=409)
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/aufnahme/live")
+async def aufnahme_live_lesen(request: Request, ab: int = 0):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    return JSONResponse(aufnahmen.live_ab(ab))
+
+
+@app.post("/api/aufnahme/prompt-live/{name}")
+async def aufnahme_prompt_live(request: Request, name: str, extra: str = ""):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    prompt = aufnahmen.prompt_live(name, extra)
+    if prompt is None:
+        return JSONResponse({"error": "leer"}, status_code=400)
+    return JSONResponse({"prompt": prompt})
+
+
 @app.get("/api/aufnahme/datei/{name}")
 async def aufnahme_datei(request: Request, name: str):
     if not _is_loopback(request):

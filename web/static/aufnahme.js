@@ -29,6 +29,8 @@ const Aufn = {
   analyser: null,
   pegel: 0,         // 0..1, geglättet
   stilleSeit: 0,    // seit wann praktisch nichts ankommt (falsches/stummes Mikro)
+  live: [],         // letzte Zeilen der Live-Mitschrift (Transkribierer, live.py)
+  liveN: 0,
 };
 // Erst nach 90 s Stille melden, und dann nur leise: Pausen am Tisch (Pizza,
 // Regeln nachlesen) sind normal - die Anzeige soll informieren, nicht nerven
@@ -91,6 +93,7 @@ function renderAufnahmePanel() {
         <b class="aufn-zeit">${aufnZeit(Date.now() - Aufn.start)}</b>
         <span class="aufn-pegel" title="Pegel: zappelt der Balken beim Reden, kommt Ton an"><i></i></span>
         <span class="muted small aufn-groesse">${aufnGroesse(Aufn.bytes)} gespeichert</span></div>
+      <div class="aufn-live" title="Live-Mitschrift vom Transkribierer – grob, fürs Protokoll gibt es danach den genauen Durchgang">${aufnLiveHtml()}</div>
       <div class="muted small aufn-stille" style="display:none; margin-top:4px">Seit über einer Minute kein Ton – falls das nicht stimmt: Mikro prüfen.</div>
       <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
         <button class="ghost" data-act="aufn-marke">📌 Moment merken</button>
@@ -121,6 +124,7 @@ function renderAufnahmePanel() {
       <div><b>${esc(datum)}</b> <span class="muted small">${esc(infos.join(" · "))}</span></div>
       <div class="row tight" style="flex-wrap:wrap">
         ${x.datei ? `<a href="/api/aufnahme/datei/${encodeURIComponent(x.name)}"><button class="ghost small" title="Tondatei herunterladen – die kommt in noScribe">⬇ Ton</button></a>` : ""}
+        ${x.hatLive ? `<button class="ghost small" data-act="aufn-prompt-live" data-name="${esc(x.name)}" title="Sofort-Prompt aus der Live-Mitschrift (gröber als der genaue Durchgang)">📝 Live-Text → Prompt</button>` : ""}
         <label class="ghost knopf-label small" title="Transkript aus noScribe (.html oder .txt) wählen – daraus wird der Prompt für Claude">📝 Transkript → Prompt
           <input type="file" accept=".html,.htm,.txt,.vtt,.srt,text/plain,text/html" data-act="aufn-transkript" data-name="${esc(x.name)}" style="display:none"></label>
         <button class="ghost small bad" data-act="aufn-loeschen" data-name="${esc(x.name)}" title="Aufnahme, Transkript und Prompt löschen">🗑</button>
@@ -296,6 +300,32 @@ async function aufnMarke() {
   toast(`📌 Gemerkt bei ${aufnZeit(Date.now() - Aufn.start)}`);
 }
 
+// --- Live-Mitschrift ---------------------------------------------------------------
+// Der Transkribierer (Live-Modus) liefert Zeilen an den Server; hier nur die
+// letzten paar, klein und grau unter der laufenden Aufnahme. Lesen, wenn man
+// mag - es soll nicht ablenken, darum kein Hochploppen, kein Ton.
+
+const AUFN_LIVE_ZEILEN = 4;
+
+function aufnLiveHtml() {
+  return Aufn.live.slice(-AUFN_LIVE_ZEILEN)
+    .map((z) => `<div><span class="aufn-sprecher">${esc(z.sprecher)}</span> ${esc(z.text)}</div>`).join("");
+}
+
+async function aufnLiveHolen() {
+  let erg;
+  try { erg = await (await fetch(`/api/aufnahme/live?ab=${Aufn.liveN}`)).json(); } catch { return; }
+  // Andere Aufnahme als die, deren Zeilen wir haben (neu gestartet)?
+  if (erg.aufnahme !== Aufn.liveAufnahme) { Aufn.live = []; Aufn.liveN = 0; Aufn.liveAufnahme = erg.aufnahme; }
+  const neu = (erg.zeilen || []).filter((z) => z.n > Aufn.liveN);
+  if (!neu.length) return;
+  Aufn.live = Aufn.live.concat(neu).slice(-AUFN_LIVE_ZEILEN);
+  Aufn.liveN = neu[neu.length - 1].n;
+  const html = aufnLiveHtml();
+  document.querySelectorAll(".aufn-live").forEach((x) => { x.innerHTML = html; });
+}
+setInterval(() => { if (Aufn.rec) aufnLiveHolen(); }, 3000);
+
 // --- Transkript -> Prompt --------------------------------------------------------
 
 async function aufnPromptBauen(name, datei) {
@@ -308,9 +338,20 @@ async function aufnPromptBauen(name, datei) {
     erg = await r.json();
   } catch { /* unten */ }
   if (!erg || !erg.prompt) { hinweis("Aus dieser Datei ließ sich kein Prompt bauen (leer oder kein Transkript?)."); return; }
+  aufnPromptZeigen(name, erg.prompt);
+}
+
+async function aufnPromptAusLive(name) {
+  let erg;
+  try { erg = await (await fetch(`/api/aufnahme/prompt-live/${encodeURIComponent(name)}`, { method: "POST" })).json(); } catch { /* unten */ }
+  if (!erg || !erg.prompt) { hinweis("Die Live-Mitschrift ist leer."); return; }
+  aufnPromptZeigen(name, erg.prompt);
+}
+
+async function aufnPromptZeigen(name, prompt) {
   aufnStatusLaden();
   const wahl = await dialog({
-    text: `Prompt fertig (${erg.prompt.length.toLocaleString("de-DE")} Zeichen).\n\nIn Claude einfügen (Strg+V) – Claude schreibt daraus das Protokoll.`,
+    text: `Prompt fertig (${prompt.length.toLocaleString("de-DE")} Zeichen).\n\nIn Claude einfügen (Strg+V) – Claude schreibt daraus das Protokoll.`,
     knoepfe: [
       { text: "Schließen", wert: null, abbruch: true },
       { text: "⬇ Als Datei", wert: "datei" },
@@ -319,11 +360,11 @@ async function aufnPromptBauen(name, datei) {
   });
   if (wahl === "kopieren") {
     try {
-      await navigator.clipboard.writeText(erg.prompt);
+      await navigator.clipboard.writeText(prompt);
       window.open("https://claude.ai/new", "_blank", "noopener");
-    } catch { aufnPromptDatei(name, erg.prompt); hinweis("Kopieren ging nicht – Prompt stattdessen als Datei gespeichert."); }
+    } catch { aufnPromptDatei(name, prompt); hinweis("Kopieren ging nicht – Prompt stattdessen als Datei gespeichert."); }
   } else if (wahl === "datei") {
-    aufnPromptDatei(name, erg.prompt);
+    aufnPromptDatei(name, prompt);
   }
 }
 
@@ -346,6 +387,7 @@ document.addEventListener("click", async (e) => {
     e.preventDefault();
     if (await frage("Aufnahme beenden?", "Beenden")) aufnahmeBeenden();
   } else if (act === "aufn-marke") { e.preventDefault(); aufnMarke(); }
+  else if (act === "aufn-prompt-live") { e.preventDefault(); aufnPromptAusLive(t.dataset.name); }
   else if (act === "aufn-loeschen") {
     e.preventDefault();
     if (!await frage("Diese Aufnahme löschen?\n\nTon, Transkript und Prompt sind dann weg.", "Löschen", true)) return;

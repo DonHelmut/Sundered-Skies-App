@@ -16,8 +16,11 @@ Alles läuft lokal und ohne Konto:
 Modelle (ca. 1 GB) lädt das Programm beim ersten Start von GitHub in den
 Ordner „modelle" neben sich.
 
-Aufruf: Doppelklick (Datei wählen) oder Tondatei auf die .exe ziehen.
+Aufruf: Doppelklick (Menü: live mitschreiben / Datei transkribieren) oder
+Tondatei auf die .exe ziehen.
 Entwickler: python transkribieren.py DATEI [--personen 5]
+            python transkribieren.py --live [--mikro 2] [--personen 5]
+            python transkribieren.py --live-test DATEI   (Datei in Echtzeit als Mikro)
 """
 
 from __future__ import annotations
@@ -54,6 +57,11 @@ MODELLE = {
     # Decoder-Schichten. „small" war im Test kaum schneller, aber deutlich
     # schlechter - darum gibt es keine Schnell-Variante.
     "turbo": (f"{_GH}/asr-models/sherpa-onnx-whisper-turbo.tar.bz2", "sherpa-onnx-whisper-turbo"),
+    # Nur für die Live-Mitschrift (live.py): Sprechpausen (2 MB) und eine
+    # schnelle Spracherkennung (ca. 650 MB), siehe dort.
+    "vad": (f"{_GH}/asr-models/silero_vad.onnx", "silero_vad.onnx"),
+    "parakeet": (f"{_GH}/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
+                 "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"),
 }
 
 
@@ -300,27 +308,67 @@ def datei_waehlen() -> Path | None:
     return Path(p) if p else None
 
 
+def personen_fragen() -> int:
+    # Einmal kurz fragen: mit Zahl trennt es deutlich besser.
+    try:
+        eingabe = input("Wie viele Leute am Tisch, SL mitgezählt? (Enter = automatisch): ").strip()
+        return int(eingabe) if eingabe else 0
+    except (ValueError, EOFError):
+        return 0
+
+
+def warten_auf_enter() -> None:
+    try:
+        input("\nEnter zum Schließen …")
+    except EOFError:
+        pass
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Spielabend-Aufnahme -> Transkript mit Sprechern")
     ap.add_argument("datei", nargs="?", help="Tondatei (webm, ogg, mp3, wav …)")
     ap.add_argument("--personen", type=int, default=None, help="Leute am Tisch inkl. SL (0 = automatisch)")
     ap.add_argument("--threads", type=int, default=0)
+    ap.add_argument("--live", action="store_true", help="während des Abends am Mikro mitschreiben")
+    ap.add_argument("--mikro", type=int, default=None, help="Gerätenummer fürs Live-Mitschreiben")
+    ap.add_argument("--live-test", metavar="DATEI", help="Datei in Echtzeit abspielen, als käme sie vom Mikro")
+    ap.add_argument("--app", default="auto", help="Adresse der App (Standard: suchen), „aus“ = nicht senden")
     args = ap.parse_args(argv)
-    doppelklick = args.datei is None
+    doppelklick = args.datei is None and not args.live and not args.live_test
 
     print("Sundered Skies – Transkribierer (läuft komplett offline)\n")
+    if doppelklick:
+        print("  1) Live mitschreiben – jetzt, während gespielt wird")
+        print("  2) Aufnahme-Datei transkribieren – nach dem Abend, genauer")
+        try:
+            args.live = input("\nWas? (1/2, Enter = 1): ").strip() != "2"
+        except EOFError:
+            args.live = False
+        print()
+
+    if args.live or args.live_test:
+        import threading
+        import live as L
+        stopp = threading.Event()
+        if args.live_test:
+            quelle = L.datei_quelle(Path(args.live_test), stopp)
+        else:
+            quelle = L.mikro_quelle(args.mikro if args.mikro is not None else L.mikro_waehlen(), stopp)
+        personen = args.personen if args.personen is not None else personen_fragen()
+        try:
+            L.live(quelle, personen=personen, threads=args.threads,
+                   app=None if args.app == "aus" else args.app, stopp=stopp)
+        except KeyboardInterrupt:
+            print("\nBeendet.")
+        if doppelklick:
+            warten_auf_enter()
+        return 0
+
     pfad = Path(args.datei) if args.datei else datei_waehlen()
     if not pfad or not pfad.exists():
         print("Keine Datei gewählt.")
         return 1
-    personen = args.personen
-    if personen is None:
-        # Doppelklick/Ziehen: einmal kurz fragen. Mit Zahl trennt es deutlich besser.
-        try:
-            eingabe = input("Wie viele Leute am Tisch, SL mitgezählt? (Enter = automatisch): ").strip()
-            personen = int(eingabe) if eingabe else 0
-        except (ValueError, EOFError):
-            personen = 0
+    personen = args.personen if args.personen is not None else personen_fragen()
     try:
         transkribieren(pfad, personen=personen, threads=args.threads)
     except KeyboardInterrupt:
@@ -328,10 +376,7 @@ def main(argv=None) -> int:
         return 1
     if doppelklick or len(sys.argv) <= 2:
         print("\nIn der App: 🎙 Aufnahme & Protokoll → „📝 Transkript → Prompt“ → diese Datei wählen.")
-        try:
-            input("\nEnter zum Schließen …")
-        except EOFError:
-            pass
+        warten_auf_enter()
     return 0
 
 
