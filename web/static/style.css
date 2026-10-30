@@ -2072,6 +2072,19 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
   padding: 14px 20px; border-radius: 14px; background: var(--panel); border: 2px solid var(--gold);
   color: var(--text); font-size: 1.15rem; font-weight: 800; text-align: center;
   box-shadow: 0 12px 34px rgba(0,0,0,0.45); animation: kampfToast 5.2s ease both; }
+/* Treffer/Heilung an der EIGENEN Figur: ruhiger als ein Angriffsergebnis -
+   dunkle Karte mit farbiger Kante statt Goldrahmen, Zeile 2 klein. */
+.kampf-toast.eigen { border: 1px solid rgba(255,255,255,0.10); border-left: 5px solid var(--bad);
+  padding: 12px 18px 12px 16px; text-align: left; width: min(350px, 92vw); cursor: pointer; }
+.kampf-toast.geheilt { border-left-color: var(--good); }
+.kampf-toast.eigen { animation-duration: 6.2s; }
+.kampf-toast .kt-kopf { font-size: 1.1rem; font-weight: 800; line-height: 1.25; }
+.kampf-toast .kt-unter { margin-top: 3px; font-size: 0.88rem; font-weight: 600; color: var(--muted); }
+/* Kurzes rotes Glimmen am Bildrand: der Schein ist fest gemalt, nur die
+   opacity läuft (box-shadow zu animieren malt am Handy jedes Frame neu). */
+.treffer-rand { position: fixed; inset: 0; z-index: 199; pointer-events: none;
+  box-shadow: inset 0 0 70px 10px rgba(192, 40, 30, 0.55); opacity: 0; animation: trefferRand 1.6s ease-out both; }
+@keyframes trefferRand { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes kampfToast { 0% { opacity: 0; transform: translate(-50%, -10px) scale(0.96); } 6%, 88% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -6px); } }
 
 /* SL: Angriffs-Fenster */

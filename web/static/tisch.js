@@ -752,10 +752,24 @@ function angriffMelden(id) {
   return true;
 }
 // Ergebnis eines Angriffs (vom SL entschieden) - kurz und deutlich, blockiert nichts.
-function showKampfToast(text) {
-  const t = el(`<div class="kampf-toast">${esc(text)}</div>`);
+// ``art`` "getroffen"/"geheilt": es geht um die EIGENE Figur (der SL hat einen
+// Treffer oder eine Heilung eingetragen) - rot bzw. grün statt Gold, Zeile 2
+// klein darunter, und beim Treffer glimmt kurz der Bildrand rot. Antippen
+// schließt; sonst blieb man bei „Was steht da?" 5 Sekunden blind.
+function showKampfToast(text, art) {
+  const [kopf, ...rest] = String(text || "").split("\n");
+  const eigen = art === "getroffen" || art === "geheilt";
+  document.querySelectorAll(".kampf-toast, .treffer-rand").forEach((n) => n.remove());
+  const t = el(`<div class="kampf-toast${eigen ? ` eigen ${art}` : ""}">
+    <div class="kt-kopf">${esc(kopf)}</div>${rest.length ? `<div class="kt-unter">${esc(rest.join(" · "))}</div>` : ""}</div>`);
+  t.addEventListener("click", () => t.remove());
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 5200);
+  if (art === "getroffen") {
+    const rand = el(`<div class="treffer-rand"></div>`);
+    document.body.appendChild(rand);
+    setTimeout(() => rand.remove(), 1600);
+  }
+  setTimeout(() => t.remove(), eigen ? 6200 : 5200);
 }
 
 function showMimiToast(text) {

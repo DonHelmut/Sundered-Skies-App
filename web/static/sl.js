@@ -656,6 +656,15 @@ function renderControlBody() {
   const cleanupRow = defeated.length
     ? `<div class="row" style="margin-bottom:8px"><button class="ghost bad" data-act="clear-defeated" data-n="${defeated.length}" title="Sofort entfernen – spätestens bei der nächsten Runde verschwinden sie von selbst (keine Karte mehr)">🧹 ${defeated.length} ausgeschaltete${defeated.length === 1 ? "n Gegner" : " Gegner"} entfernen</button></div>`
     : "";
+  // Kampfende: kein Gegner mehr auf den Beinen, aber Spieler sind verletzt ->
+  // ein Knopf heilt alle (Kalle, 30.10.2026). Nur dann sichtbar, mitten im
+  // Kampf wäre er eine Falle.
+  const verletzt = s.combatants.filter((c) => c.kind === "player"
+    && ((c.status || {}).out || (c.status || {}).wounds || (c.status || {}).shaken));
+  const gegnerSteht = s.combatants.some((c) => c.kind === "npc" && !c.ally && !c.benched && !(c.status || {}).out);
+  const heilRow = verletzt.length && !gegnerSteht
+    ? `<div class="row" style="margin-bottom:8px"><button class="ghost good" data-act="alle-heilen" title="Alle Spieler ganz heil: wach, keine Wunden, nicht angeschlagen. Rückgängig mit ↶">🩹 Alle Spieler heilen <span class="muted small">(${verletzt.length} verletzt)</span></button></div>`
+    : "";
   // Alles in EINER Zeile: Austeilen (am Rundenende gross), dahinter kleine
   // Symbol-Knoepfe. Vorher zwei Zeilen mit breiten Text-Knoepfen - rund 80 px,
   // die in der Reihenfolge darunter fehlten. Was sie tun, steht im Tooltip.
@@ -670,6 +679,7 @@ function renderControlBody() {
     : "";
   return `
     ${cleanupRow}
+    ${heilRow}
     ${schnellstart}
     <div class="kampf-knoepfe">
       <button class="${rundeDran ? "primary" : "ghost small"}" data-act="new-round" ${rundeDran ? "" : 'title="Allen eine neue Karte austeilen"'}>🃏 ${s.round === 0 ? "Karten an ALLE austeilen" : rundeDran ? "Neue Runde – an ALLE austeilen" : "Neue Runde"}</button>
@@ -837,6 +847,8 @@ function trefferWahlHtml(active) {
       <strong>${heil ? "🩹 Wen heilen?" : `🎯 ${esc(active.name)} trifft … wen, wie schlimm?`}</strong>
       <button class="ghost small" data-act="${heil ? "heil-wahl" : "treffer-wahl"}">Schließen</button>
     </div>
+    ${heil && freunde.some((c) => c.kind === "player" && ((c.status || {}).out || (c.status || {}).wounds || (c.status || {}).shaken))
+      ? `<div class="row" style="margin-bottom:8px"><button type="button" class="ghost good small" data-act="alle-heilen" title="Alle Spieler ganz heil – z. B. am Kampfende">🩹 Alle Spieler ganz heilen</button></div>` : ""}
     ${!heil && s.schadenRechnen ? `<div class="treffer-staerke">
       <label class="treffer-schaden" title="Schadenswurf eintippen, dann beim Ziel 🧮: die App vergleicht mit der Robustheit und rechnet die Steigerungen selbst aus">
         Schaden <input id="treffer-schaden" type="number" min="0" max="99" inputmode="numeric" value="${esc(App.trefferSchaden || "")}" placeholder="z. B. 14"> → beim Ziel 🧮</label></div>` : ""}
