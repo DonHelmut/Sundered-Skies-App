@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (30.10.2026): Live-Mitschrift
+## 1.5.25 (30.10.2026): Live-Mitschrift
 
 Kalle: „noch viel geiler, wenn das Gesprochene mehr oder weniger live
 transkribiert wird". Der Transkribierer hat dafür einen Live-Modus
@@ -105,7 +105,7 @@ transkribiert wird". Der Transkribierer hat dafür einen Live-Modus
 - Test ohne Mikro: `python transkribieren.py --live-test DATEI --app http://127.0.0.1:PORT`.
 - Echte Mikro-Nutzung unter Windows und Tischaufnahme noch ungetestet.
 
-## Unveröffentlicht (30.10.2026): Transkribierer (Stufe 2, eigenes Werkzeug)
+## 1.5.25 (30.10.2026): Transkribierer (Stufe 2, eigenes Werkzeug)
 
 Kalle: Transkription als **Extra-Download, unabhängig von der App**, später
 verschmelzbar; Ziel ein normaler 500-€-ThinkPad ohne NVIDIA. Ordner
