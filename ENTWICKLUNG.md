@@ -77,6 +77,44 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (30.10.2026): Spielabend aufnehmen → Protokoll-Prompt
+
+Kalle: ganzen Abend aufnehmen, daraus 1–2 Seiten Story-Protokoll, Sprecher ohne
+Ansagen, Kämpfe nur kurz. Vorgaben: Software gratis, lokal; nichts mit Handys
+(gehen aus, Akku); höchstens ein Tischmikro kaufen. Recherche dazu im Projekt-
+Ordner (`recherche/spielabend-protokoll.md`). Gebaut „Stufe 1":
+- **Aufnahme im SL-Browser** (`web/static/aufnahme.js`, MediaRecorder, Opus
+  48 kbit/s ≈ 90 MB für 4 h). Über `localhost` braucht der Browser kein HTTPS
+  fürs Mikro. Alle 10 s ein Stück an `/api/aufnahme/stueck`, der Server hängt
+  an `data/aufnahmen/<datum_zeit>.webm` an – Absturz kostet höchstens Sekunden.
+  Stücke strikt nacheinander senden (Reihenfolge = gültige Datei). Bildschirm-
+  Wachhalten (Wake Lock), Warnung beim Tab-Schließen, Mikro abgezogen → Ende.
+  Server neu gestartet (409) → Browser fängt eine neue Datei an.
+- **Kampfzeiten mitschreiben** (`server/aufnahme.py`, aus `broadcast_state`):
+  Kampf = Runde > 0 UND noch ein Gegner steht. Nur auf Abräumen zu warten
+  reichte nicht – sonst wäre nach dem letzten Treffer alles „Kampf". Gemerkt
+  werden Beginn/Ende, Gegner („3× Ork"), Rundenzahl, Figur → Spielername.
+  Bewusst KEIN Kampfverlauf (Kampf-Protokoll ist abgelehnt).
+- **📌 Merken** (Kopfleiste und Panel): Zeitmarke ohne Nachfrage, kommt im
+  Prompt als „besonders erwähnen".
+- **Transkript → Prompt:** noScribe (github.com/kaixxx/noScribe, NICHT
+  noscribe.ai – das ist ein gekaperter Bezahldienst) macht aus dem Ton ein
+  HTML/TXT-Transkript. Das wählt der SL im Panel, der Server entfernt das HTML
+  und baut den Prompt (Stil, Namen, Kampfzeiten, Marken, Transkript), speichert
+  `…-transkript.txt`/`…-prompt.txt` daneben. Dialog: kopieren + claude.ai öffnen
+  oder als Datei.
+- Panel „🎙 Aufnahme & Protokoll" startet zugeklappt (Vorbereitungs-Panel).
+- **Pegelbalken** während der Aufnahme + Warnung nach 30 s Stille (sonst
+  merkt man erst nach dem Abend, dass das Laptop-Mikro oder ein stummes Headset
+  lief). Breite per `transform`, nicht `width`. Mikro-Auswahl erscheint schon
+  vor dem Start, sobald der Browser das Mikro einmal erlaubt hat.
+- Knopf „⬇ noScribe herunterladen" → noscribe.de (offizielle Seite, neueste
+  Version; die GitHub-Releases haben keinen Windows-Installer).
+- Offen: Stufe 2 = Transkription direkt in der App (faster-whisper + pyannote,
+  mehrere GB) – erst, wenn noScribe nervt. Tondatei hat keine Längenangabe im
+  Kopf (MediaRecorder); ffmpeg/noScribe stört das nicht, manche Player zeigen
+  keine Gesamtdauer.
+
 ## 1.5.22 (29.10.2026): Offline-Hinweis entschlackt
 
 Kalle: Handy-Ansicht soll clean und hochwertig wirken, der Offline-Hinweis war

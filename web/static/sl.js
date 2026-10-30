@@ -26,6 +26,7 @@ function renderGM() {
     <div class="row spread sl-kopf" style="align-items:center; margin-bottom:10px">
       <h1 style="margin:0">Spielleiter · Sundered Skies Initiative</h1>
       <div class="row tight">
+        ${aufnahmeKopfHtml()}
         ${anordnungIstStandard(spalte) ? "" : `<button class="ghost" data-act="anordnung-zuruecksetzen" title="Panels wieder in die ursprüngliche Reihenfolge bringen">↺ Anordnung zurücksetzen</button>`}
         ${kopfMenueHtml()}
         <button class="ghost" data-act="fokus" title="Alles ausser Kampf, Zonen und Reihenfolge zuklappen">
@@ -54,9 +55,10 @@ const PANEL_BAU = {
   bibliothek: () => renderBibliothekPanel(),
   connect: () => renderConnectPanel(),
   combat: () => renderOrderPanel(true),
+  aufnahme: () => renderAufnahmePanel(),
 };
 const STANDARD_ANORDNUNG = {
-  links: ["requests", "zones", "message", "bibliothek", "connect"],
+  links: ["requests", "zones", "message", "bibliothek", "connect", "aufnahme"],
   rechts: ["combat"],
 };
 

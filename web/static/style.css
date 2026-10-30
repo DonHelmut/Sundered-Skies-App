@@ -2453,3 +2453,19 @@ body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px))
 .sm-verlassen { margin: 4px 0 6px; color: var(--bad); border-color: var(--bad); }
 #spieler-menue .rs-wahl { margin: 0; }
 .sec-zusatz { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--muted); }
+
+/* Spielabend-Aufnahme (aufnahme.js). Roter Punkt pulsiert nur über opacity
+   (Keyframe glimmen) - kein animierter Schatten. */
+.aufn-punkt { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--bad); animation: glimmen 1.6s ease-in-out infinite; vertical-align: middle; }
+.aufn-kopf { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.aufn-laeuft { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.aufn-liste { margin-top: 10px; display: grid; gap: 6px; }
+.aufn-zeile { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.knopf-label.small { padding: 3px 8px; font-size: 0.85rem; }
+/* Pegel: Breite per transform (komponiert), nicht per width - malt nicht neu. */
+.aufn-pegel { display: inline-block; width: 90px; height: 8px; border-radius: 4px; overflow: hidden;
+  background: var(--line); vertical-align: middle; }
+.aufn-pegel > i { display: block; height: 100%; background: var(--good); transform-origin: left;
+  transform: scaleX(0); transition: transform 0.12s linear; }
