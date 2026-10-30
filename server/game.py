@@ -1574,6 +1574,7 @@ class Game:
             steigerungen = max(0, min(4, int(a.get("steigerungen") or 0)))
         except (TypeError, ValueError):
             steigerungen = 0
+        vorher_w, vorher_s = st.get("wounds", 0), st.get("shaken", False)
         if steigerungen:
             st["shaken"] = True
             self._do_set_status({"id": c["id"], "wounds": st.get("wounds", 0) + steigerungen})
@@ -1581,6 +1582,43 @@ class Game:
             st["shaken"] = True
         else:
             self._do_set_status({"id": c["id"], "wounds": st.get("wounds", 0) + 1})
+        self._treffer_melden(c, vorher_w, vorher_s, a.get("vonId"))
+
+    def _treffer_melden(self, c: dict, vorher_w: int, vorher_s: bool, von_id=None) -> None:
+        """Der Getroffene erfährt es an seinem Handy (Kalle, 30.10.2026): bis
+        dahin trug der SL Angeschlagen/Wunden still ein, und der Spieler merkte
+        es erst, wenn er zufällig auf seinen Zustand sah - am Tisch fragte dann
+        jeder „Wie viel hab ich abgekriegt?". Zeile 1 = was passiert ist,
+        Zeile 2 = was es jetzt heißt (Abzug auf Proben)."""
+        pid = c.get("playerId")
+        if c.get("kind") != "player" or not pid:
+            return
+        st = c.get("status") or {}
+        w = st.get("wounds", 0)
+        neu = w - vorher_w
+        # Wer getroffen hat: ausdrücklich mitgegeben (Spieler-Angriff), sonst
+        # der Aktive - der SL trägt Treffer fast immer im Zug des Angreifers ein.
+        von = self._combatant(von_id or self.active_id)
+        wer = ""
+        if von and von["id"] != c["id"]:
+            wer = self._tarnname(von) if von.get("anon") else von.get("name", "")
+        kopf = f"{wer} trifft dich" if wer else "Getroffen"
+        abzug = f" · −{min(w, 3)} auf Proben" if w else ""
+        if st.get("out"):
+            text = f"☠ {kopf} – du bist außer Gefecht"
+            unter = f"{w} Wunden" if w else ""
+        elif neu > 0:
+            text = f"🩸 {kopf} – {neu} Wunde{'n' if neu > 1 else ''}"
+            unter = f"Jetzt {w} Wunde{'n' if w > 1 else ''}{abzug}"
+            if not vorher_s:
+                unter += " · angeschlagen"
+        elif st.get("shaken") and not vorher_s:
+            text = f"😵 {kopf} – du bist angeschlagen"
+            unter = "Dein nächster Zug beginnt mit Erholen"
+        else:
+            return
+        self._do_message({"target": pid, "sender": "kampf", "art": "getroffen",
+                          "text": f"{text}\n{unter}" if unter else text})
 
     def _do_apply_heal(self, a: dict) -> None:
         """Heilung in EINEM Klick – Gegenstück zu ``apply_hit``: erst wieder wach,
@@ -1591,10 +1629,38 @@ class Game:
         st = c.setdefault("status", default_status())
         if st.get("out"):
             st["out"] = False
+            text = "🩹 Du bist wieder bei Bewusstsein"
         elif st.get("wounds", 0) > 0:
             st["wounds"] = max(0, st.get("wounds", 0) - 1)
+            w = st["wounds"]
+            text = "🩹 Geheilt – eine Wunde weniger"
+            text += f"\nNoch {w} Wunde{'n' if w > 1 else ''} · −{min(w, 3)} auf Proben" if w else "\nKeine Wunden mehr"
         elif st.get("shaken"):
             st["shaken"] = False
+            text = "🩹 Du bist nicht mehr angeschlagen"
+        else:
+            return
+        # Gegenstück zur Treffer-Meldung: auch das Gute soll ankommen.
+        if c.get("kind") == "player" and c.get("playerId"):
+            self._do_message({"target": c["playerId"], "sender": "kampf", "art": "geheilt", "text": text})
+
+    def _do_heal_players(self, a: dict) -> None:
+        """Kampfende: alle Spieler-Figuren auf einmal ganz heil - wach, keine
+        Wunden, nicht angeschlagen (Kalle, 30.10.2026: sonst tippte der SL nach
+        jedem Kampf jeden einzeln mehrmals an). Auch pausierte; Verbündete und
+        Gegner bleiben, wie sie sind. Jeder Geheilte bekommt eine Meldung."""
+        for c in self.combatants:
+            if c.get("kind") != "player":
+                continue
+            st = c.setdefault("status", default_status())
+            if not (st.get("out") or st.get("wounds", 0) or st.get("shaken")):
+                continue
+            st["out"] = False
+            st["wounds"] = 0
+            st["shaken"] = False
+            if c.get("playerId"):
+                self._do_message({"target": c["playerId"], "sender": "kampf", "art": "geheilt",
+                                  "text": "🩹 Der Spielleiter heilt euch\nKeine Wunden mehr – du bist wieder fit"})
 
     def _do_recover(self, a: dict) -> None:
         """Erholung von „Angeschlagen": entweder frei (bestandene Probe am Tisch -
@@ -2088,11 +2154,14 @@ class Game:
         msg = {
             "id": _new_id("msg"),
             "target": target,
-            "sender": a.get("sender", "gm"),   # "gm" | "mimi"
+            "sender": a.get("sender", "gm"),   # "gm" | "mimi" | "kampf"
             "text": text,
             "imageUrl": image_url,
             "ts": now_ms(),
         }
+        # Treffer/Heilung am eigenen Handy anders einfärben als Angriffsergebnisse.
+        if a.get("art") in ("getroffen", "geheilt"):
+            msg["art"] = a["art"]
         self.messages.append(msg)
         self.messages = self.messages[-MAX_MESSAGES:]
 
@@ -2116,7 +2185,8 @@ class Game:
         if ergebnis == "treffer" and ziel and not (ziel.get("status") or {}).get("out"):
             st = ziel.setdefault("status", default_status())
             vorher_w, vorher_s = st.get("wounds", 0), st.get("shaken", False)
-            self._do_apply_hit({"id": ziel["id"], "steigerungen": a.get("steigerungen")})
+            self._do_apply_hit({"id": ziel["id"], "steigerungen": a.get("steigerungen"),
+                                "vonId": angreifer["id"] if angreifer else None})
             st = ziel["status"]
             neue_w = st.get("wounds", 0) - vorher_w
             if st.get("out"):
@@ -2141,8 +2211,10 @@ class Game:
         # „steckt es weg" bleibt beim Angreifer, das wäre am Tisch nur Rauschen.
         # Eigene Liste statt "all": der Angreifer hat seine Meldung schon.
         if andere:
-            uebrige = [p["id"] for p in self.players
-                       if not angreifer or p["id"] != angreifer.get("playerId")]
+            # Auch der Getroffene nicht - Spieler gegen Spieler: der hat seine
+            # eigene Treffer-Meldung schon (_treffer_melden).
+            schon = {(angreifer or {}).get("playerId"), (ziel or {}).get("playerId")}
+            uebrige = [p["id"] for p in self.players if p["id"] not in schon]
             if uebrige:
                 self._do_message({"target": uebrige, "sender": "kampf", "text": andere})
         if angreifer and angreifer.get("playerId"):

@@ -77,6 +77,23 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (30.10.2026): Treffer-Meldung am Handy, alle Spieler heilen
+
+- **Treffer-Meldung:** Trägt der SL einen Treffer gegen eine Spieler-Figur ein
+  (`apply_hit`, auch über einen gemeldeten Spieler-Angriff), bekommt der
+  Getroffene am Handy eine Meldung: Zeile 1 „🩸 Wolkenhai trifft dich – 1 Wunde"
+  (bzw. angeschlagen / außer Gefecht), Zeile 2 Stand + Abzug auf Proben. Der
+  Angreifer ist der Aktive (verdeckte Gegner nur mit Tarnnamen). Rote Kante,
+  kurzes rotes Glimmen am Bildrand (nur opacity animiert), antippen schließt.
+  Vorher erfuhr der Spieler es gar nicht (Kalle beim Testen).
+- **Heilung** (`apply_heal`) meldet sich genauso, grüne Kante.
+- **Alle Spieler heilen** (`heal_players`): Knopf im Kampf-Panel des SL,
+  sichtbar nur wenn kein Gegner mehr steht und ein Spieler verletzt ist, dazu
+  oben in der 🩹-Heilauswahl. Ganz heil (wach, 0 Wunden, nicht angeschlagen),
+  auch pausierte; Verbündete/Gegner bleiben. Rückgängig mit ↶.
+- Nachrichten haben dafür optional `art` („getroffen"/„geheilt"); Spieler gegen
+  Spieler: der Getroffene bekommt nicht zusätzlich die „X trifft Y"-Meldung.
+
 ## 1.5.23 (30.10.2026): Spielabend aufnehmen → Protokoll-Prompt
 
 Kalle: ganzen Abend aufnehmen, daraus 1–2 Seiten Story-Protokoll, Sprecher ohne

@@ -1959,3 +1959,73 @@ def test_treffer_und_ko_sehen_auch_die_anderen(fresh_game):
     # Der Angreifer bekommt nur seine eigene Meldung, nicht doppelt.
     eigene = [m["text"] for m in g.snapshot(fuer_spieler=True, player_id="plr-test")["messages"]]
     assert len(eigene) == 2 and "ausgeschaltet" in eigene[-1]
+
+
+def test_getroffener_spieler_bekommt_meldung(fresh_game):
+    """Trägt der SL einen Treffer gegen einen Spieler ein, erfährt der es am
+    Handy - mit Angreifer, Wunden und Abzug (Kalle, 30.10.2026)."""
+    g = fresh_game
+    p, c = _spieler_mit_figur(g)
+    ork = _add_npc(g, "Ork")
+    g.apply({"type": "set_active", "id": ork["id"]})
+    meldungen = lambda: [m for m in g.snapshot(fuer_spieler=True, player_id=p["id"])["messages"]
+                         if m["sender"] == "kampf"]
+    g.apply({"type": "apply_hit", "id": c["id"]})
+    m = meldungen()[-1]
+    assert m["art"] == "getroffen" and m["text"].startswith("😵 Ork trifft dich – du bist angeschlagen")
+    g.apply({"type": "apply_hit", "id": c["id"], "steigerungen": 2})
+    assert meldungen()[-1]["text"] == "🩸 Ork trifft dich – 2 Wunden\nJetzt 2 Wunden · −2 auf Proben"
+    g.apply({"type": "apply_hit", "id": c["id"], "steigerungen": 3})
+    assert meldungen()[-1]["text"].startswith("☠ Ork trifft dich – du bist außer Gefecht")
+    # Heilen meldet sich auch, Schritt für Schritt.
+    g.apply({"type": "apply_heal", "id": c["id"]})
+    assert meldungen()[-1]["text"] == "🩹 Du bist wieder bei Bewusstsein"
+    g.apply({"type": "apply_heal", "id": c["id"]})
+    assert meldungen()[-1]["art"] == "geheilt" and "Noch 2 Wunden" in meldungen()[-1]["text"]
+    # Treffer auf Gegner: keine Meldung an Spieler.
+    n = len(meldungen())
+    g.apply({"type": "apply_hit", "id": ork["id"]})
+    assert len(meldungen()) == n
+
+
+def test_treffer_meldung_verraet_verdeckten_gegner_nicht(fresh_game):
+    g = fresh_game
+    p, c = _spieler_mit_figur(g)
+    ork = _add_npc(g, "Ork")
+    ork["anon"] = True
+    g.apply({"type": "set_active", "id": ork["id"]})
+    g.apply({"type": "apply_hit", "id": c["id"]})
+    text = g.snapshot(fuer_spieler=True, player_id=p["id"])["messages"][-1]["text"]
+    assert "Ork" not in text and "trifft dich" in text
+
+
+def test_spieler_gegen_spieler_keine_doppelte_meldung(fresh_game):
+    g = fresh_game
+    held = _held(g)
+    p, tessa = _spieler_mit_figur(g)
+    g.players.append({"id": "plr-test", "name": "Ich"})
+    g.apply({"type": "resolve_attack", "id": _angriff_melden(g, held, tessa)["id"],
+             "ergebnis": "treffer", "steigerungen": 1})
+    an_tessa = [m["text"] for m in g.snapshot(fuer_spieler=True, player_id=p["id"])["messages"]]
+    assert an_tessa == ["🩸 Held trifft dich – 1 Wunde\nJetzt 1 Wunde · −1 auf Proben · angeschlagen"]
+
+
+def test_alle_spieler_heilen(fresh_game):
+    """Kampfende: ein Klick macht alle Spieler ganz heil, Gegner bleiben."""
+    g = fresh_game
+    p, tessa = _spieler_mit_figur(g)
+    _, korgo = _spieler_mit_figur(g, "Korgo")
+    ork = _add_npc(g, "Ork")
+    g.apply({"type": "apply_hit", "id": tessa["id"], "steigerungen": 4})
+    g.apply({"type": "apply_hit", "id": korgo["id"]})
+    g.apply({"type": "apply_hit", "id": ork["id"]})
+    korgo["benched"] = True          # pausiert zählt mit
+    g.apply({"type": "heal_players"})
+    for c in (tessa, korgo):
+        st = g._combatant(c["id"])["status"]
+        assert not st["out"] and st["wounds"] == 0 and not st["shaken"]
+    assert g._combatant(ork["id"])["status"]["shaken"]
+    m = g.snapshot(fuer_spieler=True, player_id=p["id"])["messages"][-1]
+    assert m["art"] == "geheilt" and "heilt euch" in m["text"]
+    g.apply({"type": "undo"})
+    assert g._combatant(tessa["id"])["status"]["out"]

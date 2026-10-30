@@ -243,6 +243,12 @@ document.addEventListener("click", (e) => {
     // Smart-Treffer (SW-Logik in einem Klick) + Erholen (frei / per Benny)
     "apply-hit": () => gmAction({ type: "apply_hit", id }),
     "apply-heal": () => gmAction({ type: "apply_heal", id }),
+    "alle-heilen": () => {
+      gmAction({ type: "heal_players" });
+      App.trefferWahl = false;
+      toast("🩹 Alle Spieler geheilt – rückgängig mit ↶");
+      render();
+    },
     "recover": () => gmAction({ type: "recover", id, benny: target.getAttribute("data-benny") === "1" }),
     // Ausgeschaltete Gegner aufräumen (SL) – nur Gegner, nicht Verbündete/Spieler
     "clear-defeated": async () => {
