@@ -373,6 +373,18 @@ async def firewall_allow(request: Request):
     return JSONResponse({"ok": bool(ok)})
 
 
+# --- Spielabend-Protokolle -----------------------------------------------------
+# Im Zustand stehen nur Titel/Stand; den Text holt jedes Gerät hier einzeln.
+# Handys bekommen nur Freigegebenes, der Laptop (SL) alles.
+
+@app.get("/api/protokoll/{pid}")
+async def protokoll_lesen(request: Request, pid: str):
+    p = game.protokoll_text(pid, fuer_spieler=not _is_loopback(request))
+    if p is None:
+        return JSONResponse({"error": "nicht_da"}, status_code=404)
+    return JSONResponse(p, headers={"Cache-Control": "no-store"})
+
+
 # --- Spielabend aufnehmen (nur SL/Laptop) -------------------------------------
 # Der Browser des Laptops nimmt auf und schickt Stücke, siehe server/aufnahme.py.
 

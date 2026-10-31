@@ -43,7 +43,7 @@ function render() {
   }
   Cards.renderStart();
   let html;
-  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay() + bogenAnsichtHtml(); }
+  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay() + bogenAnsichtHtml() + protokollFensterHtml(); }
   finally { Cards.renderEnde(); }
   // Unveraendert? Dann den Bildschirm NICHT neu aufbauen. Jeder Neuaufbau ersetzt
   // alle Karten: laufende Animationen (Joker, Glanz, Glimmen) starten von vorn,
@@ -77,6 +77,8 @@ function render() {
     playFlip(prevRects);
     playTokens(prevTokens);
   }
+
+  protokollKnopfAuffrischen();
 
   // Das Overlay haengt an <body> (nicht im #app-Root) und wird von render()
   // deshalb NICHT automatisch ersetzt -> vorher immer selbst aufraeumen.
