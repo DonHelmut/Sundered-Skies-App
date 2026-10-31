@@ -125,9 +125,9 @@ function renderAufnahmePanel() {
     ${aufnMitschriftHtml(sp)}
     ${zeilen ? `<div class="aufn-liste">${zeilen}</div>` : ""}
     <div class="muted small hilfe" style="margin-top:6px; line-height:1.5">
-      Live läuft beim Aufnehmen mit. Danach „🎧 Genau transkribieren“ (zwei
-      Erkenner hören zu, dauert etwa so lang wie die Aufnahme – Laptop über Nacht
-      an lassen geht) → „📝 Prompt“ → in Claude einfügen.
+      Nach „■ Aufnahme beenden“ schreibt die App von selbst genau mit (zwei
+      Erkenner, dauert etwa so lang wie die Aufnahme – Laptop an lassen, über
+      Nacht geht) → „📝 Prompt“ → in Claude einfügen.
     </div>`);
 }
 
@@ -149,7 +149,10 @@ function aufnZeileHtml(x, sp) {
     if (x.hatTranskript) {
       knoepfe.push(`<button class="ghost small" data-act="aufn-prompt" data-quelle="genau" data-name="${esc(x.name)}" title="Prompt aus dem genauen Transkript – in Claude einfügen">📝 Prompt</button>`);
     } else {
-      if (sp.bereit && x.datei && !x.laeuft) knoepfe.push(`<button class="ghost small" data-act="aufn-genau" data-name="${esc(x.name)}" title="Ganze Aufnahme genau transkribieren, mit Sprechern. Läuft im Hintergrund, Laptop an lassen.">🎧 Genau transkribieren</button>`);
+      // Wartet: läuft nach dem Ende der Aufnahme bzw. nach dem laufenden
+      // Durchgang von selbst (server/sprache.py nach_aufnahme).
+      if ((sp.warten || []).includes(x.name)) knoepfe.push(`<span class="small muted" title="Startet von selbst, wenn keine Aufnahme läuft und der Laptop frei ist">⏳ Transkript folgt</span>`);
+      else if (sp.bereit && x.datei && !x.laeuft) knoepfe.push(`<button class="ghost small" data-act="aufn-genau" data-name="${esc(x.name)}" title="Ganze Aufnahme genau transkribieren, mit Sprechern. Läuft im Hintergrund, Laptop an lassen.">🎧 Genau transkribieren</button>`);
       if (x.hatLive) knoepfe.push(`<button class="ghost small" data-act="aufn-prompt" data-quelle="live" data-name="${esc(x.name)}" title="Sofort-Prompt aus der Live-Mitschrift (gröber als genau)">📝 Prompt (live)</button>`);
     }
     if (job && job.fehler) knoepfe.push(`<span class="small muted">${esc(job.fehler)}</span>`);
@@ -187,7 +190,7 @@ function aufnMitschriftHtml(sp) {
     `<option value="${n}"${n === sp.personen ? " selected" : ""}>${n ? `${n} am Tisch` : auto}</option>`).join("");
   const begriffe = (sp.begriffe || []).length;
   return `<div class="aufn-mitschrift small">
-    <label title="Schreibt während der Aufnahme mit; der Text läuft klein darunter mit"><input type="checkbox" data-act="aufn-live-an"${sp.liveAn ? " checked" : ""}> Live mitschreiben</label>
+    <label title="Grober Text schon während der Aufnahme. Nicht nötig: das genaue Transkript danach ist besser und kommt von selbst."><input type="checkbox" data-act="aufn-live-an"${sp.liveAn ? " checked" : ""}> Live mitschreiben</label>
     <select data-act="aufn-personen" title="Leute am Tisch, SL mitgezählt – mit Zahl trennt die Sprechererkennung besser" style="width:auto">${personen}</select>
     ${sp.genauerFehlt && !(sp.laden && !sp.laden.fehler) ? `<button class="ghost small" data-act="aufn-modelle" title="Zweiter Erkenner (Canary, fest auf Deutsch) für „Genau transkribieren“ – im Test ein Viertel weniger Fehler. Einmalig, danach offline.">⬇ Genauer (${sp.groesseMb} MB)</button>` : ""}
     <button class="ghost small" data-act="aufn-begriffe" title="Orte, Schiffe, NSCs … – damit die Mitschrift sie richtig schreibt. Figuren, Gegner und Spieler aus der App sind automatisch dabei.">🏷 Namen${begriffe ? ` (${begriffe})` : ""}</button>
