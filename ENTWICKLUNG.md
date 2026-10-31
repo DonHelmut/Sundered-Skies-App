@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (31.10.2026): Immer das beste Transkript, von selbst
+## 1.5.30 (31.10.2026): Immer das beste Transkript, von selbst
 
 Kalle: „Ist die Live-Mitschrift schlechter als im Nachhinein? Ich will nur das
 beste Ergebnis … Live muss dann nicht sein." Ja: live ist nur Parakeet in
