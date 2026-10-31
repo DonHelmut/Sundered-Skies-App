@@ -426,9 +426,33 @@ def text_sauber(t: str) -> str:
         return ""
     # Was übrig bleibt, muss nach Sprache aussehen: mindestens ein Wort mit
     # zwei Buchstaben, nicht nur Satzzeichen.
-    if not re.search(r"[^\W\d_]{2,}", t) or englisch(t):
+    if not re.search(r"[^\W\d_]{2,}", t) or englisch(t) or kurz_und_fremd(t):
         return ""
-    return t
+    # „Wechselt man sie??" - Canary und Satzzeichen-Modell setzen beide eins.
+    return re.sub(r"([?!.,])\1+", r"\1", t)
+
+
+# Kleine deutsche Wörter, an denen man eine kurze Zeile als Deutsch erkennt.
+# Das große Wörterbuch taugt dafür nicht - es kennt auch „fun", „wrong",
+# „clean" (Lehnwörter) und keine Zweibuchstaber wie „ja".
+_DEUTSCH_KLEIN = set("""
+ja ah äh eh oh na nee nein doch genau gut ich du er sie es wir ihr mir dir uns
+der die das den dem des ein eine einen und oder aber nicht noch schon mal auch
+ist bin bist sind war hat hab habe haben kann muss soll will wo was wer wie
+hier da dann jetzt nur so ok okay mhm hm danke bitte gleich weiter los zu mit
+""".split())
+
+
+def kurz_und_fremd(t: str) -> bool:
+    """Kurze Zeile mit Englisch und ohne ein deutsches Wort („It's fun.",
+    „The wrong closed") - kam im Headset-Test aus Lachen und Babygeschrei.
+    englisch() lässt sie durch, weil nur jedes zweite Wort englisch ist."""
+    if any(c in t for c in "äöüßÄÖÜ"):
+        return False
+    w = [x for x in (_norm(y) for y in t.split()) if x]
+    if not w or len(w) > 4:
+        return False
+    return any(x in _ENGLISCH_NORM for x in w) and not any(x in _DEUTSCH_KLEIN for x in w)
 
 
 def transkript_text(abschnitte: list[Abschnitt]) -> str:
@@ -640,6 +664,13 @@ def _norm(w: str) -> str:
 MAX_NUR_CANARY = 2
 
 
+def _sprachlich(t: str) -> bool:
+    """Sieht nach echter (deutscher) Sprache aus: nach dem Aufräumen bleiben
+    mindestens zwei richtige Wörter übrig."""
+    rest = text_sauber(t)
+    return len(re.findall(r"[^\W\d_]{2,}", rest)) >= 2
+
+
 def verschmelzen(canary: str, para: list[tuple[float, str]], dauer: float,
                  korrektur=None) -> list[tuple[float, str]]:
     """Canary-Text (besser, aber ohne Zeiten, verschluckt gern das erste Wort
@@ -658,9 +689,10 @@ def verschmelzen(canary: str, para: list[tuple[float, str]], dauer: float,
 
     cw = canary.split()
     if not para:
-        # Parakeet hört nichts = da war keine Sprache. Canary erfindet dann
-        # („T S F", „1000000…" im ersten echten Test).
-        return []
+        # Parakeet hört nichts. Bei leiser Sprache von weiter weg hört Canary
+        # trotzdem oft Richtiges (Kalles Headset-Test) - bei Rascheln aber
+        # Müll („T S F"), den text_sauber erkennt.
+        return [(0.0, w) for w in cw] if _sprachlich(canary) else []
     if not cw:
         return list(para)
     a, b = [_norm(w) for w in cw], [_norm(w) for _, w in para]
@@ -692,15 +724,16 @@ def verschmelzen(canary: str, para: list[tuple[float, str]], dauer: float,
             erg.append((None, cw[i - 1]))
             i -= 1
     erg.reverse()
-    # Mehr als zwei Wörter am Stück nur bei Canary: erfunden (echte Lücken
-    # bei Parakeet sind ein, zwei kleine Wörter: „Ein", „dem").
+    # Wörter nur bei Canary: bleiben, wenn sie nach Sprache aussehen. Müll
+    # („T S F", Ziffern) fliegt raus - nicht pauschal alles, sonst ging bei
+    # leiser Sprache (Parakeet hört kaum etwas) das meiste verloren.
     lauf: list[int] = []
     weg: set[int] = set()
     for k, (t, _) in enumerate(erg + [(0.0, "")]):
         if t is None:
             lauf.append(k)
         else:
-            if len(lauf) > MAX_NUR_CANARY:
+            if len(lauf) > MAX_NUR_CANARY and not _sprachlich(" ".join(erg[x][1] for x in lauf)):
                 weg.update(lauf)
             lauf = []
     # Zeiten für Canary-Extrawörter: die des vorigen Worts (oder 0).

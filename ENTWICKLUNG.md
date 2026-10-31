@@ -95,8 +95,18 @@ Rauschen → „1000000…". Parakeet bleibt dabei stumm.
   nächsten (genau). Live höchstens 8 Stimmen, wenn die Zahl unbekannt ist.
 - Test mit Tisch-Datei + 4-s-Geraschel nach jedem Satz: kein Müll, 4 Sprecher.
   Tisch-Werte unverändert (15,3 %).
-- Offen: Kalles echte Aufnahme selbst ansehen (Pegel, Mikro) – Text war auch
-  ohne Müll schwach.
+- Kalles echte Aufnahme (7:46, Headset-Mikro + schreiendes Baby) nachgerechnet:
+  Pegel ok, Headset überträgt nur bis 8 kHz, Leute weit weg. Parakeet hört dort
+  fast nichts (und rät Englisch), Canary hört echte Sätze. Erster Fix war zu
+  scharf und warf auch die weg → Canary-Text ohne Parakeet bleibt, wenn er nach
+  dem Aufräumen ≥ 2 echte Wörter hat (`_sprachlich`); Buchstaben-/Ziffernmüll
+  fliegt weiter raus.
+- Kurze Zeilen (≤ 4 Wörter) mit Englisch und ohne kleines deutsches Wort fliegen
+  raus („It's fun.", „The wrong closed"); das große Wörterbuch taugt dafür
+  nicht (kennt „fun", „clean"). Doppelte Satzzeichen „??" → „?".
+- Ergebnis echte Aufnahme: kein „T S F", 7 statt 34 Sprecher, 26 Zeilen meist
+  Deutsch. Reste: „Blue, clean, chop.", „Ha ha ha". Größter Hebel bleibt das
+  Mikro (Handy/Konferenzmikro in die Tischmitte statt Headset).
 
 ## 1.5.28 (31.10.2026): Genau mit zwei Erkennern
 
