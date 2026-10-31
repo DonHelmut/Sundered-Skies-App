@@ -77,6 +77,27 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Neu (31.10.2026): Protokolle für Spieler (📜)
+
+Kalle: „Mitspieler können das Protokoll lesen … eigenes Protokoll-Zeichen wie
+die Einstellungen, zum Aufklappen". Gewählt: Variante A (📜 neben ⚙).
+- **SL:** Panel „📜 Protokolle" (startet eingeklappt). „＋ Protokoll einfügen"
+  → Titel + Text (was Claude aus dem „📝 Prompt" geschrieben hat), „📋 Aus
+  Zwischenablage". Speichern = nur SL; „Freigeben"/„Zurückziehen" je Abend;
+  „Ansehen" zeigt es so wie am Handy.
+- **Handy:** 📜 erscheint neben dem ⚙ erst, wenn etwas freigegeben ist. Kleiner
+  Punkt (fest, kein Pulsieren) bei neu Freigegebenem. Lesefenster mit allen
+  Abenden, neuester oben aufgeklappt, Serifenschrift; Markdown von Claude
+  (Überschriften, **fett**, Listen, Zitat) wird sicher umgesetzt (erst alles
+  escapen).
+- **Daten:** `data/protokolle.json` (dauerhaft wie Bibliotheken, in der
+  Sicherung). Kein Undo-Ziel und zählt NICHT als „erste Aktion" – sonst kostete
+  das Freigeben vor „Fortsetzen?" den gespeicherten Kampf.
+- Im Zustand nur Titel/Stand; Text per `GET /api/protokoll/<id>` – Handys
+  bekommen nur Freigegebenes (404 sonst), der Laptop alles.
+- Code: `web/static/protokoll.js` (eigener Klick-Handler „prot-…"),
+  `Game.protokoll_*` in `server/game.py`, Tests `tests/test_protokoll.py`.
+
 ## 1.5.26 (30.10.2026): Transkribierer in der App
 
 Kalle: „eigentlich will ich den Transkribierer mit drin haben – auch wenn ich
