@@ -77,6 +77,29 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (31.10.2026): Genau mit zwei Erkennern
+
+Kalle: „soll wirklich top sein", darf bis 4 GB groß sein. Modelle verglichen
+(Tisch-Simulation aus 1.5.27, ideal geschnitten): Parakeet 27,7 %, **Canary
+180M flash** (sherpa-onnx, `src_lang=de`, 200 MB) 18,6 %, Whisper large-v3
+(das Modell hinter noScribe, 1,8 GB) 9× langsamer als Echtzeit → 36 h pro
+Abend, raus. Canary 1B gibt es in sherpa-onnx (noch) nicht.
+
+- Canary allein in der Kette: weniger Fehler, aber es **verschluckt das erste
+  Wort nach einem Sprecherwechsel** – meist den Namen („[Korgo] stellt sich
+  …"). Nach Sprechern zerschneiden half nicht.
+- Darum `verschmelzen()`: beide hören jedes VAD-Stück. Canarys Text wird per
+  Levenshtein an Parakeets Wörter (mit Zeiten) ausgerichtet: ersetzt → Canary
+  (mit Parakeets Zeit), nur Parakeet → einfügen, nur Canary → behalten.
+  Wird Parakeets Wort zu einem Namen, Canarys nicht → Parakeet.
+- Ergebnis ganze Kette mit Namen: **Tisch 21,5 % → 15,3 %** (Namen 10 → 11/20),
+  **sauber 14,1 % → 10,2 %** (11 → 13/20). Rechenzeit etwa doppelt
+  (Container 0,45 → 0,78 × Tonlänge) – ThinkPad grob so lang wie der Abend.
+- Live bleibt Parakeet allein (Canary hat keine Wort-Zeiten, live zählt Tempo).
+- Canary ist **kein Pflichtmodell** (`PFLICHT`): Wer schon eingerichtet hat,
+  behält live; im Panel erscheint „⬇ Genauer (200 MB)". Ohne Canary läuft
+  genau wie in 1.5.27.
+
 ## 1.5.27 (31.10.2026): Mitschrift besser
 
 Kalle: „Will dass es echt richtig gut ist." Gemessen an einem nachgebauten

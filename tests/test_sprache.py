@@ -185,3 +185,33 @@ def test_hochpass_nimmt_brummen_und_laesst_sprache():
     assert len(brumm) == len(t)
     assert np.abs(brumm[SP.SR:]).max() < 0.1           # 50 Hz deutlich leiser
     assert np.abs(stimme[SP.SR:]).max() > 0.27         # 400 Hz bleibt
+
+
+def test_verschmelzen_canary_text_parakeet_zeiten_und_namen():
+    from server.namen import Namenskorrektur
+    para = [(0.0, "Kogo"), (0.4, "stellt"), (0.8, "sich"), (1.1, "an"), (1.3, "den"), (1.5, "Buch.")]
+    # Canary verschluckt den Namen am Anfang, hört aber „Bug" richtig.
+    erg = SP.verschmelzen("stellt sich an den Bug.", para, 2.0, Namenskorrektur(["Korgo"]))
+    assert " ".join(w for _, w in erg) == "Kogo stellt sich an den Bug."
+    assert [t for t, _ in erg] == [0.0, 0.4, 0.8, 1.1, 1.3, 1.5]
+    # Canary hört den Namen falsch, Parakeet fast richtig -> Name gewinnt.
+    erg = SP.verschmelzen("Korku zieht die Axt.", [(0.0, "Kogo"), (0.5, "zieht"), (0.8, "die"), (1.0, "Axt.")],
+                          1.5, Namenskorrektur(["Korgo"]))
+    assert " ".join(w for _, w in erg) == "Korgo zieht die Axt."
+    # Extrawort nur bei Canary: Zeit vom Vorgänger.
+    erg = SP.verschmelzen("Ein Kreischen aus dem Nebel", [(0.0, "Kreischen"), (0.6, "aus"), (0.8, "Nebel")], 1.5)
+    assert [w for _, w in erg] == ["Ein", "Kreischen", "aus", "dem", "Nebel"]
+    assert erg[3][0] == 0.6
+    assert SP.satzzeichen("Felsen , der im Nebel .") == "Felsen, der im Nebel."
+
+
+def test_ohne_canary_bleibt_alles_bereit(tmp_path):
+    auf = A.Aufnahmen(tmp_path / "aufnahmen")
+    m = tmp_path / "modelle"
+    for n in SP.PFLICHT:
+        (m / SP.MODELLE[n][1]).mkdir(parents=True)
+    sp = SP.Sprache(m, auf)
+    if not SP.pakete_da():
+        pytest.skip("ohne sherpa-onnx")
+    st = sp.status()
+    assert st["bereit"] and st["genauerFehlt"] and st["groesseMb"] == SP.MODELLE["genau"][2]

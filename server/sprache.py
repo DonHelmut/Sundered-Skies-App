@@ -34,6 +34,13 @@ an einem nachgebauten Tisch (4 Piper-Stimmen, verschieden weit weg, Hall,
 - Eigennamen aus der App (server/namen.py), englischer Unsinn aus Rauschen
   fliegt raus, Personenzahl aus der App.
 
+Runde 2 (Kalle: „soll wirklich top sein", darf bis 4 GB): Danach hören zwei
+Erkenner zu. Canary 180M (fest auf Deutsch, kann nicht ins Englische
+rutschen) liefert den Text, Parakeet die Wort-Zeiten (für die Sprecher) und
+die Wörter, die Canary nach einem Sprecherwechsel verschluckt. Tisch-Test
+21,5 % -> 15,3 %, sauber 14,1 % -> 10,2 %. Kostet etwa doppelte Rechenzeit.
+Whisper large-v3 (wie in noScribe) lief 9x langsamer als Echtzeit - raus.
+
 Die schweren Pakete (sherpa_onnx, numpy, av) werden erst bei Gebrauch geladen:
 der Server startet auch ohne sie, und die Spieler-Handys merken nichts davon.
 """
@@ -79,7 +86,17 @@ MODELLE = {
                "nemo_en_titanet_small.onnx", 40),
     "text": (f"{_GH}/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
              "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8", 490),
+    # Canary für den Durchgang danach: fest auf Deutsch eingestellt. Parakeet
+    # wählt die Sprache selbst und rutschte am (nachgebauten) Tisch bei leisen
+    # Leuten ins Englische; Canary hatte dort 18,6 % statt 27,7 % Wortfehler,
+    # bei gleichem Tempo. Kein Wort-Zeitstempel - darum live weiter Parakeet.
+    # Whisper large-v3 (1,8 GB) war 9x langsamer als Echtzeit: 36 h pro Abend.
+    "genau": (f"{_GH}/asr-models/sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8.tar.bz2",
+              "sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8", 200),
 }
+# Ohne diese läuft nichts. „genau" kam mit 1.5.28 dazu - wer schon
+# eingerichtet hat, soll live nicht verlieren, bis er nachlädt.
+PFLICHT = ("vad", "segmentierung", "stimme", "text")
 
 
 def uhrzeit(s: float) -> str:
@@ -114,6 +131,10 @@ def pakete_da() -> bool:
 
 def modelle_fehlen(ordner: Path) -> list[str]:
     return [n for n, (_, ziel, _) in MODELLE.items() if not (ordner / ziel).exists()]
+
+
+def canary_da(ordner: Path) -> bool:
+    return (ordner / MODELLE["genau"][1]).exists()
 
 
 def _laden(url: str, ziel: Path, fortschritt: Callable[[int], None], stopp: threading.Event) -> None:
@@ -457,6 +478,22 @@ def _erkenner(ordner: Path, threads: int):
         model_type="nemo_transducer", num_threads=threads)
 
 
+def _canary(ordner: Path, threads: int):
+    import sherpa_onnx as so
+    d = ordner / MODELLE["genau"][1]
+    return so.OfflineRecognizer.from_nemo_canary(
+        encoder=str(d / "encoder.int8.onnx"), decoder=str(d / "decoder.int8.onnx"),
+        tokens=str(d / "tokens.txt"), src_lang="de", tgt_lang="de", num_threads=threads)
+
+
+_LEER_VOR_ZEICHEN = re.compile(r"\s+([.,;:!?])")
+
+
+def satzzeichen(t: str) -> str:
+    """Canary schreibt „Felsen , der" - Leerzeichen vor Satzzeichen weg."""
+    return _LEER_VOR_ZEICHEN.sub(r"\1", t)
+
+
 def _sprechertrennung(ordner: Path, threads: int, personen: int = 0):
     import sherpa_onnx as so
     cfg = so.OfflineSpeakerDiarizationConfig(
@@ -536,6 +573,79 @@ def stueck_zuordnen(s: float, e: float, tokens: list[str], zeiten: list[float],
     return erg
 
 
+def woerter_mit_zeit(tokens: list[str], zeiten: list[float]) -> list[tuple[float, str]]:
+    """Parakeet-Silben -> [(startzeit, wort)]."""
+    erg: list[list] = []
+    for tok, t in zip(tokens, zeiten):
+        if erg and not tok.startswith(" "):
+            erg[-1][1] += tok
+        else:
+            erg.append([t, tok.strip()])
+    return [(t, w) for t, w in erg if w]
+
+
+def _norm(w: str) -> str:
+    return "".join(c for c in w.lower() if c.isalnum())
+
+
+def verschmelzen(canary: str, para: list[tuple[float, str]], dauer: float,
+                 korrektur=None) -> list[tuple[float, str]]:
+    """Canary-Text (besser, aber ohne Zeiten, verschluckt gern das erste Wort
+    nach einem Sprecherwechsel) mit Parakeet-Wörtern (mit Zeiten) zusammen:
+    Wörter per Levenshtein aneinander ausrichten. Gleich/ersetzt -> Canarys
+    Wort mit Parakeets Zeit; nur bei Parakeet -> Parakeets Wort rein (das
+    verschluckte); nur bei Canary -> rein, Zeit vom Nachbarn. Mit korrektur
+    (server/namen.py): Wird Parakeets Wort zu einem Namen, Canarys aber nicht,
+    gewinnt Parakeet - es hörte Namen im Test öfter richtig („Korgo" statt
+    „Korku")."""
+    namen = {_norm(x) for x in korrektur.namen} if korrektur else set()
+
+    def name(w: str) -> Optional[str]:
+        k = korrektur.korrigieren(w)
+        return k if _norm(k) in namen or _norm(k)[:-1] in namen else None
+
+    cw = canary.split()
+    if not para:
+        return [(0.0, w) for w in cw]
+    if not cw:
+        return list(para)
+    a, b = [_norm(w) for w in cw], [_norm(w) for _, w in para]
+    n, m = len(a), len(b)
+    d = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(n + 1):
+        d[i][0] = i
+    for j in range(m + 1):
+        d[0][j] = j
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            d[i][j] = min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] != b[j - 1]))
+    erg: list[tuple[Optional[float], str]] = []
+    i, j = n, m
+    while i or j:
+        if i and j and d[i][j] == d[i - 1][j - 1] + (a[i - 1] != b[j - 1]):
+            w = cw[i - 1]
+            if a[i - 1] != b[j - 1] and namen and not name(w):
+                pn = name(para[j - 1][1])
+                if pn:
+                    zeichen = w[len(w.rstrip(".,;:!?")):]     # Canarys Satzzeichen bleiben
+                    w = pn.rstrip(".,;:!?") + zeichen
+            erg.append((para[j - 1][0], w))
+            i, j = i - 1, j - 1
+        elif j and d[i][j] == d[i][j - 1] + 1:
+            erg.append((para[j - 1][0], para[j - 1][1]))
+            j -= 1
+        else:
+            erg.append((None, cw[i - 1]))
+            i -= 1
+    erg.reverse()
+    # Zeiten für Canary-Extrawörter: die des vorigen Worts (oder 0).
+    aus, letzte = [], 0.0
+    for t, w in erg:
+        letzte = t if t is not None else letzte
+        aus.append((min(letzte, dauer), w))
+    return aus
+
+
 def beitraege(abschnitte: list[Abschnitt], luecke: float = LUECKE_ZUSAMMEN_S) -> list[Abschnitt]:
     """Wie zusammenlegen(), aber mit Text: gleicher Sprecher, kurze Pause ->
     ein Beitrag."""
@@ -577,6 +687,7 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
         raise InterruptedError
     teile = [(x.start, x.end, x.speaker) for x in roh]
     asr = _erkenner(modelle, threads)
+    zweit = _canary(modelle, threads) if canary_da(modelle) else None
     korrektur = _namen_korrektur(namen)
     sprach_s = sum(e - s for s, e in stuecke) or 1
     erledigt = 0.0
@@ -584,8 +695,16 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
     for s, e in stuecke:
         if stopp.is_set():
             raise InterruptedError
-        _, tokens, zeiten = _erkennen(asr, ton[int(s * SR):int(e * SR)])
-        for a in stueck_zuordnen(s, e, tokens, zeiten, teile):
+        stueck = ton[int(s * SR):int(e * SR)]
+        _, tokens, zeiten = _erkennen(asr, stueck)
+        if zweit is not None:
+            # Beide hören, Canarys Text an Parakeets Wort-Zeiten (Tisch-Test:
+            # Parakeet allein 21,5 %, Canary allein 16,9 %, beide 15,3 %).
+            woerter = verschmelzen(satzzeichen(_erkennen(zweit, stueck)[0]),
+                                   woerter_mit_zeit(tokens, zeiten), e - s, korrektur)
+            tokens, zeiten = [" " + w for _, w in woerter], [t for t, _ in woerter]
+        neu = stueck_zuordnen(s, e, tokens, zeiten, teile)
+        for a in neu:
             a.text = text_sauber(korrektur.korrigieren(a.text))
             abschnitte.append(a)
         erledigt += e - s
@@ -813,7 +932,7 @@ class Sprache:
         return n if n >= 2 else 0
 
     def bereit(self) -> bool:
-        return pakete_da() and not modelle_fehlen(self.modelle)
+        return pakete_da() and not set(PFLICHT) & set(modelle_fehlen(self.modelle))
 
     def status(self) -> dict:
         job = self.job
@@ -822,6 +941,7 @@ class Sprache:
             "verfuegbar": pakete_da(),
             "bereit": self.bereit(),
             "groesseMb": sum(MODELLE[n][2] for n in modelle_fehlen(self.modelle)),
+            "genauerFehlt": pakete_da() and not canary_da(self.modelle),
             "laden": None if not self.laden else {k: self.laden[k] for k in ("b", "gesamt", "fehler")},
             "live": None if not self.live else {"name": self.live["name"], "hinweis": self.live["hinweis"]},
             "job": None if not job else {k: job[k] for k in ("name", "anteil", "schritt", "start", "fehler")},
