@@ -215,3 +215,37 @@ def test_ohne_canary_bleibt_alles_bereit(tmp_path):
         pytest.skip("ohne sherpa-onnx")
     st = sp.status()
     assert st["bereit"] and st["genauerFehlt"] and st["groesseMb"] == SP.MODELLE["genau"][2]
+
+
+def test_muell_aus_dem_ersten_echten_test_fliegt_raus():
+    # Zeilen aus Kalles Transkript vom 31.10. (1.5.28, normales Gespräch).
+    assert SP.text_sauber("T S F") == ""
+    assert SP.text_sauber("T S F T T T S F T T S F Yeah, that's all I just king to T S F T S F") == ""
+    assert SP.text_sauber("It's a T S F") == ""
+    assert SP.text_sauber("100000000000000000000") == ""
+    assert SP.text_sauber("T S F T O M I S Ich halte das bestimmt, lass uns gehen.") == \
+        "Ich halte das bestimmt, lass uns gehen."
+    assert SP.text_sauber("Ah ja. T S F") == "Ah ja."
+    assert SP.text_sauber("Ja,,, Tatsächlich,,, dann") == "Ja, Tatsächlich, dann"
+    assert SP.text_sauber("Ich bin in Ordnung, I think.") == "Ich bin in Ordnung,"
+    assert SP.text_sauber("Gut gut gut gut gut.") == "Gut."
+    for t in ("Okay, so machen wir das.", "Ich habe 3 Karten und einen Joker!", "Er hat seine Bücher und Schiffe."):
+        assert SP.text_sauber(t) == t
+
+
+def test_canary_ohne_parakeet_ist_erfunden():
+    assert SP.verschmelzen("T S F", [], 2.0) == []
+    # Lange Strecke nur bei Canary: erfunden, raus. Kurze Lücke: bleibt.
+    para = [(0.0, "Ich"), (0.3, "ziehe"), (2.5, "Axt")]
+    erg = SP.verschmelzen("Ich ziehe eins zwei drei vier Axt", para, 3.0)
+    assert [w for _, w in erg] == ["Ich", "ziehe", "Axt"]
+    erg = SP.verschmelzen("Ich ziehe die Axt", para, 3.0)
+    assert [w for _, w in erg] == ["Ich", "ziehe", "die", "Axt"]
+
+
+def test_kleine_sprecher_gehen_an_den_naechsten():
+    A_ = SP.Abschnitt
+    ab = [A_(0, 30, 0, "a"), A_(30, 31, 5, "Rascheln"), A_(31, 60, 1, "b"), A_(60, 61, 7, "Fetzen"), A_(61, 90, 0, "c")]
+    erg = SP.kleine_sprecher_weg(ab)
+    assert {a.sprecher for a in erg} == {0, 1}
+    assert erg[1].sprecher in (0, 1) and erg[3].sprecher in (0, 1)

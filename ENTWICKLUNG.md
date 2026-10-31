@@ -77,6 +77,27 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (31.10.2026): Fix nach erstem echten Test
+
+Kalle testete 1.5.28 mit einem normalen Gespräch: Transkript voller „T S F",
+teils Englisch, 34 Sprecher. Konsole: sherpa-onnx meldet bei Canary „first
+generated token is <|endoftext|> for audio that contains signal. Using the
+best non-eos token instead" (sherpa-onnx #3919) – Canary wird gezwungen, auch
+bei Rascheln/Klicken etwas auszugeben. Nachgestellt: Klicks → „T S F",
+Rauschen → „1000000…". Parakeet bleibt dabei stumm.
+- Canary zählt nur, wo Parakeet auch Sprache hört; ist Canarys Text nach dem
+  Aufräumen leer, nur Parakeet. Mehr als 2 Wörter am Stück nur bei Canary →
+  erfunden, raus.
+- `text_sauber`: Buchstabenketten („T S F T T"), Ziffernketten, 4×
+  wiederholte Wörter weg; **Englisch**: 2+ englische Wörter am Stück raus,
+  einzelnes nur, wenn es allein steht („okay", „Joker" bleiben).
+- Sprecher: Wer insgesamt < 5 s bzw. < 2 % redet, geht an den zeitlich
+  nächsten (genau). Live höchstens 8 Stimmen, wenn die Zahl unbekannt ist.
+- Test mit Tisch-Datei + 4-s-Geraschel nach jedem Satz: kein Müll, 4 Sprecher.
+  Tisch-Werte unverändert (15,3 %).
+- Offen: Kalles echte Aufnahme selbst ansehen (Pegel, Mikro) – Text war auch
+  ohne Müll schwach.
+
 ## 1.5.28 (31.10.2026): Genau mit zwei Erkennern
 
 Kalle: „soll wirklich top sein", darf bis 4 GB groß sein. Modelle verglichen

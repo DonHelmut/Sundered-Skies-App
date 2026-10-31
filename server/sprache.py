@@ -71,6 +71,7 @@ RUECKSTAU_MAX_S = 60.0          # so viel Sprache darf warten, sonst überspring
 # Gleiche Stimme, wenn Kosinus-Ähnlichkeit darüber. Im Test (3 Stimmen, 2
 # männlich) lag dieselbe Person bei 0,57–0,91, verschiedene bei höchstens 0,29.
 STIMME_GLEICH = 0.5
+MAX_LEUTE_UNBEKANNT = 8
 MIN_NEUE_STIMME_S = 1.0         # aus Fetzen keinen neuen Sprecher anlegen
 
 _GH = "https://github.com/k2-fsa/sherpa-onnx/releases/download"
@@ -364,8 +365,10 @@ the a an and or but you your i i'm i've it it's is are am be been was were to of
 yeah yes no not oh so do does did don't have has had get got go going gonna gotta love like
 just know think thing things find how why who where when can could would should will with my me
 we they them their there here he she his her our us out up all one about really right well very
+that that's what's there's i'll you're we're they're can't won't didn't isn't it'll let's now bye hey for from by if as at on
 """.split()) - {"so", "in", "was", "hat", "man", "die", "will", "um", "also", "am", "an", "war", "here"}
 _WORT = re.compile(r"[a-zäöüß']+")
+_ENGLISCH_NORM = {"".join(c for c in w if c.isalnum()) for w in _ENGLISCH}
 
 
 def englisch(t: str) -> bool:
@@ -375,9 +378,55 @@ def englisch(t: str) -> bool:
     return sum(x in _ENGLISCH for x in w) / len(w) >= 0.6
 
 
+# Erkenner-Müll aus dem ersten echten Test (31.10., 1.5.28): Canary schrieb
+# bei Klicken/Rascheln „T S F", bei Rauschen „1000000…" - seitenweise.
+_BUCHSTABEN = re.compile(r"(?<!\w)(?:[A-Za-zÄÖÜäöü][.,]?\s+){1,}[A-Za-zÄÖÜäöü](?!\w)[.,]?")
+_ZIFFERN = re.compile(r"\d{6,}")
+_WIEDERHOLT = re.compile(r"\b(\w+)(?:[\s,.]+\1\b){3,}", re.IGNORECASE)
+_WORT_MIT_ZEICHEN = re.compile(r"\S+")
+
+
+def _englisch_wort(w: str) -> bool:
+    return _norm(w) in _ENGLISCH_NORM
+
+
+def ohne_englisch(t: str) -> str:
+    """Am Tisch wird nur Deutsch geredet (Kalle). Zwei oder mehr englische
+    Wörter am Stück fliegen raus („Yeah, that's all I just"), ein einzelnes
+    nur, wenn es allein steht („Yeah.") - „okay", „cool", „Joker" bleiben."""
+    teile = _WORT_MIT_ZEICHEN.findall(t)
+    eng = [_englisch_wort(w) for w in teile]
+    raus = [False] * len(teile)
+    i = 0
+    while i < len(teile):
+        if eng[i]:
+            j = i
+            while j < len(teile) and eng[j]:
+                j += 1
+            if j - i >= 2 or len(teile) == 1:
+                raus[i:j] = [True] * (j - i)
+            i = j
+        else:
+            i += 1
+    return " ".join(w for w, r in zip(teile, raus) if not r)
+
+
 def text_sauber(t: str) -> str:
     t = " ".join(t.split())
     if any(f in t.lower() for f in _FLOSKELN) or englisch(t):
+        return ""
+    t = _BUCHSTABEN.sub(" ", t)
+    t = _ZIFFERN.sub(" ", t)
+    t = _WIEDERHOLT.sub(r"\1", t)
+    vorher = len(t.split())
+    t = ohne_englisch(t)
+    t = re.sub(r"([,.])\1+", r"\1", " ".join(t.split()))
+    # Englisch rausgeschnitten und kaum etwas übrig: war wohl alles Unsinn.
+    if len(t.split()) < vorher and len(t.split()) < 3:
+        return ""
+    # Was übrig bleibt, muss nach Sprache aussehen: mindestens ein Wort mit
+    # zwei Buchstaben, nicht nur Satzzeichen.
+    if not re.search(r"[^\W\d_]{2,}", t) or englisch(t):
         return ""
     return t
 
@@ -588,6 +637,9 @@ def _norm(w: str) -> str:
     return "".join(c for c in w.lower() if c.isalnum())
 
 
+MAX_NUR_CANARY = 2
+
+
 def verschmelzen(canary: str, para: list[tuple[float, str]], dauer: float,
                  korrektur=None) -> list[tuple[float, str]]:
     """Canary-Text (besser, aber ohne Zeiten, verschluckt gern das erste Wort
@@ -606,7 +658,9 @@ def verschmelzen(canary: str, para: list[tuple[float, str]], dauer: float,
 
     cw = canary.split()
     if not para:
-        return [(0.0, w) for w in cw]
+        # Parakeet hört nichts = da war keine Sprache. Canary erfindet dann
+        # („T S F", „1000000…" im ersten echten Test).
+        return []
     if not cw:
         return list(para)
     a, b = [_norm(w) for w in cw], [_norm(w) for _, w in para]
@@ -638,12 +692,48 @@ def verschmelzen(canary: str, para: list[tuple[float, str]], dauer: float,
             erg.append((None, cw[i - 1]))
             i -= 1
     erg.reverse()
+    # Mehr als zwei Wörter am Stück nur bei Canary: erfunden (echte Lücken
+    # bei Parakeet sind ein, zwei kleine Wörter: „Ein", „dem").
+    lauf: list[int] = []
+    weg: set[int] = set()
+    for k, (t, _) in enumerate(erg + [(0.0, "")]):
+        if t is None:
+            lauf.append(k)
+        else:
+            if len(lauf) > MAX_NUR_CANARY:
+                weg.update(lauf)
+            lauf = []
     # Zeiten für Canary-Extrawörter: die des vorigen Worts (oder 0).
     aus, letzte = [], 0.0
-    for t, w in erg:
+    for k, (t, w) in enumerate(erg):
+        if k in weg:
+            continue
         letzte = t if t is not None else letzte
         aus.append((min(letzte, dauer), w))
     return aus
+
+
+MIN_SPRECHER_S = 5.0        # wer insgesamt weniger redet, ist kein eigener Sprecher
+MIN_SPRECHER_ANTEIL = 0.02
+
+
+def kleine_sprecher_weg(abschnitte: list[Abschnitt]) -> list[Abschnitt]:
+    """Sprecher mit kaum Redezeit dem zeitlich nächsten „echten" Sprecher
+    geben. Im ersten echten Test (Gespräch, Leute unbekannt) kamen 34
+    Sprecher heraus - meist Rascheln und Fetzen, je ein paar Sekunden."""
+    dauer: dict[int, float] = {}
+    for a in abschnitte:
+        dauer[a.sprecher] = dauer.get(a.sprecher, 0.0) + (a.ende - a.start)
+    gesamt = sum(dauer.values()) or 1.0
+    gross = {sp for sp, d in dauer.items() if d >= max(MIN_SPRECHER_S, MIN_SPRECHER_ANTEIL * gesamt)}
+    if not gross or len(gross) == len(dauer):
+        return abschnitte
+    echte = [a for a in abschnitte if a.sprecher in gross]
+    for a in abschnitte:
+        if a.sprecher not in gross:
+            mitte = (a.start + a.ende) / 2
+            a.sprecher = min(echte, key=lambda x: min(abs(mitte - x.start), abs(mitte - x.ende))).sprecher
+    return abschnitte
 
 
 def beitraege(abschnitte: list[Abschnitt], luecke: float = LUECKE_ZUSAMMEN_S) -> list[Abschnitt]:
@@ -697,11 +787,15 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
             raise InterruptedError
         stueck = ton[int(s * SR):int(e * SR)]
         _, tokens, zeiten = _erkennen(asr, stueck)
-        if zweit is not None:
+        canary_text = satzzeichen(_erkennen(zweit, stueck)[0]) if zweit is not None and tokens else ""
+        # sherpa-onnx zwingt Canary zu einem Wort, auch wenn es „nichts gesagt"
+        # erkannt hat („first generated token is <|endoftext|> … Using the best
+        # non-eos token instead", Konsole bei Kalle) - daher „T S F" & Co. Ist
+        # nach dem Aufräumen nichts Sprachliches übrig: nur Parakeet.
+        if canary_text and text_sauber(canary_text):
             # Beide hören, Canarys Text an Parakeets Wort-Zeiten (Tisch-Test:
             # Parakeet allein 21,5 %, Canary allein 16,9 %, beide 15,3 %).
-            woerter = verschmelzen(satzzeichen(_erkennen(zweit, stueck)[0]),
-                                   woerter_mit_zeit(tokens, zeiten), e - s, korrektur)
+            woerter = verschmelzen(canary_text, woerter_mit_zeit(tokens, zeiten), e - s, korrektur)
             tokens, zeiten = [" " + w for _, w in woerter], [t for t, _ in woerter]
         neu = stueck_zuordnen(s, e, tokens, zeiten, teile)
         for a in neu:
@@ -709,7 +803,7 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
             abschnitte.append(a)
         erledigt += e - s
         melden(0.2 + 0.8 * erledigt / sprach_s, "Text erkennen")
-    return transkript_text(beitraege(abschnitte))
+    return transkript_text(beitraege(kleine_sprecher_weg(abschnitte)))
 
 
 # --- Live ---------------------------------------------------------------------------------
@@ -729,7 +823,9 @@ class Mitschrift:
         self.abdruck = so.SpeakerEmbeddingExtractor(
             so.SpeakerEmbeddingExtractorConfig(model=str(modelle / MODELLE["stimme"][1]), num_threads=1))
         self.asr = _erkenner(modelle, threads)
-        self.stimmen = Stimmen(personen)
+        # Leute unbekannt: höchstens 8 - sonst wird live aus jedem Rascheln
+        # ein neuer Sprecher (erster echter Test: S00 bis S33).
+        self.stimmen = Stimmen(personen or MAX_LEUTE_UNBEKANNT)
         # Namen ändern sich am Abend (neue Gegner im Kampf) - je Stück frisch
         # holen, neu gebaut wird die Korrektur nur, wenn sich etwas tut.
         self._namen = namen
