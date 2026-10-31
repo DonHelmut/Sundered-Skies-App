@@ -77,6 +77,37 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (31.10.2026): Fix nach erstem echten Test
+
+Kalle testete 1.5.28 mit einem normalen Gespräch: Transkript voller „T S F",
+teils Englisch, 34 Sprecher. Konsole: sherpa-onnx meldet bei Canary „first
+generated token is <|endoftext|> for audio that contains signal. Using the
+best non-eos token instead" (sherpa-onnx #3919) – Canary wird gezwungen, auch
+bei Rascheln/Klicken etwas auszugeben. Nachgestellt: Klicks → „T S F",
+Rauschen → „1000000…". Parakeet bleibt dabei stumm.
+- Canary zählt nur, wo Parakeet auch Sprache hört; ist Canarys Text nach dem
+  Aufräumen leer, nur Parakeet. Mehr als 2 Wörter am Stück nur bei Canary →
+  erfunden, raus.
+- `text_sauber`: Buchstabenketten („T S F T T"), Ziffernketten, 4×
+  wiederholte Wörter weg; **Englisch**: 2+ englische Wörter am Stück raus,
+  einzelnes nur, wenn es allein steht („okay", „Joker" bleiben).
+- Sprecher: Wer insgesamt < 5 s bzw. < 2 % redet, geht an den zeitlich
+  nächsten (genau). Live höchstens 8 Stimmen, wenn die Zahl unbekannt ist.
+- Test mit Tisch-Datei + 4-s-Geraschel nach jedem Satz: kein Müll, 4 Sprecher.
+  Tisch-Werte unverändert (15,3 %).
+- Kalles echte Aufnahme (7:46, Headset-Mikro + schreiendes Baby) nachgerechnet:
+  Pegel ok, Headset überträgt nur bis 8 kHz, Leute weit weg. Parakeet hört dort
+  fast nichts (und rät Englisch), Canary hört echte Sätze. Erster Fix war zu
+  scharf und warf auch die weg → Canary-Text ohne Parakeet bleibt, wenn er nach
+  dem Aufräumen ≥ 2 echte Wörter hat (`_sprachlich`); Buchstaben-/Ziffernmüll
+  fliegt weiter raus.
+- Kurze Zeilen (≤ 4 Wörter) mit Englisch und ohne kleines deutsches Wort fliegen
+  raus („It's fun.", „The wrong closed"); das große Wörterbuch taugt dafür
+  nicht (kennt „fun", „clean"). Doppelte Satzzeichen „??" → „?".
+- Ergebnis echte Aufnahme: kein „T S F", 7 statt 34 Sprecher, 26 Zeilen meist
+  Deutsch. Reste: „Blue, clean, chop.", „Ha ha ha". Größter Hebel bleibt das
+  Mikro (Handy/Konferenzmikro in die Tischmitte statt Headset).
+
 ## 1.5.28 (31.10.2026): Genau mit zwei Erkennern
 
 Kalle: „soll wirklich top sein", darf bis 4 GB groß sein. Modelle verglichen

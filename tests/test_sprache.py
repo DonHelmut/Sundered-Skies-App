@@ -215,3 +215,52 @@ def test_ohne_canary_bleibt_alles_bereit(tmp_path):
         pytest.skip("ohne sherpa-onnx")
     st = sp.status()
     assert st["bereit"] and st["genauerFehlt"] and st["groesseMb"] == SP.MODELLE["genau"][2]
+
+
+def test_muell_aus_dem_ersten_echten_test_fliegt_raus():
+    # Zeilen aus Kalles Transkript vom 31.10. (1.5.28, normales Gespräch).
+    assert SP.text_sauber("T S F") == ""
+    assert SP.text_sauber("T S F T T T S F T T S F Yeah, that's all I just king to T S F T S F") == ""
+    assert SP.text_sauber("It's a T S F") == ""
+    assert SP.text_sauber("100000000000000000000") == ""
+    assert SP.text_sauber("T S F T O M I S Ich halte das bestimmt, lass uns gehen.") == \
+        "Ich halte das bestimmt, lass uns gehen."
+    assert SP.text_sauber("Ah ja. T S F") == "Ah ja."
+    assert SP.text_sauber("Ja,,, Tatsächlich,,, dann") == "Ja, Tatsächlich, dann"
+    assert SP.text_sauber("Ich bin in Ordnung, I think.") == "Ich bin in Ordnung,"
+    assert SP.text_sauber("Gut gut gut gut gut.") == "Gut."
+    for t in ("Okay, so machen wir das.", "Ich habe 3 Karten und einen Joker!", "Er hat seine Bücher und Schiffe."):
+        assert SP.text_sauber(t) == t
+
+
+def test_canary_muell_fliegt_raus_echte_saetze_bleiben():
+    assert SP.verschmelzen("T S F", [], 2.0) == []
+    assert SP.verschmelzen("1000000000000000", [], 2.0) == []
+    # Leise Sprache: Parakeet hört nichts, Canary einen echten Satz -> bleibt.
+    assert [w for _, w in SP.verschmelzen("Können sie abwechseln?", [], 2.0)] == ["Können", "sie", "abwechseln?"]
+    # Lange Strecke Müll nur bei Canary: raus. Echte Wörter: bleiben.
+    para = [(0.0, "Ich"), (0.3, "ziehe"), (2.5, "Axt")]
+    erg = SP.verschmelzen("Ich ziehe T S F T Axt", para, 3.0)
+    assert [w for _, w in erg] == ["Ich", "ziehe", "Axt"]
+    erg = SP.verschmelzen("Ich ziehe jetzt meine große Axt", para, 3.0)
+    assert [w for _, w in erg] == ["Ich", "ziehe", "jetzt", "meine", "große", "Axt"]
+    erg = SP.verschmelzen("Ich ziehe die Axt", para, 3.0)
+    assert [w for _, w in erg] == ["Ich", "ziehe", "die", "Axt"]
+
+
+def test_kleine_sprecher_gehen_an_den_naechsten():
+    A_ = SP.Abschnitt
+    ab = [A_(0, 30, 0, "a"), A_(30, 31, 5, "Rascheln"), A_(31, 60, 1, "b"), A_(60, 61, 7, "Fetzen"), A_(61, 90, 0, "c")]
+    erg = SP.kleine_sprecher_weg(ab)
+    assert {a.sprecher for a in erg} == {0, 1}
+    assert erg[1].sprecher in (0, 1) and erg[3].sprecher in (0, 1)
+
+
+def test_kurze_englische_zeilen_fliegen_raus_deutsche_bleiben():
+    # Aus dem Headset-Test mit Babygeschrei (31.10.)
+    assert SP.text_sauber("It's fun.") == ""
+    assert SP.text_sauber("The wrong closed") == ""
+    assert SP.text_sauber("Ah ja.") == "Ah ja."
+    assert SP.text_sauber("Cool, so geht das") == "Cool, so geht das"
+    assert SP.text_sauber("Korgo greift an!") == "Korgo greift an!"
+    assert SP.text_sauber("Wechselt man sie??") == "Wechselt man sie?"
