@@ -2547,3 +2547,16 @@ body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px))
 .aufn-kopf .aufn-punkt { width: 8px; height: 8px; }
 .aufn-kopf.still .aufn-punkt { background: var(--muted); animation: none; }
 .aufn-kopf .aufn-stille { font-size: 0.8rem; }
+/* Mitschrift: Sprecher benennen, Namen & Begriffe */
+button.aufn-sprecher { all: unset; cursor: pointer; font-size: 10px; opacity: .7; font-variant-numeric: tabular-nums; }
+button.aufn-sprecher:hover { opacity: 1; text-decoration: underline; }
+button.aufn-sprecher.benannt { opacity: .9; font-weight: 600; }
+.app-dialog-inhalt { margin-bottom: 14px; }
+.app-dialog-inhalt textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
+.aufn-wer-liste { max-height: 55vh; overflow-y: auto; display: grid; gap: 10px; }
+.aufn-wer { border-top: 1px solid var(--line, rgba(255,255,255,.08)); padding-top: 8px; }
+.aufn-wer:first-child { border-top: 0; padding-top: 0; }
+.aufn-wer-kopf { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.aufn-wer-kopf select { width: auto; margin-left: auto; max-width: 200px; }
+.aufn-wer-frei { width: 100%; box-sizing: border-box; }
+.aufn-wer-bsp { line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

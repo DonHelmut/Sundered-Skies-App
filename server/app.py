@@ -28,6 +28,7 @@ from . import winnet
 from . import sicherung
 from .aufnahme import Aufnahmen, MAX_TRANSKRIPT
 from .sprache import Sprache
+from .namen import namen_aus_spiel
 
 WEB_DIR = RESOURCE_DIR / "web"
 LOCAL_IP = local_ip()
@@ -390,6 +391,20 @@ async def protokoll_lesen(request: Request, pid: str):
 aufnahmen = Aufnahmen(DATA_DIR / "aufnahmen")
 # Modelle in data/: das Aktualisieren tauscht nur die Programmdateien.
 sprache = Sprache(DATA_DIR / "modelle", aufnahmen)
+# Eigennamen fürs Verbessern der Mitschrift (server/namen.py) und wie viele
+# Leute am Tisch sitzen (Spieler-Figuren mit verschiedenen Spielern + SL).
+sprache.namen_quelle = lambda: namen_aus_spiel(game)
+aufnahmen.begriffe_quelle = sprache.begriffe
+
+
+def _leute_am_tisch() -> int:
+    leute = {str(c.get("playerName") or c.get("name") or "").strip().lower()
+             for c in game.combatants if c.get("kind") == "player" and not c.get("benched")}
+    leute.discard("")
+    return len(leute) + 1 if leute else 0
+
+
+sprache.personen_quelle = _leute_am_tisch
 
 
 @app.get("/api/aufnahme")
@@ -487,8 +502,35 @@ async def sprache_einstellen(request: Request):
         personen = int(body["personen"]) if "personen" in body else None
     except (TypeError, ValueError):
         personen = None
-    sprache.einstellen(live=body.get("live") if isinstance(body.get("live"), bool) else None, personen=personen)
+    begriffe = body.get("begriffe") if isinstance(body.get("begriffe"), str) else None
+    if begriffe is not None and len(begriffe) > 20000:
+        return JSONResponse({"error": "too_large"}, status_code=413)
+    sprache.einstellen(live=body.get("live") if isinstance(body.get("live"), bool) else None,
+                       personen=personen, begriffe=begriffe)
     return JSONResponse(sprache.status())
+
+
+@app.get("/api/aufnahme/sprecher/{name}")
+async def aufnahme_sprecher(request: Request, name: str, quelle: str = "genau"):
+    """„Wer ist wer?": Sprecher mit Beispielsätzen und bisheriger Zuordnung."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    erg = aufnahmen.sprecher(name, quelle)
+    if erg is None:
+        return JSONResponse({"error": "leer"}, status_code=404)
+    return JSONResponse(erg)
+
+
+@app.post("/api/aufnahme/sprecher/{name}")
+async def aufnahme_sprecher_benennen(request: Request, name: str, quelle: str = "genau"):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    ok = aufnahmen.sprecher_benennen(name, quelle, (body or {}).get("namen") if isinstance(body, dict) else None)
+    return JSONResponse({"ok": ok}, status_code=200 if ok else 400)
 
 
 @app.post("/api/sprache/genau/{name}")

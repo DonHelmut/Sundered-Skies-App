@@ -107,7 +107,7 @@ def test_genau_nur_einer_und_nicht_die_laufende(tmp_path, monkeypatch):
     gestartet = threading.Event()
     weiter = threading.Event()
 
-    def falsch_transkribieren(pfad, modelle, personen, melden, stopp):
+    def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=()):
         melden(0.5, "Text erkennen")
         gestartet.set()
         weiter.wait(2)
@@ -129,3 +129,59 @@ def test_genau_nur_einer_und_nicht_die_laufende(tmp_path, monkeypatch):
         threading.Event().wait(0.05)
     assert sp.job is None
     assert "Ihr seht ein Schiff." in auf.prompt_aus(alt["name"], "genau")
+
+
+def test_genau_verliert_nichts_was_die_sprechertrennung_uebersieht():
+    # Stück 10–14 s, die Sprechertrennung kennt nur 10–11 s (Sprecher 2) und
+    # weit weg 30–40 s (Sprecher 1). Alles kommt an, Rest beim Nächsten.
+    teile = [(10.0, 11.0, 2), (30.0, 40.0, 1)]
+    erg = SP.stueck_zuordnen(10.0, 14.0, [" Ich", " ziehe", " meine", " Axt"], [0.1, 0.5, 2.0, 2.5], teile)
+    assert " ".join(a.text for a in erg) == "Ich ziehe meine Axt"
+    assert {a.sprecher for a in erg} == {2}
+    # Ganz ohne Treffer im Stück: der zeitlich nächste.
+    erg = SP.stueck_zuordnen(25.0, 28.0, [" Hallo"], [0.2], teile)
+    assert erg[0].sprecher == 1 and erg[0].text == "Hallo"
+
+
+def test_beitraege_mit_text_zusammenlegen():
+    A_ = SP.Abschnitt
+    erg = SP.beitraege([A_(0, 2, 0, "Ihr seht"), A_(2.5, 4, 0, "ein Schiff."), A_(4.2, 5, 1, "Wo?"), A_(5, 5, 1, "")])
+    assert [(a.sprecher, a.text) for a in erg] == [(0, "Ihr seht ein Schiff."), (1, "Wo?")]
+
+
+def test_englischer_unsinn_aus_rauschen_fliegt_raus():
+    for t in ("How do you", "I love it. I've been doing it.", "Yeah."):
+        assert SP.text_sauber(t) == ""
+    for t in ("Ich habe einen Joker!", "Okay, so machen wir das.", "Was hat er in der Hand?"):
+        assert SP.text_sauber(t) == t
+
+
+def test_begriffe_lesen():
+    assert SP.begriffe_lesen("Vexmoor, Krauzern\nSturmvogel;  Kapitän   Branok \nvexmoor\nx") == \
+        ["Vexmoor", "Krauzern", "Sturmvogel", "Kapitän Branok"]
+
+
+def test_begriffe_und_personen_aus_app(tmp_path):
+    auf = A.Aufnahmen(tmp_path / "aufnahmen")
+    sp = SP.Sprache(tmp_path / "modelle", auf)
+    sp.einstellen(begriffe="Vexmoor\nKrauzern")
+    assert SP.Sprache(tmp_path / "modelle", auf).status()["begriffe"] == ["Vexmoor", "Krauzern"]
+    sp.personen_quelle = lambda: 5
+    assert sp.personen_fuer() == 5 and sp.status()["personenApp"] == 5
+    meta = auf.starten("audio/webm")
+    meta["personen"] = {"Korgo": "Tim", "Tessa": "Anna", "Mira": "Anna"}   # Anna spielt zwei
+    assert sp.personen_fuer(meta["name"]) == 3                             # Tim, Anna + SL
+    sp.einstellen(personen=6)
+    assert sp.personen_fuer(meta["name"]) == 6                             # eingestellt gewinnt
+    assert sp.status()["personenApp"] == 0
+
+
+def test_hochpass_nimmt_brummen_und_laesst_sprache():
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("av")
+    t = np.arange(SP.SR * 2) / SP.SR
+    brumm = SP.hochpass((0.3 * np.sin(2 * np.pi * 50 * t)).astype(np.float32))
+    stimme = SP.hochpass((0.3 * np.sin(2 * np.pi * 400 * t)).astype(np.float32))
+    assert len(brumm) == len(t)
+    assert np.abs(brumm[SP.SR:]).max() < 0.1           # 50 Hz deutlich leiser
+    assert np.abs(stimme[SP.SR:]).max() > 0.27         # 400 Hz bleibt

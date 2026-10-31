@@ -31,6 +31,7 @@ const Aufn = {
   stilleSeit: 0,    // seit wann praktisch nichts ankommt (falsches/stummes Mikro)
   live: [],         // letzte Zeilen der Live-Mitschrift (server/sprache.py)
   liveN: 0,
+  liveNamen: {},    // „S01" -> „Korgo (Tim)", vom SL live zugeordnet
 };
 // Erst nach 90 s Stille melden, und dann nur leise: Pausen am Tisch (Pizza,
 // Regeln nachlesen) sind normal - die Anzeige soll informieren, nicht nerven
@@ -141,6 +142,9 @@ function aufnZeileHtml(x, sp) {
       <span class="aufn-fortschritt muted">${esc(aufnJobText(job))}</span></span>
       <button class="ghost small" data-act="aufn-abbrechen" title="Transkription abbrechen">✕</button>`);
   } else {
+    // Wer ist wer: aus S00/S01 werden Namen, der Prompt nennt dann die.
+    const wer = x.hatTranskript ? "genau" : x.hatLive ? "live" : "";
+    if (wer) knoepfe.push(`<button class="ghost small" data-act="aufn-sprecher" data-quelle="${wer}" data-name="${esc(x.name)}" title="Sprecher S00, S01 … den Leuten am Tisch zuordnen – der Prompt nennt dann Namen">👥 Wer ist wer?</button>`);
     if (x.hatTranskript) {
       knoepfe.push(`<button class="ghost small" data-act="aufn-prompt" data-quelle="genau" data-name="${esc(x.name)}" title="Prompt aus dem genauen Transkript – in Claude einfügen">📝 Prompt</button>`);
     } else {
@@ -175,11 +179,16 @@ function aufnMitschriftHtml(sp) {
       <button class="ghost small" data-act="aufn-modelle" title="Lädt einmalig die Sprachmodelle (gratis, danach offline). Bleiben beim Aktualisieren erhalten.">⬇ Mitschrift einrichten</button>
       <span class="muted">${sp.laden && sp.laden.fehler ? esc(sp.laden.fehler) : `einmalig ca. ${sp.groesseMb} MB`}</span></div>`;
   }
+  // „automatisch" nimmt die Zahl aus der App (Spieler + SL), sobald Figuren
+  // im Kampf-Panel stehen - dann steht sie gleich mit dran.
+  const auto = sp.personenApp ? `Leute: ${sp.personenApp} (laut App)` : "Leute: automatisch";
   const personen = [0, 2, 3, 4, 5, 6, 7, 8].map((n) =>
-    `<option value="${n}"${n === sp.personen ? " selected" : ""}>${n ? `${n} am Tisch` : "Leute: automatisch"}</option>`).join("");
+    `<option value="${n}"${n === sp.personen ? " selected" : ""}>${n ? `${n} am Tisch` : auto}</option>`).join("");
+  const begriffe = (sp.begriffe || []).length;
   return `<div class="aufn-mitschrift small">
     <label title="Schreibt während der Aufnahme mit; der Text läuft klein darunter mit"><input type="checkbox" data-act="aufn-live-an"${sp.liveAn ? " checked" : ""}> Live mitschreiben</label>
     <select data-act="aufn-personen" title="Leute am Tisch, SL mitgezählt – mit Zahl trennt die Sprechererkennung besser" style="width:auto">${personen}</select>
+    <button class="ghost small" data-act="aufn-begriffe" title="Orte, Schiffe, NSCs … – damit die Mitschrift sie richtig schreibt. Figuren, Gegner und Spieler aus der App sind automatisch dabei.">🏷 Namen${begriffe ? ` (${begriffe})` : ""}</button>
   </div>`;
 }
 function aufnJobText(job) {
@@ -358,8 +367,10 @@ async function aufnMarke() {
 const AUFN_LIVE_ZEILEN = 4;
 
 function aufnLiveHtml() {
+  // Sprecher antippen = benennen. Die Nummern bleiben über den Abend gleich
+  // (Stimmabdruck), darum gilt der Name ab dann für alle Zeilen dieser Stimme.
   return Aufn.live.slice(-AUFN_LIVE_ZEILEN)
-    .map((z) => `<div><span class="aufn-sprecher">${esc(z.sprecher)}</span> ${esc(z.text)}</div>`).join("");
+    .map((z) => `<div><button type="button" class="aufn-sprecher${Aufn.liveNamen[z.sprecher] ? " benannt" : ""}" data-act="aufn-live-sprecher" data-sprecher="${esc(z.sprecher)}" title="Wer ist das? Antippen zum Benennen">${esc(Aufn.liveNamen[z.sprecher] || z.sprecher)}</button> ${esc(z.text)}</div>`).join("");
 }
 
 async function aufnLiveHolen() {
@@ -367,10 +378,12 @@ async function aufnLiveHolen() {
   try { erg = await (await fetch(`/api/aufnahme/live?ab=${Aufn.liveN}`)).json(); } catch { return; }
   // Andere Aufnahme als die, deren Zeilen wir haben (neu gestartet)?
   if (erg.aufnahme !== Aufn.liveAufnahme) { Aufn.live = []; Aufn.liveN = 0; Aufn.liveAufnahme = erg.aufnahme; }
+  const namenNeu = JSON.stringify(erg.namen || {}) !== JSON.stringify(Aufn.liveNamen);
+  Aufn.liveNamen = erg.namen || {};
   const neu = (erg.zeilen || []).filter((z) => z.n > Aufn.liveN);
-  if (!neu.length) return;
+  if (!neu.length && !namenNeu) return;
   Aufn.live = Aufn.live.concat(neu).slice(-AUFN_LIVE_ZEILEN);
-  Aufn.liveN = neu[neu.length - 1].n;
+  if (neu.length) Aufn.liveN = neu[neu.length - 1].n;
   const html = aufnLiveHtml();
   document.querySelectorAll(".aufn-live").forEach((x) => { x.innerHTML = html; });
 }
@@ -405,6 +418,82 @@ setInterval(async () => {
   document.querySelectorAll(".aufn-balken > i").forEach((x) => { x.style.transform = `scaleX(${anteil.toFixed(3)})`; });
   document.querySelectorAll(".aufn-fortschritt").forEach((x) => { x.textContent = text; });
 }, 2500);
+
+// --- Namen & Begriffe, Wer ist wer -------------------------------------------------
+
+async function aufnBegriffe() {
+  const sp = (Aufn.status && Aufn.status.sprache) || {};
+  const text = await dialog({
+    text: "Namen & Begriffe der Runde – Orte, Schiffe, NSCs, Fraktionen. Einer pro Zeile.\n\nKlingt etwas in der Mitschrift fast so, wird es so geschrieben („Kogo“ → „Korgo“). Figuren, Gegner und Spieler aus der App sind automatisch dabei.",
+    inhalt: `<textarea class="aufn-begriffe" rows="8" placeholder="Krauzern\nSturmvogel\nKapitän Branok">${esc((sp.begriffe || []).join("\n"))}</textarea>`,
+    lesen: (box) => box.querySelector("textarea").value,
+    knoepfe: [
+      { text: "Abbrechen", wert: null, abbruch: true },
+      { text: "Speichern", art: "primary", standard: true },
+    ],
+  });
+  if (text === null || text === undefined) return;
+  aufnSprache("/api/sprache/einstellen", { begriffe: text });
+}
+
+// Sprecher benennen: je Stimme die längsten Sätze als Erinnerungshilfe, dazu
+// eine Auswahl (SL, Figuren der Aufnahme) oder frei eintippen.
+async function aufnSprecherDialog(name, quelle, nur = null) {
+  let d;
+  try {
+    const r = await fetch(`/api/aufnahme/sprecher/${encodeURIComponent(name)}?quelle=${quelle}`);
+    if (r.ok) d = await r.json();
+  } catch { /* unten */ }
+  if (!d || !d.sprecher.length) { hinweis("Noch keine Sprecher im Text."); return; }
+  const liste = d.sprecher.filter((x) => !nur || x.sprecher === nur);
+  const vorschlaege = d.vorschlaege || [];
+  const zeilen = liste.map((x) => {
+    const jetzt = d.namen[x.sprecher] || "";
+    const optionen = [`<option value="">– unbekannt –</option>`]
+      .concat(vorschlaege.map((v) => `<option${v === jetzt ? " selected" : ""}>${esc(v)}</option>`));
+    if (jetzt && !vorschlaege.includes(jetzt)) optionen.push(`<option selected>${esc(jetzt)}</option>`);
+    optionen.push(`<option value="__frei">Anderer Name …</option>`);
+    return `<div class="aufn-wer" data-sprecher="${esc(x.sprecher)}">
+      <div class="aufn-wer-kopf"><b>${esc(x.sprecher)}</b> <span class="muted small">${Math.round(x.anteil * 100)} % vom Text</span>
+        <select>${optionen.join("")}</select>
+        <input class="aufn-wer-frei" placeholder="Name" maxlength="60" style="display:none"></div>
+      ${x.beispiele.map((b) => `<div class="aufn-wer-bsp muted small">„${esc(b)}“</div>`).join("")}
+    </div>`;
+  }).join("");
+  const namen = await dialog({
+    text: nur ? "Wer ist das?" : "Wer ist wer? Der Prompt nennt dann Namen statt S00, S01 …",
+    inhalt: `<div class="aufn-wer-liste">${zeilen}</div>`,
+    lesen: (box) => {
+      const erg = { ...d.namen };
+      box.querySelectorAll(".aufn-wer").forEach((z) => {
+        const wahl = z.querySelector("select").value;
+        const frei = z.querySelector(".aufn-wer-frei").value.trim();
+        const wert = wahl === "__frei" ? frei : wahl;
+        if (wert) erg[z.dataset.sprecher] = wert; else delete erg[z.dataset.sprecher];
+      });
+      return erg;
+    },
+    knoepfe: [
+      { text: "Abbrechen", wert: null, abbruch: true },
+      { text: "Übernehmen", art: "primary", standard: true },
+    ],
+  });
+  if (!namen) return;
+  try {
+    await fetch(`/api/aufnahme/sprecher/${encodeURIComponent(name)}?quelle=${quelle}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ namen }) });
+  } catch { /* egal */ }
+  if (quelle === "live") { Aufn.liveNamen = namen; document.querySelectorAll(".aufn-live").forEach((x) => { x.innerHTML = aufnLiveHtml(); }); }
+  else toast("👥 Gespeichert – der Prompt nennt jetzt Namen");
+}
+// „Anderer Name …" blendet das Textfeld ein.
+document.addEventListener("change", (e) => {
+  const sel = e.target.closest(".aufn-wer select");
+  if (!sel) return;
+  const frei = sel.parentElement.querySelector(".aufn-wer-frei");
+  frei.style.display = sel.value === "__frei" ? "" : "none";
+  if (sel.value === "__frei") frei.focus();
+});
 
 // --- Transkript -> Prompt --------------------------------------------------------
 
@@ -469,6 +558,12 @@ document.addEventListener("click", async (e) => {
   } else if (act === "aufn-marke") { e.preventDefault(); aufnMarke(); }
   else if (act === "aufn-prompt") { e.preventDefault(); aufnPromptAus(t.dataset.name, t.dataset.quelle); }
   else if (act === "aufn-modelle") { e.preventDefault(); aufnSprache("/api/sprache/modelle"); }
+  else if (act === "aufn-begriffe") { e.preventDefault(); aufnBegriffe(); }
+  else if (act === "aufn-sprecher") { e.preventDefault(); aufnSprecherDialog(t.dataset.name, t.dataset.quelle); }
+  else if (act === "aufn-live-sprecher") {
+    e.preventDefault();
+    if (Aufn.name) aufnSprecherDialog(Aufn.name, "live", t.dataset.sprecher);
+  }
   else if (act === "aufn-genau") { e.preventDefault(); aufnSprache(`/api/sprache/genau/${encodeURIComponent(t.dataset.name)}`); }
   else if (act === "aufn-abbrechen") {
     e.preventDefault();
