@@ -90,6 +90,19 @@ verstellter Stimme.
 - „Wer ist wer?": Hinweis „NSC-Stimme vom SL: auch ‚Spielleiter' wählen"
   (mehreren Sprechern denselben Namen geben ging schon).
 - Prompt: Claude weiß jetzt, dass SL-Zeilen NSC-Rede sein können.
+- Kalle: „will nicht alles selber auswählen, kann man das aus dem Kontext
+  schließen?" → **Zahl nie mehr erzwingen**, nur Obergrenze: selbst
+  eingestellt = genau die, aus der App = Spieler + SL + 2 Gäste, unbekannt 8.
+  Tisch-Simulation: Schwelle fand alle 4 Stimmen, „genau 4" legte Tessa und
+  Mira zusammen.
+- **Wer ist wer automatisch** (`sprecher_raten`, nach jedem genauen
+  Durchgang, nur solange der SL nichts zugeordnet hat): SL = redet am meisten;
+  Spieler sagen ihre Figur an („Korgo zieht seine Axt", Satzanfang zählt
+  doppelt, „Tessa, hilf mir!" = Anrede zählt nicht); SL spricht eine Figur an
+  → der nächste Sprecher; im Kampf redet, wessen Zug es ist (neue Ereignisse
+  `zug` aus `beobachten`). Jede Figur einmal, nur mit klarem Vorsprung (1,5×),
+  sonst bleibt S0x. „Wer ist wer?" zeigt es vorausgefüllt, der Prompt sagt
+  Claude, dass es automatisch ist.
 
 ## 1.5.30 (31.10.2026): Immer das beste Transkript, von selbst
 

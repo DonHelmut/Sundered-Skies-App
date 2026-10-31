@@ -154,6 +154,7 @@ class Aufnahmen:
         self._letztes_stueck = jetzt
         self._war_im_kampf = False
         self._runden = 0
+        self._zug = None
         self.live_zeilen = []
         if game is not None:
             self.beobachten(game)
@@ -268,6 +269,17 @@ class Aufnahmen:
             geaendert = True
         elif not im_kampf and self._war_im_kampf:
             self._ereignis({"art": "kampf_ende", "runden": self._runden})
+            geaendert = True
+        # Wer gerade dran ist: im Kampf redet meist der, dessen Zug es ist -
+        # daraus rät sprecher_raten() nachher, welcher Sprecher wer ist.
+        zug = None
+        if im_kampf:
+            dran = next((c for c in dabei if c.get("id") == getattr(game, "active_id", None)), None)
+            if dran is not None:
+                zug = str(dran.get("name") or "") if dran.get("kind") == "player" else ""
+        if zug != getattr(self, "_zug", None):
+            self._ereignis({"art": "zug", "figur": zug or None})
+            self._zug = zug
             geaendert = True
         # Rundenzahl nur als Zähler („Kampf über 4 Runden"), kein Verlauf.
         self._runden = max(self._runden, game.round or 0) if im_kampf else 0
@@ -392,7 +404,8 @@ class Aufnahmen:
         vorschlaege = [SPIELLEITER] + [f"{figur} ({sp})" if sp else figur
                                        for figur, sp in sorted((meta.get("personen") or {}).items())]
         return {"sprecher": liste, "namen": (meta.get("sprecher") or {}).get(quelle) or {},
-                "vorschlaege": vorschlaege}
+                "vorschlaege": vorschlaege,
+                "automatisch": quelle == "genau" and bool(meta.get("sprecherAuto"))}
 
     def sprecher_benennen(self, name: str, quelle: str, namen: dict) -> bool:
         if quelle not in ("genau", "live") or not isinstance(namen, dict):
@@ -403,6 +416,8 @@ class Aufnahmen:
         sauber = {k: " ".join(str(v).split())[:60] for k, v in namen.items()
                   if isinstance(k, str) and _SPRECHER_MUSTER.match(k) and isinstance(v, str) and v.strip()}
         meta.setdefault("sprecher", {})[quelle] = sauber
+        if quelle == "genau":
+            meta["sprecherAuto"] = False      # jetzt vom SL bestätigt
         self._meta_schreiben(meta)
         return True
 
@@ -435,6 +450,22 @@ class Aufnahmen:
         return p
 
 
+    def sprecher_automatisch(self, name: str) -> bool:
+        """Nach dem genauen Durchgang: Sprecher selbst zuordnen (Kalle: „will
+        nicht alles selber auswählen"). Nur wenn noch niemand zugeordnet hat;
+        „Wer ist wer?" zeigt das Ergebnis vorausgewählt zum Korrigieren."""
+        meta = self._meta(name)
+        text = self._text(name, "genau")
+        if not meta or text is None or (meta.get("sprecher") or {}).get("genau"):
+            return False
+        namen = sprecher_raten(text, meta)
+        if not namen:
+            return False
+        meta.setdefault("sprecher", {})["genau"] = namen
+        meta["sprecherAuto"] = True
+        self._meta_schreiben(meta)
+        return True
+
     def prompt_aus(self, name: str, quelle: str = "genau", extra: str = "") -> Optional[str]:
         """Prompt aus dem genauen Transkript oder der Live-Mitschrift."""
         if not name_gueltig(name) or quelle not in ("genau", "live"):
@@ -445,6 +476,91 @@ class Aufnahmen:
         meta = self._meta(name) or {}
         return self.prompt(name, text, extra, speichern=False,
                            sprecher=(meta.get("sprecher") or {}).get(quelle) or {})
+
+
+# --- Wer ist wer? (automatisch) ----------------------------------------------------
+
+def _sekunden(hms: str) -> int:
+    h, m, s = (int(x) for x in hms.split(":"))
+    return h * 3600 + m * 60 + s
+
+
+def sprecher_raten(transkript: str, meta: dict) -> dict:
+    """S00, S01 … -> „Spielleiter", „Korgo (Tim)" aus dem Kontext:
+    - Spielleiter = wer am meisten redet (erzählt, spricht alle NSCs).
+    - Spieler sagen ihre Figur selbst an („Korgo zieht seine Axt") - nennt ein
+      Sprecher (nicht der SL) eine Figur, zählt das für sie; am Satzanfang mehr.
+      „Tessa, hilf mir!" (Name + Komma) ist Anreden, zählt nicht.
+    - Spricht der SL eine Figur an („Korgo, was machst du?"), antwortet meist
+      deren Spieler: der nächste andere Sprecher bekommt einen Punkt.
+    - Im Kampf redet, wessen Zug es ist (Zug-Ereignisse der App).
+    Jede Figur höchstens einmal, nur bei klarem Vorsprung; Rest bleibt S0x
+    (der Prompt lässt Claude dann über den Inhalt zuordnen)."""
+    zeilen = []
+    for z in transkript.splitlines():
+        m = _ZEILE.match(z.strip())
+        if m:
+            zeilen.append((_sekunden(m.group(1)), m.group(2), m.group(3)))
+    if not zeilen:
+        return {}
+    zeichen: dict[str, int] = {}
+    for _, sp, t in zeilen:
+        zeichen[sp] = zeichen.get(sp, 0) + len(t)
+    sl = max(zeichen, key=zeichen.get)
+    erg = {sl: SPIELLEITER}
+    figuren = {f: (sp or "") for f, sp in (meta.get("personen") or {}).items() if f}
+    if not figuren:
+        return erg
+    # Wörter, an denen man eine Figur erkennt: ihr Name (auch Teile:
+    # „Korgo der Starke" -> korgo) und der Name des Spielers.
+    kennung = {}
+    for f, sp in figuren.items():
+        w = {x.lower() for x in re.findall(r"\w+", f) if len(x) >= 3}
+        if sp:
+            w |= {x.lower() for x in re.findall(r"\w+", sp) if len(x) >= 3}
+        kennung[f] = w
+    punkte: dict[tuple, float] = {}
+
+    def plus(sp, f, p):
+        if sp != sl:
+            punkte[(sp, f)] = punkte.get((sp, f), 0.0) + p
+    for i, (t0, sp, text) in enumerate(zeilen):
+        for satz in re.split(r"(?<=[.!?])\s+", text):
+            woerter = re.findall(r"\w+", satz.lower())
+            for f, w in kennung.items():
+                treffer = [k for k, x in enumerate(woerter) if x in w]
+                if not treffer:
+                    continue
+                angesprochen = bool(re.match(r"\s*(\w+\s*){1,2},", satz)) and treffer[0] <= 1
+                if sp == sl:
+                    if angesprochen or satz.rstrip().endswith("?"):
+                        nach = next((z for z in zeilen[i + 1:i + 4] if z[1] != sl), None)
+                        if nach and nach[0] - t0 <= 30:
+                            plus(nach[1], f, 1.0)
+                elif not angesprochen:
+                    plus(sp, f, 2.0 if treffer[0] <= 1 else 1.0)
+    # Züge im Kampf: Redezeit (grob aus der Textlänge) im Zug einer Figur.
+    zuege = [(e["t"] / 1000, e.get("figur")) for e in meta.get("ereignisse", []) if e.get("art") == "zug"]
+    for k, (ab, f) in enumerate(zuege):
+        if f not in figuren:
+            continue
+        bis = zuege[k + 1][0] if k + 1 < len(zuege) else ab + 120
+        for t0, sp, text in zeilen:
+            if ab <= t0 < bis:
+                plus(sp, f, min(1.0, len(text) / 60))
+    vergeben, figur_weg = set(), set()
+    for (sp, f), p in sorted(punkte.items(), key=lambda x: -x[1]):
+        if sp in vergeben or f in figur_weg or p < 2.0:
+            continue
+        # Klarer Vorsprung vor der zweitbesten Figur dieses Sprechers.
+        andere = max((q for (s2, f2), q in punkte.items() if s2 == sp and f2 != f and f2 not in figur_weg),
+                     default=0.0)
+        if p < 1.5 * andere:
+            continue
+        erg[sp] = f"{f} ({figuren[f]})" if figuren[f] else f
+        vergeben.add(sp)
+        figur_weg.add(f)
+    return erg
 
 
 def _gezaehlt(figuren: list[dict]) -> list[str]:
@@ -505,7 +621,10 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
         "",
         "ZUM TRANSKRIPT:",
         "- Es ist automatisch erkannt und enthält Hörfehler. Namen und Begriffe sinnvoll korrigieren.",
-        ("- Die Sprecher hat der Spielleiter zugeordnet. Wer noch S00, S01 … heißt, ordne über den Inhalt zu."
+        (("- Die Sprecher hat die App automatisch zugeordnet (wer am meisten erzählt, wer seine Figur "
+          "ansagt, wessen Zug es war) – das kann falsch sein, im Zweifel zählt der Inhalt. "
+          if meta.get("sprecherAuto") else "- Die Sprecher hat der Spielleiter zugeordnet. ")
+         + "Wer noch S00, S01 … heißt, ordne über den Inhalt zu."
          if sprecher else
          "- Sprecher heißen dort S00, S01 … Ordne sie den Personen über den Inhalt zu. "
          "Wer am meisten erzählt und NSCs spricht, ist der Spielleiter."),

@@ -362,3 +362,14 @@ def test_hoechstens_so_viele_sprecher_wie_leute():
     assert erg[-1].sprecher == 5                      # zeitlich nächster
     assert len({a.sprecher for a in SP.kleine_sprecher_weg(
         [A_(i * 20, i * 20 + 18, i, "x") for i in range(7)])}) == 7   # ohne Grenze bleibt's
+
+
+def test_obergrenze_aus_app_mit_platz_fuer_gaeste(tmp_path):
+    sp = SP.Sprache(tmp_path / "modelle", A.Aufnahmen(tmp_path / "aufnahmen"))
+    sp.personen_quelle = lambda: 6                    # SL + 5 laut App
+    assert sp.hoechstens() == 8                       # + 2 Gäste
+    sp.einstellen(personen=4)
+    assert sp.hoechstens() == 4                       # selbst eingestellt: genau die
+    sp.personen_quelle = lambda: 0
+    sp.einstellen(personen=0)
+    assert sp.hoechstens() == 0                       # unbekannt -> bis zu 8

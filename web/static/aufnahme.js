@@ -191,7 +191,7 @@ function aufnMitschriftHtml(sp) {
   const begriffe = (sp.begriffe || []).length;
   return `<div class="aufn-mitschrift small">
     <label title="Grober Text schon während der Aufnahme. Nicht nötig: das genaue Transkript danach ist besser und kommt von selbst."><input type="checkbox" data-act="aufn-live-an"${sp.liveAn ? " checked" : ""}> Live mitschreiben</label>
-    <select data-act="aufn-personen" title="Leute am Tisch, SL mitgezählt – mit Zahl trennt die Sprechererkennung besser" style="width:auto">${personen}</select>
+    <select data-act="aufn-personen" title="Leute am Tisch, SL mitgezählt. Automatisch: Spieler aus der App + SL, bis zu 2 Gäste mehr werden auch erkannt. Zahl wählen = höchstens so viele Sprecher." style="width:auto">${personen}</select>
     ${sp.genauerFehlt && !(sp.laden && !sp.laden.fehler) ? `<button class="ghost small" data-act="aufn-modelle" title="Zweiter Erkenner (Canary, fest auf Deutsch) für „Genau transkribieren“ – im Test ein Viertel weniger Fehler. Einmalig, danach offline.">⬇ Genauer (${sp.groesseMb} MB)</button>` : ""}
     <button class="ghost small" data-act="aufn-begriffe" title="Orte, Schiffe, NSCs … – damit die Mitschrift sie richtig schreibt. Figuren, Gegner und Spieler aus der App sind automatisch dabei.">🏷 Namen${begriffe ? ` (${begriffe})` : ""}</button>
   </div>`;
@@ -466,7 +466,7 @@ async function aufnSprecherDialog(name, quelle, nur = null) {
     </div>`;
   }).join("");
   const namen = await dialog({
-    text: nur ? "Wer ist das?" : "Wer ist wer? Der Prompt nennt dann Namen statt S00, S01 … NSC-Stimme vom SL: einfach auch „Spielleiter“ wählen.",
+    text: nur ? "Wer ist das?" : `${d.automatisch ? "Von der App vorausgefüllt (wer am meisten erzählt, wer seine Figur ansagt, wessen Zug war) – nur korrigieren, wenn was nicht stimmt. " : ""}Der Prompt nennt dann Namen statt S00, S01 … NSC-Stimme vom SL: einfach auch „Spielleiter“ wählen.`,
     inhalt: `<div class="aufn-wer-liste">${zeilen}</div>`,
     lesen: (box) => {
       const erg = { ...d.namen };
