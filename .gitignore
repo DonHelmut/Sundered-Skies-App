@@ -22,3 +22,6 @@ dist/
 .claude/
 
 # Transkribierer: Modelle (ca. 1 GB) laedt das Programm selbst von GitHub
+
+# Design-Labor (lokal)
+web/static/_lab_*
