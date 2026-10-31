@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (31.10.2026): Fix nach erstem echten Test
+## 1.5.29 (31.10.2026): Fix nach erstem echten Test
 
 Kalle testete 1.5.28 mit einem normalen Gespräch: Transkript voller „T S F",
 teils Englisch, 34 Sprecher. Konsole: sherpa-onnx meldet bei Canary „first
