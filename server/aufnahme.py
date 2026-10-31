@@ -509,6 +509,8 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
          if sprecher else
          "- Sprecher heißen dort S00, S01 … Ordne sie den Personen über den Inhalt zu. "
          "Wer am meisten erzählt und NSCs spricht, ist der Spielleiter."),
+        "- Der Spielleiter spricht NSCs mit verstellter Stimme. Seine Zeilen (oder ein eigener Sprecher) "
+        "können also NSC-Rede sein – im Protokoll dem NSC zuordnen, nicht als weitere Person.",
         "- Die Sprechererkennung irrt sich manchmal mitten im Satz – im Zweifel zählt der Inhalt.",
         "- Zeitstempel [hh:mm:ss] (falls vorhanden) zählen ab Beginn der Aufnahme.",
     ]

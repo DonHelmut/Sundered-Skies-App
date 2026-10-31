@@ -466,7 +466,7 @@ async function aufnSprecherDialog(name, quelle, nur = null) {
     </div>`;
   }).join("");
   const namen = await dialog({
-    text: nur ? "Wer ist das?" : "Wer ist wer? Der Prompt nennt dann Namen statt S00, S01 …",
+    text: nur ? "Wer ist das?" : "Wer ist wer? Der Prompt nennt dann Namen statt S00, S01 … NSC-Stimme vom SL: einfach auch „Spielleiter“ wählen.",
     inhalt: `<div class="aufn-wer-liste">${zeilen}</div>`,
     lesen: (box) => {
       const erg = { ...d.namen };

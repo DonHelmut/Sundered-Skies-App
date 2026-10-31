@@ -750,15 +750,20 @@ MIN_SPRECHER_S = 5.0        # wer insgesamt weniger redet, ist kein eigener Spre
 MIN_SPRECHER_ANTEIL = 0.02
 
 
-def kleine_sprecher_weg(abschnitte: list[Abschnitt]) -> list[Abschnitt]:
+def kleine_sprecher_weg(abschnitte: list[Abschnitt], hoechstens: int = 0) -> list[Abschnitt]:
     """Sprecher mit kaum Redezeit dem zeitlich nächsten „echten" Sprecher
     geben. Im ersten echten Test (Gespräch, Leute unbekannt) kamen 34
-    Sprecher heraus - meist Rascheln und Fetzen, je ein paar Sekunden."""
+    Sprecher heraus - meist Rascheln und Fetzen, je ein paar Sekunden.
+    hoechstens: mehr Sprecher gibt es nicht - die mit der wenigsten Redezeit
+    gehen auch an den nächsten. Kalle: SL + 5, selten 2 Gäste dazu, und der SL
+    spricht NSCs mit verstellter Stimme - die soll keine neue Person sein."""
     dauer: dict[int, float] = {}
     for a in abschnitte:
         dauer[a.sprecher] = dauer.get(a.sprecher, 0.0) + (a.ende - a.start)
     gesamt = sum(dauer.values()) or 1.0
     gross = {sp for sp, d in dauer.items() if d >= max(MIN_SPRECHER_S, MIN_SPRECHER_ANTEIL * gesamt)}
+    if hoechstens and len(gross) > hoechstens:
+        gross = set(sorted(gross, key=lambda sp: dauer[sp], reverse=True)[:hoechstens])
     if not gross or len(gross) == len(dauer):
         return abschnitte
     echte = [a for a in abschnitte if a.sprecher in gross]
@@ -836,7 +841,7 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
             abschnitte.append(a)
         erledigt += e - s
         melden(0.2 + 0.8 * erledigt / sprach_s, "Text erkennen")
-    return transkript_text(beitraege(kleine_sprecher_weg(abschnitte)))
+    return transkript_text(beitraege(kleine_sprecher_weg(abschnitte, personen or MAX_LEUTE_UNBEKANNT)))
 
 
 # --- Live ---------------------------------------------------------------------------------

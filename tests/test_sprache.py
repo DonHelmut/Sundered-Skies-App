@@ -350,3 +350,15 @@ def test_genauer_wird_beim_start_nachgeholt(tmp_path, monkeypatch):
     monkeypatch.setattr(SP, "canary_da", lambda o: True)
     sp.genauer_nachholen()
     assert geholt == [1]
+
+
+def test_hoechstens_so_viele_sprecher_wie_leute():
+    # SL + 5, der SL spricht NSCs mit verstellter Stimme: die NSC-Stimme
+    # (wenig Redezeit) geht an den Nachbarn statt eine 7. Person zu werden.
+    A_ = SP.Abschnitt
+    ab = [A_(i * 20, i * 20 + 18, i, "x") for i in range(6)] + [A_(120, 128, 6, "NSC")]
+    erg = SP.kleine_sprecher_weg(ab, hoechstens=6)
+    assert {a.sprecher for a in erg} == set(range(6))
+    assert erg[-1].sprecher == 5                      # zeitlich nächster
+    assert len({a.sprecher for a in SP.kleine_sprecher_weg(
+        [A_(i * 20, i * 20 + 18, i, "x") for i in range(7)])}) == 7   # ohne Grenze bleibt's

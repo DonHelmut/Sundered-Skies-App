@@ -77,6 +77,20 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (31.10.2026): Sprecher passend zur Runde
+
+Kalle: meist SL + 5 Spieler, selten 2 Gäste dazu; der SL spricht NSCs mit
+verstellter Stimme.
+- Genau: höchstens so viele Sprecher wie Leute (bekannt: Einstellung bzw.
+  App = Spieler + SL; unbekannt: 8). Überzählige mit der wenigsten Redezeit
+  gehen an den zeitlich nächsten (`kleine_sprecher_weg(…, hoechstens)`) - eine
+  NSC-Stimme wird so keine weitere Person. Mit bekannter Zahl erzwingt die
+  Sprechertrennung diese Zahl schon (wie bisher); Gäste, die nicht in der App
+  stehen → „8 am Tisch" einstellen.
+- „Wer ist wer?": Hinweis „NSC-Stimme vom SL: auch ‚Spielleiter' wählen"
+  (mehreren Sprechern denselben Namen geben ging schon).
+- Prompt: Claude weiß jetzt, dass SL-Zeilen NSC-Rede sein können.
+
 ## 1.5.30 (31.10.2026): Immer das beste Transkript, von selbst
 
 Kalle: „Ist die Live-Mitschrift schlechter als im Nachhinein? Ich will nur das
