@@ -77,6 +77,21 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (31.10.2026): Nacherzählung im Charakter
+
+Kalle: „ingame ist jeder im Charakter: nicht ‚Korgo macht jetzt …', sondern
+‚ich gehe da hin …'. Wichtig ist, dass die Gruppe eine Geschichte erlebt und
+die nacherzählt wird, auch wenn es im Kampf spannend oder krass wird. Max 2
+Seiten DIN A4."
+- Prompt: Nacherzählung des ganzen Abends, höchstens 2 DIN-A4-Seiten
+  (~1000 Wörter inkl. Listen). Kämpfe nicht mehr „1–2 Sätze", sondern als Teil
+  der Geschichte mit ihren Höhepunkten (knappe Rettung, Volltreffer, Joker),
+  ohne Rundenablauf. Ich-Form im Charakter = Figur des Sprechers, in der
+  Nacherzählung dritte Person mit Figurennamen. Listen nur noch kurz am Ende.
+- Wer ist wer: Anrede zählt jetzt von jedem („Korgo, warte!" vom Mitspieler)
+  für den nächsten anderen Sprecher - im Charakter oft der einzige Hinweis
+  neben dem Zug im Kampf.
+
 ## 1.5.31 (31.10.2026): Sprecher passend zur Runde
 
 Kalle: meist SL + 5 Spieler, selten 2 Gäste dazu; der SL spricht NSCs mit
