@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (31.10.2026): Nacherzählung im Charakter
+## 1.5.32 (31.10.2026): Nacherzählung im Charakter
 
 Kalle: „ingame ist jeder im Charakter: nicht ‚Korgo macht jetzt …', sondern
 ‚ich gehe da hin …'. Wichtig ist, dass die Gruppe eine Geschichte erlebt und
