@@ -12,6 +12,7 @@ import io
 from contextlib import asynccontextmanager
 import json
 import os
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -96,6 +97,8 @@ async def _lebenszyklus(_app: FastAPI):
     wurde. Fehlt diese Zeile, ist er unterwegs haengen geblieben."""
     diag.log(f"SERVER BEREIT auf Port {active_port()} - wartet auf Verbindungen")
     wache = asyncio.create_task(_stille_verbindungen_pruefen())
+    # Eigener Thread: der erste sherpa-Import dauert eine halbe Sekunde.
+    threading.Thread(target=sprache.genauer_nachholen, daemon=True, name="genauer").start()
     yield
     wache.cancel()
     diag.log("SERVER BEENDET")
@@ -422,7 +425,12 @@ async def aufnahme_start(request: Request):
         body = await request.json()
     except ValueError:
         body = {}
+    alt = aufnahmen.aktiv["name"] if aufnahmen.aktiv else None
     meta = aufnahmen.starten(str((body or {}).get("mime") or ""), game)
+    if alt:
+        # Unterbrochene Aufnahme (Seite neu geladen): ihr Teil wird nach dem
+        # Ende der neuen genau transkribiert.
+        sprache.nach_aufnahme(alt)
     diag.log(f"AUFNAHME gestartet: {meta['name']}{meta['endung']}")
     sprache.aufnahme_laeuft()
     return JSONResponse({"name": meta["name"]})
@@ -447,6 +455,7 @@ async def aufnahme_stop(request: Request):
     meta = aufnahmen.stoppen(game)
     if meta:
         diag.log(f"AUFNAHME beendet: {meta['name']} ({meta['dauerMs'] // 60000} min)")
+        sprache.nach_aufnahme(meta["name"])
     return JSONResponse({**aufnahmen.status(), "sprache": sprache.status()})
 
 

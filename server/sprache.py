@@ -1000,6 +1000,9 @@ class Sprache:
         self.laden: Optional[dict] = None        # {"b", "gesamt", "fehler"}
         self.live: Optional[dict] = None         # {"name", "hinweis", "stopp"}
         self.job: Optional[dict] = None          # {"name", "anteil", "schritt", "start", "stopp", "fehler"}
+        # Aufnahmen, die genau transkribiert werden sollen, aber warten müssen:
+        # auf einen laufenden Durchgang (CPU) oder aufs Genauer-Modell.
+        self.warten: list[str] = []
         self._sperre = threading.Lock()
         # Von app.py gesetzt: Namen, die das Spiel gerade kennt, und wie viele
         # Leute laut App am Tisch sitzen (Spieler + SL).
@@ -1014,7 +1017,10 @@ class Sprache:
         except (OSError, ValueError):
             e = {}
         b = e.get("begriffe")
-        return {"live": bool(e.get("live", True)), "personen": int(e.get("personen") or 0),
+        # Live standardmäßig aus (seit 1.5.30): Kalle will nur das beste
+        # Ergebnis, und das kommt vom genauen Durchgang danach - live ist
+        # gröber und kostet beim Spielen Rechenzeit.
+        return {"live": bool(e.get("live", False)), "personen": int(e.get("personen") or 0),
                 "begriffe": [x for x in b if isinstance(x, str)] if isinstance(b, list) else []}
 
     def einstellen(self, live: Optional[bool] = None, personen: Optional[int] = None,
@@ -1074,6 +1080,7 @@ class Sprache:
             "laden": None if not self.laden else {k: self.laden[k] for k in ("b", "gesamt", "fehler")},
             "live": None if not self.live else {"name": self.live["name"], "hinweis": self.live["hinweis"]},
             "job": None if not job else {k: job[k] for k in ("name", "anteil", "schritt", "start", "fehler")},
+            "warten": list(self.warten),
             "liveAn": e["live"], "personen": e["personen"],
             "personenApp": self.personen_fuer(self.aufnahmen.aktiv["name"] if self.aufnahmen.aktiv else None)
             if not e["personen"] else 0,
@@ -1094,8 +1101,21 @@ class Sprache:
                 self.aufnahme_laeuft()
             except Exception as e:
                 self.laden["fehler"] = f"Download fehlgeschlagen ({e.__class__.__name__}). Internet da?"
+            # Wartende Aufnahmen jetzt rechnen - ging der Download schief, eben
+            # ohne Genauer-Modell: besser als gar kein Transkript.
+            self._naechste()
         threading.Thread(target=los, daemon=True, name="modelle-laden").start()
         return True
+
+    def genauer_nachholen(self) -> None:
+        """Beim Serverstart: wer vor 1.5.28 eingerichtet hat, hat das
+        Genauer-Modell (Canary) nicht. Ohne Klick nachladen - Kalle will immer
+        das beste Ergebnis. Ohne Internet bleibt der Knopf „⬇ Genauer"."""
+        if pakete_da() and self.bereit() and not canary_da(self.modelle):
+            self.modelle_holen()
+
+    def _laedt(self) -> bool:
+        return bool(self.laden and not self.laden["fehler"])
 
     # --- Live ---
     def aufnahme_laeuft(self) -> None:
@@ -1148,6 +1168,28 @@ class Sprache:
         threading.Thread(target=los, daemon=True, name="live").start()
 
     # --- Danach ---
+    def nach_aufnahme(self, name: str) -> None:
+        """Aufnahme beendet: gleich genau transkribieren, ohne Knopf (seit
+        1.5.30, Kalle: „immer das beste Ergebnis"). Fehlt das Genauer-Modell,
+        erst das holen - genau() wartet darauf."""
+        if not pakete_da() or not self.bereit():
+            return
+        if name not in self.warten:
+            self.warten.append(name)
+        if not canary_da(self.modelle) and not self._laedt():
+            self.modelle_holen()          # rechnet die Wartenden danach
+        else:
+            self._naechste()
+
+    def _naechste(self) -> None:
+        """Die nächste wartende Aufnahme starten. Weg sind nur die, die gar
+        nicht gehen (Ton gelöscht); wer weiter warten muss, bleibt vorn."""
+        for name in list(self.warten):
+            if self.genau(name):
+                return                    # läuft - oder muss weiter warten
+            if name in self.warten:
+                self.warten.remove(name)
+
     def genau(self, name: str) -> bool:
         pfad = self.aufnahmen.audio_pfad(name)
         if not pfad or not self.bereit():
@@ -1155,8 +1197,19 @@ class Sprache:
         if self.aufnahmen.aktiv and self.aufnahmen.aktiv["name"] == name:
             return False                      # erst nach dem Ende
         with self._sperre:
-            if self.job and not self.job.get("fehler"):
-                return False                  # einer nach dem anderen (CPU)
+            busy = self.job and not self.job.get("fehler")
+            if busy and self.job["name"] == name:
+                return False
+            if busy or self._laedt() or self.aufnahmen.aktiv:
+                # Einer nach dem anderen (CPU); beim Download des
+                # Genauer-Modells darauf warten statt ohne zu rechnen; und
+                # nicht, während gespielt und aufgenommen wird (der Laptop
+                # soll flüssig bleiben) - nach_aufnahme() holt es nach.
+                if name not in self.warten:
+                    self.warten.append(name)
+                return True
+            if name in self.warten:
+                self.warten.remove(name)
             stopp = threading.Event()
             job = {"name": name, "anteil": 0.0, "schritt": "startet", "start": int(time.time() * 1000),
                    "stopp": stopp, "fehler": None}
@@ -1176,10 +1229,14 @@ class Sprache:
                 self.job = None
             except Exception as e:
                 job["fehler"] = f"Abgebrochen ({e.__class__.__name__})"
+            if not stopp.is_set():
+                self._naechste()
         threading.Thread(target=los, daemon=True, name="genau").start()
         return True
 
     def genau_abbrechen(self) -> None:
+        # Abbrechen heißt: Laptop soll Ruhe geben - auch die Wartenden nicht.
+        self.warten.clear()
         job = self.job
         if job:
             job["stopp"].set()

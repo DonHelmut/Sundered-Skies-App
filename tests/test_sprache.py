@@ -86,16 +86,16 @@ def test_verwaltung_ohne_modelle(tmp_path):
     sp = SP.Sprache(tmp_path / "modelle", auf)
     st = sp.status()
     assert not st["bereit"] and st["groesseMb"] > 400
-    assert st["liveAn"] is True                      # Standard: live an
+    assert st["liveAn"] is False                     # Standard: live aus (1.5.30)
     meta = auf.starten("audio/webm")
     auf.stueck(meta["name"], b"x")
     sp.aufnahme_laeuft()                             # ohne Modelle: nichts
     assert sp.live is None
     auf.stoppen()
     assert not sp.genau(meta["name"])
-    sp.einstellen(live=False, personen=5)
+    sp.einstellen(live=True, personen=5)
     neu = SP.Sprache(tmp_path / "modelle", auf)      # nach Neustart noch da
-    assert neu.status()["liveAn"] is False and neu.status()["personen"] == 5
+    assert neu.status()["liveAn"] is True and neu.status()["personen"] == 5
     sp.einstellen(personen=99)
     assert sp.status()["personen"] == 12
 
@@ -118,7 +118,10 @@ def test_genau_nur_einer_und_nicht_die_laufende(tmp_path, monkeypatch):
     neu = auf.starten("audio/webm")                  # beendet „alt"
     auf.stueck(neu["name"], b"y")
     assert not sp.genau(neu["name"])                 # läuft noch
-    assert sp.genau(alt["name"])
+    assert sp.genau(alt["name"]) and sp.job is None  # wartet aufs Ende der Aufnahme
+    assert sp.status()["warten"] == [alt["name"]]
+    auf.stoppen()
+    sp._naechste()
     assert gestartet.wait(2)
     assert sp.status()["job"]["anteil"] == 0.5
     assert not sp.genau(alt["name"])                 # einer nach dem anderen
@@ -264,3 +267,86 @@ def test_kurze_englische_zeilen_fliegen_raus_deutsche_bleiben():
     assert SP.text_sauber("Cool, so geht das") == "Cool, so geht das"
     assert SP.text_sauber("Korgo greift an!") == "Korgo greift an!"
     assert SP.text_sauber("Wechselt man sie??") == "Wechselt man sie?"
+
+
+def _warten_bis(bed, n=60):
+    for _ in range(n):
+        if bed():
+            return True
+        threading.Event().wait(0.05)
+    return False
+
+
+def test_nach_der_aufnahme_kommt_das_transkript_von_selbst(tmp_path, monkeypatch):
+    # Kalle: „immer das beste Ergebnis" - kein Knopf nötig; zwei Aufnahmen
+    # hintereinander werden nacheinander gerechnet, nicht gleichzeitig.
+    auf = A.Aufnahmen(tmp_path / "aufnahmen")
+    sp = SP.Sprache(tmp_path / "modelle", auf)
+    monkeypatch.setattr(sp, "bereit", lambda: True)
+    monkeypatch.setattr(SP, "pakete_da", lambda: True)
+    monkeypatch.setattr(SP, "canary_da", lambda o: True)
+    weiter = threading.Event()
+    gerechnet = []
+
+    def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=()):
+        gerechnet.append(pfad.stem)
+        weiter.wait(2)
+        return "[00:00:01] S00: Ihr seht ein Schiff.\n"
+    monkeypatch.setattr(SP, "transkribieren", falsch_transkribieren)
+    a = auf.starten("audio/webm")
+    auf.stueck(a["name"], b"x")
+    auf.stoppen()
+    sp.nach_aufnahme(a["name"])
+    assert _warten_bis(lambda: gerechnet == [a["name"]])
+    auf.aktiv = None
+    b = dict(a, name=a["name"] + "-2")
+    (auf.ordner / f"{b['name']}{a['endung']}").write_bytes(b"y")
+    monkeypatch.setattr(auf, "audio_pfad", lambda n: auf.ordner / f"{n}{a['endung']}")
+    sp.nach_aufnahme(b["name"])
+    assert sp.status()["warten"] == [b["name"]]      # erst die erste fertig
+    weiter.set()
+    assert _warten_bis(lambda: sp.job is None and not sp.warten and len(gerechnet) == 2)
+    assert gerechnet == [a["name"], b["name"]]
+
+
+def test_ohne_genauer_modell_erst_laden_dann_rechnen(tmp_path, monkeypatch):
+    auf = A.Aufnahmen(tmp_path / "aufnahmen")
+    sp = SP.Sprache(tmp_path / "modelle", auf)
+    monkeypatch.setattr(sp, "bereit", lambda: True)
+    monkeypatch.setattr(SP, "pakete_da", lambda: True)
+    da = {"canary": False}
+    monkeypatch.setattr(SP, "canary_da", lambda o: da["canary"])
+    laden = threading.Event()
+
+    def falsch_laden(ordner, fortschritt, stopp=None):
+        laden.wait(2)
+        da["canary"] = True
+    monkeypatch.setattr(SP, "modelle_laden", falsch_laden)
+    mit_canary = []
+
+    def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=()):
+        mit_canary.append(da["canary"])
+        return "[00:00:01] S00: Hallo.\n"
+    monkeypatch.setattr(SP, "transkribieren", falsch_transkribieren)
+    a = auf.starten("audio/webm")
+    auf.stueck(a["name"], b"x")
+    auf.stoppen()
+    sp.nach_aufnahme(a["name"])
+    assert sp.laden and sp.job is None and sp.status()["warten"] == [a["name"]]
+    laden.set()
+    assert _warten_bis(lambda: mit_canary and sp.job is None)
+    assert mit_canary == [True]
+
+
+def test_genauer_wird_beim_start_nachgeholt(tmp_path, monkeypatch):
+    sp = SP.Sprache(tmp_path / "modelle", A.Aufnahmen(tmp_path / "aufnahmen"))
+    monkeypatch.setattr(sp, "bereit", lambda: True)
+    monkeypatch.setattr(SP, "pakete_da", lambda: True)
+    monkeypatch.setattr(SP, "canary_da", lambda o: False)
+    geholt = []
+    monkeypatch.setattr(sp, "modelle_holen", lambda: geholt.append(1))
+    sp.genauer_nachholen()
+    assert geholt == [1]
+    monkeypatch.setattr(SP, "canary_da", lambda o: True)
+    sp.genauer_nachholen()
+    assert geholt == [1]

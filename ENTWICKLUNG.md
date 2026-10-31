@@ -77,6 +77,25 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (31.10.2026): Immer das beste Transkript, von selbst
+
+Kalle: „Ist die Live-Mitschrift schlechter als im Nachhinein? Ich will nur das
+beste Ergebnis … Live muss dann nicht sein." Ja: live ist nur Parakeet in
+kurzen Stücken; genau = beide Erkenner, ganze Aufnahme, Sprechertrennung.
+- Nach „■ Aufnahme beenden" startet „genau" von selbst (`nach_aufnahme`),
+  kein Knopf mehr nötig. Der Knopf „🎧 Genau transkribieren" bleibt für alte
+  Aufnahmen bzw. nach Abbruch.
+- Warteschlange (`Sprache.warten`): einer nach dem anderen; nichts rechnen,
+  während eine Aufnahme läuft (Laptop soll beim Spielen flüssig bleiben);
+  fehlt das Genauer-Modell, erst laden, dann rechnen (Download kaputt → ohne).
+  Unterbrochene Aufnahme (Seite neu geladen, „Weiter aufnehmen") kommt nach dem
+  Ende der neuen dran. Anzeige „⏳ Transkript folgt". ✕ leert auch die Schlange.
+- Genauer-Modell (Canary) wird beim Serverstart ohne Klick nachgeladen, wenn
+  es fehlt (`genauer_nachholen`); ohne Internet bleibt „⬇ Genauer".
+- Live standardmäßig **aus** (Häkchen bleibt, wer es angemacht hat, behält es).
+- Warteschlange lebt nur im Speicher: Server neu gestartet → alte Aufnahme
+  per Knopf.
+
 ## 1.5.29 (31.10.2026): Fix nach erstem echten Test
 
 Kalle testete 1.5.28 mit einem normalen Gespräch: Transkript voller „T S F",
