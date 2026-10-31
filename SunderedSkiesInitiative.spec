@@ -2,7 +2,8 @@
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('web', 'web')]
+# Wörterbuch der Namenskorrektur (server/namen.py) liegt neben dem Code.
+datas = [('web', 'web'), ('server/woerter-de.txt.gz', 'server')]
 binaries = []
 hiddenimports = ['qrcode', 'ifaddr']
 hiddenimports += collect_submodules('PIL')

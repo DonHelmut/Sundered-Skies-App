@@ -176,3 +176,40 @@ def test_live_anzeige_haelt_nur_die_letzten_zeilen(tmp_path):
     a.starten("audio/webm")                       # neue Aufnahme, Anzeige leer
     assert a.live_ab(0)["zeilen"] == []
     assert a.prompt_aus("2000-01-01_00-00", "live") is None
+
+
+def test_sprecher_benennen_landet_im_prompt(tmp_path):
+    a = A.Aufnahmen(tmp_path)
+    a.begriffe_quelle = lambda: ["Vexmoor", "Krauzern"]
+    meta = a.starten("audio/webm")
+    meta["personen"] = {"Korgo": "Tim"}
+    a.stoppen()
+    (tmp_path / f"{meta['name']}-transkript.txt").write_text(
+        "[00:00:01] S00: Ihr seht ein Schiff.\n[00:00:04] S01: Ich ziehe die Axt.\n"
+        "[00:00:06] S02: Ich auch.\n", encoding="utf-8")
+    sp = a.sprecher(meta["name"], "genau")
+    assert [x["sprecher"] for x in sp["sprecher"]] == ["S00", "S01", "S02"]
+    assert sp["vorschlaege"] == ["Spielleiter", "Korgo (Tim)"]
+    assert sp["sprecher"][0]["beispiele"] == ["Ihr seht ein Schiff."]
+    assert a.sprecher_benennen(meta["name"], "genau", {"S00": "Spielleiter", "S01": "Korgo (Tim)", "X": "böse"})
+    assert a.sprecher(meta["name"], "genau")["namen"] == {"S00": "Spielleiter", "S01": "Korgo (Tim)"}
+    p = a.prompt_aus(meta["name"], "genau")
+    assert "] Spielleiter: Ihr seht ein Schiff." in p
+    assert "] Korgo (Tim): Ich ziehe die Axt." in p
+    assert "] S02: Ich auch." in p                     # nicht zugeordnet bleibt
+    assert "hat der Spielleiter zugeordnet" in p
+    assert "Vexmoor, Krauzern" in p
+    # Live hat eigene Zuordnung (andere Nummern) - genau gilt dort nicht.
+    assert a.sprecher(meta["name"], "live") is None
+
+
+def test_namen_und_personen_einer_aufnahme(fresh_game, tmp_path):
+    g = fresh_game
+    _kampf_vorbereiten(g)
+    a = A.Aufnahmen(tmp_path)
+    meta = a.starten("audio/webm", g)
+    g.apply({"type": "new_round"})
+    a.stoppen(g)
+    n = a.namen(meta["name"])
+    assert "Korgo" in n and "Tim" in n and "2× Ork" in n
+    assert a.personen_zahl(meta["name"]) == 2

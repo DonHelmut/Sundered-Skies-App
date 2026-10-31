@@ -8,7 +8,7 @@ die Modelle liegen in ``data/modelle``: das Aktualisieren tauscht nur die
 Programmdateien, ``data`` bleibt (aktualisieren.py, BEHALTEN).
 
 Alles über sherpa-onnx (ONNX auf der CPU, kein PyTorch, keine Grafikkarte):
-- Silero-VAD: Sprechpausen (nur live).
+- Silero-VAD: wo überhaupt gesprochen wird (live und danach).
 - pyannote-Segmentierung + TitaNet-Stimmabdruck: wer spricht wann. pyannote
   selbst verlangt ein Hugging-Face-Konto mit Lizenz-Klick - die ONNX-Fassungen
   liegen frei auf GitHub (k2-fsa/sherpa-onnx).
@@ -21,6 +21,19 @@ Alles über sherpa-onnx (ONNX auf der CPU, kein PyTorch, keine Grafikkarte):
 Ton kommt aus der laufenden App-Aufnahme (webm/Opus, PyAV dekodiert): kein
 zweiter Zugriff aufs Mikro, und live und danach hören exakt dasselbe.
 
+Feinschliff 31.10.2026 (Kalle: „will dass es echt richtig gut ist"), gemessen
+an einem nachgebauten Tisch (4 Piper-Stimmen, verschieden weit weg, Hall,
+50-Hz-Brummen, Rauschen; Wortfehler vorher 39 %):
+- Hochpass 100 Hz (Brummen, Tischklopfen, Trittschall) - half (−5 Punkte).
+  Rauschunterdrückung (ffmpeg afftdn) machte es doppelt so schlecht,
+  Lautstärke angleichen (speechnorm/dynaudnorm) ebenfalls schlechter - beides
+  bewusst NICHT drin.
+- Danach nicht mehr nur das, was die Sprechertrennung findet: die verlor am
+  Tisch ein Fünftel der Sprache (leise Leute am Tischende). Jetzt findet die
+  VAD die Sprache (100 %), die Sprechertrennung sagt nur noch, wer es war.
+- Eigennamen aus der App (server/namen.py), englischer Unsinn aus Rauschen
+  fliegt raus, Personenzahl aus der App.
+
 Die schweren Pakete (sherpa_onnx, numpy, av) werden erst bei Gebrauch geladen:
 der Server startet auch ohne sie, und die Spieler-Handys merken nichts davon.
 """
@@ -29,6 +42,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tarfile
 import threading
 import time
@@ -38,6 +52,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 SR = 16000                      # alle Modelle wollen 16 kHz mono
+HOCHPASS_HZ = 100               # 60 Hz ließ das Brummen drin, 120 Hz brachte nichts mehr
 MAX_STUECK_S = 28.0             # danach: so lang höchstens am Stück erkennen
 LUECKE_ZUSAMMEN_S = 1.0         # gleicher Sprecher, Pause darunter -> ein Beitrag
 # Stille um jedes Stück: ohne sie verschluckte die Erkennung im Test das letzte
@@ -70,6 +85,11 @@ MODELLE = {
 def uhrzeit(s: float) -> str:
     s = max(0, int(s))
     return f"{s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d}"
+
+
+def _namen_korrektur(namen):
+    from .namen import Namenskorrektur
+    return Namenskorrektur(namen or [])
 
 
 _PAKETE: Optional[bool] = None
@@ -143,7 +163,67 @@ def modelle_laden(ordner: Path, fortschritt: Callable[[int, int], None],
 
 # --- Ton ----------------------------------------------------------------------------
 
-def ton_laden(pfad: Path):
+class Hochpass:
+    """ffmpeg-Hochpass (über PyAV, kein scipy nötig) für Blöcke 16 kHz mono.
+    Läuft am Stück weiter: live kommt Block für Block, der Filter merkt sich
+    den Zustand dazwischen. In Python Sample für Sample wäre es für 4 h Ton
+    viel zu langsam."""
+
+    def __init__(self, hz: int = HOCHPASS_HZ) -> None:
+        import av
+        from fractions import Fraction
+        self._av = av
+        self._tb = Fraction(1, SR)
+        g = av.filter.Graph()
+        knoten = [g.add_abuffer(format="flt", sample_rate=SR, layout="mono", time_base=self._tb),
+                  g.add("highpass", f"f={hz}"),
+                  g.add("aformat", "sample_fmts=flt:channel_layouts=mono"),
+                  g.add("abuffersink")]
+        for a, b in zip(knoten, knoten[1:]):
+            a.link_to(b)
+        g.configure()
+        self.g = g
+        self.pts = 0
+
+    def _abholen(self) -> list:
+        aus = []
+        while True:
+            try:
+                aus.append(self.g.pull().to_ndarray().reshape(-1))
+            except (self._av.BlockingIOError, self._av.EOFError):
+                return aus
+
+    def durch(self, block):
+        import numpy as np
+        if not len(block):
+            return np.zeros(0, dtype=np.float32)
+        f = self._av.AudioFrame.from_ndarray(np.ascontiguousarray(block, dtype=np.float32).reshape(1, -1),
+                                             format="flt", layout="mono")
+        f.sample_rate, f.pts, f.time_base = SR, self.pts, self._tb
+        self.pts += len(block)
+        self.g.push(f)
+        aus = self._abholen()
+        return np.concatenate(aus).astype(np.float32) if aus else np.zeros(0, dtype=np.float32)
+
+    def ende(self):
+        import numpy as np
+        try:
+            self.g.push(None)
+        except Exception:
+            pass
+        aus = self._abholen()
+        return np.concatenate(aus).astype(np.float32) if aus else np.zeros(0, dtype=np.float32)
+
+
+def hochpass(ton):
+    """Ganze Aufnahme durch den Hochpass (sekundenweise, wie live)."""
+    import numpy as np
+    hp = Hochpass()
+    teile = [hp.durch(ton[i:i + SR]) for i in range(0, len(ton), SR)] + [hp.ende()]
+    return np.concatenate(teile).astype(np.float32) if teile else ton
+
+
+def ton_laden(pfad: Path, aufbereiten: bool = True):
     """Tondatei -> 16 kHz mono float32 (PyAV bringt ffmpeg mit)."""
     import av
     import numpy as np
@@ -157,7 +237,8 @@ def ton_laden(pfad: Path):
             teile.append(f.to_ndarray().reshape(-1))
     if not teile:
         return np.zeros(0, dtype=np.float32)
-    return np.concatenate(teile).astype(np.float32)
+    ton = np.concatenate(teile).astype(np.float32)
+    return hochpass(ton) if aufbereiten else ton
 
 
 class Mitlesen:
@@ -188,14 +269,20 @@ def ton_mitlesen(pfad: Path, laeuft: Callable[[], bool], stopp: threading.Event,
     import av
     import numpy as np
     quelle = Mitlesen(pfad, laeuft, stopp)
+    hp = Hochpass()
     try:
         with av.open(quelle, format=format, mode="r") as c:
             res = av.AudioResampler(format="flt", layout="mono", rate=SR)
             for frame in c.decode(audio=0):
                 for f in res.resample(frame):
-                    yield f.to_ndarray().reshape(-1).astype(np.float32)
+                    block = hp.durch(f.to_ndarray().reshape(-1).astype(np.float32))
+                    if len(block):
+                        yield block
                 if stopp.is_set():
                     return
+        rest = hp.ende()
+        if len(rest):
+            yield rest
     finally:
         quelle.close()
 
@@ -246,11 +333,30 @@ def sprecher_nummern(abschnitte: list[Abschnitt]) -> dict[int, int]:
 # Spracherkenner „hören" in Stille und Rauschen gern Abspann-Floskeln aus ihren
 # Trainingsdaten. Die kommen am Spieltisch nie vor.
 _FLOSKELN = ("untertitel", "vielen dank fürs zuschauen", "copyright", "amara.org", "swr ", "zdf")
+# Parakeet erkennt die Sprache selbst und rutscht bei Rauschen, Lachen oder
+# Stuhlrücken ins Englische („How do you", „I love it") - im Tisch-Test kam
+# so ein Drittel der Zeilen. Am Tisch wird Deutsch geredet: Zeilen, die fast
+# nur aus englischen Wörtern bestehen, fliegen raus. Wörter, die es auch im
+# Deutschen gibt (so, in, was, hat, okay, Joker …), zählen nicht.
+_ENGLISCH = set("""
+the a an and or but you your i i'm i've it it's is are am be been was were to of that this these what
+yeah yes no not oh so do does did don't have has had get got go going gonna gotta love like
+just know think thing things find how why who where when can could would should will with my me
+we they them their there here he she his her our us out up all one about really right well very
+""".split()) - {"so", "in", "was", "hat", "man", "die", "will", "um", "also", "am", "an", "war", "here"}
+_WORT = re.compile(r"[a-zäöüß']+")
+
+
+def englisch(t: str) -> bool:
+    w = _WORT.findall(t.lower())
+    if not w or any(c in t for c in "äöüßÄÖÜ"):
+        return False
+    return sum(x in _ENGLISCH for x in w) / len(w) >= 0.6
 
 
 def text_sauber(t: str) -> str:
     t = " ".join(t.split())
-    if any(f in t.lower() for f in _FLOSKELN):
+    if any(f in t.lower() for f in _FLOSKELN) or englisch(t):
         return ""
     return t
 
@@ -380,10 +486,76 @@ def _erkennen(asr, ton) -> tuple[str, list[str], list[float]]:
 
 # --- Danach: ganze Aufnahme ---------------------------------------------------------
 
+def _vad(modelle: Path, max_s: float):
+    import sherpa_onnx as so
+    return so.VoiceActivityDetector(so.VadModelConfig(
+        silero_vad=so.SileroVadModelConfig(model=str(modelle / MODELLE["vad"][1]), threshold=0.5,
+                                           min_silence_duration=0.5, min_speech_duration=0.25,
+                                           max_speech_duration=max_s),
+        sample_rate=SR), buffer_size_in_seconds=120)
+
+
+def sprache_finden(ton, modelle: Path, max_s: float = 20.0,
+                   stopp: Optional[threading.Event] = None) -> list[tuple[float, float]]:
+    """Wo wird gesprochen? [(start_s, ende_s)], jedes Stück ≤ max_s."""
+    vad = _vad(modelle, max_s)
+    stuecke: list[tuple[float, float]] = []
+
+    def abholen() -> None:
+        while not vad.empty():
+            s = vad.front.start / SR
+            stuecke.append((s, s + len(vad.front.samples) / SR))
+            vad.pop()
+    # Genau 512 Samples je Aufruf: mit größeren Brocken verschluckte die VAD
+    # im Test die ersten 2 s und hielt die Höchstlänge nicht ein (35-s-Stücke).
+    for n, i in enumerate(range(0, len(ton) // 512 * 512, 512)):
+        vad.accept_waveform(ton[i:i + 512])
+        abholen()
+        if n % 2000 == 0 and stopp is not None and stopp.is_set():
+            raise InterruptedError
+    vad.flush()
+    abholen()
+    return stuecke
+
+
+def stueck_zuordnen(s: float, e: float, tokens: list[str], zeiten: list[float],
+                    teile: list[tuple[float, float, int]]) -> list[Abschnitt]:
+    """Erkannter Text eines VAD-Stücks [s, e] -> Abschnitte je Sprecher. teile:
+    die Sprechertrennung über die ganze Aufnahme. Hat sie im Stück niemanden
+    gefunden (leise Leute am Tischende), bekommt es der zeitlich nächste -
+    lieber falscher Sprecher als verschluckter Text."""
+    lokal = [(max(a, s) - s, min(b, e) - s, sp) for a, b, sp in teile if b > s and a < e]
+    if not lokal:
+        sp = sprecher_um((s + e) / 2, teile) if teile else 0
+        lokal = [(0.0, e - s, sp)]
+    gruppen = woerter_verteilen(tokens, zeiten, lokal)
+    erg = []
+    for i, (t, sp, text) in enumerate(gruppen):
+        ende = s + gruppen[i + 1][0] if i + 1 < len(gruppen) else e
+        erg.append(Abschnitt(s + max(0.0, t), max(s + max(0.0, t), ende), sp, text))
+    return erg
+
+
+def beitraege(abschnitte: list[Abschnitt], luecke: float = LUECKE_ZUSAMMEN_S) -> list[Abschnitt]:
+    """Wie zusammenlegen(), aber mit Text: gleicher Sprecher, kurze Pause ->
+    ein Beitrag."""
+    erg: list[Abschnitt] = []
+    for a in sorted(abschnitte, key=lambda x: x.start):
+        if not a.text:
+            continue
+        if erg and erg[-1].sprecher == a.sprecher and a.start - erg[-1].ende <= luecke:
+            erg[-1].ende = max(erg[-1].ende, a.ende)
+            erg[-1].text = f"{erg[-1].text} {a.text}"
+        else:
+            erg.append(Abschnitt(a.start, a.ende, a.sprecher, a.text))
+    return erg
+
+
 def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
                    fortschritt: Optional[Callable[[float, str], None]] = None,
-                   stopp: Optional[threading.Event] = None) -> str:
-    """Ganze Aufnahme -> Transkript „[hh:mm:ss] S00: …". fortschritt(0..1, Schritt)."""
+                   stopp: Optional[threading.Event] = None, namen=()) -> str:
+    """Ganze Aufnahme -> Transkript „[hh:mm:ss] S00: …". fortschritt(0..1, Schritt).
+    namen: Eigennamen der Runde (server/namen.py)."""
     stopp = stopp or threading.Event()
     melden = fortschritt or (lambda a, s: None)
     threads = _threads()
@@ -391,30 +563,34 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
     ton = ton_laden(pfad)
     if len(ton) < SR:
         return ""
+    melden(0.0, "Sprache finden")
+    stuecke = sprache_finden(ton, modelle, stopp=stopp)
     # Sprecher trennen ist der kleinere Teil (im Test ~1/5 der Zeit).
-    melden(0.0, "Sprecher trennen")
+    melden(0.02, "Sprecher trennen")
     dia = _sprechertrennung(modelle, threads, personen)
 
     def dia_weiter(fertig, gesamt):
-        melden(0.2 * fertig / max(1, gesamt), "Sprecher trennen")
+        melden(0.02 + 0.18 * fertig / max(1, gesamt), "Sprecher trennen")
         return 1 if stopp.is_set() else 0
     roh = dia.process(ton, callback=dia_weiter).sort_by_start_time()
     if stopp.is_set():
         raise InterruptedError
-    abschnitte = zusammenlegen([Abschnitt(s.start, s.end, s.speaker) for s in roh])
+    teile = [(x.start, x.end, x.speaker) for x in roh]
     asr = _erkenner(modelle, threads)
-    sprach_s = sum(a.ende - a.start for a in abschnitte) or 1
+    korrektur = _namen_korrektur(namen)
+    sprach_s = sum(e - s for s, e in stuecke) or 1
     erledigt = 0.0
-    for a in abschnitte:
-        texte = []
-        for s, e in zerteilen(a):
-            if stopp.is_set():
-                raise InterruptedError
-            texte.append(_erkennen(asr, ton[int(s * SR):int(e * SR)])[0])
-            erledigt += e - s
-            melden(0.2 + 0.8 * erledigt / sprach_s, "Text erkennen")
-        a.text = text_sauber(" ".join(texte))
-    return transkript_text(abschnitte)
+    abschnitte: list[Abschnitt] = []
+    for s, e in stuecke:
+        if stopp.is_set():
+            raise InterruptedError
+        _, tokens, zeiten = _erkennen(asr, ton[int(s * SR):int(e * SR)])
+        for a in stueck_zuordnen(s, e, tokens, zeiten, teile):
+            a.text = text_sauber(korrektur.korrigieren(a.text))
+            abschnitte.append(a)
+        erledigt += e - s
+        melden(0.2 + 0.8 * erledigt / sprach_s, "Text erkennen")
+    return transkript_text(beitraege(abschnitte))
 
 
 # --- Live ---------------------------------------------------------------------------------
@@ -425,19 +601,31 @@ class Mitschrift:
     reichen der VAD nicht), TitaNet ordnet die Stimme über den Abend zu, ein
     Erkenner-Aufruf je Stück, Wörter per Zeitstempel an den Sprecher."""
 
-    def __init__(self, modelle: Path, personen: int = 0) -> None:
+    def __init__(self, modelle: Path, personen: int = 0,
+                 namen: Callable[[], list[str]] = lambda: []) -> None:
         import sherpa_onnx as so
         threads = _threads()
-        self.vad = so.VoiceActivityDetector(so.VadModelConfig(
-            silero_vad=so.SileroVadModelConfig(model=str(modelle / MODELLE["vad"][1]), threshold=0.5,
-                                               min_silence_duration=0.5, min_speech_duration=0.3,
-                                               max_speech_duration=LIVE_STUECK_MAX_S),
-            sample_rate=SR), buffer_size_in_seconds=120)
+        self.vad = _vad(modelle, LIVE_STUECK_MAX_S)
         self.dia = _sprechertrennung(modelle, 1)
         self.abdruck = so.SpeakerEmbeddingExtractor(
             so.SpeakerEmbeddingExtractorConfig(model=str(modelle / MODELLE["stimme"][1]), num_threads=1))
         self.asr = _erkenner(modelle, threads)
         self.stimmen = Stimmen(personen)
+        # Namen ändern sich am Abend (neue Gegner im Kampf) - je Stück frisch
+        # holen, neu gebaut wird die Korrektur nur, wenn sich etwas tut.
+        self._namen = namen
+        self._namen_stand: Optional[tuple] = None
+        self._korrektur = _namen_korrektur([])
+
+    def korrektur(self):
+        try:
+            jetzt = tuple(self._namen() or ())
+        except Exception:
+            jetzt = ()
+        if jetzt != self._namen_stand:
+            self._namen_stand = jetzt
+            self._korrektur = _namen_korrektur(jetzt)
+        return self._korrektur
 
     def _stimme(self, ton):
         import numpy as np
@@ -463,9 +651,10 @@ class Mitschrift:
             global_von[sp] = self.stimmen.zuordnen(self._stimme(alles), len(alles) / SR)
         _, tokens, zeiten = _erkennen(self.asr, ton)
         teile = [(s, e, global_von[x]) for s, e, x in lokal]
+        korrektur = self.korrektur()
         erg = []
         for s, sp, text in woerter_verteilen(tokens, zeiten, teile):
-            text = text_sauber(text)
+            text = text_sauber(korrektur.korrigieren(text))
             if text:
                 erg.append((start_s + max(0.0, s), sp, text))
         return erg
@@ -473,12 +662,13 @@ class Mitschrift:
 
 def live_laufen(quelle, modelle: Path, ausgeben: Callable[[float, str, str], None],
                 stopp: threading.Event, ab_s: float = 0.0, personen: int = 0,
-                hinweis: Callable[[str], None] = lambda t: None) -> None:
+                hinweis: Callable[[str], None] = lambda t: None,
+                namen: Callable[[], list[str]] = lambda: []) -> None:
     """Blöcke aus ``quelle`` mitschreiben. ausgeben(sekunden_ab_beginn, „S01", text).
     Ton vor ab_s wird übergangen (Live erst mitten in der Aufnahme
     eingeschaltet: der Anfang ist dann Sache des genauen Durchgangs)."""
     import numpy as np
-    m = Mitschrift(modelle, personen)
+    m = Mitschrift(modelle, personen, namen)
     warte: list = []
     sperre = threading.Condition()
     fertig = threading.Event()
@@ -518,10 +708,12 @@ def live_laufen(quelle, modelle: Path, ausgeben: Callable[[float, str, str], Non
     puffer = np.zeros(0, dtype=np.float32)
     for block in quelle:
         # Silero will 512er-Fenster; Reste fürs nächste Mal aufheben.
+        # (je 512 einzeln, siehe sprache_finden)
         puffer = np.concatenate([puffer, block])
         n = len(puffer) // 512 * 512
+        for i in range(0, n, 512):
+            m.vad.accept_waveform(puffer[i:i + 512])
         if n:
-            m.vad.accept_waveform(puffer[:n])
             puffer = puffer[n:]
             abholen()
         if stopp.is_set():
@@ -532,6 +724,17 @@ def live_laufen(quelle, modelle: Path, ausgeben: Callable[[float, str, str], Non
     with sperre:
         sperre.notify()
     t.join()
+
+
+def begriffe_lesen(text: str) -> list[str]:
+    """Eingabe des SL (eine Zeile oder Komma je Name) -> saubere Liste."""
+    erg, gesehen = [], set()
+    for teil in re.split(r"[\n,;]+", str(text or "")):
+        t = " ".join(teil.split())[:60]
+        if len(t) >= 2 and t.lower() not in gesehen:
+            gesehen.add(t.lower())
+            erg.append(t)
+    return erg[:300]
 
 
 # --- Verwaltung im Server -----------------------------------------------------------------
@@ -550,21 +753,31 @@ class Sprache:
         self.live: Optional[dict] = None         # {"name", "hinweis", "stopp"}
         self.job: Optional[dict] = None          # {"name", "anteil", "schritt", "start", "stopp", "fehler"}
         self._sperre = threading.Lock()
+        # Von app.py gesetzt: Namen, die das Spiel gerade kennt, und wie viele
+        # Leute laut App am Tisch sitzen (Spieler + SL).
+        self.namen_quelle: Callable[[], list[str]] = lambda: []
+        self.personen_quelle: Callable[[], int] = lambda: 0
 
-    # Einstellungen (Live an/aus, Personenzahl) - überleben den Neustart.
+    # Einstellungen (Live an/aus, Personenzahl, Namen & Begriffe) - überleben
+    # den Neustart.
     def einstellungen(self) -> dict:
         try:
             e = json.loads(self.einst_pfad.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             e = {}
-        return {"live": bool(e.get("live", True)), "personen": int(e.get("personen") or 0)}
+        b = e.get("begriffe")
+        return {"live": bool(e.get("live", True)), "personen": int(e.get("personen") or 0),
+                "begriffe": [x for x in b if isinstance(x, str)] if isinstance(b, list) else []}
 
-    def einstellen(self, live: Optional[bool] = None, personen: Optional[int] = None) -> dict:
+    def einstellen(self, live: Optional[bool] = None, personen: Optional[int] = None,
+                   begriffe: Optional[str] = None) -> dict:
         e = self.einstellungen()
         if live is not None:
             e["live"] = bool(live)
         if personen is not None:
             e["personen"] = max(0, min(12, int(personen)))
+        if begriffe is not None:
+            e["begriffe"] = begriffe_lesen(begriffe)
         try:
             self.einst_pfad.parent.mkdir(parents=True, exist_ok=True)
             self.einst_pfad.write_text(json.dumps(e), encoding="utf-8")
@@ -575,6 +788,29 @@ class Sprache:
         elif live:
             self.aufnahme_laeuft()
         return e
+
+    def begriffe(self) -> list[str]:
+        return self.einstellungen()["begriffe"]
+
+    def _app_namen(self) -> list[str]:
+        try:
+            return list(self.namen_quelle() or [])
+        except Exception:
+            return []
+
+    def personen_fuer(self, name: Optional[str] = None) -> int:
+        """Eingestellt > laut Aufnahme (wer mitgespielt hat) > laut App jetzt."""
+        n = self.einstellungen()["personen"]
+        if n:
+            return n
+        if name:
+            n = self.aufnahmen.personen_zahl(name)
+        if not n:
+            try:
+                n = int(self.personen_quelle() or 0)
+            except Exception:
+                n = 0
+        return n if n >= 2 else 0
 
     def bereit(self) -> bool:
         return pakete_da() and not modelle_fehlen(self.modelle)
@@ -590,6 +826,9 @@ class Sprache:
             "live": None if not self.live else {"name": self.live["name"], "hinweis": self.live["hinweis"]},
             "job": None if not job else {k: job[k] for k in ("name", "anteil", "schritt", "start", "fehler")},
             "liveAn": e["live"], "personen": e["personen"],
+            "personenApp": self.personen_fuer(self.aufnahmen.aktiv["name"] if self.aufnahmen.aktiv else None)
+            if not e["personen"] else 0,
+            "begriffe": e["begriffe"],
         }
 
     # --- Modelle holen ---
@@ -647,8 +886,11 @@ class Sprache:
             try:
                 fmt = {".ogg": "ogg", ".m4a": "mp4"}.get(endung, "webm")
                 quelle = ton_mitlesen(pfad, laeuft, stopp, fmt)
+                # Personenzahl live nur als Obergrenze (Stimmen): wer später
+                # dazukommt, landet sonst nie als eigener Sprecher.
                 live_laufen(quelle, self.modelle, ausgeben, stopp, ab_s=ab_s,
-                            personen=self.einstellungen()["personen"], hinweis=hinweis)
+                            personen=self.personen_fuer(name), hinweis=hinweis,
+                            namen=lambda: self.begriffe() + self._app_namen() + self.aufnahmen.namen(name))
             except Exception as e:
                 zustand["hinweis"] = f"Live-Mitschrift abgebrochen ({e.__class__.__name__})"
                 return
@@ -676,7 +918,8 @@ class Sprache:
 
         def los() -> None:
             try:
-                text = transkribieren(pfad, self.modelle, self.einstellungen()["personen"], melden, stopp)
+                namen = self.begriffe() + self.aufnahmen.namen(name) + self._app_namen()
+                text = transkribieren(pfad, self.modelle, self.personen_fuer(name), melden, stopp, namen=namen)
                 if text.strip():
                     (self.aufnahmen.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
                 self.job = None

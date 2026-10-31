@@ -13,6 +13,11 @@ Namen, Kampfzeiten (dort nur kurz zusammenfassen), Marken.
 Ein Kampf-Protokoll ist das bewusst NICHT (Kalle hat das abgelehnt) - nur
 Zeitmarken, damit die Zusammenfassung Kämpfe kurz halten kann.
 
+Sprecher heißen im Transkript S00, S01 … - der SL kann ihnen nachträglich
+(oder live) Namen geben („S01 = Korgo"); der Prompt nennt dann die Namen statt
+der Nummern. Live und genau zählen unterschiedlich (live: wer zuerst redet,
+genau: wer am meisten redet), darum je eine eigene Zuordnung.
+
 Die Live-Mitschrift landet Zeile für Zeile in „…-live.txt" der laufenden
 Aufnahme und erscheint dezent in der SL-Ansicht. Daraus geht der Prompt sofort
 nach dem Abend; der genaue Durchgang („…-transkript.txt") ist besser.
@@ -35,6 +40,8 @@ MAX_STUECK = 8 * 1024 * 1024        # ein Stück alle 10 s ist ein paar 100 KB
 MAX_TRANSKRIPT = 20 * 1024 * 1024   # 4 h Transkript sind ca. 0,5 MB Text
 LIVE_MERKEN = 60                    # so viele Live-Zeilen hält der Server für die Anzeige
 _SPRECHER_MUSTER = re.compile(r"^S\d{2}$")
+_ZEILE = re.compile(r"^\[(\d{2}:\d{2}:\d{2})\] (S\d{2}): (.*)$")
+SPIELLEITER = "Spielleiter"
 
 
 def now_ms() -> int:
@@ -82,6 +89,9 @@ class Aufnahmen:
 
     def __init__(self, ordner: Path) -> None:
         self.ordner = ordner
+        # Namen & Begriffe des SL (server/sprache.py hält die Liste) - kommen
+        # mit in den Prompt. Von app.py gesetzt.
+        self.begriffe_quelle = lambda: []
         self.aktiv: Optional[dict] = None      # Metadaten der laufenden Aufnahme
         self._letztes_stueck = 0
         self._war_im_kampf = False
@@ -222,7 +232,8 @@ class Aufnahmen:
     def live_ab(self, n: int = 0) -> dict:
         """Zeilen nach Nummer n (die Anzeige fragt nur nach Neuem)."""
         return {"zeilen": [z for z in self.live_zeilen if z["n"] > n],
-                "aufnahme": self.aktiv["name"] if self.aktiv else None}
+                "aufnahme": self.aktiv["name"] if self.aktiv else None,
+                "namen": ((self.aktiv or {}).get("sprecher") or {}).get("live") or {}}
 
     # --- Spielstand mitschreiben ------------------------------------------------
 
@@ -323,9 +334,82 @@ class Aufnahmen:
                 weg = True
         return weg
 
+    # --- Namen, Sprecher ---------------------------------------------------------
+
+    def _meta(self, name: str) -> Optional[dict]:
+        if self.aktiv and self.aktiv["name"] == name:
+            return self.aktiv
+        return self._meta_lesen(name) if name_gueltig(name) else None
+
+    def namen(self, name: str) -> list[str]:
+        """Namen, die in dieser Aufnahme vorkamen: Figuren, Spieler, Gegner
+        (für die Namenskorrektur im genauen Durchgang)."""
+        meta = self._meta(name) or {}
+        erg = [x for paar in (meta.get("personen") or {}).items() for x in paar if x]
+        for e in meta.get("ereignisse", []):
+            for k in ("gegner", "verbuendete", "spieler"):
+                erg += [x for x in e.get(k) or [] if isinstance(x, str)]
+        return erg
+
+    def personen_zahl(self, name: str) -> int:
+        """Leute am Tisch laut App: verschiedene Spieler + SL. 0 = unbekannt."""
+        meta = self._meta(name) or {}
+        leute = {(sp or figur).strip().lower() for figur, sp in (meta.get("personen") or {}).items()}
+        leute.discard("")
+        return len(leute) + 1 if leute else 0
+
+    def _text(self, name: str, quelle: str) -> Optional[str]:
+        datei = f"{name}-transkript.txt" if quelle == "genau" else f"{name}-live.txt"
+        try:
+            return (self.ordner / datei).read_text(encoding="utf-8")
+        except OSError:
+            return None
+
+    def sprecher(self, name: str, quelle: str) -> Optional[dict]:
+        """Für „Wer ist wer?": je Sprecher Redeanteil und ein paar typische
+        Sätze, dazu die bisherige Zuordnung und Namensvorschläge."""
+        if not name_gueltig(name) or quelle not in ("genau", "live"):
+            return None
+        meta = self._meta(name)
+        text = self._text(name, quelle)
+        if not meta or text is None:
+            return None
+        je: dict[str, dict] = {}
+        for z in text.splitlines():
+            m = _ZEILE.match(z.strip())
+            if not m:
+                continue
+            d = je.setdefault(m.group(2), {"sprecher": m.group(2), "zeichen": 0, "beispiele": []})
+            d["zeichen"] += len(m.group(3))
+            d["beispiele"].append(m.group(3))
+        gesamt = sum(d["zeichen"] for d in je.values()) or 1
+        liste = []
+        for d in sorted(je.values(), key=lambda x: x["sprecher"]):
+            # Die längsten Sätze sagen am meisten darüber, wer das ist.
+            bsp = sorted(d["beispiele"], key=len, reverse=True)[:3]
+            liste.append({"sprecher": d["sprecher"], "anteil": round(d["zeichen"] / gesamt, 3),
+                          "beispiele": [b[:160] for b in bsp]})
+        vorschlaege = [SPIELLEITER] + [f"{figur} ({sp})" if sp else figur
+                                       for figur, sp in sorted((meta.get("personen") or {}).items())]
+        return {"sprecher": liste, "namen": (meta.get("sprecher") or {}).get(quelle) or {},
+                "vorschlaege": vorschlaege}
+
+    def sprecher_benennen(self, name: str, quelle: str, namen: dict) -> bool:
+        if quelle not in ("genau", "live") or not isinstance(namen, dict):
+            return False
+        meta = self._meta(name)
+        if not meta:
+            return False
+        sauber = {k: " ".join(str(v).split())[:60] for k, v in namen.items()
+                  if isinstance(k, str) and _SPRECHER_MUSTER.match(k) and isinstance(v, str) and v.strip()}
+        meta.setdefault("sprecher", {})[quelle] = sauber
+        self._meta_schreiben(meta)
+        return True
+
     # --- Prompt -------------------------------------------------------------------
 
-    def prompt(self, name: str, transkript_roh: str, extra: str = "", speichern: bool = True) -> Optional[str]:
+    def prompt(self, name: str, transkript_roh: str, extra: str = "", speichern: bool = True,
+               sprecher: Optional[dict] = None) -> Optional[str]:
         """Transkript (Text oder noScribe-HTML) -> Prompt. speichern: das
         Transkript als „…-transkript.txt" ablegen (nur bei fremden Dateien -
         ein Live-Prompt soll nicht als genaues Transkript gelten)."""
@@ -337,7 +421,11 @@ class Aufnahmen:
         text = transkript_text(transkript_roh)
         if not text:
             return None
-        p = baue_prompt(meta, text, extra)
+        try:
+            begriffe = list(self.begriffe_quelle() or [])
+        except Exception:
+            begriffe = []
+        p = baue_prompt(meta, text, extra, begriffe=begriffe, sprecher=sprecher)
         try:
             if speichern:
                 (self.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
@@ -351,12 +439,12 @@ class Aufnahmen:
         """Prompt aus dem genauen Transkript oder der Live-Mitschrift."""
         if not name_gueltig(name) or quelle not in ("genau", "live"):
             return None
-        datei = f"{name}-transkript.txt" if quelle == "genau" else f"{name}-live.txt"
-        try:
-            text = (self.ordner / datei).read_text(encoding="utf-8")
-        except OSError:
+        text = self._text(name, quelle)
+        if text is None:
             return None
-        return self.prompt(name, text, extra, speichern=False)
+        meta = self._meta(name) or {}
+        return self.prompt(name, text, extra, speichern=False,
+                           sprecher=(meta.get("sprecher") or {}).get(quelle) or {})
 
 
 def _gezaehlt(figuren: list[dict]) -> list[str]:
@@ -382,7 +470,21 @@ def _kampf_zeilen(ereignisse: list[dict]) -> list[str]:
     return zeilen
 
 
-def baue_prompt(meta: dict, transkript: str, extra: str = "") -> str:
+def sprecher_einsetzen(transkript: str, namen: dict) -> str:
+    """„[00:01:02] S01: …" -> „[00:01:02] Korgo (Stefan): …" für zugeordnete."""
+    if not namen:
+        return transkript
+    aus = []
+    for z in transkript.splitlines():
+        m = _ZEILE.match(z.strip())
+        if m and namen.get(m.group(2)):
+            z = f"[{m.group(1)}] {namen[m.group(2)]}: {m.group(3)}"
+        aus.append(z)
+    return "\n".join(aus)
+
+
+def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional[list] = None,
+                sprecher: Optional[dict] = None) -> str:
     datum = time.strftime("%d.%m.%Y", time.localtime((meta.get("start") or now_ms()) / 1000))
     personen = meta.get("personen") or {}
     namen = [f"- {figur}" + (f" (gespielt von {sp})" if sp else "")
@@ -403,17 +505,23 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "") -> str:
         "",
         "ZUM TRANSKRIPT:",
         "- Es ist automatisch erkannt und enthält Hörfehler. Namen und Begriffe sinnvoll korrigieren.",
-        "- Sprecher heißen dort S00, S01 … Ordne sie den Personen über den Inhalt zu. "
-        "Wer am meisten erzählt und NSCs spricht, ist der Spielleiter.",
+        ("- Die Sprecher hat der Spielleiter zugeordnet. Wer noch S00, S01 … heißt, ordne über den Inhalt zu."
+         if sprecher else
+         "- Sprecher heißen dort S00, S01 … Ordne sie den Personen über den Inhalt zu. "
+         "Wer am meisten erzählt und NSCs spricht, ist der Spielleiter."),
+        "- Die Sprechererkennung irrt sich manchmal mitten im Satz – im Zweifel zählt der Inhalt.",
         "- Zeitstempel [hh:mm:ss] (falls vorhanden) zählen ab Beginn der Aufnahme.",
     ]
     if namen:
         teile += ["", "CHARAKTERE DER SPIELER:", *namen]
+    begriffe = [b for b in (begriffe or []) if isinstance(b, str) and b.strip()]
+    if begriffe:
+        teile += ["", "NAMEN UND BEGRIFFE DER RUNDE (so geschrieben):", ", ".join(begriffe[:300])]
     if kaempfe:
         teile += ["", "KÄMPFE (laut Initiative-App, Zeit ab Aufnahmebeginn – hier nur kurz zusammenfassen):", *kaempfe]
     if marken:
         teile += ["", "VOM SPIELLEITER MARKIERTE MOMENTE (besonders erwähnen):", *marken]
     if extra and extra.strip():
         teile += ["", "HINWEISE DES SPIELLEITERS:", extra.strip()[:2000]]
-    teile += ["", "TRANSKRIPT:", "<<<", transkript.strip(), ">>>"]
+    teile += ["", "TRANSKRIPT:", "<<<", sprecher_einsetzen(transkript.strip(), sprecher or {}), ">>>"]
     return "\n".join(teile) + "\n"

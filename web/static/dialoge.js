@@ -13,22 +13,26 @@
 // Dialoge kann der Browser nicht sperren. Sie hängen an <body>, nicht an
 // #app - render() würde sie sonst mitten in der Frage wegwischen.
 let _dialogZu = null;
-function dialog({ text, knoepfe, eingabe = null }) {
+// inhalt/lesen: eigenes Formular (schon escaptes HTML) unter dem Text; jeder
+// Knopf außer Abbrechen liefert dann lesen(box) statt seines Werts.
+function dialog({ text, knoepfe, eingabe = null, inhalt = "", lesen = null }) {
   return new Promise((fertig) => {
     if (_dialogZu) _dialogZu(null);                // höchstens einer offen
     const box = el(`<div class="app-dialog-hg" role="dialog" aria-modal="true">
       <div class="app-dialog panel">
         <div class="app-dialog-text">${esc(text).replace(/\n/g, "<br>")}</div>
         ${eingabe ? `<input class="app-dialog-eingabe" maxlength="60" value="${esc(eingabe.vorgabe || "")}">` : ""}
+        ${inhalt ? `<div class="app-dialog-inhalt">${inhalt}</div>` : ""}
         <div class="app-dialog-knoepfe">${knoepfe.map((k, i) =>
           `<button type="button" class="${k.art || "ghost"}" data-i="${i}">${esc(k.text)}</button>`).join("")}</div>
       </div></div>`);
-    const feld = box.querySelector("input");
+    const feld = eingabe ? box.querySelector("input") : null;
     const standard = knoepfe.findIndex((k) => k.standard);
     const abbruch = knoepfe.findIndex((k) => k.abbruch);
     const wertVon = (i) => {
       const k = knoepfe[i];
       if (!k) return null;
+      if (lesen && !k.abbruch) return lesen(box);
       if (feld && !k.abbruch) return feld.value.trim() || null;
       return k.wert;
     };
@@ -44,7 +48,8 @@ function dialog({ text, knoepfe, eingabe = null }) {
       // (sonst gäbe die Leertaste nebenbei den nächsten Zug frei).
       e.stopImmediatePropagation();
       if (e.key === "Escape") { e.preventDefault(); abbrechen(); }
-      else if (e.key === "Enter" && standard >= 0) { e.preventDefault(); zu(wertVon(standard)); }
+      // Im Textfeld macht Enter eine neue Zeile, wie man es erwartet.
+      else if (e.key === "Enter" && standard >= 0 && e.target.tagName !== "TEXTAREA") { e.preventDefault(); zu(wertVon(standard)); }
     }
     box.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-i]");
@@ -54,7 +59,9 @@ function dialog({ text, knoepfe, eingabe = null }) {
     document.addEventListener("keydown", taste, true);
     _dialogZu = zu;
     document.body.appendChild(box);
+    const erstes = !feld && inhalt ? box.querySelector("textarea, select, input") : null;
     if (feld) { feld.focus(); feld.select(); }
+    else if (erstes) erstes.focus();
     else { const b = box.querySelector(`button[data-i="${standard >= 0 ? standard : 0}"]`); if (b) b.focus(); }
   });
 }

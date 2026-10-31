@@ -77,6 +77,54 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (31.10.2026): Mitschrift besser
+
+Kalle: „Will dass es echt richtig gut ist." Gemessen an einem nachgebauten
+Tisch: 4 Piper-Stimmen (SL nah, Spielerin am Tischende bei 12 % Pegel), Hall
+je nach Abstand, 50-Hz-Brummen, Rauschen. Wortfehler genau-Durchgang:
+
+| Stand | Wortfehler | Namen richtig |
+|---|---|---|
+| vorher (1.5.26) | 39 % | 3/20 |
+| + Hochpass 100 Hz | 34 % | 3/20 |
+| + nichts verschlucken (VAD statt Sprechertrennung) | 25 % | 3/20 |
+| + Namenskorrektur | **21,5 %** | **10/20** |
+
+- **Hochpass** (`Hochpass` in sprache.py, ffmpeg über PyAV, live und danach).
+  Getestet und **verworfen**: Rauschunterdrückung (afftdn: 80 % Fehler!) und
+  Lautstärke angleichen (speechnorm/dynaudnorm: schlechter). Nicht wieder
+  einbauen ohne neue Messung. Browser-AGC bleibt an.
+- **Nichts verschlucken:** Die Sprechertrennung (pyannote) übersah am Tisch
+  22 % der Sprache, und nur ihre Abschnitte wurden erkannt. Jetzt sucht die
+  Silero-VAD die Sprache (100 %), Parakeet erkennt je VAD-Stück, die
+  Sprechertrennung verteilt nur noch die Wörter (wie live). Achtung: VAD
+  bekommt genau 512 Samples je Aufruf – mit großen Brocken verschluckte sie
+  den Anfang und hielt die Höchstlänge nicht ein.
+- **Namenskorrektur** (`server/namen.py`): Namen aus App (Kampf, Figuren,
+  Gegner-/Verbündeten-Vorlagen, Spieler, Kampfmarken der Aufnahme) + Liste
+  „🏷 Namen" im Aufnahme-Panel. Kölner Phonetik + Levenshtein, gleicher
+  erster Laut, nur großgeschriebene Wörter. Schutz: deutsches Wörterbuch
+  (`server/woerter-de.txt.gz`, 59 000 häufigste Wörter aus wordfreq,
+  CC BY-SA 4.0, 250 KB, steht in beiden .spec) – echte Wörter werden nie
+  ersetzt, auch gebeugt nicht. Ohne Schutz: 26 Fehlalarme in 29 000 häufigen
+  Wörtern („Mir"→„Mira", „Kreuzer"→„Krauzern"), mit: 0. Liste geht auch in
+  den Prompt.
+- **Englischer Unsinn** („How do you", „I love it"): Parakeet wählt die
+  Sprache selbst und rutscht bei Rauschen ins Englische → Zeilen mit ≥ 60 %
+  englischen Wörtern fliegen raus.
+- **Sprecher:** „Leute: automatisch" nimmt die Zahl aus der App (verschiedene
+  Spieler + SL; genau aus der Aufnahme, live als Obergrenze). **👥 Wer ist
+  wer?** je Aufnahme: Sprecher mit ihren längsten Sätzen, Auswahl SL/Figuren
+  oder frei → Prompt nennt „Korgo (Tim):" statt „S01:". Live: Sprecher in der
+  Mitschrift antippen. Live und genau haben eigene Zuordnungen (andere
+  Nummerierung), gespeichert in der Aufnahme-.json unter `sprecher`.
+- `dialog()` kann jetzt eigenes Formular (`inhalt`/`lesen`), Enter im
+  Textfeld = neue Zeile.
+- Echt durchgespielt: Chromium mit Fake-Mikro (Tisch-Datei) → live, genau,
+  Wer-ist-wer, Prompt. Sprechertrennung legt zwei Frauenstimmen weiter gern
+  zusammen – dafür ist „Wer ist wer?" da. Echte Tischaufnahme bleibt der
+  wichtigste Test.
+
 ## 1.5.26 (30.10.2026): Transkribierer in der App
 
 Kalle: „eigentlich will ich den Transkribierer mit drin haben – auch wenn ich
