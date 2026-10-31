@@ -58,11 +58,13 @@ ROSTER_FILE = DATA_DIR / "roster.json"
 BESTIARY_FILE = DATA_DIR / "bestiary.json"   # dauerhafte Gegner-Vorlagen (mit Bild)
 ALLIES_FILE = DATA_DIR / "allies.json"        # dauerhafte Verbündeten-Vorlagen (mit Bild)
 ENCOUNTERS_FILE = DATA_DIR / "encounters.json"  # gespeicherte Begegnungen (Gegner-Gruppen)
+PROTOKOLLE_FILE = DATA_DIR / "protokolle.json"  # Spielabend-Protokolle (SL fügt ein, gibt frei)
 SESSION_FILE = DATA_DIR / "session.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"   # dauerhafte SL-Voreinstellungen
 UPLOAD_DIR = DATA_DIR / "uploads"
 
 MAX_MESSAGES = 50
+MAX_PROTOKOLL = 60000   # Zeichen je Protokoll (1–2 Seiten sind ~6000; Schutz vor Versehen)
 
 
 def _rueckseite_gueltig(wert) -> bool:
@@ -329,6 +331,9 @@ class Game:
         self.bestiary: list[dict] = _lade_liste(BESTIARY_FILE)
         self.allies: list[dict] = _lade_liste(ALLIES_FILE)
         self.encounters: list[dict] = _lade_liste(ENCOUNTERS_FILE)
+        # Wie die Bibliotheken dauerhaft und NICHT Teil der Sitzung: ein
+        # „Verwerfen" beim Start oder ein Rückgängig darf kein Protokoll kosten.
+        self.protokolle: list[dict] = _lade_liste(PROTOKOLLE_FILE)
         self.combatants: list[dict] = []
         self.players: list[dict] = []
         self.messages: list[dict] = []
@@ -457,6 +462,9 @@ class Game:
     def save_encounters(self) -> None:
         _write_json(ENCOUNTERS_FILE, self.encounters, backup=True)
 
+    def save_protokolle(self) -> None:
+        _write_json(PROTOKOLLE_FILE, self.protokolle, backup=True)
+
     def save_settings(self) -> None:
         """Sichert die dauerhaften Voreinstellungen (Timer-/Benny-Startwert)."""
         _write_json(SETTINGS_FILE, {
@@ -483,6 +491,7 @@ class Game:
             "type": "sundered-skies-backup", "version": 1,
             "roster": self.roster, "bestiary": self.bestiary,
             "allies": self.allies, "encounters": self.encounters,
+            "protokolle": self.protokolle,
             "settings": {"bennyStart": self.benny_start,
                          "autoIncap": self.auto_incap,
                          "statistenKo": self.statisten_ko,
@@ -524,7 +533,8 @@ class Game:
         felder = (("roster", "Charaktere", self.save_roster),
                   ("bestiary", "Gegner-Vorlagen", self.save_bestiary),
                   ("allies", "Verbündeten-Vorlagen", self.save_allies),
-                  ("encounters", "Begegnungen", self.save_encounters))
+                  ("encounters", "Begegnungen", self.save_encounters),
+                  ("protokolle", "Protokolle", self.save_protokolle))
         for schluessel, anzeige, sichern in felder:
             roh = data.get(schluessel)
             if not isinstance(roh, list):
@@ -770,6 +780,57 @@ class Game:
         ausblenden reichte nicht, im Entwicklerwerkzeug stand sonst alles."""
         return [m for m in self.messages[-MAX_MESSAGES:] if _nachricht_an(m.get("target"), player_id)]
 
+    # --- Spielabend-Protokolle ------------------------------------------------
+    # Der SL fügt das fertige Protokoll (aus Claude, siehe Aufnahme-Panel) ein
+    # und gibt es frei, wann ER will. Im Zustand stehen nur Titel und Stand: der
+    # Text (1–2 Seiten je Abend) ginge sonst bei JEDEM Update an jedes Handy.
+    # Die Handys holen ihn einzeln über /api/protokoll/<id>.
+
+    def protokoll_liste(self, fuer_spieler: bool) -> list[dict]:
+        return [{"id": p["id"], "name": p.get("name", ""), "datum": p.get("datum", ""),
+                 "freigegeben": bool(p.get("freigegeben")), "stand": p.get("stand", 0),
+                 "zeichen": len(p.get("text") or "")}
+                for p in self.protokolle
+                if isinstance(p, dict) and p.get("id") and (not fuer_spieler or p.get("freigegeben"))]
+
+    def protokoll_text(self, pid: str, fuer_spieler: bool) -> Optional[dict]:
+        """Ganzes Protokoll - für Spieler nur, wenn freigegeben. Unfreigegebenes
+        bleibt auf dem Laptop (nur im Handy ausblenden reichte nicht)."""
+        p = next((x for x in self.protokolle if isinstance(x, dict) and x.get("id") == pid), None)
+        if not p or (fuer_spieler and not p.get("freigegeben")):
+            return None
+        return {"id": p["id"], "name": p.get("name", ""), "datum": p.get("datum", ""),
+                "text": p.get("text") or "", "stand": p.get("stand", 0),
+                "freigegeben": bool(p.get("freigegeben"))}
+
+    def protokoll_aktion(self, a: dict) -> None:
+        t = a.get("type")
+        p = next((x for x in self.protokolle if isinstance(x, dict) and x.get("id") == a.get("id")), None)
+        if t == "protokoll_speichern":
+            text = str(a.get("text") or "").replace("\r\n", "\n").strip()[:MAX_PROTOKOLL]
+            name = str(a.get("name") or "").strip()[:80]
+            if not text:
+                return
+            if not name:
+                name = "Spielabend " + time.strftime("%d.%m.%Y")
+            if p is None:
+                p = {"id": _new_id("prot"), "datum": time.strftime("%Y-%m-%d"), "freigegeben": False}
+                # Neuestes zuerst - so steht es auch am Handy oben.
+                self.protokolle.insert(0, p)
+            p.update({"name": name, "text": text, "stand": now_ms()})
+            if "freigegeben" in a:
+                p["freigegeben"] = bool(a["freigegeben"])
+        elif t == "protokoll_freigeben" and p is not None:
+            p["freigegeben"] = bool(a.get("an", True))
+            # Stand hochzählen: das 📜 am Handy zeigt den Punkt für „neu".
+            if p["freigegeben"]:
+                p["stand"] = now_ms()
+        elif t == "protokoll_loeschen" and p is not None:
+            self.protokolle.remove(p)
+        else:
+            return
+        self.save_protokolle()
+
     def snapshot(self, fuer_spieler: bool = False, player_id: str | None = None) -> dict:
         # Verdeckte Gegner: der SL markiert sie einzeln, die Spieler bekommen
         # dann Tarnnamen statt der echten.
@@ -806,6 +867,7 @@ class Game:
             # verdeckter Gegner (fiel im Stresstest auf).
             "allies": [] if fuer_spieler else self.allies,
             "encounters": [] if fuer_spieler else self.encounters,
+            "protokolle": self.protokoll_liste(fuer_spieler),
             "players": self.players,
             "groups": self.groups,
             "effektMeldungen": [] if fuer_spieler else self.effekt_meldungen,
@@ -872,6 +934,14 @@ class Game:
             if neu != self.sl_ansicht:
                 self.sl_ansicht = neu
                 self.save_settings()
+            return
+
+        # Protokolle: dauerhaft wie die Bibliotheken, darum kein Undo-Ziel - und
+        # sie zählen nicht als „erste Aktion" (die verwirft die gespeicherte
+        # Sitzung; wer vor dem Fortsetzen das Protokoll vom letzten Mal
+        # freigibt, verlöre sonst den Kampf).
+        if t in ("protokoll_speichern", "protokoll_freigeben", "protokoll_loeschen"):
+            self.protokoll_aktion(action)
             return
 
         # Eigene Initiative-Talente (Schnell, Kühler Kopf …) + Glück: pflegt der

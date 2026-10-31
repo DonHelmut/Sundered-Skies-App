@@ -2386,6 +2386,51 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
   align-items: center; justify-content: center; padding: 16px; }
 .bogen-ansicht { max-width: 460px; width: 100%; max-height: calc(100vh - 32px); overflow-y: auto;
   padding: 14px 16px; box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
+/* Spielabend-Protokolle (protokoll.js). Am Handy: 📜 neben dem ⚙, so leise
+   wie das ⚙ selbst; ein kleiner Punkt, wenn der SL etwas Neues freigibt
+   (fest, ohne Pulsieren - soll nicht nerven). */
+#protokoll-knopf {
+  position: relative; width: 30px; height: 30px; padding: 0; border-radius: 9px; font-size: 15px; line-height: 1;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+  cursor: pointer; opacity: 0.72; transition: opacity 0.15s;
+}
+#protokoll-knopf:hover, #protokoll-knopf.on, #protokoll-knopf.neu { opacity: 1; }
+#protokoll-knopf[hidden], #skinbar.open #protokoll-knopf { display: none; }
+#protokoll-knopf.neu::after { content: ""; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg, #000); }
+/* Oben Platz für Statuszeile + ⚙/📜 lassen - sonst lagen die über „Schließen". */
+.protokoll-hg { position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,0.55); display: flex;
+  align-items: center; justify-content: center; padding: 48px 12px 12px; }
+.protokoll-fenster { max-width: 560px; width: 100%; max-height: calc(100vh - 60px); max-height: calc(100dvh - 60px);
+  overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px; box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
+.protokoll-fenster.breit { max-width: 760px; }
+.protokoll-fenster textarea { font: inherit; width: 100%; resize: vertical; font-size: 0.9rem; line-height: 1.45; min-height: 220px;
+  background: var(--input-bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.pt-titelzeile { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.pt-titelzeile strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; }
+.pt-abend { border-top: 1px solid var(--line); }
+.pt-kopf { display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 10px 2px; background: none; border: 0;
+  color: var(--text); text-align: left; cursor: pointer; font: inherit; box-shadow: none; }
+.pt-name { flex: 1; font-family: Georgia, "Times New Roman", serif; font-weight: 700; font-size: 1.02rem; }
+.pt-datum { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+.pt-pfeil { color: var(--muted); transition: transform 0.15s; }
+.pt-abend.auf .pt-pfeil { transform: rotate(90deg); }
+/* Lesetext: ruhige Serifenschrift, angenehme Zeilenlänge - wie ein Kapitel. */
+.pt-text { padding: 0 2px 14px; font-family: Georgia, "Times New Roman", serif; font-size: 1rem; line-height: 1.6; }
+.pt-text p { margin: 0 0 0.8em; }
+.pt-text .pt-h1, .pt-text .pt-h2 { font-weight: 700; font-size: 1.08rem; color: var(--accent); margin: 1em 0 0.4em; }
+.pt-text .pt-h3 { font-weight: 700; font-size: 0.98rem; margin: 0.9em 0 0.3em; }
+.pt-text > :first-child { margin-top: 0; }
+.pt-text ul, .pt-text ol { margin: 0 0 0.8em; padding-left: 1.3em; }
+.pt-text li { margin: 0.15em 0; }
+.pt-text blockquote { margin: 0 0 0.8em; padding-left: 10px; border-left: 3px solid var(--line); color: var(--muted); font-style: italic; }
+.pt-text hr { border: 0; border-top: 1px solid var(--line); margin: 1em 0; }
+/* SL-Panel */
+.pt-liste { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pt-zeile { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); }
+.pt-zeile-name { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.pt-pill { font-size: 0.72rem; padding: 1px 7px; }
 .spielwerte { margin-top: 6px; font-size: 0.92rem; line-height: 1.4; }
 .spielwerte .sw-zeile { padding: 3px 0; }
 .spielwerte .sw-punkt { padding: 2px 0 2px 14px; position: relative; }

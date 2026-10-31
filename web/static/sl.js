@@ -56,9 +56,10 @@ const PANEL_BAU = {
   connect: () => renderConnectPanel(),
   combat: () => renderOrderPanel(true),
   aufnahme: () => renderAufnahmePanel(),
+  protokolle: () => renderProtokollPanel(),
 };
 const STANDARD_ANORDNUNG = {
-  links: ["requests", "zones", "message", "bibliothek", "connect", "aufnahme"],
+  links: ["requests", "zones", "message", "bibliothek", "connect", "aufnahme", "protokolle"],
   rechts: ["combat"],
 };
 

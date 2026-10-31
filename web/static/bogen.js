@@ -413,7 +413,7 @@ function tipptImBogen() {
   // bei jedem Server-Update weg.
   // Und die Beitrittsseite: kam dort ein Update (jemand anderes trat bei),
   // verlor man mitten im Tippen Fokus und Tastatur.
-  return !!(a && a.closest && a.closest(".bogen-form, .al-treffer, .angriff-popup, .join-form, .kampf-bau") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  return !!(a && a.closest && a.closest(".bogen-form, .al-treffer, .angriff-popup, .join-form, .kampf-bau, .protokoll-form") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
 }
 document.addEventListener("input", (e) => {
   if (e.target && e.target.id === "treffer-schaden") App.trefferSchaden = e.target.value;
