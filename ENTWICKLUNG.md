@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (31.10.2026): Genau mit zwei Erkennern
+## 1.5.28 (31.10.2026): Genau mit zwei Erkennern
 
 Kalle: „soll wirklich top sein", darf bis 4 GB groß sein. Modelle verglichen
 (Tisch-Simulation aus 1.5.27, ideal geschnitten): Parakeet 27,7 %, **Canary
