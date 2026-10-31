@@ -283,3 +283,27 @@ def test_automatisch_nur_wenn_noch_keiner_zugeordnet_hat(tmp_path):
     assert not a.sprecher(meta["name"], "genau")["automatisch"]
     assert not a.sprecher_automatisch(meta["name"])        # SL hat entschieden
     assert "automatisch zugeordnet" not in a.prompt_aus(meta["name"])
+
+
+def test_im_charakter_hilft_anrede_und_zug():
+    # Kalle: im Spiel heißt es „ich gehe da hin", nicht „Korgo geht".
+    t = """[00:00:00] S00: Der Nebel lichtet sich, vor euch liegt die Ruine. Ein langer Satz vom Spielleiter, der erzählt.
+[00:00:10] S01: Ich gehe zur Tür und horche.
+[00:00:15] S02: Korgo, warte! Da ist eine Falle.
+[00:00:18] S01: Ich bleibe stehen und schaue nach unten.
+[00:00:21] S00: Korgo, was siehst du?
+[00:00:23] S01: Einen dünnen Draht über der Schwelle.
+[00:00:25] S00: Noch ein langer Satz vom Spielleiter, damit er sicher am meisten redet und erzählt.
+[00:00:40] S02: Ich lege einen Pfeil auf und ziele auf den Schatten.
+"""
+    meta = {"personen": PERSONEN, "ereignisse": [
+        {"t": 38000, "art": "zug", "figur": "Tessa"}, {"t": 50000, "art": "zug", "figur": None}]}
+    erg = A.sprecher_raten(t, meta)
+    assert erg.get("S01") == "Korgo (Tim)"              # zweimal angesprochen, hat geantwortet
+    assert "S02" not in erg or erg["S02"] == "Tessa (Anna)"
+
+
+def test_prompt_will_nacherzaehlung_auf_zwei_seiten():
+    p = A.baue_prompt({"start": 0, "personen": PERSONEN}, "[00:00:01] S00: Hallo.")
+    assert "höchstens 2 DIN-A4-Seiten" in p
+    assert "im Charakter" in p and "spannende oder krasse Momente" in p

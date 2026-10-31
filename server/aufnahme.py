@@ -532,12 +532,15 @@ def sprecher_raten(transkript: str, meta: dict) -> dict:
                 if not treffer:
                     continue
                 angesprochen = bool(re.match(r"\s*(\w+\s*){1,2},", satz)) and treffer[0] <= 1
-                if sp == sl:
-                    if angesprochen or satz.rstrip().endswith("?"):
-                        nach = next((z for z in zeilen[i + 1:i + 4] if z[1] != sl), None)
-                        if nach and nach[0] - t0 <= 30:
-                            plus(nach[1], f, 1.0)
-                elif not angesprochen:
+                # Angesprochen („Korgo, pass auf!", „Mira, was machst du?"):
+                # antworten tut meist die Figur - der nächste andere Sprecher.
+                # Im Charakter (Kalle: „ich gehe da hin …") ist das oft der
+                # einzige Hinweis, außer wessen Zug es ist.
+                if angesprochen or (sp == sl and satz.rstrip().endswith("?")):
+                    nach = next((z for z in zeilen[i + 1:i + 4] if z[1] not in (sl, sp)), None)
+                    if nach and nach[0] - t0 <= 30:
+                        plus(nach[1], f, 1.0)
+                elif sp != sl:
                     plus(sp, f, 2.0 if treffer[0] <= 1 else 1.0)
     # Züge im Kampf: Redezeit (grob aus der Textlänge) im Zug einer Figur.
     zuege = [(e["t"] / 1000, e.get("figur")) for e in meta.get("ereignisse", []) if e.get("art") == "zug"]
@@ -611,13 +614,16 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
     teile = [
         f"Du bist Chronist einer Pen-&-Paper-Runde (Savage Worlds: Sundered Skies). "
         f"Unten steht das automatische Transkript des Spielabends vom {datum}. "
-        "Schreib daraus ein Story-Protokoll auf Deutsch, 1–2 Seiten.",
+        "Erzähl daraus nach, welche Geschichte die Gruppe an diesem Abend erlebt hat – auf Deutsch, "
+        "höchstens 2 DIN-A4-Seiten (etwa 1000 Wörter, alles zusammen).",
         "",
         "SO SOLL ES SEIN:",
-        "- Erzählend, in der Vergangenheit, aus Sicht der Gruppe – wie ein Kapitel einer Chronik.",
-        "- Nur was in der Spielwelt passiert. Regelfragen, Würfelergebnisse, Pausen und Gespräche außerhalb des Spiels weglassen.",
-        "- Kämpfe nur kurz: 1–2 Sätze (gegen wen, wie ging es aus, Folgen). Kein Rundenverlauf.",
-        "- Danach kurze Listen: Wichtige NSCs (mit einem Halbsatz), Orte, Beute/Belohnungen, offene Fäden und Fragen für nächstes Mal.",
+        "- Eine zusammenhängende Nacherzählung des ganzen Abends, in der Vergangenheit, wie ein Kapitel "
+        "einer Chronik: Anfang, Höhepunkte, wo die Gruppe am Ende steht.",
+        "- Nur was in der Spielwelt passiert. Regelfragen, Würfelwerte, Pausen und Gespräche außerhalb des Spiels weglassen.",
+        "- Kämpfe als Teil der Geschichte: spannende oder krasse Momente erzählen (knappe Rettung, "
+        "Volltreffer, jemand geht zu Boden, ein Joker im richtigen Moment). Keinen Rundenablauf.",
+        "- Ganz am Ende, kurz: wichtige NSCs, Beute/Belohnungen, offene Fäden für nächstes Mal.",
         "",
         "ZUM TRANSKRIPT:",
         "- Es ist automatisch erkannt und enthält Hörfehler. Namen und Begriffe sinnvoll korrigieren.",
@@ -628,6 +634,8 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
          if sprecher else
          "- Sprecher heißen dort S00, S01 … Ordne sie den Personen über den Inhalt zu. "
          "Wer am meisten erzählt und NSCs spricht, ist der Spielleiter."),
+        "- Gespielt wird meist im Charakter: „ich gehe zur Tür und …“ heißt, die Figur des Sprechers "
+        "tut das. In der Nacherzählung mit dem Figurennamen in der dritten Person.",
         "- Der Spielleiter spricht NSCs mit verstellter Stimme. Seine Zeilen (oder ein eigener Sprecher) "
         "können also NSC-Rede sein – im Protokoll dem NSC zuordnen, nicht als weitere Person.",
         "- Die Sprechererkennung irrt sich manchmal mitten im Satz – im Zweifel zählt der Inhalt.",
@@ -639,7 +647,7 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
     if begriffe:
         teile += ["", "NAMEN UND BEGRIFFE DER RUNDE (so geschrieben):", ", ".join(begriffe[:300])]
     if kaempfe:
-        teile += ["", "KÄMPFE (laut Initiative-App, Zeit ab Aufnahmebeginn – hier nur kurz zusammenfassen):", *kaempfe]
+        teile += ["", "KÄMPFE (laut Initiative-App, Zeit ab Aufnahmebeginn – zum Einordnen; die Höhepunkte stehen im Transkript):", *kaempfe]
     if marken:
         teile += ["", "VOM SPIELLEITER MARKIERTE MOMENTE (besonders erwähnen):", *marken]
     if extra and extra.strip():
