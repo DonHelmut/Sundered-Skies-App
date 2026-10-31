@@ -125,8 +125,9 @@ function renderAufnahmePanel() {
     ${aufnMitschriftHtml(sp)}
     ${zeilen ? `<div class="aufn-liste">${zeilen}</div>` : ""}
     <div class="muted small hilfe" style="margin-top:6px; line-height:1.5">
-      Live läuft beim Aufnehmen mit. Danach „🎧 Genau transkribieren“ (dauert etwa
-      ein Drittel der Aufnahme) → „📝 Prompt“ → in Claude einfügen.
+      Live läuft beim Aufnehmen mit. Danach „🎧 Genau transkribieren“ (zwei
+      Erkenner hören zu, dauert etwa so lang wie die Aufnahme – Laptop über Nacht
+      an lassen geht) → „📝 Prompt“ → in Claude einfügen.
     </div>`);
 }
 
@@ -188,6 +189,7 @@ function aufnMitschriftHtml(sp) {
   return `<div class="aufn-mitschrift small">
     <label title="Schreibt während der Aufnahme mit; der Text läuft klein darunter mit"><input type="checkbox" data-act="aufn-live-an"${sp.liveAn ? " checked" : ""}> Live mitschreiben</label>
     <select data-act="aufn-personen" title="Leute am Tisch, SL mitgezählt – mit Zahl trennt die Sprechererkennung besser" style="width:auto">${personen}</select>
+    ${sp.genauerFehlt && !(sp.laden && !sp.laden.fehler) ? `<button class="ghost small" data-act="aufn-modelle" title="Zweiter Erkenner (Canary, fest auf Deutsch) für „Genau transkribieren“ – im Test ein Viertel weniger Fehler. Einmalig, danach offline.">⬇ Genauer (${sp.groesseMb} MB)</button>` : ""}
     <button class="ghost small" data-act="aufn-begriffe" title="Orte, Schiffe, NSCs … – damit die Mitschrift sie richtig schreibt. Figuren, Gegner und Spieler aus der App sind automatisch dabei.">🏷 Namen${begriffe ? ` (${begriffe})` : ""}</button>
   </div>`;
 }
