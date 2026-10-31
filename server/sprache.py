@@ -750,15 +750,20 @@ MIN_SPRECHER_S = 5.0        # wer insgesamt weniger redet, ist kein eigener Spre
 MIN_SPRECHER_ANTEIL = 0.02
 
 
-def kleine_sprecher_weg(abschnitte: list[Abschnitt]) -> list[Abschnitt]:
+def kleine_sprecher_weg(abschnitte: list[Abschnitt], hoechstens: int = 0) -> list[Abschnitt]:
     """Sprecher mit kaum Redezeit dem zeitlich nächsten „echten" Sprecher
     geben. Im ersten echten Test (Gespräch, Leute unbekannt) kamen 34
-    Sprecher heraus - meist Rascheln und Fetzen, je ein paar Sekunden."""
+    Sprecher heraus - meist Rascheln und Fetzen, je ein paar Sekunden.
+    hoechstens: mehr Sprecher gibt es nicht - die mit der wenigsten Redezeit
+    gehen auch an den nächsten. Kalle: SL + 5, selten 2 Gäste dazu, und der SL
+    spricht NSCs mit verstellter Stimme - die soll keine neue Person sein."""
     dauer: dict[int, float] = {}
     for a in abschnitte:
         dauer[a.sprecher] = dauer.get(a.sprecher, 0.0) + (a.ende - a.start)
     gesamt = sum(dauer.values()) or 1.0
     gross = {sp for sp, d in dauer.items() if d >= max(MIN_SPRECHER_S, MIN_SPRECHER_ANTEIL * gesamt)}
+    if hoechstens and len(gross) > hoechstens:
+        gross = set(sorted(gross, key=lambda sp: dauer[sp], reverse=True)[:hoechstens])
     if not gross or len(gross) == len(dauer):
         return abschnitte
     echte = [a for a in abschnitte if a.sprecher in gross]
@@ -788,6 +793,7 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
                    fortschritt: Optional[Callable[[float, str], None]] = None,
                    stopp: Optional[threading.Event] = None, namen=()) -> str:
     """Ganze Aufnahme -> Transkript „[hh:mm:ss] S00: …". fortschritt(0..1, Schritt).
+    personen: höchstens so viele Sprecher (0 = bis zu 8).
     namen: Eigennamen der Runde (server/namen.py)."""
     stopp = stopp or threading.Event()
     melden = fortschritt or (lambda a, s: None)
@@ -800,7 +806,11 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
     stuecke = sprache_finden(ton, modelle, stopp=stopp)
     # Sprecher trennen ist der kleinere Teil (im Test ~1/5 der Zeit).
     melden(0.02, "Sprecher trennen")
-    dia = _sprechertrennung(modelle, threads, personen)
+    # Zahl nie erzwingen, nur als Obergrenze (kleine_sprecher_weg): in der
+    # Tisch-Simulation fand die Schwelle alle 4 Stimmen, „genau 4" legte zwei
+    # Spielerinnen zusammen. Und Gäste, die nicht in der App stehen, fehlen
+    # sonst.
+    dia = _sprechertrennung(modelle, threads, 0)
 
     def dia_weiter(fertig, gesamt):
         melden(0.02 + 0.18 * fertig / max(1, gesamt), "Sprecher trennen")
@@ -836,7 +846,7 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
             abschnitte.append(a)
         erledigt += e - s
         melden(0.2 + 0.8 * erledigt / sprach_s, "Text erkennen")
-    return transkript_text(beitraege(kleine_sprecher_weg(abschnitte)))
+    return transkript_text(beitraege(kleine_sprecher_weg(abschnitte, personen or MAX_LEUTE_UNBEKANNT)))
 
 
 # --- Live ---------------------------------------------------------------------------------
@@ -1052,6 +1062,15 @@ class Sprache:
         except Exception:
             return []
 
+    def hoechstens(self, name: Optional[str] = None) -> int:
+        """Obergrenze für den genauen Durchgang. Selbst eingestellt: genau die.
+        Aus der App (Spieler + SL): 2 mehr - Kalle: „vllt mal noch 2 extra
+        Gastspieler", die stehen oft nicht in der App."""
+        if self.einstellungen()["personen"]:
+            return self.einstellungen()["personen"]
+        n = self.personen_fuer(name)
+        return min(12, n + 2) if n else 0
+
     def personen_fuer(self, name: Optional[str] = None) -> int:
         """Eingestellt > laut Aufnahme (wer mitgespielt hat) > laut App jetzt."""
         n = self.einstellungen()["personen"]
@@ -1221,9 +1240,11 @@ class Sprache:
         def los() -> None:
             try:
                 namen = self.begriffe() + self.aufnahmen.namen(name) + self._app_namen()
-                text = transkribieren(pfad, self.modelle, self.personen_fuer(name), melden, stopp, namen=namen)
+                text = transkribieren(pfad, self.modelle, self.hoechstens(name), melden, stopp, namen=namen)
                 if text.strip():
                     (self.aufnahmen.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
+                    # Wer ist wer - aus dem Kontext, ohne dass der SL wählen muss.
+                    self.aufnahmen.sprecher_automatisch(name)
                 self.job = None
             except InterruptedError:
                 self.job = None
