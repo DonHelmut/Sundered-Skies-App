@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (31.10.2026): Mitschrift besser
+## 1.5.27 (31.10.2026): Mitschrift besser
 
 Kalle: „Will dass es echt richtig gut ist." Gemessen an einem nachgebauten
 Tisch: 4 Piper-Stimmen (SL nah, Spielerin am Tischende bei 12 % Pegel), Hall
@@ -125,7 +125,7 @@ je nach Abstand, 50-Hz-Brummen, Rauschen. Wortfehler genau-Durchgang:
   zusammen – dafür ist „Wer ist wer?" da. Echte Tischaufnahme bleibt der
   wichtigste Test.
 
-## Neu (31.10.2026): Protokolle für Spieler (📜)
+## 1.5.27 (31.10.2026): Protokolle für Spieler (📜)
 
 Kalle: „Mitspieler können das Protokoll lesen … eigenes Protokoll-Zeichen wie
 die Einstellungen, zum Aufklappen". Gewählt: Variante A (📜 neben ⚙).

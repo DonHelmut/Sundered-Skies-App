@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0c1a2e" />
+  <title>Sundered Skies – Initiative (Lab: entclauden)</title>
+  <link rel="stylesheet" href="/static/style.css?v=1.2" />
+  <link rel="stylesheet" href="/static/_lab_entclaude.css?t=1" />
+  <script>
+    // LAB: Variante per ?v=hud oder ?v=hell (mehrere mit Komma)
+    (new URLSearchParams(location.search).get("v") || "hud").split(",").forEach((x) => document.documentElement.classList.add("ec-" + x));
+  </script>
+</head>
+<body>
+  <div class="statusbar"><span id="status" class="pill">Verbinde…</span></div>
+  <div id="app" class="wrap"></div>
+
+  <script src="/static/cards.js?v=1.2"></script>
+  <script src="/static/zones.js?v=1.2"></script>
+  <script src="/static/app.js?v=1.2"></script>
+  <script src="/static/mimi.js?v=1.2"></script>
+  <script>
+    // LAB: Emojis aus Knöpfen/Überschriften entfernen (Vorschau „ohne Emojis").
+    // Die Karten sind SVG und bleiben unberührt. ?mitemoji lässt sie stehen.
+    const q = new URLSearchParams(location.search);
+    if (!q.has("mitemoji")) {
+      const EMO = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}]️?‍?/gu;
+      const putzen = () => {
+        const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        let n;
+        while ((n = w.nextNode())) {
+          const el = n.parentElement;
+          if (el && el.closest("svg, script, style, .zustand-zelle, .al-zustand, .treffer-ziel, .aw-zustand")) continue;
+          const neu = n.nodeValue.replace(EMO, "");
+          // Knöpfe, die NUR ein Symbol tragen, behalten es (im echten Umbau: Linien-Icon)
+          const knopf = el && el.closest("button, a, label");
+          if (knopf && !knopf.textContent.replace(EMO, "").trim()) continue;
+          if (neu !== n.nodeValue) n.nodeValue = neu.replace(/^\s{2,}/, " ");
+        }
+      };
+      new MutationObserver(putzen).observe(document.body, { childList: true, subtree: true });
+      setInterval(putzen, 400);
+    }
+    if (q.has("oben")) setTimeout(() => window.scrollTo(0, 0), 3500);
+  </script>
+</body>
+</html>

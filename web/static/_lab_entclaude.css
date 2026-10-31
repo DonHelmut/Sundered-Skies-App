@@ -1,0 +1,279 @@
+/* LAB: „entclauden" – zwei Richtungen weg vom Creme/Braun/Serif/Pillen-Look.
+   Nur Vorschau (_lab* kommt nicht ins Paket). Aufruf: _lab_entclaude.html?v=hud|hell */
+
+/* ===== Gemeinsam: Schrift, Ecken, keine weichen Schatten ===== */
+html.ec-hud body, html.ec-hell body {
+  font-family: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+}
+html.ec-hud h1, html.ec-hud h2, html.ec-hud h3,
+html.ec-hell h1, html.ec-hell h2, html.ec-hell h3,
+html.ec-hud .sec-title, html.ec-hell .sec-title {
+  font-family: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, sans-serif !important;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+}
+/* Eckig statt rund - Kreise (Scheiben, Avatare, Punkte) bleiben rund */
+html.ec-hud *, html.ec-hell * { border-radius: 2px !important; }
+html.ec-hud .tdisc, html.ec-hud .avatar, html.ec-hud .z-punkt, html.ec-hud .av-init, html.ec-hud .runden-zaehler,
+html.ec-hell .tdisc, html.ec-hell .avatar, html.ec-hell .z-punkt, html.ec-hell .av-init, html.ec-hell .runden-zaehler,
+html.ec-hud .flip-face, html.ec-hell .flip-face, html.ec-hud .card-holder, html.ec-hell .card-holder { border-radius: 50% !important; }
+html.ec-hud .flip-face, html.ec-hell .flip-face, html.ec-hud .card-holder, html.ec-hell .card-holder { border-radius: 6% / 4% !important; }
+html.ec-hud .panel, html.ec-hell .panel, html.ec-hud button, html.ec-hell button,
+html.ec-hud .aktionsleiste, html.ec-hell .aktionsleiste { box-shadow: none !important; }
+html.ec-hud .panel, html.ec-hell .panel { background: var(--panel) !important; }
+/* Pillen/Tags: flache Etiketten statt Kapseln */
+html.ec-hud .tag, html.ec-hud .pill, html.ec-hell .tag, html.ec-hell .pill {
+  font-weight: 600; letter-spacing: 0.03em; padding: 1px 6px;
+}
+/* Zonen-Emojis weg (Text bleibt) */
+html.ec-hud .zb-emoji, html.ec-hell .zb-emoji { display: none; }
+
+/* ===== A · „Brücke": Nachtblau + Messing, wie ein Luftschiff-Cockpit ===== */
+html.ec-hud body[class] {
+  --bg: #0d131b; --bg2: #121a24; --panel: #161f2a; --panel2: #1c2733; --line: #2a3848;
+  --text: #e4e8ee; --muted: #8a9bb0; --accent: #d6a047; --accent2: #b3822c; --on-accent: #120d04;
+  --good: #57b27a; --bad: #e2574c; --warn: #e3b341; --gold: #e6b04a;
+  --foe-name: #ff8b7b; --friend-name: #7fdcae; --input-bg: #0e151e; --auswahl: #4aa3ff;
+  background-color: var(--bg); color: var(--text);
+  background-image:
+    linear-gradient(rgba(214,160,71,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(214,160,71,0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+html.ec-hud .sl-kopf { background: #0a0f15 !important; box-shadow: 0 0 0 100vmax #0a0f15 !important; }
+html.ec-hud .sl-kopf h1 { color: var(--accent); }
+html.ec-hud details.section > .sec-head {
+  background: #111923 !important; border-bottom: 1px solid var(--line) !important;
+  box-shadow: inset 2px 0 0 var(--accent) !important;
+}
+html.ec-hud details.section > .sec-head .sec-title { color: #c9d3df; font-size: 0.74rem; }
+html.ec-hud .aktionsleiste { background: #0a0f15 !important; border-top: 1px solid var(--accent) !important; }
+html.ec-hud button.primary, html.ec-hud .primary { background: var(--accent2); border-color: var(--accent); color: var(--on-accent); }
+html.ec-hud .combatant:nth-child(even) { background: rgba(255,255,255,0.025) !important; }
+html.ec-hud .combatant.active { background: rgba(214,160,71,0.14) !important; box-shadow: inset 3px 0 0 var(--accent) !important; }
+html.ec-hud .zone-band { background: rgba(255,255,255,0.02); }
+html.ec-hud .zone-band.melee { border-color: var(--accent); background: rgba(214,160,71,0.1); }
+html.ec-hud input, html.ec-hud select, html.ec-hud textarea { background: var(--input-bg); color: var(--text); border-color: var(--line); }
+
+/* ===== B · „Nüchtern hell": hell, klar, Rost-Rot als einziger Akzent ===== */
+html.ec-hell body[class] {
+  --bg: #eef0f3; --bg2: #e6e9ee; --panel: #ffffff; --panel2: #f3f5f8; --line: #d3d9e1;
+  --text: #1b222d; --muted: #667181; --accent: #b8401a; --accent2: #9c3413; --on-accent: #ffffff;
+  --good: #2e7d4f; --bad: #c0392b; --warn: #b7791f; --gold: #b7791f;
+  --foe-name: #b3261e; --friend-name: #1e7a4f; --input-bg: #ffffff; --auswahl: #1d6fe0;
+  background: var(--bg) !important; color: var(--text);
+}
+html.ec-hell .sl-kopf { background: #1b222d !important; box-shadow: 0 0 0 100vmax #1b222d !important; }
+html.ec-hell .sl-kopf h1 { color: #ffffff; }
+html.ec-hell .sl-kopf button { background: transparent; color: #dfe4ea; border-color: #3a4556; }
+html.ec-hell details.section > .sec-head {
+  background: #ffffff !important; border-bottom: 2px solid var(--text) !important; box-shadow: none !important;
+}
+html.ec-hell details.section > .sec-head .sec-title { color: var(--text); font-size: 0.74rem; }
+html.ec-hell .aktionsleiste { background: #1b222d !important; border-top: 2px solid var(--accent) !important; color: #eef1f5; }
+html.ec-hell .aktionsleiste .al-name { color: #ffffff; }
+html.ec-hell .aktionsleiste .al-naechster, html.ec-hell .aktionsleiste .al-naechster b { color: #c9d1dc; }
+html.ec-hell .aktionsleiste button:not(.primary) { background: #273142; color: #eef1f5; border-color: #3a4556; }
+html.ec-hell .combatant:nth-child(even) { background: #f6f7f9 !important; }
+html.ec-hell .combatant.active { background: #fff3ea !important; box-shadow: inset 3px 0 0 var(--accent) !important; }
+html.ec-hell .zone-band { background: #f7f8fa; }
+html.ec-hell .zone-band.melee { border-color: var(--accent); background: #fff3ea; }
+html.ec-hell .sl-kopf summary { color: #dfe4ea; background: transparent; border-color: #3a4556; }
+html.ec-hell .aktionsleiste .al-name { background: transparent; }
+
+/* =====================================================================
+   Runde 2: drei eigenständige „Sundered Skies"-Richtungen
+   ===================================================================== */
+html.ec-glow .zb-emoji, html.ec-deck .zb-emoji, html.ec-pulp .zb-emoji { display: none; }
+
+/* ---------- 1 · GLOW: Nachtviolett, türkiser Schimmer, Glas, schwebende Inseln ---------- */
+html.ec-glow body[class] {
+  --bg: #07060f; --bg2: #0e0b1f; --panel: rgba(19, 17, 38, 0.8); --panel2: rgba(34, 30, 66, 0.72);
+  --line: rgba(110, 255, 214, 0.2); --text: #ebe8ff; --muted: #9d97cc; --accent: #5ff2c8; --accent2: #25b894;
+  --on-accent: #03140f; --good: #5ff2c8; --bad: #ff5f7e; --warn: #ffc15e; --gold: #f5cf6a;
+  --foe-name: #ff8ea2; --friend-name: #7ff5c9; --input-bg: rgba(6, 5, 16, 0.7); --auswahl: #7aa8ff;
+  font-family: "Segoe UI", system-ui, sans-serif; color: var(--text);
+  background-color: var(--bg);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 260' preserveAspectRatio='none'%3E%3Cg fill='%2305040b' stroke='%235ff2c8' stroke-opacity='.4' stroke-width='1.5'%3E%3Cpath d='M60 150 L180 120 L300 140 L260 190 L200 230 L130 210 Z'/%3E%3Cpath d='M520 90 L700 70 L820 100 L760 150 L680 190 L590 160 Z'/%3E%3Cpath d='M1040 160 L1180 130 L1320 150 L1270 200 L1180 240 L1100 215 Z'/%3E%3Cpath d='M880 210 L940 200 L990 212 L960 236 L915 244 Z'/%3E%3C/g%3E%3C/svg%3E"),
+    radial-gradient(1200px 500px at 20% -10%, rgba(95, 242, 200, 0.18), transparent 60%),
+    radial-gradient(1000px 520px at 85% 0%, rgba(160, 90, 255, 0.22), transparent 62%),
+    linear-gradient(180deg, #120d2b 0%, #07060f 70%);
+  background-repeat: no-repeat; background-position: bottom center, 0 0, 0 0, 0 0;
+  background-size: 100% 240px, auto, auto, auto; background-attachment: fixed;
+}
+html.ec-glow h1, html.ec-glow h2, html.ec-glow .sec-title {
+  font-family: "Segoe UI Light", "Segoe UI", system-ui, sans-serif !important; font-weight: 300 !important;
+  text-transform: uppercase; letter-spacing: 0.22em; color: var(--accent) !important;
+  text-shadow: 0 0 12px rgba(95, 242, 200, 0.45);
+}
+html.ec-glow .panel {
+  background: var(--panel) !important; border: 1px solid var(--line) !important; border-radius: 10px !important;
+  backdrop-filter: blur(6px); box-shadow: 0 0 24px rgba(95, 242, 200, 0.06), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+html.ec-glow details.section > .sec-head { background: rgba(95, 242, 200, 0.06) !important; border-bottom: 1px solid var(--line) !important; box-shadow: none !important; }
+html.ec-glow .sl-kopf { background: rgba(7, 6, 15, 0.88) !important; box-shadow: 0 0 0 100vmax rgba(7,6,15,0.88) !important; }
+html.ec-glow .sl-kopf::after { background: linear-gradient(90deg, transparent, #5ff2c8, #a05aff, transparent) !important; }
+html.ec-glow button { background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text); border-radius: 8px; }
+html.ec-glow button.primary, html.ec-glow .primary { background: linear-gradient(180deg, #5ff2c8, #25b894); color: var(--on-accent); border-color: #9ff8de; box-shadow: 0 0 16px rgba(95,242,200,0.35) !important; }
+html.ec-glow .tag, html.ec-glow .pill { background: rgba(255,255,255,0.04); border-color: var(--line); border-radius: 4px; }
+html.ec-glow .zone-band { background: rgba(255,255,255,0.025); border-color: rgba(110,255,214,0.14); border-radius: 8px; }
+html.ec-glow .zone-band.melee { border-color: #a05aff; background: rgba(160, 90, 255, 0.12); box-shadow: 0 0 18px rgba(160,90,255,0.2) !important; }
+html.ec-glow .zone-token { background: rgba(10,9,24,0.8); }
+html.ec-glow .zone-token .tdisc { box-shadow: 0 0 10px rgba(95,242,200,0.35) !important; }
+html.ec-glow .combatant { background: transparent !important; border-color: rgba(110,255,214,0.1) !important; }
+html.ec-glow .combatant.active { background: rgba(95, 242, 200, 0.1) !important; box-shadow: inset 3px 0 0 var(--accent), 0 0 20px rgba(95,242,200,0.12) !important; }
+html.ec-glow .aktionsleiste { background: rgba(7, 6, 15, 0.92) !important; border-top: 1px solid var(--accent) !important; }
+html.ec-glow input, html.ec-glow select { background: var(--input-bg); color: var(--text); border-color: var(--line); }
+
+/* ---------- 2 · DECK: Holzplanken, Segeltuch, Messingnieten, Türkis ---------- */
+html.ec-deck body[class] {
+  --bg: #231811; --bg2: #2d2017; --panel: #d9d5c8; --panel2: #cbc6b6; --line: #8e8672;
+  --text: #22201b; --muted: #5d584c; --accent: #137a7a; --accent2: #0f6363; --on-accent: #ffffff;
+  --good: #2f7d4f; --bad: #b3322a; --warn: #b77a18; --gold: #a9771f; --foe-name: #a3261e; --friend-name: #1b6e4c;
+  --input-bg: #efece3; --auswahl: #1d6fe0;
+  font-family: Bahnschrift, "Segoe UI", system-ui, sans-serif; color: var(--text);
+  background-color: #2a1d14;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.38) 0 2px, transparent 2px 58px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 7px),
+    linear-gradient(90deg, #2f2118, #3a291d 30%, #2c1f16 55%, #37271b 80%, #2d2017);
+}
+html.ec-deck h1, html.ec-deck h2, html.ec-deck .sec-title {
+  font-family: Bahnschrift, "Segoe UI", system-ui, sans-serif !important; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
+html.ec-deck .panel {
+  border: 2px solid #6f6653 !important; border-radius: 4px !important;
+  background-color: var(--panel) !important;
+  background-image:
+    radial-gradient(circle at 8px 8px, #c39a45 0 3px, #6d5421 3.5px, transparent 4px),
+    radial-gradient(circle at calc(100% - 8px) 8px, #c39a45 0 3px, #6d5421 3.5px, transparent 4px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.03) 0 1px, transparent 1px 3px) !important;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.35) !important;
+}
+html.ec-deck details.section > .sec-head { background: #2f4a4a !important; border-bottom: 2px solid #1f3232 !important; box-shadow: none !important; }
+html.ec-deck details.section > .sec-head .sec-title { color: #eef3ef !important; font-size: 0.78rem; }
+html.ec-deck .sl-kopf { background: #1a120d !important; box-shadow: 0 0 0 100vmax #1a120d !important; }
+html.ec-deck .sl-kopf h1 { color: #d9b46a !important; }
+html.ec-deck .sl-kopf::after { background: #a9771f !important; height: 3px !important; }
+html.ec-deck button { border-radius: 3px; border: 1px solid #6f6653; background: #e8e4d8; color: var(--text); }
+html.ec-deck button.primary, html.ec-deck .primary { background: var(--accent); border-color: #0b4b4b; color: #fff; }
+html.ec-deck .tag, html.ec-deck .pill { border-radius: 2px; background: rgba(255,255,255,0.45); }
+html.ec-deck .zone-band { border-radius: 3px; background: rgba(255,255,255,0.35); border-color: #8e8672; }
+html.ec-deck .zone-band.melee { border-color: var(--bad); background: rgba(179, 50, 42, 0.12); }
+html.ec-deck .combatant { background: rgba(255,255,255,0.3) !important; border-color: #b3ac98 !important; }
+html.ec-deck .combatant.active { background: rgba(19, 122, 122, 0.16) !important; box-shadow: inset 4px 0 0 var(--accent) !important; }
+html.ec-deck .aktionsleiste { background: #1a120d !important; border-top: 3px solid #a9771f !important; color: #eee6d6; }
+html.ec-deck .aktionsleiste .al-name { color: #e7c77f; }
+html.ec-deck .aktionsleiste .al-naechster, html.ec-deck .aktionsleiste .al-naechster b { color: #cfc6b3; }
+html.ec-deck .aktionsleiste button:not(.primary) { background: #2d2017; color: #eee6d6; border-color: #5a4633; }
+html.ec-deck input, html.ec-deck select { background: var(--input-bg); color: var(--text); border-color: #8e8672; border-radius: 3px; }
+
+/* ---------- 3 · PULP: Abenteuer-Comic, dicke Linien, harte Schatten ---------- */
+html.ec-pulp body[class] {
+  --bg: #8ec5ee; --bg2: #7ab6e2; --panel: #ffffff; --panel2: #fff7dc; --line: #111111;
+  --text: #111111; --muted: #444444; --accent: #e63946; --accent2: #c1121f; --on-accent: #ffffff;
+  --good: #2a9d4b; --bad: #e63946; --warn: #f4a300; --gold: #f4a300; --foe-name: #c1121f; --friend-name: #1f7a3f;
+  --input-bg: #ffffff; --auswahl: #1d4ed8;
+  font-family: Bahnschrift, "Segoe UI", system-ui, sans-serif; color: var(--text);
+  background-color: #8ec5ee;
+  background-image:
+    radial-gradient(rgba(255,255,255,0.4) 1.4px, transparent 1.6px),
+    linear-gradient(180deg, #6fb2e8, #b7dcf6);
+  background-size: 9px 9px, auto;
+}
+html.ec-pulp h1, html.ec-pulp h2, html.ec-pulp .sec-title {
+  font-family: Impact, "Arial Black", Bahnschrift, sans-serif !important; font-weight: 400 !important;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+html.ec-pulp .panel { border: 3px solid #111 !important; border-radius: 0 !important; background: #fff !important; box-shadow: 6px 6px 0 #111 !important; }
+html.ec-pulp details.section > .sec-head { background: #ffd23f !important; border-bottom: 3px solid #111 !important; box-shadow: none !important; }
+html.ec-pulp details.section > .sec-head .sec-title { color: #111 !important; font-size: 1.05rem; }
+html.ec-pulp .sl-kopf { background: #e63946 !important; box-shadow: 0 0 0 100vmax #e63946 !important; }
+html.ec-pulp .sl-kopf h1 { color: #fff !important; font-size: 1.2rem !important; text-shadow: 2px 2px 0 #111; }
+html.ec-pulp .sl-kopf::after { background: #111 !important; height: 3px !important; }
+html.ec-pulp .sl-kopf button, html.ec-pulp .sl-kopf summary { background: #fff; color: #111; border: 2px solid #111; }
+html.ec-pulp button { border: 2px solid #111; border-radius: 0; background: #fff; color: #111; font-weight: 700; box-shadow: 3px 3px 0 #111 !important; }
+html.ec-pulp button.primary, html.ec-pulp .primary { background: #e63946; color: #fff; }
+html.ec-pulp .tag, html.ec-pulp .pill { border: 2px solid #111 !important; border-radius: 0; background: #fff; color: #111; font-weight: 700; }
+html.ec-pulp .zone-band { border: 2px solid #111; border-radius: 0; background: #fff; }
+html.ec-pulp .zone-band.empty { border-style: dashed; background: rgba(255,255,255,0.5); }
+html.ec-pulp .zone-band.melee { background: #ffd23f; }
+html.ec-pulp .zone-token { border: 2px solid #111 !important; border-radius: 0 !important; background: #fff; }
+html.ec-pulp .combatant { border-bottom: 2px solid #111 !important; background: #fff !important; }
+html.ec-pulp .combatant.active { background: #ffd23f !important; box-shadow: inset 6px 0 0 #e63946 !important; }
+html.ec-pulp .aktionsleiste { background: #111 !important; border-top: 4px solid #ffd23f !important; color: #fff; }
+html.ec-pulp .aktionsleiste .al-name { color: #ffd23f; }
+html.ec-pulp .aktionsleiste .al-naechster, html.ec-pulp .aktionsleiste .al-naechster b { color: #ddd; }
+html.ec-pulp .aktionsleiste button { box-shadow: 3px 3px 0 #ffd23f !important; border-color: #fff; }
+html.ec-pulp input, html.ec-pulp select { border: 2px solid #111; border-radius: 0; background: #fff; color: #111; }
+
+/* =====================================================================
+   Runde 3: Mischungen aus dem jetzigen Pergament-Look und „Deck"
+   ===================================================================== */
+html.ec-mix1 .zb-emoji, html.ec-mix2 .zb-emoji { display: none; }
+/* Gemeinsam: Holzplanken, Nieten, Petrol-Köpfe, Messing-Linien, Bahnschrift-Titel */
+html.ec-mix1 body[class], html.ec-mix2 body[class] {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background-color: #2a1d14 !important;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.38) 0 2px, transparent 2px 58px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 7px),
+    linear-gradient(90deg, #2f2118, #3a291d 30%, #2c1f16 55%, #37271b 80%, #2d2017) !important;
+}
+html.ec-mix1 h1, html.ec-mix1 h2, html.ec-mix1 .sec-title,
+html.ec-mix2 h1, html.ec-mix2 h2, html.ec-mix2 .sec-title {
+  font-family: Bahnschrift, "Segoe UI", system-ui, sans-serif !important; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
+html.ec-mix1 .grid2 .panel, html.ec-mix2 .grid2 .panel, html.ec-mix1 #app > .panel, html.ec-mix2 #app > .panel {
+  border: 2px solid #5b4630 !important; border-radius: 4px !important;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.35) !important;
+}
+html.ec-mix1 details.section > .sec-head, html.ec-mix2 details.section > .sec-head {
+  /* Sand & Bronze (die Sundered-Skies-Farben der App) statt Petrol */
+  background: linear-gradient(180deg, #4a3822, #3c2e1e) !important; border-bottom: 2px solid #a9771f !important; box-shadow: none !important;
+}
+html.ec-mix1 details.section > .sec-head .sec-title, html.ec-mix2 details.section > .sec-head .sec-title { color: #eec24a !important; font-size: 0.78rem; }
+html.ec-mix1 details.section > .sec-head .sec-caret, html.ec-mix2 details.section > .sec-head .sec-caret,
+html.ec-mix1 .hilfe-knopf, html.ec-mix2 .hilfe-knopf { color: #d6b98a; }
+html.ec-mix1 .sl-kopf, html.ec-mix2 .sl-kopf { background: #1a120d !important; box-shadow: 0 0 0 100vmax #1a120d !important; }
+html.ec-mix1 .sl-kopf h1, html.ec-mix2 .sl-kopf h1 { color: #d9b46a !important; }
+html.ec-mix1 .sl-kopf::after, html.ec-mix2 .sl-kopf::after { background: #a9771f !important; height: 3px !important; }
+html.ec-mix1 .sl-kopf button, html.ec-mix1 .sl-kopf summary, html.ec-mix2 .sl-kopf button, html.ec-mix2 .sl-kopf summary {
+  background: #2d2017; color: #eee6d6; border-color: #5a4633; }
+html.ec-mix1 .aktionsleiste, html.ec-mix2 .aktionsleiste { background: #1a120d !important; border-top: 3px solid #a9771f !important; color: #eee6d6; }
+html.ec-mix1 .aktionsleiste .al-name, html.ec-mix2 .aktionsleiste .al-name { color: #e7c77f; background: transparent; }
+html.ec-mix1 .aktionsleiste .al-naechster, html.ec-mix1 .aktionsleiste .al-naechster b,
+html.ec-mix2 .aktionsleiste .al-naechster, html.ec-mix2 .aktionsleiste .al-naechster b { color: #cfc6b3; }
+html.ec-mix1 .aktionsleiste button:not(.primary), html.ec-mix2 .aktionsleiste button:not(.primary) { background: #2d2017; color: #eee6d6; border-color: #5a4633; }
+html.ec-mix1 .tag, html.ec-mix1 .pill, html.ec-mix2 .tag, html.ec-mix2 .pill { border-radius: 3px; }
+html.ec-mix1 button, html.ec-mix2 button { border-radius: 4px; }
+
+/* Mischung 1 · „Pergament an Deck": heutige Pergament-Panels + Nieten */
+html.ec-mix1 .grid2 .panel, html.ec-mix1 #app > .panel {
+  background-color: #efe4c8 !important;
+  background-image:
+    radial-gradient(circle at 8px 8px, #c39a45 0 3px, #6d5421 3.5px, transparent 4px),
+    radial-gradient(circle at calc(100% - 8px) 8px, #c39a45 0 3px, #6d5421 3.5px, transparent 4px),
+    radial-gradient(circle at 8px calc(100% - 8px), #c39a45 0 3px, #6d5421 3.5px, transparent 4px),
+    radial-gradient(circle at calc(100% - 8px) calc(100% - 8px), #c39a45 0 3px, #6d5421 3.5px, transparent 4px),
+    linear-gradient(180deg, #f1e7cd, #e7d9b7) !important;
+}
+
+/* Mischung 2 · „Deck mit Pergament-Wärme": Segeltuch, warm getönt, Braun/Gold statt Türkis */
+html.ec-mix2 body[class] {
+  --panel: #e2dccb; --panel2: #d6ceb8; --line: #9a8a68; --text: #2a2217; --muted: #62553f;
+  --accent: #8a5820; --accent2: #6d4416; --on-accent: #f6ecd2; --gold: #a9771f; --input-bg: #f3efe4;
+}
+html.ec-mix2 .grid2 .panel, html.ec-mix2 #app > .panel {
+  background-color: var(--panel) !important;
+  background-image:
+    radial-gradient(circle at 8px 8px, #c39a45 0 3px, #6d5421 3.5px, transparent 4px),
+    radial-gradient(circle at calc(100% - 8px) 8px, #c39a45 0 3px, #6d5421 3.5px, transparent 4px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.03) 0 1px, transparent 1px 3px) !important;
+}
+html.ec-mix2 .combatant.active { background: rgba(169, 119, 31, 0.18) !important; }
