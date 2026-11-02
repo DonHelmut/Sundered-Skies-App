@@ -261,6 +261,39 @@ def test_wer_ist_wer_aus_anrede_und_zug():
     assert erg == {"S00": A.SPIELLEITER, "S01": "Mira (Jo)", "S02": "Tessa (Anna)"}
 
 
+def test_stimm_anmeldung_schlaegt_raten():
+    # Zu Beginn: SL tippt „Korgo", Tim sagt was; dann „Tessa"; dann „Spielleiter".
+    t = """[00:00:01] S03: Hallo, ich bin Tim und spiele heute den Korgo.
+[00:00:12] S02: Ich bin Anna, meine Figur ist die Schützin.
+[00:00:25] S01: So, dann fangen wir an.
+[00:00:30] S01: Ein langer Satz vom Spielleiter, der viel erzählt und alles beschreibt, was passiert.
+[00:00:50] S00: Ich schaue mich um und rede ziemlich viel, viel mehr als alle anderen hier am Tisch zusammen, wirklich sehr viel.
+"""
+    meta = {"personen": PERSONEN, "ereignisse": [
+        {"t": 0, "art": "stimme", "figur": "Korgo"}, {"t": 11000, "art": "stimme", "figur": "Tessa"},
+        {"t": 24000, "art": "stimme", "figur": "Spielleiter"}]}
+    erg = A.sprecher_raten(t, meta)
+    assert erg["S03"] == "Korgo (Tim)" and erg["S02"] == "Tessa (Anna)"
+    assert erg["S01"] == A.SPIELLEITER and "S00" not in erg   # Vielredner ist NICHT der SL
+
+
+def test_stimm_anmeldung_nur_bei_klarer_mehrheit():
+    t = """[00:00:01] S03: Hallo ich bin Tim.
+[00:00:03] S04: Und ich red dazwischen.
+"""
+    meta = {"personen": PERSONEN, "ereignisse": [{"t": 0, "art": "stimme", "figur": "Korgo"}]}
+    assert "Korgo (Tim)" not in A.sprecher_raten(t, meta).values()
+
+
+def test_stimme_nur_waehrend_aufnahme(tmp_path):
+    a = A.Aufnahmen(tmp_path)
+    assert not a.stimme("Korgo")
+    meta = a.starten("audio/webm")
+    assert a.stimme("Korgo") and a.status()["aktiv"]["stimmen"] == ["Korgo"]
+    a.stoppen()
+    assert any(e["art"] == "stimme" for e in a._meta(meta["name"])["ereignisse"])
+
+
 def test_anreden_unter_spielern_zaehlt_nicht():
     t = """[00:00:00] S00: Ein langer Satz vom Spielleiter, der viel erzählt und alles beschreibt, was passiert.
 [00:00:10] S01: Tessa, hilf mir! Tessa, schnell!

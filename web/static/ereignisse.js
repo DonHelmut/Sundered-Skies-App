@@ -43,6 +43,12 @@ document.addEventListener("click", (e) => {
       if (await frage("Porträt dieser Figur entfernen?", "Entfernen", true)) gmAction({ type: "set_image", id, url: null });
     },
     "bench": () => gmAction({ type: "bench", id, on: target.getAttribute("data-on") === "1" }),
+    // Verstärkung: noch einer wie dieser Gegner (Werte, Bild, Zone, verdeckt).
+    "npc-verstaerkung": () => {
+      const c = findCombatant(id);
+      gmAction({ type: "npc_verstaerkung", id });
+      if (c) toast(`➕ Noch ${c.ally ? "ein Verbündeter" : "ein Gegner"} wie ${c.name}`);
+    },
     "remove-combatant": async () => {
       const c = findCombatant(id);
       const msg = c && c.playerId ? `Spieler "${c.name}" endgültig entfernen (Kick)?` : `${c ? c.name : "Teilnehmer"} entfernen?`;

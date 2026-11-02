@@ -1417,6 +1417,7 @@ function kontextMenueHtml() {
       ${hatBogen(c) || hatSpielwerte(c) ? b("bogen-ansicht", c.kind === "npc" ? "📜 Spielwerte" : "📜 Bogen") : ""}
       ${b("edit-combatant", "✎ Bearbeiten")}
       ${c.kind === "npc" && !c.ally ? `<button class="km-btn${c.anon ? " on" : ""}" data-act="set-anon" data-id="${c.id}" data-on="${c.anon ? 0 : 1}">${c.anon ? "🫥 Aufdecken" : "👁 Verdecken"}</button>` : ""}
+      ${c.kind === "npc" ? b("npc-verstaerkung", "➕ Noch einer", "km-bleibt", "Noch eine Figur wie diese in dieselbe Zone (Werte, Bild, verdeckt) – Verstärkung mitten im Kampf") : ""}
       <button class="km-btn" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}">${c.benched ? "▶️ Wieder rein" : "⏸ Pausieren"}</button>
       ${b("remove-combatant", "✕ Entfernen", "bad")}
     </div>`;

@@ -41,3 +41,22 @@ def test_namen_aus_spiel(fresh_game):
     g.combatants = [{"name": "Korgo", "playerName": "Tim", "kind": "player"}, {"name": "Ork 2", "kind": "npc"}]
     g.bestiary = [{"name": "Wolkenhai"}]
     assert {"Korgo", "Tim", "Ork 2", "Wolkenhai"} <= set(namen_aus_spiel(g))
+
+
+def test_fachwoerter_nur_ungewoehnliche():
+    from server.namen import fachwoerter
+    w = fachwoerter("Angriff: Klauenhieb (Stärke+W6). Sonderfähigkeit: Sturmatem, Wolkenschleier. Wunde Vexmoor")
+    assert "Klauenhieb" in w and "Vexmoor" in w and "Sturmatem" in w
+    assert "Angriff" not in w and "Wunde" not in w and "Stärke" not in w
+
+
+def test_fachwoerter_aus_boegen_und_spielwerten(fresh_game):
+    g = fresh_game
+    g.roster = [{"name": "Korgo", "bogen": {"waffen": [{"name": "Donnerbüchse"}], "talente": ["Kampfreflexe"],
+                                             "handicaps": [], "ausruestung": ["Seil", "Glutkristall"]}}]
+    g.bestiary = [{"name": "Skree", "spielwerte": "Fähigkeiten: Flugkrallen, Kreischen"}]
+    g.encounters = [{"name": "Skreeüberfall"}]
+    n = namen_aus_spiel(g)
+    assert {"Donnerbüchse", "Glutkristall", "Flugkrallen", "Skreeüberfall", "Korgo", "Skree"} <= set(n)
+    assert "Seil" not in n
+    assert len(n) == len({x.lower() for x in n})     # keine Doppelten

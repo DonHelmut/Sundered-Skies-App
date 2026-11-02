@@ -2560,3 +2560,34 @@ button.aufn-sprecher.benannt { opacity: .9; font-weight: 600; }
 .aufn-wer-kopf select { width: auto; margin-left: auto; max-width: 200px; }
 .aufn-wer-frei { width: 100%; box-sizing: border-box; }
 .aufn-wer-bsp { line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* --- 📖 Regeln & Kurzansicht „Mein Zug" (regeln.js) -------------------------- */
+/* Regeltext etwas kleiner als ein Protokoll-Kapitel: Nachschlagen, nicht lesen. */
+.regel-text { font-family: inherit; font-size: 0.92rem; line-height: 1.5; }
+.regel-text li { margin: 0.3em 0; }
+.sm-regeln { width: 100%; margin-bottom: 8px; }
+/* Kurzansicht: kleine Karte links, die drei Werte groß daneben. */
+.zug-kurz { padding: 12px; }
+.zk-oben { display: flex; gap: 12px; align-items: stretch; }
+.zk-karte { width: 84px; flex: none; }
+.zk-karte .card-holder { width: 100%; }
+.zk-werte { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.zk-kachel { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--input-bg); padding: 6px 2px; min-width: 0; }
+.zk-kachel span { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.zk-kachel b { font-size: 1.6rem; line-height: 1.1; font-family: Georgia, "Times New Roman", serif; }
+.zk-kachel i { font-style: normal; font-size: 0.7rem; color: var(--muted); }
+.zk-abzug { margin-top: 8px; padding: 6px 10px; border-radius: 10px; font-weight: 700; text-align: center;
+  color: var(--bad); border: 1px solid var(--bad); background: rgba(192, 90, 58, 0.08); }
+.zk-waffen { margin-top: 10px; }
+.zk-wname { font-weight: 700; }
+.zk-waffe .wuerfel-tipp { border-bottom: 0; padding-bottom: 4px; }
+.zk-waffe + .zk-waffe { border-top: 1px dotted var(--line); padding-top: 4px; }
+.zk-ferts { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
+.zk-fert b { color: var(--text); }
+.zk-leer { margin-top: 8px; }
+.zk-knoepfe { justify-content: space-between; margin-top: 10px; gap: 8px; }
+/* Stimm-Anmeldung im Aufnahme-Panel */
+.aufn-stimmen { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+.aufn-stimmen summary { cursor: pointer; font-weight: 700; }
+.aufn-stimmen button.on { border-color: var(--good); color: var(--good); }

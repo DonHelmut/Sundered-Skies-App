@@ -77,6 +77,41 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (02.11.2026): Tempo, SL, Spieler, Mitschrift
+
+Kalle wählte aus einer Ideenrunde 1, 2, 5, 6, 7, 9, 10 (nicht gewählt:
+Sprachsteuerung lokal, mehrere Gegner auf einmal treffen, echten Abend messen).
+- **Stückweise neu zeichnen** (`render.js`, `domAbgleichen`): statt
+  `root.innerHTML = html` wird der neue Stand mit dem DOM abgeglichen –
+  unveränderte Knoten bleiben stehen (Karten-SVGs, laufende Animationen,
+  Bilder). Zeilen mit `id`/`data-cid`/`data-rkey` werden über die Kennung
+  zugeordnet. Formularfeld mit Fokus wird nicht angefasst. Gemessen
+  (Playwright, CPU ×4, 10 Updates): Handy 1,3–1,5 s statt 1,9–2,1 s
+  Rechenzeit, SL 0,5–0,9 s statt 1,4 s; Layout 4–20× weniger.
+- **„Genau" schneller** (`sprache.py`, `erkennen_parallel`): Parakeet und
+  Canary laufen gleichzeitig (je halbe Threads) statt nacheinander. Gemessen
+  auf 4 Kernen, 3,5 min Tischprobe: Text-Teil 64 → 57 s, Erkenner allein
+  74 → 54 s, Ergebnis Wort für Wort gleich. Sprechertrennung parallel dazu
+  brachte nichts (verworfen).
+- **➕ Noch einer** (Rechtsklick auf Gegner/Verbündeten, `npc_verstaerkung`):
+  Verstärkung mit Werten, Bild, Zone, „verdeckt". Bibliothek mit Anzahl gab
+  es schon.
+- **📖 Regeln** am Handy (`regeln.js`): Zug, Würfeln, Angriff, Zielen/Deckung,
+  Tricks & Tests, Angeschlagen, Bennies, Joker – zum Aufklappen. Im ⚙ und in
+  der Zug-Ansicht.
+- **Kurzansicht „Mein Zug"**: ist man dran (Karte offen), stehen statt der
+  großen Karte Parade/Robustheit/Tempo, Abzug durch Wunden, Waffen mit
+  Würfel-Tipp, Fertigkeiten; darunter nur die Zonen. „Alles zeigen" für
+  diesen Zug, abschaltbar im ⚙ (`localStorage zugKurz`).
+- **Stimm-Anmeldung** (Aufnahme-Panel, `/api/aufnahme/stimme`): SL tippt
+  Name, Person sagt ein, zwei Sätze. `stimmen_zuordnen` gibt dem Sprecher mit
+  ≥ ⅔ der Rede im Fenster (bis nächster Tipp, max. 20 s) sicher diesen Namen,
+  vor allem Raten; „Spielleiter" schlägt auch die Vielredner-Regel.
+- **Fachwörter** für die Namenskorrektur (`namen.fachwoerter_aus_spiel`):
+  Waffen, Talente, Handicaps, Ausrüstung aus Bögen, Spielwerte der Gegner,
+  Namen vorbereiteter Kämpfe – nur großgeschriebene Wörter, die NICHT im
+  Wörterbuch stehen.
+
 ## 1.5.32 (31.10.2026): Nacherzählung im Charakter
 
 Kalle: „ingame ist jeder im Charakter: nicht ‚Korgo macht jetzt …', sondern

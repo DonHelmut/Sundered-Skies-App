@@ -6,6 +6,91 @@
 
 // --- Rendering --------------------------------------------------------------
 
+// Neuen Stand STÜCKWEISE einspielen statt root.innerHTML = html. Vorher wurde
+// bei jeder Änderung (irgendwer bekommt eine Wunde) der GANZE Bildschirm
+// weggeworfen und neu gebaut: alle Karten-SVGs neu, Joker-/Glimm-Animationen
+// starteten von vorn, Bilder wurden neu eingesetzt, und am Handy stand die
+// Seite dafür kurz still. Jetzt bleiben unveränderte Knoten stehen; nur
+// geänderte Attribute/Texte werden angefasst, Neues eingesetzt, Weggefallenes
+// entfernt. Ergebnis wie innerHTML (gleiche Attribute, gleicher Text).
+// Zeilen mit Kennung (id, data-cid, data-rkey) werden über die Kennung
+// zugeordnet: rutscht eine Figur in der Reihenfolge, wandert IHR Knoten mit,
+// statt dass alle Zeilen darunter umgeschrieben werden.
+function domAbgleichen(root, html) {
+  const t = document.createElement("template");
+  t.innerHTML = html;
+  kinderAbgleichen(root, t.content);
+}
+function domKennung(n) {
+  if (n.nodeType !== 1) return null;
+  const k = n.getAttribute("id") || n.getAttribute("data-cid") || n.getAttribute("data-rkey");
+  return k ? n.nodeName + "#" + k : null;
+}
+function kinderAbgleichen(alt, neu) {
+  // Vorhandene Knoten mit Kennung merken - die dürfen umziehen.
+  const mitKennung = new Map();
+  for (let c = alt.firstChild; c; c = c.nextSibling) {
+    const k = domKennung(c);
+    if (k && !mitKennung.has(k)) mitKennung.set(k, c);
+  }
+  let pos = alt.firstChild;
+  let n = neu.firstChild;
+  while (n) {
+    const naechster = n.nextSibling;
+    const k = domKennung(n);
+    let passend = null;
+    if (k) {
+      passend = mitKennung.get(k) || null;
+      if (passend) mitKennung.delete(k);
+    } else if (pos && pos.nodeType === n.nodeType && pos.nodeName === n.nodeName && !domKennung(pos)) {
+      passend = pos;
+    }
+    if (passend) {
+      if (passend !== pos) alt.insertBefore(passend, pos);
+      knotenAbgleichen(passend, n);
+      pos = passend.nextSibling;
+    } else {
+      alt.insertBefore(n, pos);       // neuer Knoten: aus dem Template übernehmen
+    }
+    n = naechster;
+  }
+  // Rest (gibt es im neuen Stand nicht mehr) entfernen.
+  while (pos) { const weg = pos; pos = pos.nextSibling; weg.remove(); }
+}
+function knotenAbgleichen(alt, neu) {
+  if (alt.nodeType !== 1) {
+    if (alt.nodeValue !== neu.nodeValue) alt.nodeValue = neu.nodeValue;
+    return;
+  }
+  // Attribute angleichen (auch Klassen, die JS nachträglich gesetzt hat:
+  // innerHTML hätte sie genauso verworfen).
+  for (let i = alt.attributes.length - 1; i >= 0; i--) {
+    const a = alt.attributes[i];
+    if (!neu.hasAttributeNS(a.namespaceURI, a.localName)) alt.removeAttributeNS(a.namespaceURI, a.localName);
+  }
+  for (const a of neu.attributes) {
+    if (alt.getAttributeNS(a.namespaceURI, a.localName) !== a.value) alt.setAttributeNS(a.namespaceURI, a.name, a.value);
+  }
+  // Template-Elemente tragen ihren Inhalt in .content, nicht als Kinder.
+  if (alt.nodeName === "TEMPLATE") { alt.innerHTML = neu.innerHTML; return; }
+  kinderAbgleichen(alt, neu);
+  // Formularfelder: innerHTML hätte den Wert neu gesetzt. Bei bestehenden
+  // Feldern hängt .value aber nicht mehr am Attribut -> selbst setzen.
+  // Ein Feld mit Fokus NICHT anfassen (sonst springt der Cursor beim Tippen).
+  if (alt === document.activeElement) return;
+  const tag = alt.nodeName;
+  if (tag === "INPUT") {
+    if (alt.type === "checkbox" || alt.type === "radio") { if (alt.checked !== neu.checked) alt.checked = neu.checked; }
+    else if (alt.type !== "file" && alt.value !== neu.value) alt.value = neu.value;
+  } else if (tag === "TEXTAREA") {
+    if (alt.value !== neu.value) alt.value = neu.value;
+  } else if (tag === "SELECT") {
+    if (alt.selectedIndex !== neu.selectedIndex) alt.selectedIndex = neu.selectedIndex;
+  } else if (tag === "DETAILS") {
+    if (alt.open !== neu.open) alt.open = neu.open;
+  }
+}
+
 function render() {
   if (!App.state || !App.role) return;
   const root = $("app");
@@ -43,7 +128,7 @@ function render() {
   }
   Cards.renderStart();
   let html;
-  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay() + bogenAnsichtHtml() + protokollFensterHtml(); }
+  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay() + bogenAnsichtHtml() + protokollFensterHtml() + regelnFensterHtml(); }
   finally { Cards.renderEnde(); }
   // Unveraendert? Dann den Bildschirm NICHT neu aufbauen. Jeder Neuaufbau ersetzt
   // alle Karten: laufende Animationen (Joker, Glanz, Glimmen) starten von vorn,
@@ -56,7 +141,7 @@ function render() {
     // Liste bei jedem Server-Update nach oben.
     const scrollMerk = {};
     root.querySelectorAll("[data-scroll-merk]").forEach((e) => { scrollMerk[e.dataset.scrollMerk] = e.scrollTop; });
-    root.innerHTML = html;
+    domAbgleichen(root, html);
     root.querySelectorAll("[data-scroll-merk]").forEach((e) => {
       if (scrollMerk[e.dataset.scrollMerk]) e.scrollTop = scrollMerk[e.dataset.scrollMerk];
     });

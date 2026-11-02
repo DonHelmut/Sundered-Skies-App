@@ -199,6 +199,18 @@ class Aufnahmen:
         self._meta_schreiben(self.aktiv)
         return True
 
+    def stimme(self, figur: str) -> bool:
+        """Stimm-Anmeldung: der SL tippt eine Figur (oder „Spielleiter"), und
+        die Person sagt ein, zwei Sätze. Nach dem genauen Durchgang bekommt
+        der Sprecher, der in diesem Fenster redet, sicher diesen Namen -
+        statt ihn über Umwege zu raten (sprecher_raten)."""
+        figur = " ".join(str(figur or "").split())[:60]
+        if not self.aktiv or not figur:
+            return False
+        self._ereignis({"art": "stimme", "figur": figur})
+        self._meta_schreiben(self.aktiv)
+        return True
+
     def _ereignis(self, e: dict, zeit_ms: Optional[int] = None) -> None:
         t = (zeit_ms if zeit_ms is not None else now_ms()) - self.aktiv["start"]
         self.aktiv["ereignisse"].append({"t": max(0, t), **e})
@@ -296,6 +308,7 @@ class Aufnahmen:
                 "name": a["name"], "start": a["start"],
                 "letztesStueck": self._letztes_stueck,
                 "marken": sum(1 for e in a["ereignisse"] if e.get("art") == "marke"),
+                "stimmen": [e.get("figur") for e in a["ereignisse"] if e.get("art") == "stimme"],
             },
             "liste": self.liste(),
             "ordner": str(self.ordner),
@@ -509,7 +522,7 @@ def sprecher_raten(transkript: str, meta: dict) -> dict:
     sl = max(zeichen, key=zeichen.get)
     erg = {sl: SPIELLEITER}
     figuren = {f: (sp or "") for f, sp in (meta.get("personen") or {}).items() if f}
-    if not figuren:
+    if not figuren and not any(e.get("art") == "stimme" for e in meta.get("ereignisse", [])):
         return erg
     # Wörter, an denen man eine Figur erkennt: ihr Name (auch Teile:
     # „Korgo der Starke" -> korgo) und der Name des Spielers.
@@ -552,8 +565,27 @@ def sprecher_raten(transkript: str, meta: dict) -> dict:
             if ab <= t0 < bis:
                 plus(sp, f, min(1.0, len(text) / 60))
     vergeben, figur_weg = set(), set()
+    # Stimm-Anmeldung schlägt alles Raten: wer im Fenster nach dem Tipp am
+    # meisten redet, IST diese Person. Fenster bis zum nächsten Tipp,
+    # höchstens STIMM_FENSTER_S Sekunden.
+    for sp, f in stimmen_zuordnen(zeilen, meta).items():
+        if sp in vergeben or f in figur_weg:
+            continue
+        if f == SPIELLEITER:
+            if erg.get(sp) != SPIELLEITER:
+                # Der Vielredner war doch nicht der SL - umbenennen.
+                for k in [k for k, v in erg.items() if v == SPIELLEITER]:
+                    del erg[k]
+                erg[sp] = SPIELLEITER
+            sl = sp
+        elif f in figuren:
+            erg[sp] = f"{f} ({figuren[f]})" if figuren[f] else f
+        else:
+            erg[sp] = f
+        vergeben.add(sp)
+        figur_weg.add(f)
     for (sp, f), p in sorted(punkte.items(), key=lambda x: -x[1]):
-        if sp in vergeben or f in figur_weg or p < 2.0:
+        if sp in vergeben or sp == sl or f in figur_weg or p < 2.0:
             continue
         # Klarer Vorsprung vor der zweitbesten Figur dieses Sprechers.
         andere = max((q for (s2, f2), q in punkte.items() if s2 == sp and f2 != f and f2 not in figur_weg),
@@ -563,6 +595,32 @@ def sprecher_raten(transkript: str, meta: dict) -> dict:
         erg[sp] = f"{f} ({figuren[f]})" if figuren[f] else f
         vergeben.add(sp)
         figur_weg.add(f)
+    return erg
+
+
+STIMM_FENSTER_S = 20
+
+
+def stimmen_zuordnen(zeilen: list[tuple], meta: dict) -> dict:
+    """Stimm-Anmeldung auswerten: {Sprecher: Figur}. zeilen wie in
+    sprecher_raten [(sekunde, sprecher, text)]. Ein Sprecher braucht im
+    Fenster klar die meiste Rede (zwei Drittel), sonst bleibt es offen -
+    redet jemand dazwischen, lieber nicht zuordnen als falsch."""
+    marken = [(e["t"] / 1000, e.get("figur")) for e in meta.get("ereignisse", [])
+              if e.get("art") == "stimme" and e.get("figur")]
+    erg: dict[str, str] = {}
+    for k, (ab, f) in enumerate(marken):
+        bis = min(ab + STIMM_FENSTER_S, marken[k + 1][0] if k + 1 < len(marken) else ab + STIMM_FENSTER_S)
+        rede: dict[str, int] = {}
+        # Etwas Spielraum nach vorn: der Tipp kommt oft, wenn sie schon spricht.
+        for t0, sp, text in zeilen:
+            if ab - 2 <= t0 < bis:
+                rede[sp] = rede.get(sp, 0) + len(text)
+        if not rede:
+            continue
+        sp = max(rede, key=rede.get)
+        if rede[sp] * 3 >= sum(rede.values()) * 2 and sp not in erg:
+            erg[sp] = f
     return erg
 
 
