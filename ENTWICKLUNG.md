@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (02.11.2026): Tempo, SL, Spieler, Mitschrift
+## 1.5.33 (02.11.2026): Tempo, SL, Spieler, Mitschrift
 
 Kalle wählte aus einer Ideenrunde 1, 2, 5, 6, 7, 9, 10 (nicht gewählt:
 Sprachsteuerung lokal, mehrere Gegner auf einmal treffen, echten Abend messen).
