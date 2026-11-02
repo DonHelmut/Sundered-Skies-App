@@ -257,7 +257,8 @@ class Namenskorrektur:
 
 
 def namen_aus_spiel(game) -> list[str]:
-    """Alle Namen, die die App gerade kennt: Kampf, Spieler, Vorlagen."""
+    """Alle Namen, die die App gerade kennt: Kampf, Spieler, Vorlagen - dazu
+    Fachwörter aus Bögen, Spielwerten und vorbereiteten Kämpfen."""
     namen: list[str] = []
     for liste in ("combatants", "roster", "bestiary", "allies"):
         for c in getattr(game, liste, None) or []:
@@ -266,4 +267,61 @@ def namen_aus_spiel(game) -> list[str]:
     for p in getattr(game, "players", None) or []:
         if isinstance(p, dict):
             namen.append(p.get("name"))
-    return [n for n in namen if isinstance(n, str) and n.strip()]
+    namen += fachwoerter_aus_spiel(game)
+    # Doppelte raus (Reihenfolge bleibt): jeder Name kostet beim Vergleich Zeit.
+    gesehen: set[str] = set()
+    erg = []
+    for n in namen:
+        if isinstance(n, str) and n.strip() and n.strip().lower() not in gesehen:
+            gesehen.add(n.strip().lower())
+            erg.append(n.strip())
+    return erg
+
+
+_GROSS = re.compile(r"\b[A-ZÄÖÜ][a-zäöüß]{3,}(?:-[A-ZÄÖÜ]?[a-zäöüß]+)*\b")
+
+
+def fachwoerter(text: str) -> list[str]:
+    """Aus Freitext (Spielwerte eines Gegners, Talente …) die Wörter, die der
+    Erkenner wohl nicht kennt: großgeschrieben, mindestens vier Buchstaben und
+    KEIN gewöhnliches deutsches Wort. „Klauenhieb", „Sturmvogel", „Vexmoor"
+    bleiben, „Angriff", „Stärke", „Wunde" fliegen raus - die erkennt der
+    Erkenner ohnehin, und als „Name" würden sie nur Fehlkorrekturen locken."""
+    woerter = deutsche_woerter()
+    erg = []
+    for w in _GROSS.findall(text or ""):
+        k = w.lower()
+        if k in _NIE or k in _TITEL or k in woerter:
+            continue
+        erg.append(w)
+    return erg
+
+
+def fachwoerter_aus_spiel(game) -> list[str]:
+    """Fachwörter, die der SL und die Spieler ohnehin schon in die App getippt
+    haben: Waffen, Talente, Handicaps, Ausrüstung aus den Charakterbögen,
+    Spielwerte der Gegner und Verbündeten, Namen vorbereiteter Kämpfe. Am Tisch
+    fallen genau diese Wörter („Ich nehme die Donnerbüchse"), und der Erkenner
+    hat sie nie gehört."""
+    texte: list[str] = []
+    for liste in ("combatants", "roster"):
+        for c in getattr(game, liste, None) or []:
+            b = c.get("bogen") if isinstance(c, dict) else None
+            if not isinstance(b, dict):
+                continue
+            for w in b.get("waffen") or []:
+                if isinstance(w, dict):
+                    texte.append(str(w.get("name") or ""))
+            for feld in ("talente", "handicaps", "ausruestung"):
+                texte += [str(x) for x in (b.get(feld) or []) if isinstance(x, str)]
+    for liste in ("combatants", "bestiary", "allies"):
+        for c in getattr(game, liste, None) or []:
+            if isinstance(c, dict) and isinstance(c.get("spielwerte"), str):
+                texte.append(c["spielwerte"])
+    for e in getattr(game, "encounters", None) or []:
+        if isinstance(e, dict):
+            texte.append(str(e.get("name") or ""))
+    erg: list[str] = []
+    for t in texte:
+        erg += fachwoerter(t)
+    return erg

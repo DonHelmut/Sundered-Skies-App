@@ -128,7 +128,11 @@ function renderPlayer() {
     ? `<div class="muted small">Spieler: ${esc(mine.playerName)}</div>` : "";
 
   // Pausiert („Aus dem Kampf") – keine Karte, klarer Hinweis statt Kartenbereich.
-  const cardPanel = mine.benched
+  // Dran und Karte offen: Kurzansicht „Mein Zug" (regeln.js) statt großer Karte.
+  const kurz = kurzAnsichtJetzt(s, mine, isMyTurn);
+  const cardPanel = kurz
+    ? zugPanelHtml(mine, { hints, timer, angeschlagenHinweis, anfragen: playerQuickControls(mine) })
+    : mine.benched
     ? `<div class="panel benched-note" style="padding:16px; text-align:center">
          <div style="font-size:1.6rem">⏸</div>
          <div style="font-weight:600; margin-top:4px">Du bist gerade nicht im Kampf.</div>
@@ -199,7 +203,7 @@ function renderPlayer() {
       </div>
     </div>
     ${cardPanel}
-    ${handyBereiche().map((k) => ({
+    ${(kurz ? ["zones"] : handyBereiche()).map((k) => ({
       order: orderPanel,
       zones: mine.benched ? "" : renderZonesPanel(),
       bogen: renderBogen(mine),
@@ -237,11 +241,16 @@ function spielerMenueHtml(mine) {
   const zeilen = liste.map((k, i) => `<div class="hb-zeile"><span>${HANDY_BEREICHE[k]}</span>
       <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="-1"${i === 0 ? " disabled" : ""} title="Nach oben">▲</button>
       <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="1"${i === liste.length - 1 ? " disabled" : ""} title="Nach unten">▼</button></div>`).join("");
-  return `<div class="sm-titel">Mein Handy</div>
+  return `<button type="button" class="ghost sm-regeln" data-act="regeln-oeffnen">📖 Regeln nachschlagen</button>
+    <div class="sm-titel">Mein Handy</div>
     <label class="row tight sm-ton">
       <input type="checkbox" data-act="toggle-notify" ${localStorage.getItem("notifyTurn") !== "off" ? "checked" : ""} style="width:auto">
       <span class="small">🔔 ${kannVibrieren ? "Vibration/Ton" : "Ton"}, wenn ich dran bin</span>
       <button type="button" class="ghost small" data-act="ton-testen" title="Lautstärke prüfen – am iPhone muss der Lautlos-Schalter aus sein">▶ Test</button>
+    </label>
+    <label class="row tight sm-ton">
+      <input type="checkbox" data-act="toggle-zug-kurz" ${kurzAnsichtAn() ? "checked" : ""} style="width:auto">
+      <span class="small">🎯 Kurzansicht, wenn ich dran bin (nur meine Werte und Knöpfe)</span>
     </label>
     ${rueckseiteWahlHtml(mine)}
     <div class="sm-titel">Reihenfolge der Bereiche</div>

@@ -98,6 +98,7 @@ function renderAufnahmePanel() {
       <div class="aufn-live" title="Live-Mitschrift – grob, fürs Protokoll gibt es danach „Genau transkribieren“">${aufnLiveHtml()}</div>
       ${sp.live && sp.live.hinweis ? `<div class="muted small">${esc(sp.live.hinweis)}</div>` : ""}
       <div class="muted small aufn-stille" style="display:none; margin-top:4px">Seit über einer Minute kein Ton – falls das nicht stimmt: Mikro prüfen.</div>
+      ${aufnStimmenHtml(st)}
       <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
         <button class="ghost" data-act="aufn-marke">📌 Moment merken</button>
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
@@ -357,6 +358,50 @@ setInterval(() => {
   document.querySelectorAll(".aufn-groesse").forEach((x) => { x.textContent = `${aufnGroesse(Aufn.bytes)} gespeichert`; });
 }, 1000);
 
+// --- Stimm-Anmeldung ---------------------------------------------------------------
+// Zu Beginn der Aufnahme sagt jeder ein, zwei Sätze, der SL tippt vorher den
+// Namen. Danach weiß der genaue Durchgang SICHER, welche Stimme wer ist -
+// statt es aus „Korgo, was machst du?" und Kampfzügen zu raten. Wer fehlt,
+// wird wie bisher geraten; zuklappbar, sobald alle durch sind.
+function aufnStimmenHtml(st) {
+  const figuren = ((App.state && App.state.combatants) || [])
+    .filter((c) => c.kind === "player" && !c.benched).map((c) => c.name);
+  const namen = ["Spielleiter", ...new Set(figuren)];
+  const schon = new Set(((st.aktiv || {}).stimmen) || []);
+  const alleDurch = namen.every((n) => schon.has(n));
+  const knoepfe = namen.map((n) => {
+    const c = ((App.state && App.state.combatants) || []).find((x) => x.name === n);
+    const wer = c && c.playerName && c.playerName !== n ? ` <span class="muted small">(${esc(c.playerName)})</span>` : "";
+    return `<button type="button" class="${schon.has(n) ? "ghost on" : "ghost"} small" data-act="aufn-stimme" data-figur="${esc(n)}">${schon.has(n) ? "✓ " : "🎙 "}${esc(n)}${wer}</button>`;
+  }).join("");
+  // Bei jeder neuen Aufnahme einmal aufgeklappt, danach merkt sich die Klappe
+  // den Zustand wie alle anderen (data-merk).
+  if (App._stimmenAufnahme !== Aufn.start) {
+    App._stimmenAufnahme = Aufn.start;
+    if (!alleDurch) App.offeneUnter.add("aufn-stimmen");
+  }
+  return `<details class="aufn-stimmen" data-merk="aufn-stimmen"${App.offeneUnter.has("aufn-stimmen") ? " open" : ""}>
+    <summary>🎙 Stimmen anmelden${schon.size ? ` <span class="muted small">· ${schon.size} von ${namen.length}</span>` : ""}</summary>
+    <div class="muted small" style="margin:4px 0 6px">Name tippen, dann sagt die Person ein, zwei Sätze („Ich bin Tim und spiele Korgo …“).
+      So weiß die Mitschrift danach sicher, wer wer ist.</div>
+    <div class="row" style="gap:6px; flex-wrap:wrap">${knoepfe}</div>
+  </details>`;
+}
+
+async function aufnStimme(figur) {
+  if (!Aufn.rec || !figur) return;
+  try {
+    const r = await fetch("/api/aufnahme/stimme", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ figur }) });
+    const j = await r.json();
+    if (j && j.ok) {
+      Aufn.status = { ...(Aufn.status || {}), aktiv: j.aktiv, liste: j.liste || (Aufn.status || {}).liste };
+      toast(`🎙 ${figur}: jetzt ein, zwei Sätze sprechen`);
+      App._letztesHtml = null; render();
+    }
+  } catch { /* Laptop-Server weg - nichts zu tun */ }
+}
+
 async function aufnMarke() {
   if (!Aufn.rec) return;
   // Sofort merken, ohne Nachfrage: am Tisch zählt der Moment, nicht der Text.
@@ -561,6 +606,7 @@ document.addEventListener("click", async (e) => {
     e.preventDefault();
     if (await frage("Aufnahme beenden?", "Beenden")) aufnahmeBeenden();
   } else if (act === "aufn-marke") { e.preventDefault(); aufnMarke(); }
+  else if (act === "aufn-stimme") { e.preventDefault(); aufnStimme(t.dataset.figur); }
   else if (act === "aufn-prompt") { e.preventDefault(); aufnPromptAus(t.dataset.name, t.dataset.quelle); }
   else if (act === "aufn-modelle") { e.preventDefault(); aufnSprache("/api/sprache/modelle"); }
   else if (act === "aufn-begriffe") { e.preventDefault(); aufnBegriffe(); }

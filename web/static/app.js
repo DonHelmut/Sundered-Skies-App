@@ -4,7 +4,7 @@
 // Bis 1.5.6 war alles in dieser einen Datei (5 300 Zeilen). Jetzt aufgeteilt,
 // damit man schneller findet und zwei PCs seltener in derselben Datei kollidieren:
 //   app.js → verbindung.js → dialoge.js → tisch.js → render.js → sl.js →
-//   bogen.js → spieler.js → ereignisse.js → aktionen.js → protokoll.js → start.js
+//   bogen.js → spieler.js → ereignisse.js → aktionen.js → protokoll.js → regeln.js → start.js
 // Klassische <script>-Dateien mit gemeinsamem globalem Bereich (kein Build).
 // Reihenfolge in index.html zählt: Code, der beim LADEN läuft, darf nur auf
 // Dinge aus früheren Dateien zugreifen; Aufrufe in Funktionen/Handlern sind egal.

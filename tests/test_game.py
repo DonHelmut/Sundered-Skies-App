@@ -357,6 +357,28 @@ def test_bestiary_and_ally_add_with_zone(fresh_game):
     assert ally["ally"] is True and ally["zone"] == 0
 
 
+def test_npc_verstaerkung_kopiert_werte_und_zaehlt_weiter(fresh_game):
+    fresh_game.apply({"type": "add_npc", "name": "Wolkenhai", "zone": 4, "anon": True,
+                      "parade": "6", "robustheit": "8", "image": "/uploads/hai.png"})
+    hai = fresh_game.combatants[-1]
+    fresh_game.apply({"type": "set_status", "id": hai["id"], "shaken": True})
+    fresh_game.apply({"type": "npc_verstaerkung", "id": hai["id"], "count": 2})
+    haie = [c for c in fresh_game.combatants if c["name"].startswith("Wolkenhai")]
+    assert [c["name"] for c in haie] == ["Wolkenhai 1", "Wolkenhai 2", "Wolkenhai 3"]
+    neu = haie[-1]
+    assert neu["zone"] == 4 and neu["anon"] is True and neu["image"] == "/uploads/hai.png"
+    assert neu["parade"] == hai["parade"] and neu["robustheit"] == hai["robustheit"]
+    assert not neu["status"]["shaken"]          # Zustand bleibt beim Original
+
+
+def test_npc_verstaerkung_nicht_fuer_spieler(fresh_game):
+    fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    fresh_game.apply({"type": "add_from_roster", "id": fresh_game.roster[-1]["id"]})
+    held = fresh_game.combatants[-1]
+    fresh_game.apply({"type": "npc_verstaerkung", "id": held["id"]})
+    assert len(fresh_game.combatants) == 1
+
+
 def test_clear_defeated_removes_only_enemies(fresh_game):
     enemy = _add_npc(fresh_game, "Feind")
     fresh_game.apply({"type": "ally_upsert", "name": "Freund"})

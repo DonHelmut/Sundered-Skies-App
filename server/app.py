@@ -470,6 +470,19 @@ async def aufnahme_marke(request: Request):
     return JSONResponse({"ok": aufnahmen.marke(str((body or {}).get("text") or ""))})
 
 
+@app.post("/api/aufnahme/stimme")
+async def aufnahme_stimme(request: Request):
+    """Stimm-Anmeldung: „jetzt spricht Korgo" (siehe Aufnahmen.stimme)."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    ok = aufnahmen.stimme(str((body or {}).get("figur") or ""))
+    return JSONResponse({"ok": ok, **aufnahmen.status()})
+
+
 @app.get("/api/aufnahme/live")
 async def aufnahme_live_lesen(request: Request, ab: int = 0):
     if not _is_loopback(request):

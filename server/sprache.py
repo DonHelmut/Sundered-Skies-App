@@ -789,6 +789,79 @@ def beitraege(abschnitte: list[Abschnitt], luecke: float = LUECKE_ZUSAMMEN_S) ->
     return erg
 
 
+def erkennen_parallel(ton, stuecke: list[tuple[float, float]], modelle: Path, threads: int,
+                      stopp: threading.Event):
+    """Beide Erkenner GLEICHZEITIG statt nacheinander: Parakeet läuft vorn,
+    Canary arbeitet die Stücke ab, in denen Parakeet Sprache gehört hat.
+    Gemessen (4 Kerne, 3,5 min Tischprobe): nacheinander mit je 3 Threads
+    74 s, gleichzeitig mit je 2 Threads 54 s - die Modelle nutzen mehr als
+    zwei Threads kaum, zwei Erkenner nebeneinander lasten die Kerne besser
+    aus. (Sprechertrennung parallel dazu brachte nichts: 65 statt 57 s.)
+    Liefert (s, e, tokens, zeiten, canary_text) in Stück-Reihenfolge."""
+    import queue
+    je = max(1, (threads + 1) // 2)
+    asr = _erkenner(modelle, je)
+    zweit = _canary(modelle, je) if canary_da(modelle) else None
+    zu_canary: "queue.Queue" = queue.Queue()
+    fertig: "queue.Queue" = queue.Queue()
+    fehler: list[BaseException] = []
+
+    def parakeet() -> None:
+        try:
+            for i, (s, e) in enumerate(stuecke):
+                if stopp.is_set():
+                    break
+                _, tokens, zeiten = _erkennen(asr, ton[int(s * SR):int(e * SR)])
+                (zu_canary if zweit is not None and tokens else fertig).put((i, s, e, tokens, zeiten))
+        except BaseException as x:  # noqa: BLE001 - im Hauptfaden neu werfen
+            fehler.append(x)
+        finally:
+            zu_canary.put(None)
+
+    def canary() -> None:
+        try:
+            while True:
+                job = zu_canary.get()
+                if job is None:
+                    break
+                i, s, e, tokens, zeiten = job
+                text = "" if stopp.is_set() else satzzeichen(_erkennen(zweit, ton[int(s * SR):int(e * SR)])[0])
+                fertig.put((i, s, e, tokens, zeiten, text))
+        except BaseException as x:  # noqa: BLE001
+            fehler.append(x)
+        finally:
+            fertig.put(None)
+
+    faeden = [threading.Thread(target=parakeet, daemon=True, name="genau-parakeet"),
+              threading.Thread(target=canary, daemon=True, name="genau-canary")]
+    for f in faeden:
+        f.start()
+    # In Reihenfolge herausgeben: Stücke ohne Canary-Arbeit überholen sonst.
+    warten: dict[int, tuple] = {}
+    naechstes, offen = 0, True
+    while naechstes < len(stuecke):
+        if stopp.is_set():
+            raise InterruptedError
+        while naechstes in warten:
+            yield warten.pop(naechstes)
+            naechstes += 1
+        if naechstes >= len(stuecke):
+            break
+        if not offen:
+            if fehler:
+                raise fehler[0]
+            raise InterruptedError
+        x = fertig.get()
+        if x is None:
+            offen = False
+            continue
+        if len(x) == 5:
+            x = (*x, "")
+        warten[x[0]] = x[1:]
+    if fehler:
+        raise fehler[0]
+
+
 def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
                    fortschritt: Optional[Callable[[float, str], None]] = None,
                    stopp: Optional[threading.Event] = None, namen=()) -> str:
@@ -819,18 +892,11 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
     if stopp.is_set():
         raise InterruptedError
     teile = [(x.start, x.end, x.speaker) for x in roh]
-    asr = _erkenner(modelle, threads)
-    zweit = _canary(modelle, threads) if canary_da(modelle) else None
     korrektur = _namen_korrektur(namen)
     sprach_s = sum(e - s for s, e in stuecke) or 1
     erledigt = 0.0
     abschnitte: list[Abschnitt] = []
-    for s, e in stuecke:
-        if stopp.is_set():
-            raise InterruptedError
-        stueck = ton[int(s * SR):int(e * SR)]
-        _, tokens, zeiten = _erkennen(asr, stueck)
-        canary_text = satzzeichen(_erkennen(zweit, stueck)[0]) if zweit is not None and tokens else ""
+    for s, e, tokens, zeiten, canary_text in erkennen_parallel(ton, stuecke, modelle, threads, stopp):
         # sherpa-onnx zwingt Canary zu einem Wort, auch wenn es „nichts gesagt"
         # erkannt hat („first generated token is <|endoftext|> … Using the best
         # non-eos token instead", Konsole bei Kalle) - daher „T S F" & Co. Ist

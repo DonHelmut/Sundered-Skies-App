@@ -1411,6 +1411,29 @@ class Game:
         }
         self.combatants.append(c)
 
+    def _do_npc_verstaerkung(self, a: dict) -> None:
+        """Noch einer (oder mehrere) wie diese Figur: Verstärkung mitten im
+        Kampf per Rechtsklick, ohne erst die Bibliothek aufzuklappen und die
+        Vorlage zu suchen. Übernimmt Werte, Bild, Zone und „verdeckt"; Wunden
+        und Karte bleiben natürlich beim Original. Nur für Gegner/Verbündete
+        des SL (Spielerfiguren haben einen Bogen und gehören jemandem)."""
+        c = self._combatant(a.get("id"))
+        if not c or c.get("kind") != "npc":
+            return
+        self._do_add_npc({
+            "name": self._grundname(c.get("name", "")) or "Gegner",
+            "isWildCard": c.get("isWildCard", False),
+            "talents": c.get("talents", []),
+            "gluck": c.get("gluck", False),
+            "grosses_gluck": c.get("grosses_gluck", False),
+            "zone": c.get("zone", DEFAULT_ZONE_NPC),
+            "anon": c.get("anon", False),
+            "ally": c.get("ally", False),
+            "image": c.get("image"),
+            "count": a.get("count", 1),
+            **_kampfwerte(c),
+        })
+
     def _do_edit_combatant(self, a: dict) -> None:
         c = self._combatant(a.get("id"))
         if not c:
