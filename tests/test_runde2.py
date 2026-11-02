@@ -154,3 +154,12 @@ def test_sprecher_automatisch_lernt_aus_stimm_anmeldung(tmp_path):
     assert a.loeschen(name)
     assert not (a.ordner / f"{name}-stimmen.json").exists()
     assert set(a.stimmprofile()) == {"Korgo", "Spielleiter"}
+
+
+def test_protokoll_titel_aus_dem_text(fresh_game):
+    g = fresh_game
+    g.apply({"type": "protokoll_speichern", "name": "", "text": "# Sturm über Graufels\n\nDie Gruppe …"})
+    assert g.protokolle[0]["name"] == "Sturm über Graufels"
+    g.apply({"type": "protokoll_speichern", "name": "", "text": "Ohne Überschrift"})
+    assert g.protokolle[0]["name"].startswith("Spielabend ")
+    assert "# Titel" in A.baue_prompt({"personen": {}, "ereignisse": []}, "[00:00:01] S00: Hallo")

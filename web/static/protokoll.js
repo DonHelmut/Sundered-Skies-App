@@ -189,7 +189,7 @@ function protokollEntwurfHtml() {
       <div class="pt-titelzeile"><strong>📜 ${E.id ? "Protokoll bearbeiten" : "Protokoll einfügen"}</strong>
         <button class="ghost small" data-act="prot-abbrechen">Abbrechen</button></div>
       <label class="field"><span>Titel</span>
-        <input id="prot-name" value="${esc(E.name)}" maxlength="80" placeholder="Spielabend ${new Date().toLocaleDateString("de-DE")}"></label>
+        <input id="prot-name" value="${esc(E.name)}" maxlength="80" placeholder="leer lassen = Titel aus dem Text (erste Zeile „# …“)"></label>
       <label class="field"><span>Text <small class="muted">(so wie Claude ihn geschrieben hat)</small></span>
         <textarea id="prot-text" rows="16" placeholder="Hier einfügen (Strg+V) …">${esc(E.text)}</textarea></label>
       <div class="row" style="gap:6px; flex-wrap:wrap; margin-top:8px">

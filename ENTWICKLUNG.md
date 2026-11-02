@@ -112,6 +112,9 @@ Handy, Kampf-Höhepunkte in den Prompt.
   Nächster Abend: Kosinus ≥ 0,55 → Name, nach der heutigen Anmeldung, vor dem
   Raten; nur SL und Figuren aus der App. Im Panel 👂 = bekannt. Test: zweiter
   Abend ohne Anmeldung, Spielerin richtig erkannt.
+- **Protokoll-Titel aus dem Text**: der Titel entsteht erst beim Schreiben
+  (Kalle). Der Prompt lässt Claude oben „# Titel" setzen; Titelfeld beim
+  Einfügen leer = diese Zeile wird der Titel (sonst „Spielabend <Datum>").
 - **📌 Merken mit Stichwort**: Zeit sofort, danach optional ein Stichwort
   (`marke_text`, `nachtragen`).
 - **Bugs**: vor dem ersten Austeilen „tippt eure Karte an!" (B1); „+ Kampf"

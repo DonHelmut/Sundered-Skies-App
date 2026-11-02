@@ -828,6 +828,13 @@ class Game:
             name = str(a.get("name") or "").strip()[:80]
             if not text:
                 return
+            if not name and p is not None:
+                name = p.get("name", "")
+            if not name:
+                # Der Titel entsteht erst beim Schreiben (Kalle 02.11.2026): der
+                # Prompt lässt Claude oben „# Titel" setzen - den nehmen.
+                kopf = re.match(r"\s*#{1,3}\s+(.+)", text)
+                name = kopf.group(1).strip().strip("*#").strip()[:80] if kopf else ""
             if not name:
                 name = "Spielabend " + time.strftime("%d.%m.%Y")
             if p is None:

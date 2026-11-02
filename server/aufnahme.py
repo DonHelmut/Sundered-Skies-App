@@ -847,6 +847,7 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
         "- Kämpfe als Teil der Geschichte: spannende oder krasse Momente erzählen (knappe Rettung, "
         "Volltreffer, jemand geht zu Boden, ein Joker im richtigen Moment). Keinen Rundenablauf.",
         "- Ganz am Ende, kurz: wichtige NSCs, Beute/Belohnungen, offene Fäden für nächstes Mal.",
+        "- Ganz oben als erste Zeile ein kurzer, stimmungsvoller Titel für den Abend: „# Titel“.",
         "",
         "ZUM TRANSKRIPT:",
         "- Es ist automatisch erkannt und enthält Hörfehler. Namen und Begriffe sinnvoll korrigieren.",
