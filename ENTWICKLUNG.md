@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (nach 1.5.33, 02.11.2026): Ideenrunde 2 + Bugs
+## 1.5.34 (02.11.2026): Ideenrunde 2 + Bugs
 
 Durchgespielt als SL, mit 4 Handys und als Schriftführer (Testabend mit
 Piper-Stimmen). Kalle wählte 1, 2, 5, 6, 7, 10–13 und „Bugs immer beseitigen".
