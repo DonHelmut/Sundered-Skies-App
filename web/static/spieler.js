@@ -130,8 +130,14 @@ function renderPlayer() {
   // Pausiert („Aus dem Kampf") – keine Karte, klarer Hinweis statt Kartenbereich.
   // Dran und Karte offen: Kurzansicht „Mein Zug" (regeln.js) statt großer Karte.
   const kurz = kurzAnsichtJetzt(s, mine, isMyTurn);
+  // Zwischen den Kämpfen (keine Karte oder kein Gegner mehr): ruhige Ansicht
+  // statt großer Kartenrückseite (Kalle 02.11.2026). Den größten Teil des
+  // Abends wird gespielt, nicht gekämpft.
+  const ruhe = !kurz && kampfRuheJetzt(s, mine, isMyTurn);
+  App.kampfRuhe = ruhe;
   const cardPanel = kurz
     ? zugPanelHtml(mine, { hints, timer, angeschlagenHinweis, anfragen: playerQuickControls(mine) })
+    : ruhe ? ruhePanelHtml(s, mine)
     : mine.benched
     ? `<div class="panel benched-note" style="padding:16px; text-align:center">
          <div style="font-size:1.6rem">⏸</div>
@@ -175,7 +181,7 @@ function renderPlayer() {
   // das anbietet, was gerade dran ist - Karte aufdecken, erholen, angreifen,
   // eingreifen. Vorher standen bis zu fünf Knöpfe in der Karte verteilt, und
   // wer weiter unten im Bogen war, musste erst zurückscrollen.
-  const daumen = daumenKnopf({ mine, isMyTurn, angriffMoeglich, meinAngriff, angriffZiel,
+  const daumen = daumenKnopf({ mine, isMyTurn, angriffMoeglich, meinAngriff, angriffZiel, ruhe,
     canRecover: canRecover && !recoverGemeldet, recoverFreeBtn, recoverBennyBtn, confirmBtn, holdBtn, angriffBtn });
 
   // Goldrand um den ganzen Bildschirm, solange man dran ist (Kalle, Variante
@@ -203,26 +209,111 @@ function renderPlayer() {
       </div>
     </div>
     ${cardPanel}
-    ${(kurz ? ["zones"] : handyBereiche()).map((k) => ({
+    ${(kurz ? ["zones"]
+      // Ohne Kampf: Notizen gleich unter die Werte, Reihenfolge und Zonen
+      // sagen dann nichts.
+      : ruhe ? ["notizen", ...handyBereiche().filter((k) => !["order", "zones", "notizen"].includes(k))]
+      : handyBereiche()).map((k) => ({
       order: orderPanel,
       zones: mine.benched ? "" : renderZonesPanel(),
       bogen: renderBogen(mine),
       msgs: msgs ? `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs}</div>` : "",
+      notizen: notizenPanelHtml(),
     })[k]).join("")}
     ${daumen}
   `;
 }
 
+// --- Zwischen den Kämpfen -------------------------------------------------------
+// Kein Kampf (noch keine Karte, oder alle Gegner weg und Runde durch): statt der großen
+// Kartenrückseite die eigenen Werte, „Was bisher geschah", Notizen. Vorher
+// stand vor dem ersten Austeilen eine Rückseite da, als läge schon eine Karte.
+// „🃏 Kampfansicht" holt für diese Runde die Karte zurück (z. B. Verfolgung
+// ohne Gegner im Kampf-Panel).
+function feindeImKampf(s) {
+  return s.combatants.some((c) => c.kind === "npc" && !c.ally && !c.benched && !(c.status || {}).out);
+}
+function kampfRuheJetzt(s, mine, isMyTurn) {
+  if (mine.benched || isMyTurn || s.activeId === mine.id) return false;
+  if (mine.card && App.ruheAus === `${s.round}:${mine.card.id}`) return false;
+  // Gegner weg, aber die Runde läuft noch (Spieler sind noch dran): dann
+  // weiter Kampfansicht - sonst stand „Gleich bist du dran" über „Gerade kein
+  // Kampf". Ruhe erst, wenn die Runde durch ist oder der SL abgeräumt hat.
+  return !mine.card || (!feindeImKampf(s) && !s.activeId);
+}
+function ruhePanelHtml(s, mine) {
+  const gleichKampf = !mine.card && feindeImKampf(s);
+  const prot = typeof protokollListe === "function" && protokollListe().length;
+  return `<div class="panel ruhe">
+    <div class="ruhe-titel">${gleichKampf ? "⚔ Gleich geht's los – der Spielleiter teilt aus" : "🌤 Gerade kein Kampf"}</div>
+    <div class="zk-werte ruhe-werte">${werteKachelnHtml(mine)}</div>
+    ${wundAbzugHtml(mine)}
+    <div class="row ruhe-knoepfe">
+      ${prot ? `<button type="button" class="ghost small" data-act="ruhe-protokoll">📜 Was bisher geschah</button>` : ""}
+      <button type="button" class="ghost small" data-act="regeln-oeffnen">📖 Regeln</button>
+      ${mine.card ? `<button type="button" class="ghost small" data-act="ruhe-aus" title="Karte und Reihenfolge für diese Runde zeigen">🃏 Kampfansicht</button>` : ""}
+    </div>
+    ${playerQuickControls(mine)}
+  </div>`;
+}
+
+// Eigene Notizen: hängen am Charakter, nur dieses Handy bekommt sie
+// (Server: notizen_setzen / meineNotizen). Speichern von selbst, kurz nach
+// dem Tippen und beim Verlassen des Feldes.
+function notizenPanelHtml() {
+  const text = App.notizenEntwurf != null ? App.notizenEntwurf : ((App.state && App.state.meineNotizen) || "");
+  return `<div class="panel notizen">
+    <h2>📝 Meine Notizen</h2>
+    <textarea id="meine-notizen" rows="5" maxlength="8000" placeholder="NSC-Namen, Hinweise, Beute, offene Fragen … – nur du siehst das">${esc(text)}</textarea>
+    <div class="muted small notizen-stand">${App.notizenEntwurf != null ? "speichert …" : "Wird von selbst gespeichert."}</div>
+  </div>`;
+}
+function notizenSenden() {
+  clearTimeout(App.notizenTimer);
+  if (App.notizenEntwurf == null) return;
+  gmAction({ type: "notizen_setzen", text: App.notizenEntwurf });
+  App.notizenEntwurf = null;
+  const st = document.querySelector(".notizen-stand");
+  if (st) st.textContent = "✓ gespeichert";
+}
+document.addEventListener("input", (e) => {
+  if (!e.target || e.target.id !== "meine-notizen") return;
+  App.notizenEntwurf = e.target.value;
+  const st = document.querySelector(".notizen-stand");
+  if (st) st.textContent = "speichert …";
+  clearTimeout(App.notizenTimer);
+  App.notizenTimer = setTimeout(notizenSenden, 900);
+});
+document.addEventListener("focusout", (e) => {
+  if (e.target && e.target.id === "meine-notizen") notizenSenden();
+});
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-act]");
+  if (!t) return;
+  if (t.dataset.act === "ruhe-aus") {
+    e.preventDefault();
+    const mine = myCombatant();
+    if (mine && mine.card) App.ruheAus = `${App.state.round}:${mine.card.id}`;
+    render();
+  } else if (t.dataset.act === "ruhe-protokoll") {
+    e.preventDefault();
+    Prot.offen = true;
+    Prot.wasBisher = true;
+    protokollOeffnen();
+    render();
+  }
+});
+
 // Reihenfolge der Bereiche unter der Karte - jeder Spieler stellt sie im ⚙
 // selbst ein (Kalle, 25.10.2026), gemerkt auf dem Handy. Standard: Bogen nach
 // unten, im Kampf braucht man zuerst Reihenfolge und Zonen.
-const HANDY_BEREICHE = { order: "Initiative-Reihenfolge", zones: "Kampfzonen", bogen: "Mein Charakter", msgs: "Nachrichten" };
+const HANDY_BEREICHE = { order: "Initiative-Reihenfolge", zones: "Kampfzonen", bogen: "Mein Charakter", msgs: "Nachrichten", notizen: "Meine Notizen" };
 function handyBereiche() {
   let liste = [];
   try { liste = JSON.parse(localStorage.getItem("handyBereiche") || "[]"); } catch { /* egal */ }
   liste = (Array.isArray(liste) ? liste : []).filter((k) => HANDY_BEREICHE[k]);
   // Neue Bereiche (spätere Versionen) hinten anhängen statt sie zu verlieren.
-  ["order", "zones", "bogen", "msgs"].forEach((k) => { if (!liste.includes(k)) liste.push(k); });
+  ["order", "zones", "bogen", "msgs", "notizen"].forEach((k) => { if (!liste.includes(k)) liste.push(k); });
   return liste;
 }
 function handyBereichSchieben(k, dir) {
@@ -293,7 +384,7 @@ function daumenKnopf(o) {
     if (App.angriffWahl) blatt = `<div class="angriff-blatt" data-scroll-merk="angriff">${angriffWahlHtml(mine)}</div>`;
   } else if (isMyTurn) {
     haupt = o.confirmBtn; neben = o.holdBtn;
-  } else if (mine.card && !mine.revealed && !mine.benched) {
+  } else if (mine.card && !mine.revealed && !mine.benched && !o.ruhe) {
     haupt = `<button class="primary big" data-act="daumen-aufdecken">🂠 Karte aufdecken</button>`;
   }
   if (!haupt) return "";

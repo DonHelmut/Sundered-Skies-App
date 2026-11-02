@@ -64,6 +64,7 @@ SETTINGS_FILE = DATA_DIR / "settings.json"   # dauerhafte SL-Voreinstellungen
 UPLOAD_DIR = DATA_DIR / "uploads"
 
 MAX_MESSAGES = 50
+MAX_NOTIZEN = 8000      # Zeichen eigene Notizen je Charakter
 MAX_PROTOKOLL = 60000   # Zeichen je Protokoll (1–2 Seiten sind ~6000; Schutz vor Versehen)
 
 
@@ -803,6 +804,22 @@ class Game:
                 "text": p.get("text") or "", "stand": p.get("stand", 0),
                 "freigegeben": bool(p.get("freigegeben"))}
 
+    def protokoll_vorher(self, start_ms: Optional[int]) -> Optional[dict]:
+        """Das Protokoll des Abends VOR einer Aufnahme (für den Prompt: „was
+        bisher geschah" - Namen, Orte und offene Fäden bleiben so gleich).
+        Vor der Aufnahme angelegt; alte Protokolle ohne Anlegezeit zählen, wenn
+        ihr Datum vor dem Aufnahmetag liegt."""
+        if not start_ms:
+            return None
+        tag = time.strftime("%Y-%m-%d", time.localtime(start_ms / 1000))
+        for p in self.protokolle:     # neuestes zuerst
+            if not isinstance(p, dict) or not (p.get("text") or "").strip():
+                continue
+            erstellt = p.get("erstellt")
+            if (erstellt and erstellt < start_ms) or (not erstellt and str(p.get("datum") or "") < tag):
+                return {"name": p.get("name", ""), "datum": p.get("datum", ""), "text": p["text"]}
+        return None
+
     def protokoll_aktion(self, a: dict) -> None:
         t = a.get("type")
         p = next((x for x in self.protokolle if isinstance(x, dict) and x.get("id") == a.get("id")), None)
@@ -814,7 +831,8 @@ class Game:
             if not name:
                 name = "Spielabend " + time.strftime("%d.%m.%Y")
             if p is None:
-                p = {"id": _new_id("prot"), "datum": time.strftime("%Y-%m-%d"), "freigegeben": False}
+                p = {"id": _new_id("prot"), "datum": time.strftime("%Y-%m-%d"), "freigegeben": False,
+                     "erstellt": now_ms()}
                 # Neuestes zuerst - so steht es auch am Handy oben.
                 self.protokolle.insert(0, p)
             p.update({"name": name, "text": text, "stand": now_ms()})
@@ -860,7 +878,11 @@ class Game:
             "deckCount": len(self.deck),
             "hasSavedSession": self.resume_available,
             "canUndo": len(self._history) > 0,
-            "roster": self.roster,
+            # Eigene Notizen der Spieler (am Charakter) gehen nur an den
+            # Besitzer - kommen einzeln als „meineNotizen" (notizen_fuer).
+            "roster": [{k: v for k, v in r.items() if k != "notizen"} for r in self.roster]
+                      if fuer_spieler else self.roster,
+            "meineNotizen": self.notizen_fuer(player_id) if fuer_spieler else "",
             "bestiary": [] if fuer_spieler else self.bestiary,
             # Vorbereitung des SL geht die Handys nichts an: gespeicherte
             # Begegnungen verrieten sonst geplante Kämpfe samt echter Namen
@@ -979,7 +1001,7 @@ class Game:
             "image": a.get("image", (prev or {}).get("image")),
         }
         # Gemerkte Bennies und den Charakterbogen der Spieler ebenso.
-        for feld in ("bennies", "bogen", "rueckseite"):
+        for feld in ("bennies", "bogen", "rueckseite", "notizen"):
             if prev and feld in prev:
                 entry[feld] = prev[feld]
         for i, r in enumerate(self.roster):
@@ -1006,7 +1028,10 @@ class Game:
         """SL setzt einen Charakter aus der Liste direkt in den Kampf (SL-gesteuert,
         ohne dass ein Spieler beitreten muss)."""
         char = next((r for r in self.roster if r["id"] == a.get("id")), None)
-        if char:
+        # Schon im Kampf (z. B. per Handy beigetreten)? Dann nicht ein zweites
+        # Mal: im Test 02.11.2026 standen sonst zwei „Mira" mit je eigener Karte
+        # in der Reihenfolge, und nur eine davon hing am Handy.
+        if char and not any(c.get("characterId") == char["id"] for c in self.combatants):
             self.add_combatant_from_character(char, None, player_name="", zone=a.get("zone"))
 
     # Gegner-Bibliothek (Bestiarium) – dauerhafte Vorlagen, wie das Roster ------
@@ -1692,6 +1717,11 @@ class Game:
         # Wer getroffen hat: ausdrücklich mitgegeben (Spieler-Angriff), sonst
         # der Aktive - der SL trägt Treffer fast immer im Zug des Angreifers ein.
         von = self._combatant(von_id or self.active_id)
+        # Ohne ausdrückliche Angabe nur einen GEGNER als Angreifer nennen: trug
+        # der SL im Zug von Mira einen Treffer bei Korgo ein (Erstschlag eines
+        # Piraten, Explosion …), stand an Korgos Handy „Mira trifft dich".
+        if von and not von_id and not (von.get("kind") == "npc" and not von.get("ally")):
+            von = None
         wer = ""
         if von and von["id"] != c["id"]:
             wer = self._tarnname(von) if von.get("anon") else von.get("name", "")
@@ -1921,6 +1951,31 @@ class Game:
             char["bogen"] = bogen
             self.save_roster()
         self.save_session()
+
+    # Eigene Notizen (Spieler, am Handy) ---------------------------------------
+    # NSC-Namen, Hinweise, Beute: hängen am Charakter (bleiben bis zum nächsten
+    # Abend, reisen in der Sicherung mit) und gehen nur an das eigene Handy.
+
+    def notizen_setzen(self, cid: Optional[str], text) -> bool:
+        c = self._combatant(cid)
+        if not c or not isinstance(text, str):
+            return False
+        char = next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
+        if char is None:
+            return False
+        text = text.replace("\r\n", "\n")[:MAX_NOTIZEN]
+        if char.get("notizen", "") == text:
+            return False
+        char["notizen"] = text
+        self.save_roster()
+        return True
+
+    def notizen_fuer(self, player_id: Optional[str]) -> str:
+        if not player_id:
+            return ""
+        c = next((x for x in self.combatants if x.get("playerId") == player_id), None)
+        char = c and next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
+        return (char or {}).get("notizen", "") if char else ""
 
     def figur_rueckseite_setzen(self, cid: Optional[str], wert) -> None:
         """Rückseite für die Karten EINER Figur (Standard/Profil/eigenes Bild).

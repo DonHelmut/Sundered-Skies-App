@@ -92,6 +92,8 @@ class Aufnahmen:
         # Namen & Begriffe des SL (server/sprache.py hält die Liste) - kommen
         # mit in den Prompt. Von app.py gesetzt.
         self.begriffe_quelle = lambda: []
+        # Protokoll des Abends davor (Game.protokoll_vorher) - von app.py gesetzt.
+        self.vorgeschichte_quelle = lambda start_ms: None
         self.aktiv: Optional[dict] = None      # Metadaten der laufenden Aufnahme
         self._letztes_stueck = 0
         self._war_im_kampf = False
@@ -196,6 +198,18 @@ class Aufnahmen:
         if not self.aktiv:
             return False
         self._ereignis({"art": "marke", "text": str(text or "")[:200]})
+        self._meta_schreiben(self.aktiv)
+        return True
+
+    def marke_text(self, text: str) -> bool:
+        """Stichwort zur zuletzt gemerkten Stelle nachtragen (der SL tippt es
+        nach dem 📌 ein - die Zeit bleibt die vom Tipp, nicht vom Schreiben)."""
+        if not self.aktiv:
+            return False
+        marken = [e for e in self.aktiv["ereignisse"] if e.get("art") == "marke"]
+        if not marken:
+            return False
+        marken[-1]["text"] = " ".join(str(text or "").split())[:200]
         self._meta_schreiben(self.aktiv)
         return True
 
@@ -310,6 +324,7 @@ class Aufnahmen:
                 "marken": sum(1 for e in a["ereignisse"] if e.get("art") == "marke"),
                 "stimmen": [e.get("figur") for e in a["ereignisse"] if e.get("art") == "stimme"],
             },
+            "stimmenBekannt": sorted(self.stimmprofile()),
             "liste": self.liste(),
             "ordner": str(self.ordner),
         }
@@ -353,7 +368,7 @@ class Aufnahmen:
         weg = False
         for p in [self._meta_pfad(name), self.audio_pfad(name),
                   self.ordner / f"{name}-transkript.txt", self.ordner / f"{name}-prompt.txt",
-                  self.ordner / f"{name}-live.txt"]:
+                  self.ordner / f"{name}-live.txt", self.ordner / f"{name}-stimmen.json"]:
             if p and p.exists():
                 p.unlink()
                 weg = True
@@ -414,7 +429,7 @@ class Aufnahmen:
             bsp = sorted(d["beispiele"], key=len, reverse=True)[:3]
             liste.append({"sprecher": d["sprecher"], "anteil": round(d["zeichen"] / gesamt, 3),
                           "beispiele": [b[:160] for b in bsp]})
-        vorschlaege = [SPIELLEITER] + [f"{figur} ({sp})" if sp else figur
+        vorschlaege = [SPIELLEITER] + [figur_label(figur, sp)
                                        for figur, sp in sorted((meta.get("personen") or {}).items())]
         return {"sprecher": liste, "namen": (meta.get("sprecher") or {}).get(quelle) or {},
                 "vorschlaege": vorschlaege,
@@ -431,6 +446,8 @@ class Aufnahmen:
         meta.setdefault("sprecher", {})[quelle] = sauber
         if quelle == "genau":
             meta["sprecherAuto"] = False      # jetzt vom SL bestätigt
+            # Vom SL bestätigt = sicher: diese Stimmen beim nächsten Abend erkennen.
+            self.stimmen_lernen(name, sauber, meta)
         self._meta_schreiben(meta)
         return True
 
@@ -453,7 +470,11 @@ class Aufnahmen:
             begriffe = list(self.begriffe_quelle() or [])
         except Exception:
             begriffe = []
-        p = baue_prompt(meta, text, extra, begriffe=begriffe, sprecher=sprecher)
+        try:
+            vorher = self.vorgeschichte_quelle(meta.get("start"))
+        except Exception:
+            vorher = None
+        p = baue_prompt(meta, text, extra, begriffe=begriffe, sprecher=sprecher, vorgeschichte=vorher)
         try:
             if speichern:
                 (self.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
@@ -463,6 +484,59 @@ class Aufnahmen:
         return p
 
 
+    # --- Stimmprofile (über Abende) -------------------------------------------------
+
+    @property
+    def _profile_pfad(self) -> Path:
+        # Neben den Aufnahmen, nicht darin: löscht der SL alle Aufnahmen,
+        # bleiben die Stimmen trotzdem bekannt.
+        return self.ordner.parent / "stimmprofile.json"
+
+    def stimmprofile(self) -> dict:
+        try:
+            d = json.loads(self._profile_pfad.read_text(encoding="utf-8"))
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _profile_schreiben(self, profile: dict) -> None:
+        try:
+            self._profile_pfad.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self._profile_pfad.with_suffix(".tmp")
+            tmp.write_text(json.dumps(profile), encoding="utf-8")
+            tmp.replace(self._profile_pfad)
+        except OSError:
+            pass
+
+    def abdruecke_speichern(self, name: str, abdruecke: dict) -> None:
+        if not name_gueltig(name) or not abdruecke:
+            return
+        try:
+            (self.ordner / f"{name}-stimmen.json").write_text(json.dumps(abdruecke), encoding="utf-8")
+        except OSError:
+            pass
+
+    def abdruecke(self, name: str) -> dict:
+        try:
+            d = json.loads((self.ordner / f"{name}-stimmen.json").read_text(encoding="utf-8"))
+            return d if isinstance(d, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def stimmen_lernen(self, name: str, namen: dict, meta: dict) -> None:
+        """Bestätigte Zuordnung ins Profil. Je Aufnahme und Sprecher nur einmal
+        (meta „stimmenGelernt", schreibt der Aufrufer) - sonst zählte derselbe
+        Abend doppelt, wenn der SL die automatische Zuordnung nur bestätigt."""
+        abdr = self.abdruecke(name)
+        schon = meta.setdefault("stimmenGelernt", {})
+        neu = {sp: wer for sp, wer in (namen or {}).items() if schon.get(sp) != wer}
+        if not abdr or not neu:
+            return
+        profile = self.stimmprofile()
+        if profile_lernen(profile, abdr, neu):
+            self._profile_schreiben(profile)
+            schon.update(neu)
+
     def sprecher_automatisch(self, name: str) -> bool:
         """Nach dem genauen Durchgang: Sprecher selbst zuordnen (Kalle: „will
         nicht alles selber auswählen"). Nur wenn noch niemand zugeordnet hat;
@@ -471,9 +545,17 @@ class Aufnahmen:
         text = self._text(name, "genau")
         if not meta or text is None or (meta.get("sprecher") or {}).get("genau"):
             return False
-        namen = sprecher_raten(text, meta)
+        # Gemerkte Stimmen: nur Personen, die heute dabei sein können (SL und
+        # die Figuren aus der App) - sonst bekäme ein Gast den Namen von Tims
+        # alter Figur aus einer anderen Kampagne.
+        erlaubt = {SPIELLEITER} | {f for f in (meta.get("personen") or {}) if f}
+        bekannt = profile_zuordnen(self.abdruecke(name), self.stimmprofile(), erlaubt)
+        namen = sprecher_raten(text, meta, bekannt=bekannt)
         if not namen:
             return False
+        # Sicher Erkanntes lernen: die Stimm-Anmeldung von heute.
+        angemeldet = stimmen_zuordnen(_transkript_zeilen(text), meta)
+        self.stimmen_lernen(name, {sp: namen[sp] for sp in angemeldet if sp in namen}, meta)
         meta.setdefault("sprecher", {})["genau"] = namen
         meta["sprecherAuto"] = True
         self._meta_schreiben(meta)
@@ -498,7 +580,86 @@ def _sekunden(hms: str) -> int:
     return h * 3600 + m * 60 + s
 
 
-def sprecher_raten(transkript: str, meta: dict) -> dict:
+# --- Stimmen über Abende merken ---------------------------------------------------
+# Kalle 02.11.2026: einmal anmelden, danach erkennt die App jeden von selbst.
+# Je Person ein Stimmabdruck (TitaNet, sprache.stimm_abdruecke), gelernt aus der
+# Stimm-Anmeldung und aus „Wer ist wer?". Beim nächsten Abend wird jeder Sprecher
+# mit den Profilen verglichen. Schwelle: im Live-Test lag dieselbe Person bei
+# 0,57–0,91, verschiedene bei höchstens 0,29 (STIMME_GLEICH in sprache.py).
+STIMME_BEKANNT = 0.55
+PROFIL_GEWICHT_MAX = 10   # neue Abende verschieben das Profil weiter etwas
+
+
+def _einheit(v) -> list[float]:
+    import math
+    try:
+        v = [float(x) for x in v]
+    except (TypeError, ValueError):
+        return []
+    n = math.sqrt(sum(x * x for x in v))
+    return [x / n for x in v] if n else []
+
+
+def figur_label(figur: str, spieler: str = "") -> str:
+    """„Korgo (Tim)" - ohne Klammer, wenn kein Spielername da ist oder er
+    gleich der Figur ist (wer am Handy nur die Figur antippt, heißt wie sie;
+    im Test 02.11.2026 stand sonst „Mira (Mira)" im Prompt)."""
+    return f"{figur} ({spieler})" if spieler and spieler.strip().lower() != figur.strip().lower() else figur
+
+
+def profil_schluessel(label: str) -> str:
+    """„Korgo (Tim)" -> „Korgo": Profile hängen an der Figur bzw. „Spielleiter"."""
+    return re.sub(r"\s*\(.*\)\s*$", "", str(label or "")).strip()
+
+
+def profile_zuordnen(abdruecke: dict, profile: dict, erlaubt) -> dict:
+    """{Sprecher: Profilname} - jeweils das ähnlichste Paar zuerst, jede
+    Person und jeder Sprecher höchstens einmal, nur über STIMME_BEKANNT."""
+    paare = []
+    for sp, v in (abdruecke or {}).items():
+        a = _einheit(v)
+        if not a or not _SPRECHER_MUSTER.match(str(sp)):
+            continue
+        for wer, p in (profile or {}).items():
+            b = _einheit((p or {}).get("v") or [])
+            if wer in erlaubt and len(b) == len(a):
+                paare.append((sum(x * y for x, y in zip(a, b)), sp, wer))
+    erg: dict[str, str] = {}
+    for aehnlich, sp, wer in sorted(paare, reverse=True):
+        if aehnlich < STIMME_BEKANNT:
+            break
+        if sp not in erg and wer not in erg.values():
+            erg[sp] = wer
+    return erg
+
+
+def profile_lernen(profile: dict, abdruecke: dict, namen: dict) -> bool:
+    """namen = {Sprecher: Name}. Profil = gleitender Mittelwert der Abende."""
+    geaendert = False
+    for sp, label in (namen or {}).items():
+        wer = profil_schluessel(label)
+        v = _einheit((abdruecke or {}).get(sp) or [])
+        if not wer or not v or _SPRECHER_MUSTER.match(wer):
+            continue
+        alt = profile.get(wer) or {}
+        alt_v, n = _einheit(alt.get("v") or []), int(alt.get("n") or 0)
+        if len(alt_v) == len(v) and n:
+            v = _einheit([a * n + b for a, b in zip(alt_v, v)])
+        profile[wer] = {"v": [round(x, 5) for x in v], "n": min(n + 1, PROFIL_GEWICHT_MAX), "stand": now_ms()}
+        geaendert = True
+    return geaendert
+
+
+def _transkript_zeilen(transkript: str) -> list[tuple]:
+    zeilen = []
+    for z in transkript.splitlines():
+        m = _ZEILE.match(z.strip())
+        if m:
+            zeilen.append((_sekunden(m.group(1)), m.group(2), m.group(3)))
+    return zeilen
+
+
+def sprecher_raten(transkript: str, meta: dict, bekannt: Optional[dict] = None) -> dict:
     """S00, S01 … -> „Spielleiter", „Korgo (Tim)" aus dem Kontext:
     - Spielleiter = wer am meisten redet (erzählt, spricht alle NSCs).
     - Spieler sagen ihre Figur selbst an („Korgo zieht seine Axt") - nennt ein
@@ -508,12 +669,10 @@ def sprecher_raten(transkript: str, meta: dict) -> dict:
       deren Spieler: der nächste andere Sprecher bekommt einen Punkt.
     - Im Kampf redet, wessen Zug es ist (Zug-Ereignisse der App).
     Jede Figur höchstens einmal, nur bei klarem Vorsprung; Rest bleibt S0x
-    (der Prompt lässt Claude dann über den Inhalt zuordnen)."""
-    zeilen = []
-    for z in transkript.splitlines():
-        m = _ZEILE.match(z.strip())
-        if m:
-            zeilen.append((_sekunden(m.group(1)), m.group(2), m.group(3)))
+    (der Prompt lässt Claude dann über den Inhalt zuordnen).
+    bekannt: {Sprecher: Name} aus gemerkten Stimmen früherer Abende - zählt
+    nach der Stimm-Anmeldung dieses Abends, aber vor allem Raten."""
+    zeilen = _transkript_zeilen(transkript)
     if not zeilen:
         return {}
     zeichen: dict[str, int] = {}
@@ -522,7 +681,7 @@ def sprecher_raten(transkript: str, meta: dict) -> dict:
     sl = max(zeichen, key=zeichen.get)
     erg = {sl: SPIELLEITER}
     figuren = {f: (sp or "") for f, sp in (meta.get("personen") or {}).items() if f}
-    if not figuren and not any(e.get("art") == "stimme" for e in meta.get("ereignisse", [])):
+    if not figuren and not bekannt and not any(e.get("art") == "stimme" for e in meta.get("ereignisse", [])):
         return erg
     # Wörter, an denen man eine Figur erkennt: ihr Name (auch Teile:
     # „Korgo der Starke" -> korgo) und der Name des Spielers.
@@ -568,7 +727,10 @@ def sprecher_raten(transkript: str, meta: dict) -> dict:
     # Stimm-Anmeldung schlägt alles Raten: wer im Fenster nach dem Tipp am
     # meisten redet, IST diese Person. Fenster bis zum nächsten Tipp,
     # höchstens STIMM_FENSTER_S Sekunden.
-    for sp, f in stimmen_zuordnen(zeilen, meta).items():
+    sicher = list(stimmen_zuordnen(zeilen, meta).items())
+    # Gemerkte Stimmen (frühere Abende) danach - die Anmeldung von heute gewinnt.
+    sicher += [(sp, f) for sp, f in (bekannt or {}).items() if sp not in dict(sicher)]
+    for sp, f in sicher:
         if sp in vergeben or f in figur_weg:
             continue
         if f == SPIELLEITER:
@@ -579,7 +741,7 @@ def sprecher_raten(transkript: str, meta: dict) -> dict:
                 erg[sp] = SPIELLEITER
             sl = sp
         elif f in figuren:
-            erg[sp] = f"{f} ({figuren[f]})" if figuren[f] else f
+            erg[sp] = figur_label(f, figuren[f])
         else:
             erg[sp] = f
         vergeben.add(sp)
@@ -592,7 +754,7 @@ def sprecher_raten(transkript: str, meta: dict) -> dict:
                      default=0.0)
         if p < 1.5 * andere:
             continue
-        erg[sp] = f"{f} ({figuren[f]})" if figuren[f] else f
+        erg[sp] = figur_label(f, figuren[f])
         vergeben.add(sp)
         figur_weg.add(f)
     return erg
@@ -660,11 +822,14 @@ def sprecher_einsetzen(transkript: str, namen: dict) -> str:
     return "\n".join(aus)
 
 
+VORGESCHICHTE_MAX = 6000   # Zeichen vom letzten Protokoll (2 Seiten sind ~6000)
+
+
 def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional[list] = None,
-                sprecher: Optional[dict] = None) -> str:
+                sprecher: Optional[dict] = None, vorgeschichte: Optional[dict] = None) -> str:
     datum = time.strftime("%d.%m.%Y", time.localtime((meta.get("start") or now_ms()) / 1000))
     personen = meta.get("personen") or {}
-    namen = [f"- {figur}" + (f" (gespielt von {sp})" if sp else "")
+    namen = [f"- {figur}" + (f" (gespielt von {sp})" if sp and sp.lower() != figur.lower() else "")
              for figur, sp in sorted(personen.items())]
     kaempfe = _kampf_zeilen(meta.get("ereignisse", []))
     marken = [f"- {uhrzeit(e['t'])}" + (f": {e['text']}" if e.get("text") else "")
@@ -710,5 +875,13 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
         teile += ["", "VOM SPIELLEITER MARKIERTE MOMENTE (besonders erwähnen):", *marken]
     if extra and extra.strip():
         teile += ["", "HINWEISE DES SPIELLEITERS:", extra.strip()[:2000]]
+    # Das Protokoll vom letzten Mal: damit Namen, Orte und offene Fäden gleich
+    # geschrieben werden und die Geschichte anschließt. Nicht nacherzählen.
+    if vorgeschichte and str(vorgeschichte.get("text") or "").strip():
+        wann = str(vorgeschichte.get("datum") or "")
+        wann = f" vom {wann[8:10]}.{wann[5:7]}.{wann[:4]}" if len(wann) == 10 else ""
+        teile += ["", f"WAS BISHER GESCHAH (Protokoll des letzten Abends{wann} – nur zum Anschließen, "
+                      "nicht noch einmal nacherzählen; Namen und Schreibweisen von dort übernehmen):",
+                  "<<<", str(vorgeschichte["text"]).strip()[:VORGESCHICHTE_MAX], ">>>"]
     teile += ["", "TRANSKRIPT:", "<<<", sprecher_einsetzen(transkript.strip(), sprecher or {}), ">>>"]
     return "\n".join(teile) + "\n"

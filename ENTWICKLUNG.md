@@ -77,6 +77,49 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.33, 02.11.2026): Ideenrunde 2 + Bugs
+
+Durchgespielt als SL, mit 4 Handys und als Schriftführer (Testabend mit
+Piper-Stimmen). Kalle wählte 1, 2, 5, 6, 7, 10–13 und „Bugs immer beseitigen".
+Nicht gewählt: Wurf vom Handy eintippen, Karte deckt sich selbst auf, ⭐ am
+Handy, Kampf-Höhepunkte in den Prompt.
+- **Gegnerzug-Karte** (`sl.js`, `gegnerzugHtml`): ist ein Gegner dran, steht
+  über der Leiste, was er kann (Angriffs-Zeilen aus den Spielwerten) und wen
+  er erreicht (Nahkampf/Fernkampf-Abzug/zu weit, P/R) mit 😵/+1/+2/+3. „✗
+  Daneben / nichts" schließt sie für diesen Zug.
+- **🌅 Abend starten** (Aufnahme-Panel, `abendStarten`): Bennies auf
+  Startwert, Aufnahme an, neuestes Protokoll freigeben – ein Tipp. Mit
+  wartendem „Fortsetzen?" nur ein Hinweis (sonst wäre der Kampf weg).
+- **Ruhige Ansicht zwischen Kämpfen** (`spieler.js`, `kampfRuheJetzt`): keine
+  Karte, oder keine Gegner mehr und Runde durch → Werte, „📜 Was bisher
+  geschah", 📖 Regeln, Notizen statt großer Kartenrückseite. „🃏 Kampfansicht"
+  holt die Karte für diese Runde zurück.
+- **„Was bisher geschah"**: ein neu freigegebenes Protokoll geht am Handy
+  einmal von selbst auf – nur in der ruhigen Ansicht (`protokollAuto`).
+- **📝 Eigene Notizen** am Handy: am Charakter (`roster[].notizen`), reisen
+  in der Sicherung mit, gehen nur an das eigene Handy (`meineNotizen`,
+  `notizen_setzen`); im Spieler-Snapshot aus dem Roster entfernt.
+- **Prompt mit Vorgeschichte** (`baue_prompt(vorgeschichte=)`,
+  `Game.protokoll_vorher`): das letzte vor der Aufnahme angelegte Protokoll
+  (neu: `erstellt`) steht als „WAS BISHER GESCHAH" vor dem Transkript.
+- **Namen aus Protokollen** (`namen.fachwoerter_aus_spiel`): die 5 neuesten
+  Protokolle liefern Namen für die Namenskorrektur. Test: „Graufels" kam
+  vorher als „Grauwölz"/„Kraufels", danach richtig.
+- **Stimmen über Abende** (`sprache.stimm_abdruecke`, `aufnahme.py`
+  Stimmprofile): nach „Genau" je Sprecher ein TitaNet-Abdruck
+  (`<name>-stimmen.json`); gelernt aus Stimm-Anmeldung und „Wer ist wer?"
+  (je Aufnahme einmal, `stimmenGelernt`), gemerkt in `data/stimmprofile.json`.
+  Nächster Abend: Kosinus ≥ 0,55 → Name, nach der heutigen Anmeldung, vor dem
+  Raten; nur SL und Figuren aus der App. Im Panel 👂 = bekannt. Test: zweiter
+  Abend ohne Anmeldung, Spielerin richtig erkannt.
+- **📌 Merken mit Stichwort**: Zeit sofort, danach optional ein Stichwort
+  (`marke_text`, `nachtragen`).
+- **Bugs**: vor dem ersten Austeilen „tippt eure Karte an!" (B1); „+ Kampf"
+  setzte beigetretenen Charakter doppelt ein (B2); Treffer-Meldung nannte den
+  aktiven Mitspieler als Angreifer – jetzt nur Gegner oder ausdrücklich (B3);
+  „7 (2) (2)" bei Panzer schon in der Robustheit (B4); „Mira (Mira)" im
+  Prompt, wenn Spieler wie Figur heißt.
+
 ## 1.5.33 (02.11.2026): Tempo, SL, Spieler, Mitschrift
 
 Kalle wählte aus einer Ideenrunde 1, 2, 5, 6, 7, 9, 10 (nicht gewählt:

@@ -774,7 +774,7 @@ function renderAktionsleiste() {
   // (😵 ☠ 🔄 ⚙) wird selten gebraucht und liegt hinter ⋯.
   return `<div class="aktionsleiste">
     ${App.leisteEinstellungen ? leisteEinstellungenHtml() : ""}
-    ${App.trefferWahl ? trefferWahlHtml(active) : ""}
+    ${App.trefferWahl ? trefferWahlHtml(active) : gegnerzugJetzt(s, active) ? gegnerzugHtml(active) : ""}
     <div class="al-wer">
       ${rundenZaehler(s)}
       <span class="al-platz">${platz}</span>
@@ -861,6 +861,68 @@ function trefferWahlHtml(active) {
       : `Im Kampfzonen-Board antippen = ${App.trefferSteigerung ? `+${App.trefferSteigerung} Steigerung` : "Erfolg"} (vorher Taste 0–3).`}</div>
   </div>`;
 }
+
+// Gegnerzug-Karte (Kalle 02.11.2026): ist ein Gegner dran, steht über der
+// Leiste von selbst, was er kann (Angriffs-Zeilen aus den Spielwerten) und wen
+// er erreicht - mit Parade/Robustheit und den Stärke-Knöpfen. Ein Tipp trägt
+// den Treffer ein, am Handy des Getroffenen steht dann der Gegner als Angreifer.
+// „Daneben"/✕ schließt sie für diesen Zug.
+function gegnerzugSchluessel(s, active) { return `${s.round}:${active.id}`; }
+function gegnerzugJetzt(s, active) {
+  return active && active.kind === "npc" && !active.ally && !(active.status || {}).out
+    && App.gegnerzugZu !== gegnerzugSchluessel(s, active);
+}
+// Aus dem Freitext der Spielwerte nur, was beim Angreifen hilft.
+function angriffsZeilen(text) {
+  const zeilen = String(text || "").split(/\n|;/).map((z) => z.trim()).filter(Boolean);
+  return zeilen.filter((z) => /angriff|kämpf|kaempf|schie(ß|ss)|werfen|schaden|waffe|biss|klaue|säbel|schwert|axt|pistole|gewehr|bogen|St\+|\dW\d/i.test(z)).slice(0, 4);
+}
+function gegnerzugHtml(active) {
+  const s = App.state;
+  const lebt = (c) => !c.benched && !(c.status || {}).out;
+  const ziele = s.combatants.filter((c) => lebt(c) && !(c.kind === "npc" && !c.ally))
+    .map((c) => ({ c, a: angriffsArt(active, c) }))
+    // Erreichbare zuerst, dann nach Nähe.
+    .sort((x, y) => (x.a.art === "weg") - (y.a.art === "weg") || Zones.zoneOf(x.c) - Zones.zoneOf(y.c)
+      || String(x.c.name).localeCompare(String(y.c.name), "de"));
+  const zeilen = angriffsZeilen(active.spielwerte);
+  const zeile = ({ c, a }) => {
+    const st = c.status || {};
+    const werte = kampfwerteText(c);
+    const erst = st.shaken ? "1 🩸" : "😵";
+    const knoepfe = [0, 1, 2, 3].map((n) => `<button type="button" class="tz-stufe${n ? "" : " erfolg"}" data-act="gegnerzug-treffer" data-id="${c.id}" data-n="${n}"
+        title="${n ? `+${n} Steigerung: angeschlagen + ${n} ${n === 1 ? "Wunde" : "Wunden"}` : (st.shaken ? "Erfolg: war schon angeschlagen → 1 Wunde" : "Erfolg: angeschlagen")}">${n ? `+${n} 🩸` : erst}</button>`).join("");
+    return `<div class="treffer-zeile gz-zeile${a.art === "weg" ? " gz-weg" : ""}">
+      <span class="tz-name">${esc(c.name)}${st.shaken ? " 😵" : ""}${st.wounds ? ` <span class="treffer-wunden">${st.wounds}🩸</span>` : ""}
+        <span class="gz-art gz-${a.art}" title="${esc(a.titel)}">${a.text}</span>${werte ? ` <span class="treffer-werte">${werte}</span>` : ""}</span>
+      ${knoepfe}</div>`;
+  };
+  return `<div class="al-treffer gegnerzug">
+    <div class="row spread" style="align-items:center; margin-bottom:6px; gap:8px">
+      <strong>⚔ ${esc(active.name)} greift an – wen?</strong>
+      <span class="row tight">
+        <button class="ghost small" data-act="gegnerzug-zu" title="Kein Treffer – Karte für diesen Zug schließen">✗ Daneben / nichts</button>
+      </span>
+    </div>
+    ${zeilen.length ? `<div class="gz-werte">${zeilen.map((z) => `<div>${esc(z)}</div>`).join("")}</div>` : ""}
+    ${ziele.map(zeile).join("") || `<div class="muted small">Niemand auf der Spielerseite im Kampf.</div>`}
+  </div>`;
+}
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-act]");
+  if (!t || App.role !== "gm") return;
+  const s = App.state;
+  const active = s && s.combatants.find((c) => c.id === s.activeId);
+  if (t.dataset.act === "gegnerzug-zu" && active) {
+    e.preventDefault();
+    App.gegnerzugZu = gegnerzugSchluessel(s, active);
+    render();
+  } else if (t.dataset.act === "gegnerzug-treffer" && active) {
+    e.preventDefault();
+    App.gegnerzugZu = gegnerzugSchluessel(s, active);
+    trefferAuf(t.dataset.id, false, parseInt(t.dataset.n, 10) || 0);
+  }
+});
 
 // Heilung aus der Liste: ein Schritt nach apply_heal (wach / −1 Wunde / 😵 weg).
 function heilAuf(id, offenLassen) {
@@ -1283,7 +1345,11 @@ function renderOrderPanel(isGM) {
   if (hiddenC.length) {
     const zeigenH = kurz ? hiddenC.filter((c, i) => i < 4 || c.id === mineId) : hiddenC;
     verdecktGekuerzt = hiddenC.length - zeigenH.length;
-    body += `<div class="order-divider">${openC.length ? "Noch verdeckt" : "Noch niemand aufgedeckt – tippt eure Karte an!"}</div>`;
+    // Vor dem ersten Austeilen hat niemand eine Karte - dann nicht zum
+    // Antippen auffordern (Test 02.11.2026: stand schon in Runde 0 da).
+    const keineKarten = !active.some((c) => c.card);
+    body += `<div class="order-divider">${openC.length ? "Noch verdeckt"
+      : keineKarten ? "Noch keine Karten – der Spielleiter teilt gleich aus" : "Noch niemand aufgedeckt – tippt eure Karte an!"}</div>`;
     body += zeigenH.map((c) => combatantRow(c, null, false, false)).join("");
   }
   const restlich = versteckt + verdecktGekuerzt;

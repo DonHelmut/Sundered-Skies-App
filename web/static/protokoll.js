@@ -95,9 +95,14 @@ protKnopf.hidden = true;
 protKnopf.addEventListener("click", (e) => {
   e.stopPropagation();
   Prot.offen = !Prot.offen;
+  Prot.wasBisher = false;
   if (Prot.offen) protokollOeffnen();
   render();
 });
+
+function protokollAutoStand() {
+  try { return Number(localStorage.getItem("protokollAuto") || 0); } catch { return 0; }
+}
 
 function protokollOeffnen() {
   // Beim ersten Öffnen den neuesten Abend aufklappen.
@@ -115,6 +120,18 @@ function protokollKnopfAuffrischen() {
   const zeigen = App.role === "player" && protokollListe().length > 0;
   protKnopf.hidden = !zeigen;
   if (!zeigen && App.role === "player") Prot.offen = false;
+  // „Was bisher geschah" (Kalle 02.11.2026): ein neu freigegebenes Protokoll
+  // geht einmal von selbst auf - aber nur, wenn gerade kein Kampf läuft
+  // (App.kampfRuhe, spieler.js). Mitten im Kampf bleibt es beim Punkt am 📜.
+  if (zeigen && !Prot.offen && App.joined && App.kampfRuhe
+      && protokollNeuster() > protokollGelesen() && protokollNeuster() > protokollAutoStand()) {
+    try { localStorage.setItem("protokollAuto", String(protokollNeuster())); } catch { /* privates Fenster */ }
+    Prot.offen = true;
+    Prot.wasBisher = true;
+    Prot.auf = new Set();
+    protokollOeffnen();
+    setTimeout(render, 0);
+  }
   // Fenster offen = gelesen; sonst der Punkt, sobald etwas neu freigegeben ist.
   if (zeigen && Prot.offen && protokollNeuster() > protokollGelesen()) protokollOeffnen();
   protKnopf.classList.toggle("neu", zeigen && !Prot.offen && protokollNeuster() > protokollGelesen());
@@ -135,7 +152,7 @@ function protokollLeseHtml() {
   }).join("");
   return `<div class="protokoll-hg" data-act="prot-zu">
     <div class="protokoll-fenster panel" data-act="" data-scroll-merk="protokoll">
-      <div class="pt-titelzeile"><strong>📜 Protokolle</strong>
+      <div class="pt-titelzeile"><strong>📜 ${Prot.wasBisher ? "Was bisher geschah" : "Protokolle"}</strong>
         <button class="ghost small" data-act="prot-zu">Schließen</button></div>
       ${abende || `<div class="muted small">Noch nichts freigegeben.</div>`}
     </div></div>`;
@@ -206,7 +223,7 @@ document.addEventListener("click", async (e) => {
   if (!t || !t.dataset.act.startsWith("prot-")) return;
   const act = t.dataset.act, id = t.dataset.id;
   e.preventDefault();
-  if (act === "prot-zu") { Prot.offen = false; render(); return; }
+  if (act === "prot-zu") { Prot.offen = false; Prot.wasBisher = false; render(); return; }
   if (act === "prot-auf") {
     if (Prot.auf.has(id)) Prot.auf.delete(id); else Prot.auf.add(id);
     render(); return;

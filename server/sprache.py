@@ -862,12 +862,56 @@ def erkennen_parallel(ton, stuecke: list[tuple[float, float]], modelle: Path, th
         raise fehler[0]
 
 
+ABDRUCK_MAX_S = 60.0     # so viel Rede je Sprecher reicht für einen sicheren Abdruck
+ABDRUCK_STUECK_S = (1.5, 15.0)   # kürzere Fetzen sind unsicher, längere bringen nichts
+
+
+def stimm_abdruecke(ton, abschnitte: list[Abschnitt], modelle: Path, threads: int = 1) -> dict:
+    """Je Sprecher (S00, S01 … wie im Transkript) ein Stimmabdruck (TitaNet,
+    nach Dauer gemittelt, Länge 1). Damit erkennt die App Stimmen am nächsten
+    Abend wieder (aufnahme.py, Stimmprofile) - Kalle: einmal anmelden reicht."""
+    import math
+    import sherpa_onnx as so
+    ex = so.SpeakerEmbeddingExtractor(
+        so.SpeakerEmbeddingExtractorConfig(model=str(modelle / MODELLE["stimme"][1]), num_threads=threads))
+    nummer = sprecher_nummern(abschnitte)
+    je: dict[int, list[Abschnitt]] = {}
+    for a in abschnitte:
+        if a.ende - a.start >= ABDRUCK_STUECK_S[0]:
+            je.setdefault(a.sprecher, []).append(a)
+    erg: dict[str, list[float]] = {}
+    for sp, liste in je.items():
+        summe, gesamt = None, 0.0
+        for a in sorted(liste, key=lambda x: x.start - x.ende):      # längste zuerst
+            if gesamt >= ABDRUCK_MAX_S:
+                break
+            ende = min(a.ende, a.start + ABDRUCK_STUECK_S[1])
+            stueck = ton[int(a.start * SR):int(ende * SR)]
+            if len(stueck) < SR:
+                continue
+            st = ex.create_stream()
+            st.accept_waveform(SR, stueck)
+            st.input_finished()
+            v = list(ex.compute(st))
+            laenge = math.sqrt(sum(x * x for x in v)) or 1.0
+            gewicht = ende - a.start
+            v = [x / laenge * gewicht for x in v]
+            summe = v if summe is None else [x + y for x, y in zip(summe, v)]
+            gesamt += gewicht
+        if summe:
+            laenge = math.sqrt(sum(x * x for x in summe)) or 1.0
+            erg[f"S{nummer[sp]:02d}"] = [round(x / laenge, 5) for x in summe]
+    return erg
+
+
 def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
                    fortschritt: Optional[Callable[[float, str], None]] = None,
-                   stopp: Optional[threading.Event] = None, namen=()) -> str:
+                   stopp: Optional[threading.Event] = None, namen=(),
+                   abdruecke: Optional[dict] = None) -> str:
     """Ganze Aufnahme -> Transkript „[hh:mm:ss] S00: …". fortschritt(0..1, Schritt).
     personen: höchstens so viele Sprecher (0 = bis zu 8).
-    namen: Eigennamen der Runde (server/namen.py)."""
+    namen: Eigennamen der Runde (server/namen.py).
+    abdruecke: wird (falls gegeben) mit den Stimmabdrücken je Sprecher gefüllt."""
     stopp = stopp or threading.Event()
     melden = fortschritt or (lambda a, s: None)
     threads = _threads()
@@ -912,7 +956,14 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
             abschnitte.append(a)
         erledigt += e - s
         melden(0.2 + 0.8 * erledigt / sprach_s, "Text erkennen")
-    return transkript_text(beitraege(kleine_sprecher_weg(abschnitte, personen or MAX_LEUTE_UNBEKANNT)))
+    fertig = beitraege(kleine_sprecher_weg(abschnitte, personen or MAX_LEUTE_UNBEKANNT))
+    if abdruecke is not None and fertig:
+        melden(1.0, "Stimmen merken")
+        try:
+            abdruecke.update(stimm_abdruecke(ton, fertig, modelle, threads))
+        except Exception:   # noqa: BLE001 - ohne Abdrücke gibt es trotzdem ein Transkript
+            pass
+    return transkript_text(fertig)
 
 
 # --- Live ---------------------------------------------------------------------------------
@@ -1306,9 +1357,12 @@ class Sprache:
         def los() -> None:
             try:
                 namen = self.begriffe() + self.aufnahmen.namen(name) + self._app_namen()
-                text = transkribieren(pfad, self.modelle, self.hoechstens(name), melden, stopp, namen=namen)
+                abdruecke: dict = {}
+                text = transkribieren(pfad, self.modelle, self.hoechstens(name), melden, stopp, namen=namen,
+                                      abdruecke=abdruecke)
                 if text.strip():
                     (self.aufnahmen.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
+                    self.aufnahmen.abdruecke_speichern(name, abdruecke)
                     # Wer ist wer - aus dem Kontext, ohne dass der SL wählen muss.
                     self.aufnahmen.sprecher_automatisch(name)
                 self.job = None
