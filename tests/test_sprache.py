@@ -107,7 +107,7 @@ def test_genau_nur_einer_und_nicht_die_laufende(tmp_path, monkeypatch):
     gestartet = threading.Event()
     weiter = threading.Event()
 
-    def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=()):
+    def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=(), **_):
         melden(0.5, "Text erkennen")
         gestartet.set()
         weiter.wait(2)
@@ -288,7 +288,7 @@ def test_nach_der_aufnahme_kommt_das_transkript_von_selbst(tmp_path, monkeypatch
     weiter = threading.Event()
     gerechnet = []
 
-    def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=()):
+    def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=(), **_):
         gerechnet.append(pfad.stem)
         weiter.wait(2)
         return "[00:00:01] S00: Ihr seht ein Schiff.\n"
@@ -324,7 +324,7 @@ def test_ohne_genauer_modell_erst_laden_dann_rechnen(tmp_path, monkeypatch):
     monkeypatch.setattr(SP, "modelle_laden", falsch_laden)
     mit_canary = []
 
-    def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=()):
+    def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=(), **_):
         mit_canary.append(da["canary"])
         return "[00:00:01] S00: Hallo.\n"
     monkeypatch.setattr(SP, "transkribieren", falsch_transkribieren)

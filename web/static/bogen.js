@@ -132,7 +132,7 @@ function bogenReiterLeiste(reiter, act) {
 function bogenLesenHtml(b, c, reiter) {
   if (reiter === "kampf") {
     return `<div class="zeile2"><span>Parade</span><b>${b.parade ? esc(b.parade) : (autoParade(b) !== null ? `${autoParade(b)} <span class="auto-wert">automatisch</span>` : "–")}</b></div>
-         <div class="zeile2"><span>Robustheit</span><b>${b.robustheit ? esc(b.robustheit) : (autoRobustheit(b) !== null ? `${autoRobustheit(b)} <span class="auto-wert">automatisch</span>` : "–")}${b.panzer ? ` (${esc(b.panzer)})` : ""}</b></div>
+         <div class="zeile2"><span>Robustheit</span><b>${b.robustheit ? esc(b.robustheit) : (autoRobustheit(b) !== null ? `${autoRobustheit(b)} <span class="auto-wert">automatisch</span>` : "–")}${b.panzer && !panzerSchonDrin(b) ? ` (${esc(b.panzer)})` : ""}</b></div>
          <div class="zeile2"><span>Tempo</span><b>${esc(b.tempo || "–")}${b.rennen ? ` · Rennen ${esc(b.rennen)}` : ""}</b></div>
          ${b.waffen.map((w) => `<div class="zeile2"><span>${w.art === "fern" ? "🏹" : "⚔"} ${esc(w.name)}</span><b>${esc([w.schaden, w.info].filter(Boolean).join(" · "))}</b></div>
            <div class="wuerfel-tipp">${wuerfelTipp(w, b)}</div>`).join("")}`;
@@ -331,6 +331,10 @@ function autoParade(b) {
   const h = halberWuerfel((b.fertigkeiten.find((f) => /^k(ä|ae)mpfen$/i.test(f.name.trim())) || {}).wert);
   return h === null ? null : 2 + h;
 }
+// Viele schreiben die Robustheit wie auf dem Bogen: „7 (2)". Dann den Panzer
+// nicht nochmal anhängen - im Test 02.11.2026 stand „7 (2) (2)" da.
+function panzerSchonDrin(b) { return /\(/.test(String(b.robustheit || "")); }
+
 function autoRobustheit(b) {
   const h = halberWuerfel(b.attribute.ko);
   if (h === null) return null;

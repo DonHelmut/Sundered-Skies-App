@@ -106,17 +106,27 @@ function kurzAnsichtJetzt(s, mine, isMyTurn) {
     && App.zugAllesZeigen !== zugSchluessel(s, mine);
 }
 
-function zugPanelHtml(mine, extras) {
+// Parade/Robustheit/Tempo als Kacheln - in „Mein Zug" und in der ruhigen
+// Ansicht zwischen den Kämpfen (spieler.js).
+function werteKachelnHtml(mine) {
   const b = bogenVon(mine);
-  const st = mine.status || {};
   const parade = b.parade || autoParade(b);
   const robust = b.robustheit || autoRobustheit(b);
   const kachel = (name, wert, zusatz = "") => `<div class="zk-kachel"><span>${name}</span><b>${wert ? esc(String(wert)) : "–"}</b>${zusatz}</div>`;
-  const kacheln = kachel("Parade", parade) + kachel("Robustheit", robust, b.panzer ? `<i>Panzer ${esc(b.panzer)}</i>` : "")
+  return kachel("Parade", parade) + kachel("Robustheit", robust, b.panzer && !panzerSchonDrin(b) ? `<i>Panzer ${esc(b.panzer)}</i>` : "")
     + kachel("Tempo", b.tempo, b.rennen ? `<i>Rennen ${esc(b.rennen)}</i>` : "");
-  // Alle Abzüge auf einen Blick: Wunden zählen bis −3.
+}
+// Alle Abzüge auf einen Blick: Wunden zählen bis −3.
+function wundAbzugHtml(mine) {
+  const st = mine.status || {};
   const wundAbzug = Math.min(3, st.wounds || 0);
-  const abzug = wundAbzug ? `<div class="zk-abzug">−${wundAbzug} auf alle Würfe <span class="muted small">(${st.wounds} Wunde${st.wounds > 1 ? "n" : ""})</span></div>` : "";
+  return wundAbzug ? `<div class="zk-abzug">−${wundAbzug} auf alle Würfe <span class="muted small">(${st.wounds} Wunde${st.wounds > 1 ? "n" : ""})</span></div>` : "";
+}
+
+function zugPanelHtml(mine, extras) {
+  const b = bogenVon(mine);
+  const kacheln = werteKachelnHtml(mine);
+  const abzug = wundAbzugHtml(mine);
   const waffen = b.waffen.map((w) => `<div class="zk-waffe"><div class="zk-wname">${w.art === "fern" ? "🏹" : "⚔"} ${esc(w.name)}</div>
       <div class="wuerfel-tipp">${wuerfelTipp(w, b)}</div></div>`).join("");
   const fert = b.fertigkeiten.filter((f) => f.name && f.wert)

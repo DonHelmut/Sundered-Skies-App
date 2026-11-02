@@ -115,7 +115,8 @@ function renderAufnahmePanel() {
       ? `<div class="pill warn" style="display:block; margin-bottom:8px">⚠ Eine Aufnahme wurde unterbrochen (Seite neu geladen?). Der Ton bis dahin ist gespeichert.</div>` : "";
     oben = kannAufnehmen
       ? `${unterbrochen}<div class="row" style="gap:6px; flex-wrap:wrap; align-items:center">
-          <button class="primary" data-act="aufn-start">● ${st.aktiv ? "Weiter aufnehmen" : "Aufnahme starten"}</button>${auswahl}
+          ${st.aktiv ? "" : `<button class="primary" data-act="aufn-abend" title="Bennies auffüllen, Aufnahme starten, letztes Protokoll an die Handys – alles auf einmal">🌅 Abend starten</button>`}
+          <button class="${st.aktiv ? "primary" : "ghost"}" data-act="aufn-start">● ${st.aktiv ? "Weiter aufnehmen" : "Nur aufnehmen"}</button>${auswahl}
         </div>`
       : `<div class="pill bad">Dieser Browser kann nicht aufnehmen – Chrome oder Edge nehmen.</div>`;
   }
@@ -208,6 +209,27 @@ function aufnJobText(job) {
 }
 
 // --- Aufnehmen -----------------------------------------------------------------
+
+// „🌅 Abend starten" (Kalle 02.11.2026): was zu Beginn jedes Abends ansteht, in
+// EINEM Tipp - Bennies auf Startwert, Aufnahme an, das letzte Protokoll an die
+// Handys (dort geht es als „Was bisher geschah" von selbst auf).
+async function abendStarten() {
+  const s = App.state || {};
+  if (s.hasSavedSession) {
+    hinweis("Erst oben entscheiden: gespeicherten Kampf fortsetzen oder neu beginnen.");
+    return;
+  }
+  const letztes = (s.protokolle || [])[0];
+  const freigeben = letztes && !letztes.freigegeben;
+  const punkte = ["🪙 Bennies aller Wildcards auf Startwert", "🎙 Aufnahme starten"];
+  if (freigeben) punkte.push(`📜 Protokoll „${letztes.name}“ an die Handys`);
+  else if (letztes) punkte.push(`📜 „${letztes.name}“ ist schon frei – die Handys zeigen es zum Start`);
+  if (!await frage(`🌅 Abend starten:\n\n${punkte.map((p) => `• ${p}`).join("\n")}`, "Los geht's")) return;
+  gmAction({ type: "benny_refresh" });
+  if (freigeben) gmAction({ type: "protokoll_freigeben", id: letztes.id, an: true });
+  await aufnahmeStarten();
+  toast("🌅 Viel Spaß heute Abend!");
+}
 
 async function aufnahmeStarten() {
   if (Aufn.rec) return;
@@ -368,12 +390,18 @@ function aufnStimmenHtml(st) {
     .filter((c) => c.kind === "player" && !c.benched).map((c) => c.name);
   const namen = ["Spielleiter", ...new Set(figuren)];
   const schon = new Set(((st.aktiv || {}).stimmen) || []);
-  const alleDurch = namen.every((n) => schon.has(n));
+  // Stimmen von früheren Abenden erkennt die App von selbst (Stimmprofile) -
+  // anmelden nur noch, wer neu ist (oder wenn es letztes Mal nicht passte).
+  const bekannt = new Set(st.stimmenBekannt || []);
+  const alleDurch = namen.every((n) => schon.has(n) || bekannt.has(n));
   const knoepfe = namen.map((n) => {
     const c = ((App.state && App.state.combatants) || []).find((x) => x.name === n);
     const wer = c && c.playerName && c.playerName !== n ? ` <span class="muted small">(${esc(c.playerName)})</span>` : "";
-    return `<button type="button" class="${schon.has(n) ? "ghost on" : "ghost"} small" data-act="aufn-stimme" data-figur="${esc(n)}">${schon.has(n) ? "✓ " : "🎙 "}${esc(n)}${wer}</button>`;
+    const zeichen = schon.has(n) ? "✓ " : bekannt.has(n) ? "👂 " : "🎙 ";
+    const titel = !schon.has(n) && bekannt.has(n) ? ` title="Stimme von früher bekannt – nur anmelden, wenn es letztes Mal nicht passte"` : "";
+    return `<button type="button" class="${schon.has(n) ? "ghost on" : "ghost"} small${bekannt.has(n) && !schon.has(n) ? " bekannt" : ""}" data-act="aufn-stimme" data-figur="${esc(n)}"${titel}>${zeichen}${esc(n)}${wer}</button>`;
   }).join("");
+  const nBekannt = namen.filter((n) => bekannt.has(n) && !schon.has(n)).length;
   // Bei jeder neuen Aufnahme einmal aufgeklappt, danach merkt sich die Klappe
   // den Zustand wie alle anderen (data-merk).
   if (App._stimmenAufnahme !== Aufn.start) {
@@ -381,9 +409,9 @@ function aufnStimmenHtml(st) {
     if (!alleDurch) App.offeneUnter.add("aufn-stimmen");
   }
   return `<details class="aufn-stimmen" data-merk="aufn-stimmen"${App.offeneUnter.has("aufn-stimmen") ? " open" : ""}>
-    <summary>🎙 Stimmen anmelden${schon.size ? ` <span class="muted small">· ${schon.size} von ${namen.length}</span>` : ""}</summary>
+    <summary>🎙 Stimmen anmelden${schon.size || nBekannt ? ` <span class="muted small">· ${[schon.size ? `${schon.size} von ${namen.length}` : "", nBekannt ? `👂 ${nBekannt} bekannt` : ""].filter(Boolean).join(" · ")}</span>` : ""}</summary>
     <div class="muted small" style="margin:4px 0 6px">Name tippen, dann sagt die Person ein, zwei Sätze („Ich bin Tim und spiele Korgo …“).
-      So weiß die Mitschrift danach sicher, wer wer ist.</div>
+      So weiß die Mitschrift danach sicher, wer wer ist. 👂 = Stimme vom letzten Mal bekannt, nicht nötig.</div>
     <div class="row" style="gap:6px; flex-wrap:wrap">${knoepfe}</div>
   </details>`;
 }
@@ -406,7 +434,14 @@ async function aufnMarke() {
   if (!Aufn.rec) return;
   // Sofort merken, ohne Nachfrage: am Tisch zählt der Moment, nicht der Text.
   try { await fetch("/api/aufnahme/marke", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); } catch { return; }
-  toast(`📌 Gemerkt bei ${aufnZeit(Date.now() - Aufn.start)}`);
+  // Danach optional ein Stichwort („Korgos Joker", „Rask flieht") - Kalle
+  // 02.11.2026. Die Zeit steht schon; Enter ohne Text oder Esc = nur die Zeit.
+  const text = await eingabe(`📌 Gemerkt bei ${aufnZeit(Date.now() - Aufn.start)}. Stichwort dazu? (optional)`, "", "Merken");
+  if (!text) return;
+  try {
+    await fetch("/api/aufnahme/marke", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nachtragen: true, text }) });
+  } catch { /* Zeit ist gemerkt, nur ohne Stichwort */ }
 }
 
 // --- Live-Mitschrift ---------------------------------------------------------------
@@ -602,6 +637,7 @@ document.addEventListener("click", async (e) => {
   if (!t || App.role !== "gm") return;
   const act = t.dataset.act;
   if (act === "aufn-start") { e.preventDefault(); aufnahmeStarten(); }
+  else if (act === "aufn-abend") { e.preventDefault(); abendStarten(); }
   else if (act === "aufn-stop") {
     e.preventDefault();
     if (await frage("Aufnahme beenden?", "Beenden")) aufnahmeBeenden();

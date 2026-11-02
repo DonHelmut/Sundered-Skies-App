@@ -297,6 +297,9 @@ def fachwoerter(text: str) -> list[str]:
     return erg
 
 
+PROTOKOLLE_FUER_NAMEN = 5   # so viele der neuesten Protokolle liefern Namen
+
+
 def fachwoerter_aus_spiel(game) -> list[str]:
     """Fachwörter, die der SL und die Spieler ohnehin schon in die App getippt
     haben: Waffen, Talente, Handicaps, Ausrüstung aus den Charakterbögen,
@@ -321,6 +324,12 @@ def fachwoerter_aus_spiel(game) -> list[str]:
     for e in getattr(game, "encounters", None) or []:
         if isinstance(e, dict):
             texte.append(str(e.get("name") or ""))
+    # Namen aus den Protokollen der letzten Abende (Orte, NSCs, Schiffe): im
+    # Test 02.11.2026 wurde „Graufels" zu „Grauwölz" und „Kraufels" - stand
+    # das Wort im letzten Protokoll, korrigiert die Namenskorrektur es jetzt.
+    for p in (getattr(game, "protokolle", None) or [])[:PROTOKOLLE_FUER_NAMEN]:
+        if isinstance(p, dict) and isinstance(p.get("text"), str):
+            texte.append(p["text"])
     erg: list[str] = []
     for t in texte:
         erg += fachwoerter(t)

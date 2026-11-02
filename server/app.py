@@ -247,7 +247,8 @@ class Hub:
                 return fassung["gm"]
             pid = meta.get("playerId")
             return {"type": "state",
-                    "state": {**fassung["player"]["state"], "messages": game.nachrichten_fuer(pid)}}
+                    "state": {**fassung["player"]["state"], "messages": game.nachrichten_fuer(pid),
+                              "meineNotizen": game.notizen_fuer(pid)}}
         ziele = list(self.sockets.items())
         ok = await asyncio.gather(*(self._senden(ws, fuer(meta)) for ws, meta in ziele))
         for (ws, meta), gesendet in zip(ziele, ok):
@@ -398,6 +399,7 @@ sprache = Sprache(DATA_DIR / "modelle", aufnahmen)
 # Leute am Tisch sitzen (Spieler-Figuren mit verschiedenen Spielern + SL).
 sprache.namen_quelle = lambda: namen_aus_spiel(game)
 aufnahmen.begriffe_quelle = sprache.begriffe
+aufnahmen.vorgeschichte_quelle = game.protokoll_vorher
 
 
 def _leute_am_tisch() -> int:
@@ -467,7 +469,10 @@ async def aufnahme_marke(request: Request):
         body = await request.json()
     except ValueError:
         body = {}
-    return JSONResponse({"ok": aufnahmen.marke(str((body or {}).get("text") or ""))})
+    body = body if isinstance(body, dict) else {}
+    if body.get("nachtragen"):
+        return JSONResponse({"ok": aufnahmen.marke_text(str(body.get("text") or ""))})
+    return JSONResponse({"ok": aufnahmen.marke(str(body.get("text") or ""))})
 
 
 @app.post("/api/aufnahme/stimme")
@@ -843,6 +848,10 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             # Charakterbogen: NUR der eigene (die ID kommt vom Server, nicht vom Handy).
             game.apply({"type": "sheet_update", "id": own["id"], "bogen": action.get("bogen")})
             await hub.broadcast_state()
+        elif atype == "notizen_setzen":
+            # Eigene Notizen - nur am eigenen Charakter, nur dieses Handy sieht sie.
+            if game.notizen_setzen(own["id"], action.get("text")):
+                await hub.broadcast_state()
         elif atype == "talents_update":
             # Eigene Initiative-Talente - wieder NUR die eigene Figur.
             game.apply({"type": "talents_update", "id": own["id"], "talents": action.get("talents"),

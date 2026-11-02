@@ -2591,3 +2591,19 @@ button.aufn-sprecher.benannt { opacity: .9; font-weight: 600; }
 .aufn-stimmen { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
 .aufn-stimmen summary { cursor: pointer; font-weight: 700; }
 .aufn-stimmen button.on { border-color: var(--good); color: var(--good); }
+
+/* Zwischen den Kämpfen (Handy): ruhige Ansicht statt Kartenrückseite */
+.panel.ruhe { padding: 12px; }
+.ruhe-titel { font-weight: 700; color: var(--muted); text-align: center; margin-bottom: 10px; }
+.ruhe-werte { flex: none; }
+.ruhe-knoepfe { justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+/* Eigene Notizen */
+.panel.notizen textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; line-height: 1.4; }
+.notizen-stand { margin-top: 4px; text-align: right; }
+/* SL: Gegnerzug-Karte über der Leiste */
+.gegnerzug .gz-werte { font-size: 0.85rem; color: var(--muted); border-left: 3px solid var(--bad); padding: 2px 8px; margin-bottom: 8px; }
+.gz-art { font-size: 0.75rem; border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; margin-left: 4px; white-space: nowrap; }
+.gz-art.gz-nah { color: var(--bad); border-color: var(--bad); }
+.gz-weg { opacity: 0.55; }
+/* Stimm-Anmeldung: Stimme von früher bekannt */
+.aufn-stimmen button.bekannt { color: var(--muted); border-style: dashed; }
