@@ -106,6 +106,33 @@ Gemessen (Redezeit beim richtigen Sprecher):
 
 Testwerkzeug: Piper-Stimmen von k2-fsa/sherpa-onnx `tts-models` (GitHub,
 Hugging Face ist gesperrt), gesprochen mit `pip install piper-tts`.
+## Unveröffentlicht (04.11.2026): Aktualisieren klappt auch mit OneDrive
+
+- **Fehler:** Kalles App im OneDrive-Desktop, Aktualisieren 1.5.34→1.5.35 brach
+  bei jedem Versuch mit „[WinError 5] Zugriff verweigert: …\_aktualisieren.neu"
+  ab. Ursache: Der Updater löschte einen Ordner und legte ihn sofort unter
+  demselben Namen neu an. Hält noch jemand (OneDrive, Virenscanner) einen Griff,
+  ist der Ordner unter Windows nur „zum Löschen vorgemerkt" → Neuanlegen
+  verweigert. Beim nächsten App-Start löschte `updater_nachziehen` den Inhalt
+  von `_aktualisieren`, das Umbenennen scheiterte → **leerer Updater-Ordner**
+  (Aktualisieren.exe startet nicht mehr). App selbst blieb heil (1.5.34).
+- **Neu (`aktualisieren.py`):** nie mehr „löschen + gleich neu anlegen".
+  1. Neues unter `*.kommt` in den App-Ordner kopieren (alt unberührt).
+  2. Je Eintrag alt nur beiseite **umbenennen** (`*.weg-<zeit>`), neu einsetzen.
+     Scheitert es → alles zurücktauschen, alte Version startet weiter.
+  3. Beiseitegelegtes löschen, soweit es geht; Reste räumt der nächste Start
+     (`aufraeumen`). Schreibschutz (OneDrive) wird dabei aufgehoben.
+  - Gesperrt → bis 60 s geduldig wiederholen, mit Hinweis „warte …".
+  - Updater-eigene Dateien sind Nebensache: hängen sie, wird die App trotzdem
+    aktualisiert. `START-HIER.txt` (Versionsquelle) kommt zuletzt – ein halber
+    Austausch hält sich nie für fertig.
+  - `updater_nachziehen`: alten Updater nur beiseite umbenennen, bei Fehler
+    zurückholen; leere `.neu`-Reste weg.
+  - Fehlermeldung sagt jetzt, ob die alte Version heil ist, und gibt den
+    OneDrive-Tipp (Synchronisierung kurz anhalten, nochmal starten).
+- **Einmalig für Kalle:** sein `_aktualisieren` ist leer → 1.5.35/1.5.36 einmal
+  per Zip von Hand (data rüberkopieren); danach läuft der neue Updater.
+- Tests: `tests/test_aktualisieren.py` (Sperren per gepatchtem `rename`).
 
 ## Unveröffentlicht (04.11.2026): Notizen als Liste mit Themen-Reitern
 

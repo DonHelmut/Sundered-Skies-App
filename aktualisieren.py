@@ -90,57 +90,253 @@ def app_laeuft(ordner: Path) -> bool:
     return False
 
 
+# --- Dateien tauschen, auch wenn Windows/OneDrive dazwischenfunkt -------------
+#
+# Vorgeschichte (1.5.35, Kalles App im OneDrive-Desktop): Der Updater hat erst
+# gelöscht und dann denselben Namen neu angelegt. Unter Windows ist ein
+# gelöschter Ordner aber nur „zum Löschen vorgemerkt", solange noch jemand
+# (OneDrive, Virenscanner, Explorer) einen Griff darauf hat – ein neuer Ordner
+# mit demselben Namen gibt dann „Zugriff verweigert" (WinError 5), bei jedem
+# Versuch wieder. Beim App-Start wurde ``_aktualisieren`` gelöscht, das
+# Umbenennen von ``.neu`` scheiterte – übrig blieb ein LEERER Updater-Ordner.
+# Darum jetzt: nie löschen und gleich wieder anlegen. Alte Sachen werden nur
+# beiseite UMBENANNT (frei gewordener Name sofort nutzbar), Neues kommt unter
+# einem frischen Namen dazu und wird erst ganz am Ende eingesetzt. Klappt ein
+# Schritt nicht, wird zurückgetauscht – die alte Version bleibt lauffähig.
+# Weggeräumtes (``*.weg-…``) löscht der nächste Start, wenn nichts mehr sperrt.
+
+WEG = ".weg-"         # beiseite gelegt, wird später gelöscht
+KOMMT = ".kommt"      # neu kopiert, noch nicht eingesetzt
+# Sperren durch OneDrive/Virenscanner lösen sich meist nach Sekunden.
+GEDULD_S = 60.0
+# Für Nebensachen (Updater-eigene Dateien) und beim App-Start nicht so lange.
+GEDULD_KURZ_S = 5.0
+PAUSE_S = 0.5
+
+
+class AustauschFehler(RuntimeError):
+    """``alt_heil``: die bisherige Version ist unverändert und startet weiter."""
+
+    def __init__(self, text: str, alt_heil: bool):
+        super().__init__(text)
+        self.alt_heil = alt_heil
+
+
+def _geduldig(aktion, geduld_s: float | None = None, was: str = ""):
+    """``aktion`` wiederholen, solange Windows „gesperrt" meldet. Fehlende
+    Dateien sind kein Sperren – die gehen sofort durch."""
+    geduld = GEDULD_S if geduld_s is None else geduld_s
+    ende = time.monotonic() + geduld
+    gemeldet = False
+    while True:
+        try:
+            return aktion()
+        except FileNotFoundError:
+            raise
+        except OSError:
+            if time.monotonic() >= ende:
+                raise
+            if was and not gemeldet:
+                gemeldet = True
+                print(f"  {was} ist gerade gesperrt (OneDrive/Virenscanner?) – warte …", flush=True)
+            time.sleep(PAUSE_S)
+
+
+def _schreibbar_machen(funktion, pfad, _info):
+    """rmtree-Helfer: schreibgeschützte Dateien (OneDrive setzt das manchmal)
+    freigeben und nochmal versuchen."""
+    try:
+        os.chmod(pfad, 0o700)
+        funktion(pfad)
+    except OSError:
+        pass
+
+
+def _loeschen(pfad: Path) -> bool:
+    """Löschen, so gut es geht – ohne zu warten. Rückgabe: ob weg."""
+    try:
+        if pfad.is_dir() and not pfad.is_symlink():
+            if sys.version_info >= (3, 12):
+                shutil.rmtree(pfad, onexc=_schreibbar_machen)
+            else:  # pragma: no cover
+                shutil.rmtree(pfad, onerror=_schreibbar_machen)
+        elif pfad.exists() or pfad.is_symlink():
+            try:
+                pfad.unlink()
+            except PermissionError:
+                os.chmod(pfad, 0o700)
+                pfad.unlink()
+    except OSError:
+        pass
+    return not (pfad.exists() or pfad.is_symlink())
+
+
+def _freier_name(pfad: Path, endung: str) -> Path:
+    stempel = time.strftime("%Y%m%d-%H%M%S")
+    for n in range(1000):
+        kandidat = pfad.with_name(f"{pfad.name}{endung}{stempel}{'-' + str(n) if n else ''}")
+        if not (kandidat.exists() or kandidat.is_symlink()):
+            return kandidat
+    raise AustauschFehler(f"Kein freier Name für {pfad.name}", alt_heil=True)
+
+
+def _beiseite(pfad: Path, geduld_s: float | None = None) -> Path:
+    """Umbenennen statt löschen: der Name ist danach sofort frei."""
+    weg = _freier_name(pfad, WEG)
+    _geduldig(lambda: pfad.rename(weg), geduld_s, pfad.name)
+    return weg
+
+
+def _kopieren(quelle: Path, ziel: Path) -> None:
+    if quelle.is_dir():
+        # dirs_exist_ok: ein Wiederholungsversuch macht weiter, wo es hing.
+        _geduldig(lambda: shutil.copytree(quelle, ziel, dirs_exist_ok=True), was=quelle.name)
+    else:
+        _geduldig(lambda: shutil.copy2(quelle, ziel), was=quelle.name)
+
+
+def aufraeumen(ordner: Path) -> None:
+    """Reste früherer Updates (``*.weg-…``, halbe ``*.kommt``) löschen, soweit
+    nichts mehr sperrt. Was noch hängt, kommt beim nächsten Mal dran."""
+    try:
+        eintraege = list(ordner.iterdir())
+    except OSError:
+        return
+    for p in eintraege:
+        if WEG in p.name or p.name.endswith(KOMMT):
+            _loeschen(p)
+
+
+def _reihenfolge(name: str) -> tuple[int, str]:
+    # START-HIER.txt (daraus liest der Updater die Version) zuletzt: steht dort
+    # die neue Nummer, ist auch alles andere neu. Sonst hielte ein halber
+    # Austausch sich für fertig, und ein zweiter Versuch täte nichts mehr.
+    return (1 if name.lower() == "start-hier.txt" else 0, name.lower())
+
+
 def austauschen(quelle: Path, ordner: Path) -> list[str]:
-    """Neue Version aus ``quelle`` nach ``ordner`` bringen. ``data`` bleibt,
-    ``_internal`` wird vorher ganz geleert (sonst blieben Dateien der alten
-    Version liegen). Die eigenen Dateien des Updaters kommen als ``*.neu``
-    daneben. Rückgabe: Liste der erledigten Einträge (für die Anzeige/Tests)."""
-    erledigt = []
-    for eintrag in sorted(quelle.iterdir()):
+    """Neue Version aus ``quelle`` nach ``ordner`` bringen. ``data`` bleibt;
+    ``_internal`` & Co. werden ganz ersetzt (keine Reste der alten Version).
+    Die eigenen Dateien des Updaters kommen als ``*.neu`` daneben – und sind
+    Nebensache: hakt es dort, wird die App trotzdem aktualisiert.
+
+    1. Alles unter ``*.kommt`` in den App-Ordner kopieren (alte Version
+       unberührt – scheitert das, ist nichts kaputt).
+    2. Je Eintrag: alt beiseite umbenennen, neu einsetzen. Scheitert das,
+       alles zurück.
+    3. Beiseitegelegtes löschen, soweit es geht.
+
+    Rückgabe: Liste der eingesetzten Einträge (für Anzeige/Tests)."""
+    aufraeumen(ordner)
+    plan = []          # (ziel, kommt, nebensache)
+    for eintrag in sorted(quelle.iterdir(), key=lambda p: _reihenfolge(p.name)):
         name = eintrag.name
         if name in BEHALTEN:
             continue
-        if name in (SELBST_EXE, SELBST_ORDNER):
-            ziel = ordner / (name + ".neu")
-        else:
-            ziel = ordner / name
-        if ziel.is_dir():
-            shutil.rmtree(ziel)
-        elif ziel.exists():
-            ziel.unlink()
-        if eintrag.is_dir():
-            shutil.copytree(eintrag, ziel)
-        else:
-            shutil.copy2(eintrag, ziel)
-        erledigt.append(ziel.name)
-    return erledigt
+        nebensache = name in (SELBST_EXE, SELBST_ORDNER)
+        ziel = ordner / (name + ".neu" if nebensache else name)
+        plan.append((eintrag, ziel, nebensache))
+
+    # 1. Kopieren
+    bereit = []
+    for eintrag, ziel, nebensache in plan:
+        kommt = _freier_name(ziel, KOMMT)
+        try:
+            _kopieren(eintrag, kommt)
+        except OSError as fehler:
+            _loeschen(kommt)
+            if nebensache:
+                continue
+            for _, k, _n in bereit:
+                _loeschen(k)
+            raise AustauschFehler(f"Kopieren von {eintrag.name} ging nicht: {fehler}", alt_heil=True) from fehler
+        bereit.append((ziel, kommt, nebensache))
+
+    # 2. Einsetzen
+    getauscht = []     # (ziel, beiseite oder None)
+    weggeraeumt = []
+    for ziel, kommt, nebensache in bereit:
+        alt = None
+        try:
+            if ziel.exists() or ziel.is_symlink():
+                alt = _beiseite(ziel, GEDULD_KURZ_S if nebensache else None)
+            _geduldig(lambda: kommt.rename(ziel), GEDULD_KURZ_S if nebensache else None, ziel.name)
+        except OSError as fehler:
+            if alt is not None and not ziel.exists():
+                try:
+                    _geduldig(lambda: alt.rename(ziel))
+                    alt = None
+                except OSError:
+                    pass
+            _loeschen(kommt)
+            if nebensache:
+                if alt is not None:
+                    weggeraeumt.append(alt)
+                continue
+            heil = _zuruecktauschen(getauscht) and alt is None
+            for _, k, _n in bereit:
+                _loeschen(k)
+            raise AustauschFehler(f"Einsetzen von {ziel.name} ging nicht: {fehler}", alt_heil=heil) from fehler
+        getauscht.append((ziel, alt))
+
+    # 3. Aufräumen
+    for _, alt in getauscht:
+        if alt is not None:
+            _loeschen(alt)
+    for alt in weggeraeumt:
+        _loeschen(alt)
+    return [ziel.name for ziel, _ in getauscht]
+
+
+def _zuruecktauschen(getauscht: list) -> bool:
+    """Schon eingesetzte Einträge wieder gegen die alten tauschen."""
+    heil = True
+    for ziel, alt in reversed(getauscht):
+        try:
+            neu_weg = _beiseite(ziel)
+            if alt is not None:
+                _geduldig(lambda: alt.rename(ziel))
+            _loeschen(neu_weg)
+        except OSError:
+            heil = False
+    return heil
 
 
 def updater_nachziehen(ordner: Path) -> bool:
     """Liegen neue Updater-Dateien (*.neu) bereit, jetzt einsetzen. Läuft beim
-    Start der App (dann ist der Updater nicht offen). Räumt außerdem den
-    Vorgänger (Aktualisieren.bat/.ps1) weg. Rückgabe: ob etwas getauscht wurde."""
+    Start der App (dann ist der Updater nicht offen) – darf den Start nicht
+    lange aufhalten und nie einen kaputten Updater hinterlassen: der alte
+    wird nur beiseite umbenannt und zurückgeholt, wenn der neue nicht passt.
+    Repariert auch einen leeren ``_aktualisieren`` (Folge des alten Fehlers).
+    Räumt außerdem Vorgänger und Reste weg. Rückgabe: ob etwas getauscht wurde."""
     getauscht = False
-    neu_ordner = ordner / (SELBST_ORDNER + ".neu")
-    neu_exe = ordner / (SELBST_EXE + ".neu")
+    for name in (SELBST_ORDNER, SELBST_EXE):
+        neu = ordner / (name + ".neu")
+        alt = ordner / name
+        if not neu.exists():
+            continue
+        if neu.is_dir() and not any(neu.iterdir()):
+            _loeschen(neu)          # leerer Rest eines gescheiterten Updates
+            continue
+        weg = None
+        try:
+            if alt.exists() or alt.is_symlink():
+                weg = _beiseite(alt, GEDULD_KURZ_S)
+            _geduldig(lambda: neu.rename(alt), GEDULD_KURZ_S)
+            getauscht = True
+        except OSError:
+            if weg is not None and not alt.exists():
+                try:
+                    weg.rename(alt)
+                except OSError:
+                    pass
     try:
-        if neu_ordner.is_dir():
-            alt = ordner / SELBST_ORDNER
-            if alt.is_dir():
-                shutil.rmtree(alt)
-            neu_ordner.rename(alt)
-            getauscht = True
-        if neu_exe.is_file():
-            alt = ordner / SELBST_EXE
-            if alt.exists():
-                alt.unlink()
-            neu_exe.rename(alt)
-            getauscht = True
         if (ordner / SELBST_EXE).is_file():
             for name in AUSGEMUSTERT:
-                (ordner / name).unlink(missing_ok=True)
+                _loeschen(ordner / name)
     except OSError:
-        pass  # Updater gerade offen o. Ä. - beim nächsten Start wieder
+        pass
+    aufraeumen(ordner)
     return getauscht
 
 
@@ -248,13 +444,14 @@ def main() -> None:
             print("Abgebrochen – nichts geändert.")
             _ende(1)
         subprocess.run(["taskkill", "/F", "/IM", APP_EXE], capture_output=True)
-        import time
         for _ in range(20):
             time.sleep(0.5)
             if not app_laeuft(ordner):
                 break
 
-    with tempfile.TemporaryDirectory(prefix="sws-update-") as tmp:
+    # ignore_cleanup_errors: ein Virenscanner, der noch im Download liest, darf
+    # nach geglücktem Austausch keinen „Fehler" mehr erzeugen.
+    with tempfile.TemporaryDirectory(prefix="sws-update-", ignore_cleanup_errors=True) as tmp:
         tmp = Path(tmp)
         datei = tmp / "app.zip"
         try:
@@ -268,9 +465,23 @@ def main() -> None:
                 raise RuntimeError(f"Im Download fehlt {APP_EXE}.")
             print("Tausche Programmdateien aus (data bleibt) …")
             austauschen(quelle, ordner)
+        except AustauschFehler as fehler:
+            print()
+            print(f"FEHLER: {fehler}")
+            if fehler.alt_heil:
+                print(f"Nichts kaputt – Version {lokal or 'bisher'} startet wie gewohnt.")
+            print()
+            print("Meist sperrt OneDrive (synchronisiert gerade) oder ein Virenscanner die")
+            print("Dateien. Ein paar Minuten warten oder OneDrive kurz anhalten (Wolke unten")
+            print("rechts > Synchronisierung anhalten) und Aktualisieren.exe nochmal starten.")
+            if not fehler.alt_heil:
+                print("Falls die App nicht startet: neueste SunderedSkies-App.zip von")
+                print(f"https://github.com/{REPO}/releases/latest holen und den Ordner data hineinkopieren.")
+            _ende(1)
         except Exception as fehler:
             print()
             print(f"FEHLER: {fehler}")
+            print(f"Nichts geändert – Version {lokal or 'bisher'} startet wie gewohnt.")
             print("Falls die App jetzt nicht startet: neueste SunderedSkies-App.zip von")
             print(f"https://github.com/{REPO}/releases/latest holen und den Ordner data hineinkopieren.")
             _ende(1)
