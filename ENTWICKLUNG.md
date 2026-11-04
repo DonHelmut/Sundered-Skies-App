@@ -116,6 +116,14 @@ Danach 8 Zusatz-Ideen gezeigt (`screenshots/notizen/ideen.png`), Kalle wählte
   jetzt nirgends mehr außer ans eigene Handy.
 - Nicht gewählt: 📌 Anheften, 🌙 Abend-Stempel, 📜 Vorschläge aus Protokoll,
   ⚡ Schnell-Notiz-Knopf.
+- **Eigene Themen mit Emoji** (Kalle „ja“): ＋ öffnet Dialog mit
+  Sundered-Skies-Vorschlägen (💎 Seelensteine, ⚓ Schiff, 📜 Aufträge, 🏴‍☠️
+  Fraktionen, ⚔️ Feinde, 🤝 Kontakte, 🐉 Kreaturen, 🔮 Magie, 🗝️ Geheimnisse,
+  🧭 Routen), Emoji-Raster, eigenes Emoji per Tastatur. Emoji steht vorne im
+  Themennamen („💎 Seelensteine“) – reist so mit jeder Notiz, auch zu fremden
+  Handys, ohne Themen-Liste auf dem Server. Reiter lange drücken/Rechtsklick:
+  umbenennen, Emoji ändern, löschen (Notizen → Sonstiges). Feste Themen
+  (NSC/Orte/Beute/Offen) nicht änderbar.
 
 ## 1.5.35 (04.11.2026): Notizen nach Neuladen weg
 

@@ -2672,6 +2672,16 @@ button.notiz-reiter.such { padding: 5px 10px; }
 .notiz-suche input { border: none; background: transparent; padding: 8px 0; flex: 1; min-width: 0; }
 .notiz-suche input:focus { outline: none; }
 .panel.notizen mark { background: rgba(214, 162, 74, 0.45); color: inherit; border-radius: 3px; padding: 0 1px; }
+/* Eigenes Thema: Emoji + Name */
+.tm-titel { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.tm-vorschlaege { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tm-zeile { display: flex; gap: 8px; }
+.tm-zeile .tm-emoji { flex: none; width: 52px; text-align: center; font-size: 1.4rem; padding: 6px 4px; }
+.tm-emojis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin-top: 10px; }
+.tm-emojis button { padding: 0; height: 36px; font-size: 1.15rem; border-radius: 9px; background: transparent; }
+.tm-emojis button.on { border: 2px solid var(--accent); background: rgba(214, 162, 74, 0.18); }
+button.tm-loeschen { color: var(--bad); border-color: var(--bad); margin-right: auto; }
+.tm-hinweis { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
 /* 💬 SL-Nachricht merken */
 .msg .msg-merk { display: block; width: fit-content; margin-top: 8px; padding: 3px 10px; font-size: 0.82rem; border-radius: 8px; background: transparent; }
 .msg span.msg-merk.ok { border: 1px solid var(--good); color: var(--good); }
