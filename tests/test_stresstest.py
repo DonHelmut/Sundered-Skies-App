@@ -117,17 +117,24 @@ def test_auto_sicherung_nur_bei_aenderung_und_hoechstens_zehn(tmp_path, monkeypa
 
 
 def test_sicherung_zurueckholen_sichert_vorher_den_jetzigen_stand(fresh_game, monkeypatch, tmp_path):
-    from fastapi.testclient import TestClient
+    # Ohne TestClient (bräuchte httpx, das in requirements-dev fehlt): die
+    # Endpunkte direkt aufrufen, mit einer Anfrage „vom Laptop".
+    import json
+    from types import SimpleNamespace
     from server import sicherung as S
     monkeypatch.setattr(A, "game", fresh_game)
     monkeypatch.setattr(A, "SICHERUNG_DIR", tmp_path / "sich")
     monkeypatch.setattr(A, "UPLOAD_DIR", tmp_path)
+    laptop = SimpleNamespace(client=SimpleNamespace(host="127.0.0.1"))
+    handy = SimpleNamespace(client=SimpleNamespace(host="192.168.0.20"))
+    lies = lambda antwort: json.loads(antwort.body)
     fresh_game.apply({"type": "roster_upsert", "name": "Korgo"})
     alt = S.auto_sichern(fresh_game.export_data(), tmp_path, tmp_path / "sich")
     fresh_game.apply({"type": "roster_delete", "id": fresh_game.roster[0]["id"]})   # Bedienfehler
-    c = TestClient(A.app, client=("127.0.0.1", 5000))   # = der SL-Laptop
-    assert [e["name"] for e in c.get("/api/sicherungen").json()["liste"]] == [alt.name]
-    assert c.post(f"/api/sicherungen/zurueck/{alt.name}").json()["ok"]
+    assert [e["name"] for e in lies(asyncio.run(A.sicherungen_liste(laptop)))["liste"]] == [alt.name]
+    assert asyncio.run(A.sicherungen_liste(handy)).status_code == 403
+    assert asyncio.run(A.sicherung_zurueckholen(handy, alt.name)).status_code == 403
+    assert lies(asyncio.run(A.sicherung_zurueckholen(laptop, alt.name)))["ok"]
     assert [r["name"] for r in fresh_game.roster] == ["Korgo"]
     assert len(S.auto_liste(tmp_path / "sich")) == 2                # Stand davor gesichert
-    assert c.post("/api/sicherungen/zurueck/session.json").status_code == 404   # nur auto-*.zip
+    assert asyncio.run(A.sicherung_zurueckholen(laptop, "session.json")).status_code == 404   # nur auto-*.zip
