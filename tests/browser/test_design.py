@@ -77,6 +77,28 @@ def _aufdecken(h):
     knopf.click()
 
 
+_RUHIG_JS = """() => {
+  if (!window.__still) {
+    window.__still = performance.now();
+    new MutationObserver(m => { if (m.some(x => x.type === 'childList' && x.target.closest &&
+      !x.target.closest('#timerval, #al-uhr'))) window.__still = performance.now(); })
+      .observe(document.getElementById('app'), {childList: true, subtree: true});
+  }
+  return !(App.revealLockUntil && Date.now() < App.revealLockUntil) && !App.pendingRender
+    && performance.now() - window.__still > 1000;
+}"""
+
+
+def _warte_bis_ruhig(h, frist=15000):
+    """Wartet, bis die Aufdeck-Sperre vorbei, der aufgeschobene Stand gezeichnet
+    und die Seite 1 s lang unverändert ist. Vorher feste 1,5 s: auf dem
+    langsamen Windows-Runner der CI dauerte die Aufdeck-Animation länger, der
+    „Du bist dran"-Stand kam erst danach (App.pendingRender) - mitten in die
+    Messung, Test rot (04.11., 2.0.1). Wer sich nie beruhigt, läuft in die
+    Frist und ist zu Recht rot."""
+    h.page.wait_for_function(_RUHIG_JS, timeout=frist, polling=100)
+
+
 def _lauf(tisch, h, schritte):
     """Spielt die Schritte ab und prüft dabei alle 150 ms die laufenden
     Animationen. Gibt alle Verstöße zurück."""
@@ -115,7 +137,7 @@ def test_handy_ist_ruhig_wenn_nichts_passiert(tisch):
     me = h.js("App.state.combatants.find(c => c.playerId === App.myPlayerId).id")
     tisch.gm({"type": "set_active", "id": me})
     tisch.gm({"type": "release"})
-    h.wait_for_timeout(1500)
+    _warte_bis_ruhig(h)
     h.js(_BEOBACHTEN_JS)
     h.wait_for_timeout(3000)
     assert h.js("window.__renders") == 0, "Seite zeichnet sich ohne Anlass neu"
