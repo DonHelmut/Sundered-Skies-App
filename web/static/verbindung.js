@@ -95,6 +95,7 @@ function connect() {
       // Laptop - die Handys behalten ihre gewohnte Ansicht.
       document.body.classList.toggle("sl-ansicht", App.role === "gm");
       maybeAutoRejoin();
+      if (App.role === "gm") neuigkeitenZeigen();   // Handys erst nach dem Beitritt
       // ERST nach dem Wieder-Beitritt nachreichen: vorher weiß der Server
       // nicht, wer da sendet, und würde Spieler-Aktionen verwerfen.
       warteschlangeSenden();
@@ -140,6 +141,7 @@ function connect() {
       App.joined = true;
       localStorage.setItem("playerId", msg.playerId);
       render();
+      neuigkeitenZeigen();
     }
   };
 }

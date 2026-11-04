@@ -491,8 +491,26 @@ class Game:
         # hinweg die alte, längst getrennte Spieler-ID als „verbunden", und der
         # Spieler stand vor seinem eigenen Charakter mit „wird gespielt".
         jetzt = {p["id"]: p for p in self.players}
+        # Was die SPIELER selbst pflegen (Notizen, Charakterbogen, Rückseite),
+        # ist kein Spielzug des SL und darf sein ↶ nicht mitnehmen. Vorher
+        # stellte Rückgängig die ganze Charakterliste von VOR der letzten
+        # SL-Aktion wieder her - eine Notiz oder ein Bogen, die ein Handy
+        # seitdem gespeichert hatte, war still weg (Stresstest 04.11.2026).
+        spieler_felder = ("notizen", "bogen", "rueckseite")
+        eigen_roster = {r.get("id"): {f: r[f] for f in spieler_felder if f in r}
+                        for r in self.roster if isinstance(r, dict)}
+        eigen_figur = {c.get("id"): {f: c[f] for f in ("bogen", "rueckseite") if f in c}
+                       for c in self.combatants}
         for f, v in snap.items():
             setattr(self, f, copy.deepcopy(v))
+        for r in self.roster:
+            if isinstance(r, dict) and r.get("id") in eigen_roster:
+                for f in spieler_felder:
+                    r.pop(f, None)
+                r.update(eigen_roster[r["id"]])
+        for c in self.combatants:
+            if c.get("id") in eigen_figur:
+                c.update(eigen_figur[c["id"]])
         for p in self.players:
             p["connected"] = bool(jetzt.get(p["id"], {}).get("connected"))
         # Verbundene Geräte, die es im alten Stand noch nicht gab, bleiben
@@ -1047,6 +1065,9 @@ class Game:
                                 action.get("gluck"), action.get("grosses_gluck"))
             return
 
+        if self._veraltet(action):
+            return
+
         handler = getattr(self, f"_do_{t}", None)
         if handler:
             # Erste Aktion = frische Sitzung begonnen -> keine Fortsetzen-Abfrage mehr.
@@ -1058,6 +1079,25 @@ class Game:
             if self._bennies_merken() or t == "benny_refresh":
                 self.save_roster()
             self.save_session()
+
+    def _veraltet(self, a: dict) -> bool:
+        """Zug-Aktionen, die zu einem Stand gehören, der schon vorbei ist.
+        Doppelt gedrückte Leertaste, „Zug beenden" am Handy im selben Moment
+        wie der SL, oder der Timer läuft ab, während der Spieler gerade
+        beendet: dann kamen ZWEI „Zug zu Ende" an, und der zweite beendete
+        still den Zug des Nächsten - der kam in dieser Runde gar nicht dran.
+        Ebenso „Neue Runde" doppelt geklickt: zwei Runden auf einmal, Effekte
+        liefen doppelt ab. Der Browser schickt mit, für wen bzw. welche Runde
+        er es meint; ohne Angabe (altes Gerät) gilt es wie bisher."""
+        t = a.get("type")
+        if t in ("confirm_turn", "timeout") and "fuer" in a and a.get("fuer") != self.active_id:
+            return True
+        if t == "timeout" and "endsAt" in a and (self.phase != "running"
+                                                 or a.get("endsAt") != self.timer_ends_at):
+            return True
+        if t == "new_round" and "runde" in a and a.get("runde") != self.round:
+            return True
+        return False
 
     # Roster ------------------------------------------------------------------
 

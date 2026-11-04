@@ -607,6 +607,7 @@ function kopfMenueHtml() {
       <a href="/api/export"><button class="ghost" title="Charaktere + Bibliotheken + Begegnungen, mit allen Bildern (Zip)">💾 Sicherung exportieren</button></a>
       <label class="ghost knopf-label" title="Zip-Sicherung (oder alte .json) einspielen">⤵ Sicherung importieren
         <input type="file" accept=".zip,application/zip,application/json,.json" data-act="pick-import" style="display:none"></label>
+      <button class="ghost" data-act="sicherungen-zeigen" title="Die App sichert Charaktere, Notizen, Bibliotheken und Protokolle etwa stündlich selbst">🛟 Automatische Sicherungen</button>
       <button class="ghost" data-act="bilder-aufraeumen" title="Löscht hochgeladene Bilder, die von keiner Figur mehr benutzt werden">🧹 Alte Bilder aufräumen</button>
       <button class="ghost" data-act="tasten-hilfe" title="Alle Tastenkürzel (Taste ?)">⌨ Tastenkürzel</button>
       ${versionLine()}
@@ -673,11 +674,19 @@ function renderControlBody() {
   // Vorbereitete Kämpfe genau dann anbieten, wenn keiner läuft (Sitzungsbeginn,
   // nach „Kampf abräumen") - im Kampf wäre die Auswahl nur Ballast.
   const kaempfe = s.encounters || [];
-  const schnellstart = kaempfe.length && !s.combatants.some((c) => c.kind === "npc")
-    ? `<div class="schnellkampf"><span class="muted small">Vorbereitet:</span>
+  // Der Weg zu „Kämpfe vorbereiten" (Kalle 04.11.2026: lag zu versteckt im
+  // dritten Bibliotheks-Reiter) steht hier mit drin - aber auch nur, solange
+  // kein Kampf läuft. Im Kampf bleibt die Leiste frei, wer nichts vorbereitet,
+  // sieht nur einen kleinen Knopf.
+  const keinKampf = !s.combatants.some((c) => c.kind === "npc");
+  const verwalten = `<button class="ghost small" data-act="kaempfe-zeigen" title="Kämpfe vorab zusammenstellen, bearbeiten, kopieren (Bibliothek → Kämpfe)">⚔ ${kaempfe.length ? "Kämpfe verwalten" : "Kampf vorbereiten"}</button>`;
+  const schnellstart = !keinKampf ? ""
+    : kaempfe.length
+      ? `<div class="schnellkampf"><span class="muted small">Vorbereitet:</span>
         <select id="schnellkampf">${kaempfe.map((k) => `<option value="${k.id}">${esc(k.name)}</option>`).join("")}</select>
-        <button class="small primary" data-act="schnellkampf-start" title="Kampf einsetzen, Charaktere an ihre Startzone und austeilen">▶ Starten</button></div>`
-    : "";
+        <button class="small primary" data-act="schnellkampf-start" title="Kampf einsetzen, Charaktere an ihre Startzone und austeilen">▶ Starten</button>
+        ${verwalten}</div>`
+      : `<div class="schnellkampf">${verwalten}</div>`;
   return `
     ${cleanupRow}
     ${heilRow}

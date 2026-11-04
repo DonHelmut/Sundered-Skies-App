@@ -77,6 +77,54 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Stresstest vor 2.0 (04.11.2026)
+
+Durchgespielt mit SL + 7 Handys im Browser (Playwright): gleichzeitiger
+Beitritt, 3 Runden mit Aufdecken/Zug beenden/Freigeben, 21 Gruppen-Notizen
+gleichzeitig, Neuladen mitten im Kampf, 20 s Netz weg, Server-Neustart +
+„Fortsetzen". Sync blieb überall gleich. Gefunden und behoben:
+
+- **↶ Rückgängig des SL löschte Spieler-Notizen und Charakterbogen:** das
+  Rückgängig stellte die ganze Charakterliste von VOR der letzten SL-Aktion
+  her. Jetzt bleiben Notizen, Bogen und Kartenrückseite (pflegen die Spieler)
+  unangetastet (`Game._restore`).
+- **Zug des Nächsten übersprungen:** zwei „Zug zu Ende" auf einmal (Leertaste
+  doppelt, Handy „Zug beenden" + SL gleichzeitig, Timer läuft ab während der
+  Spieler beendet) beendeten auch den Zug des Nächsten. „Neue Runde" doppelt
+  = zwei Runden. Der Browser schickt jetzt mit, für wen/welche Runde er es
+  meint (`fuer`, `endsAt`, `runde`), der Server verwirft Veraltetes
+  (`Game._veraltet`). Alte Geräte ohne Angabe wie bisher.
+- **„Verlassen" vor dem Fortsetzen verwarf den gespeicherten Kampf** (zählte
+  als erste Aktion). Jetzt nur der vorläufige Eintrag weg.
+- „Verlassen" ohne Figur ließ den Spieler für immer als verbunden stehen.
+- Tests: `tests/test_stresstest.py`.
+
+Vorschläge danach (Bilder `screenshots/stresstest-2.0/`): Kalle wählte **3 „Neu
+in 2.0"-Karte** (gebaut), **2 getrennte Runden/Kampagnen** nur merken (falls
+mal eine andere Kampagne mit anderem Regelwerk). Nicht gewählt: 1 automatische
+Sicherungen, 4 Handy-Text bei offenem „Fortsetzen?".
+
+- **✨ Neu in 2.0** (`start.js` `neuigkeitenZeigen`): einmal nach dem Update
+  auf 2.x eine Karte mit 5 Neuerungen, SL und Handy je eigene Liste (Handy
+  erst nach dem Beitritt). Wer die App zum ersten Mal öffnet, bekommt sie
+  nicht. Gemerkt in localStorage `neuGesehen`. Ansehen vorab: `?neu=1`.
+  Für die nächste große Version `NEU_STAND` + Listen anpassen.
+- **🛟 Automatische Sicherung** (Kalle doch „ja": still, etwa stündlich,
+  ältere löschen): `sicherung.auto_sichern` legt 1 min nach dem Start und
+  dann stündlich `data/sicherungen/auto-<datum>_<zeit>.zip` an (wie der
+  Export: Charaktere mit Notizen/Bogen, Bibliotheken, Kämpfe, Protokolle,
+  Gruppen-Notizen, Bilder) - nur wenn sich seit der letzten etwas geändert hat
+  (Hash in `.letzter-stand`), die letzten 10 bleiben. ☰ Mehr → „🛟
+  Automatische Sicherungen" listet sie, „↺ Zurückholen" spielt eine ein und
+  sichert vorher den jetzigen Stand. Der laufende Kampf ist nicht drin (der
+  hat `session.json` + Fortsetzen).
+- **⚔ Kämpfe vorbereiten leichter finden** (lag im 3. Bibliotheks-Reiter;
+  Varianten A Reiter vorne / B eigenes Panel / C Knopf, Kalle: C, aber „nicht
+  zu auffällig, wenn ich keinen vorbereiteten Kampf will"): Knopf im
+  Kampf-Panel NUR solange kein Kampf läuft - „⚔ Kampf vorbereiten" (öffnet
+  gleich den Baukasten) bzw. neben „Vorbereitet: … ▶ Starten" „⚔ Kämpfe
+  verwalten". Im Kampf verschwindet er.
+
 ## 1.5.37 (04.11.2026): Notizen gingen bei offenem „Fortsetzen?" verloren
 
 - **Bug (Kalle: „Notizen für alle geht nicht, sehe keine"):** Nach dem Start

@@ -25,15 +25,15 @@ document.addEventListener("click", (e) => {
 
   const handlers = {
     // SL – Kampf
-    "new-round": () => gmAction({ type: "new_round" }),
+    "new-round": () => gmAction({ type: "new_round", runde: S.round }),
     "alle-wieder-rein": () => gmAction({ type: "unbench_all" }),
     "clear-all": async () => {
       if (await frage("Kampf abräumen?\n\nAlle Gegner und Verbündeten werden entfernt, die Spieler pausiert (sie bleiben verbunden und behalten ihren Charakter). Die Zonen sind danach leer.\n\nRückgängig geht mit ↶.", "Abräumen", true)) gmAction({ type: "clear_all" });
     },
     "reset": async () => { if (await frage("Initiative komplett zurücksetzen?", "Zurücksetzen", true)) gmAction({ type: "reset" }); },
     "release": () => gmAction({ type: "release" }),
-    "confirm-turn": () => gmActionOrPlayer({ type: "confirm_turn" }),
-    "skip-turn": () => gmAction({ type: "confirm_turn" }),   // ohne Timer zum nächsten
+    "confirm-turn": () => gmActionOrPlayer({ type: "confirm_turn", fuer: S.activeId }),
+    "skip-turn": () => gmAction({ type: "confirm_turn", fuer: S.activeId }),   // ohne Timer zum nächsten
     "redraw": () => gmAction({ type: "redraw", id }),
     "set-active": () => gmAction({ type: "set_active", id }),
     "edit-combatant": () => { App.editCombatantId = App.editCombatantId === id ? null : id; render(); },
@@ -112,6 +112,8 @@ document.addEventListener("click", (e) => {
     },
     "encounter-to-combat": () => gmAction({ type: "add_encounter", id }),
     "encounter-copy": () => { gmAction({ type: "encounter_copy", id }); toast("Kopie angelegt"); },
+    "sicherungen-zeigen": () => sicherungenZeigen(),
+    "sicherung-zurueck": () => sicherungZurueck(id),
     "kb-neu": () => { App.kampfEntwurf = kampfEntwurfAus(null); render(); const f = $("kb-name"); if (f) f.focus(); },
     "kb-bearbeiten": () => { App.kampfEntwurf = kampfEntwurfAus((S.encounters || []).find((x) => x.id === id)); render(); },
     "kb-abbrechen": () => { App.kampfEntwurf = null; render(); },
@@ -335,6 +337,19 @@ document.addEventListener("click", (e) => {
     "einladung-kopieren": () => einladungKopieren(),
     "einladung-bild": () => einladungsBildKopieren(),
     "qr-gross": () => qrGrossZeigen(),
+    // ⚔ Kämpfe verwalten / Kampf vorbereiten (Kampf-Panel, nur ohne laufenden
+    // Kampf): Bibliothek auf, Reiter „Kämpfe", hinscrollen.
+    "kaempfe-zeigen": () => {
+      try { localStorage.setItem("bibReiter", "encounters"); } catch { /* egal */ }
+      App.collapsed.bibliothek = false;
+      try { localStorage.setItem("collapsed", JSON.stringify(App.collapsed)); } catch { /* egal */ }
+      slAnsichtSichern();
+      // Noch keiner da: gleich den Baukasten auf.
+      if (!(S.encounters || []).length && !App.kampfEntwurf) App.kampfEntwurf = kampfEntwurfAus(null);
+      render();
+      const p = document.querySelector('details.section[data-sec="bibliothek"]');
+      if (p) p.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
     "bib-reiter": () => {
       try { localStorage.setItem("bibReiter", target.dataset.reiter); } catch { /* egal */ }
       render();
@@ -471,7 +486,7 @@ document.addEventListener("keydown", (e) => {
   if (!aktiv) {
     if ((e.key === " " || e.key === "Enter") && s.combatants.some((c) => !c.benched)) {
       e.preventDefault();
-      gmAction({ type: "new_round" });
+      gmAction({ type: "new_round", runde: s.round });
     }
     return;
   }
@@ -486,10 +501,10 @@ document.addEventListener("keydown", (e) => {
   if (App.trefferWahl && e.key === "Escape") { App.trefferWahl = false; render(); return; }
   if (e.key === " " || e.key === "Enter") {
     e.preventDefault();
-    gmAction(s.phase === "running" ? { type: "confirm_turn" } : { type: "release" });
+    gmAction(s.phase === "running" ? { type: "confirm_turn", fuer: s.activeId } : { type: "release" });
   } else if (taste === "w") {
     e.preventDefault();
-    gmAction({ type: "confirm_turn" });     // „Weiter" = Zug beenden ohne Timer
+    gmAction({ type: "confirm_turn", fuer: s.activeId });     // „Weiter" = Zug beenden ohne Timer
   } else if (taste === "t") {
     e.preventDefault();
     gmAction({ type: "apply_hit", id: aktiv.id });
@@ -774,6 +789,39 @@ async function allowFirewall() {
       render();
     }).catch(() => {});
   }, 8000);
+}
+
+// Automatische Sicherungen (stündlich, die letzten 10 - server/sicherung.py):
+// Liste zeigen, eine zurückholen. Die Knöpfe im Dialog laufen über die normale
+// Klick-Verteilung (data-act), der Dialog fängt nur seine eigenen Knöpfe ab.
+function sicherungZeit(ms) {
+  const d = new Date(ms), heute = new Date();
+  const uhr = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === heute.toDateString()) return `Heute ${uhr}`;
+  return `${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })} ${uhr}`;
+}
+async function sicherungenZeigen() {
+  let liste = [];
+  try { liste = (await (await fetch("/api/sicherungen", { cache: "no-store" })).json()).liste || []; }
+  catch { hinweis("Die Liste der Sicherungen ließ sich nicht laden."); return; }
+  const zeilen = liste.map((e) => `<div class="sicherung-zeile"><b>${esc(sicherungZeit(e.zeit))}</b>
+      <span class="muted small">${(e.bytes / 1048576).toFixed(1).replace(".", ",")} MB</span>
+      <button type="button" class="ghost small" data-act="sicherung-zurueck" data-id="${esc(e.name)}">↺ Zurückholen</button></div>`).join("")
+    || `<div class="muted small">Noch keine – die erste entsteht eine Minute nach dem Start.</div>`;
+  dialog({
+    text: "🛟 Automatische Sicherungen\nCharaktere, Notizen, Bibliotheken, vorbereitete Kämpfe und Protokolle – etwa stündlich, nur wenn sich etwas geändert hat. Die letzten 10 bleiben, ältere werden gelöscht.",
+    inhalt: `<div class="sicherung-liste">${zeilen}</div>`,
+    knoepfe: [{ text: "Schließen", art: "primary", abbruch: true, standard: true }],
+  });
+}
+async function sicherungZurueck(name) {
+  if (_dialogZu) _dialogZu(null);
+  if (!await frage("Diese Sicherung zurückholen?\n\nErsetzt Charaktere, Notizen, Bibliotheken, Kämpfe und Protokolle. Der laufende Kampf bleibt. Der jetzige Stand wird vorher selbst gesichert.", "Zurückholen", true)) return;
+  try {
+    const b = await (await fetch(`/api/sicherungen/zurueck/${encodeURIComponent(name)}`, { method: "POST" })).json();
+    if (!b.ok) { hinweis("Nicht zurückgeholt.\n\n" + (b.fehler || "Die Sicherung ist nicht lesbar.")); return; }
+    toast("🛟 Sicherung zurückgeholt");
+  } catch { hinweis("Zurückholen fehlgeschlagen."); }
 }
 
 // Sicherung wiederherstellen: ersetzt Charaktere + Bibliotheken + Begegnungen.
