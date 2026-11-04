@@ -109,6 +109,15 @@ Sicherungen, 4 Handy-Text bei offenem „Fortsetzen?".
   erst nach dem Beitritt). Wer die App zum ersten Mal öffnet, bekommt sie
   nicht. Gemerkt in localStorage `neuGesehen`. Ansehen vorab: `?neu=1`.
   Für die nächste große Version `NEU_STAND` + Listen anpassen.
+- **🛟 Automatische Sicherung** (Kalle doch „ja": still, etwa stündlich,
+  ältere löschen): `sicherung.auto_sichern` legt 1 min nach dem Start und
+  dann stündlich `data/sicherungen/auto-<datum>_<zeit>.zip` an (wie der
+  Export: Charaktere mit Notizen/Bogen, Bibliotheken, Kämpfe, Protokolle,
+  Gruppen-Notizen, Bilder) - nur wenn sich seit der letzten etwas geändert hat
+  (Hash in `.letzter-stand`), die letzten 10 bleiben. ☰ Mehr → „🛟
+  Automatische Sicherungen" listet sie, „↺ Zurückholen" spielt eine ein und
+  sichert vorher den jetzigen Stand. Der laufende Kampf ist nicht drin (der
+  hat `session.json` + Fortsetzen).
 
 ## 1.5.37 (04.11.2026): Notizen gingen bei offenem „Fortsetzen?" verloren
 

@@ -2553,6 +2553,11 @@ button.aufn-sprecher:hover { opacity: 1; text-decoration: underline; }
 button.aufn-sprecher.benannt { opacity: .9; font-weight: 600; }
 .app-dialog-inhalt { margin-bottom: 14px; }
 .app-dialog-inhalt textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
+/* Automatische Sicherungen: Zeit, Größe, Knopf in einer Zeile. */
+.sicherung-liste { display: grid; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.sicherung-zeile { display: flex; gap: 10px; align-items: center; padding: 6px 8px;
+  border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 10px; }
+.sicherung-zeile b { flex: 1; }
 /* „Neu in 2.0": eine Zeile je Neuerung, Symbol links, Satz darunter klein. */
 .neu-liste { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; }
 .neu-liste li { display: flex; gap: 12px; align-items: flex-start; line-height: 1.35; }

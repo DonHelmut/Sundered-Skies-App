@@ -32,6 +32,7 @@ from .sprache import Sprache
 from .namen import namen_aus_spiel
 
 WEB_DIR = RESOURCE_DIR / "web"
+SICHERUNG_DIR = DATA_DIR / "sicherungen"   # automatische Sicherungen (stündlich)
 LOCAL_IP = local_ip()
 
 
@@ -91,16 +92,37 @@ async def _stille_verbindungen_pruefen() -> None:
             pass
 
 
+SICHERUNG_ERSTE = 60          # s nach dem Start (der Start selbst soll flott sein)
+SICHERUNG_ABSTAND = 3600     # dann etwa stündlich
+
+
+async def _auto_sicherung() -> None:
+    """Still im Hintergrund sichern (siehe sicherung.auto_sichern). Darf das
+    Spiel nie aufhalten: Zip bauen läuft neben dem Event-Loop."""
+    await asyncio.sleep(SICHERUNG_ERSTE)
+    while True:
+        try:
+            pfad = await asyncio.get_event_loop().run_in_executor(
+                None, sicherung.auto_sichern, game.export_data(), UPLOAD_DIR, SICHERUNG_DIR)
+            if pfad:
+                diag.log(f"AUTO-SICHERUNG: {pfad.name}")
+        except Exception as e:  # noqa: BLE001
+            diag.log(f"AUTO-SICHERUNG fehlgeschlagen: {e!r}")
+        await asyncio.sleep(SICHERUNG_ABSTAND)
+
+
 @asynccontextmanager
 async def _lebenszyklus(_app: FastAPI):
     """Beweist im Log, dass der Server wirklich lauscht - nicht nur gestartet
     wurde. Fehlt diese Zeile, ist er unterwegs haengen geblieben."""
     diag.log(f"SERVER BEREIT auf Port {active_port()} - wartet auf Verbindungen")
     wache = asyncio.create_task(_stille_verbindungen_pruefen())
+    sichern = asyncio.create_task(_auto_sicherung())
     # Eigener Thread: der erste sherpa-Import dauert eine halbe Sekunde.
     threading.Thread(target=sprache.genauer_nachholen, daemon=True, name="genauer").start()
     yield
     wache.cancel()
+    sichern.cancel()
     diag.log("SERVER BEENDET")
 
 
@@ -333,6 +355,40 @@ async def import_backup(request: Request, file: UploadFile):
     if bericht.get("ok"):
         bericht.setdefault("uebernommen", {})["Bilder"] = bilder
     if bericht.get("ok"):
+        await hub.broadcast_state()
+    return JSONResponse(bericht)
+
+
+@app.get("/api/sicherungen")
+async def sicherungen_liste(request: Request):
+    """Automatische Sicherungen (nur SL/Laptop), neueste zuerst."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    return JSONResponse({"liste": sicherung.auto_liste(SICHERUNG_DIR)})
+
+
+@app.post("/api/sicherungen/zurueck/{name}")
+async def sicherung_zurueckholen(request: Request, name: str):
+    """Eine automatische Sicherung einspielen. Vorher wird der JETZIGE Stand
+    selbst gesichert - wer die falsche erwischt, kommt so wieder zurück."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    pfad = SICHERUNG_DIR / name
+    if not sicherung.AUTO_NAME.match(name) or not pfad.is_file():
+        return JSONResponse({"error": "nicht_da"}, status_code=404)
+    try:
+        roh = pfad.read_bytes()
+        data, bilder = sicherung.lies_sicherung(roh, UPLOAD_DIR)
+    except (OSError, ValueError):
+        return JSONResponse({"error": "kaputt"}, status_code=400)
+    # Vorher-Stand sichern, aber ohne die Sicherung, die gerade zurückkommt,
+    # aus der Liste zu schieben (darum einen Platz mehr behalten).
+    sicherung.auto_sichern(game.export_data(), UPLOAD_DIR, SICHERUNG_DIR, immer=True,
+                           behalten=sicherung.AUTO_BEHALTEN + 1)
+    bericht = game.import_data(data) if isinstance(data, dict) else {"ok": False, "fehler": "Unbekanntes Format."}
+    if bericht.get("ok"):
+        bericht.setdefault("uebernommen", {})["Bilder"] = bilder
+        diag.log(f"AUTO-SICHERUNG zurueckgeholt: {name}")
         await hub.broadcast_state()
     return JSONResponse(bericht)
 

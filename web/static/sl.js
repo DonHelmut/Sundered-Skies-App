@@ -607,6 +607,7 @@ function kopfMenueHtml() {
       <a href="/api/export"><button class="ghost" title="Charaktere + Bibliotheken + Begegnungen, mit allen Bildern (Zip)">💾 Sicherung exportieren</button></a>
       <label class="ghost knopf-label" title="Zip-Sicherung (oder alte .json) einspielen">⤵ Sicherung importieren
         <input type="file" accept=".zip,application/zip,application/json,.json" data-act="pick-import" style="display:none"></label>
+      <button class="ghost" data-act="sicherungen-zeigen" title="Die App sichert Charaktere, Notizen, Bibliotheken und Protokolle etwa stündlich selbst">🛟 Automatische Sicherungen</button>
       <button class="ghost" data-act="bilder-aufraeumen" title="Löscht hochgeladene Bilder, die von keiner Figur mehr benutzt werden">🧹 Alte Bilder aufräumen</button>
       <button class="ghost" data-act="tasten-hilfe" title="Alle Tastenkürzel (Taste ?)">⌨ Tastenkürzel</button>
       ${versionLine()}

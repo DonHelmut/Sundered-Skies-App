@@ -112,6 +112,8 @@ document.addEventListener("click", (e) => {
     },
     "encounter-to-combat": () => gmAction({ type: "add_encounter", id }),
     "encounter-copy": () => { gmAction({ type: "encounter_copy", id }); toast("Kopie angelegt"); },
+    "sicherungen-zeigen": () => sicherungenZeigen(),
+    "sicherung-zurueck": () => sicherungZurueck(id),
     "kb-neu": () => { App.kampfEntwurf = kampfEntwurfAus(null); render(); const f = $("kb-name"); if (f) f.focus(); },
     "kb-bearbeiten": () => { App.kampfEntwurf = kampfEntwurfAus((S.encounters || []).find((x) => x.id === id)); render(); },
     "kb-abbrechen": () => { App.kampfEntwurf = null; render(); },
@@ -774,6 +776,39 @@ async function allowFirewall() {
       render();
     }).catch(() => {});
   }, 8000);
+}
+
+// Automatische Sicherungen (stündlich, die letzten 10 - server/sicherung.py):
+// Liste zeigen, eine zurückholen. Die Knöpfe im Dialog laufen über die normale
+// Klick-Verteilung (data-act), der Dialog fängt nur seine eigenen Knöpfe ab.
+function sicherungZeit(ms) {
+  const d = new Date(ms), heute = new Date();
+  const uhr = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === heute.toDateString()) return `Heute ${uhr}`;
+  return `${d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" })} ${uhr}`;
+}
+async function sicherungenZeigen() {
+  let liste = [];
+  try { liste = (await (await fetch("/api/sicherungen", { cache: "no-store" })).json()).liste || []; }
+  catch { hinweis("Die Liste der Sicherungen ließ sich nicht laden."); return; }
+  const zeilen = liste.map((e) => `<div class="sicherung-zeile"><b>${esc(sicherungZeit(e.zeit))}</b>
+      <span class="muted small">${(e.bytes / 1048576).toFixed(1).replace(".", ",")} MB</span>
+      <button type="button" class="ghost small" data-act="sicherung-zurueck" data-id="${esc(e.name)}">↺ Zurückholen</button></div>`).join("")
+    || `<div class="muted small">Noch keine – die erste entsteht eine Minute nach dem Start.</div>`;
+  dialog({
+    text: "🛟 Automatische Sicherungen\nCharaktere, Notizen, Bibliotheken, vorbereitete Kämpfe und Protokolle – etwa stündlich, nur wenn sich etwas geändert hat. Die letzten 10 bleiben, ältere werden gelöscht.",
+    inhalt: `<div class="sicherung-liste">${zeilen}</div>`,
+    knoepfe: [{ text: "Schließen", art: "primary", abbruch: true, standard: true }],
+  });
+}
+async function sicherungZurueck(name) {
+  if (_dialogZu) _dialogZu(null);
+  if (!await frage("Diese Sicherung zurückholen?\n\nErsetzt Charaktere, Notizen, Bibliotheken, Kämpfe und Protokolle. Der laufende Kampf bleibt. Der jetzige Stand wird vorher selbst gesichert.", "Zurückholen", true)) return;
+  try {
+    const b = await (await fetch(`/api/sicherungen/zurueck/${encodeURIComponent(name)}`, { method: "POST" })).json();
+    if (!b.ok) { hinweis("Nicht zurückgeholt.\n\n" + (b.fehler || "Die Sicherung ist nicht lesbar.")); return; }
+    toast("🛟 Sicherung zurückgeholt");
+  } catch { hinweis("Zurückholen fehlgeschlagen."); }
 }
 
 // Sicherung wiederherstellen: ersetzt Charaktere + Bibliotheken + Begegnungen.

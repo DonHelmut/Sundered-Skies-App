@@ -8,11 +8,14 @@ Alte JSON-Sicherungen lassen sich weiter einspielen (siehe lies_sicherung).
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import re
+import time
 import zipfile
 from pathlib import Path
+from typing import Optional
 
 JSON_NAME = "sicherung.json"
 # So benennt /api/upload die Dateien (uuid4.hex + Endung). Alles andere aus
@@ -101,3 +104,70 @@ def lies_sicherung(roh: bytes, upload_dir: Path) -> tuple[dict, int]:
             ziel.write_bytes(z.read(info))
             neu += 1
     return data, neu
+
+
+# --- Automatische Sicherung ----------------------------------------------------
+# Kalle (04.11.2026): still im Hintergrund, etwa stündlich, ältere fliegen raus
+# - der Ordner soll nicht stetig wachsen. Schützt vor Bedienfehlern (Charakter
+# gelöscht, falsche Sicherung eingespielt), gegen die .bak und OneDrive nicht
+# helfen: die überschreiben den Fehler beim nächsten Speichern brav mit.
+
+AUTO_BEHALTEN = 10
+AUTO_NAME = re.compile(r"^auto-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}(-\d+)?\.zip$")
+_STAND_DATEI = ".letzter-stand"
+
+
+def _stand(data: dict) -> str:
+    return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def auto_sichern(data: dict, upload_dir: Path, ordner: Path, immer: bool = False,
+                 behalten: int = AUTO_BEHALTEN) -> Optional[Path]:
+    """Legt eine Zip-Sicherung in ``ordner`` an - nur wenn sich seit der
+    letzten etwas geändert hat (sonst wären nach einem ruhigen Wochenende
+    alle zehn Plätze mit demselben Stand belegt und die ältere, vielleicht
+    gesuchte Fassung weg). ``immer`` = trotzdem (vor einem Zurückholen)."""
+    ordner.mkdir(parents=True, exist_ok=True)
+    stand = _stand(data)
+    stand_datei = ordner / _STAND_DATEI
+    try:
+        alt = stand_datei.read_text(encoding="utf-8").strip()
+    except OSError:
+        alt = ""
+    if stand == alt and not immer:
+        return None
+    body, _ = baue_zip(data, upload_dir)
+    name = time.strftime("auto-%Y-%m-%d_%H-%M")
+    ziel, n = ordner / f"{name}.zip", 1
+    while ziel.exists():
+        n += 1
+        ziel = ordner / f"{name}-{n}.zip"
+    tmp = ziel.with_suffix(".tmp")
+    tmp.write_bytes(body)
+    tmp.replace(ziel)
+    stand_datei.write_text(stand, encoding="utf-8")
+    auto_aufraeumen(ordner, behalten)
+    return ziel
+
+
+def auto_liste(ordner: Path) -> list[dict]:
+    """Automatische Sicherungen, neueste zuerst."""
+    if not ordner.is_dir():
+        return []
+    raus = []
+    for p in ordner.iterdir():
+        if p.is_file() and AUTO_NAME.match(p.name):
+            st = p.stat()
+            raus.append({"name": p.name, "bytes": st.st_size, "zeit": int(st.st_mtime * 1000)})
+    return sorted(raus, key=lambda e: (e["zeit"], e["name"]), reverse=True)
+
+
+def auto_aufraeumen(ordner: Path, behalten: int = AUTO_BEHALTEN) -> int:
+    weg = 0
+    for e in auto_liste(ordner)[behalten:]:
+        try:
+            (ordner / e["name"]).unlink()
+            weg += 1
+        except OSError:
+            pass
+    return weg
