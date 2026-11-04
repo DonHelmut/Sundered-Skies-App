@@ -2,3 +2,7 @@
 # Installieren:  .venv\Scripts\python -m pip install -r requirements-dev.txt
 # Tests starten: .venv\Scripts\python -m pytest
 pytest>=8
+# Browser-Tests (tests/browser): SL + Handys im echten Chromium. Den Browser
+# selbst holt einmalig: .venv\Scripts\python -m playwright install chromium
+# (macht run-tests.bat automatisch).
+playwright>=1.40

@@ -846,6 +846,11 @@ class Game:
         raus = []
         for c in combatants:
             feind = c.get("kind") == "npc" and not c.get("ally")
+            if c.get("note"):
+                # SL-Notiz („flieht bei 2 Wunden", „Boss erst in Runde 2
+                # aufdecken") zeigt nur der Laptop - sie ging aber bis 2.0.0 an
+                # jedes Handy und den Beamer mit (Komplett-Test 04.11.2026).
+                c = {k: v for k, v in c.items() if k != "note"}
             if feind and (c.get("anon") or c.get("spielwerte")):
                 kopie = dict(c)
                 # Spielwerte der Gegner sind Spickzettel des SL - am Handy
@@ -941,9 +946,8 @@ class Game:
         self.save_protokolle()
 
     def snapshot(self, fuer_spieler: bool = False, player_id: str | None = None) -> dict:
-        # Verdeckte Gegner: der SL markiert sie einzeln, die Spieler bekommen
-        # dann Tarnnamen statt der echten.
-        anon = fuer_spieler and any(c.get("anon") or c.get("spielwerte") for c in self.combatants)
+        # Handys und Beamer bekommen die Figuren bereinigt (_fuer_spieler):
+        # ohne SL-Notizen, verdeckte Gegner mit Tarnnamen.
         return {
             "serverNow": now_ms(),   # zum Ausgleich von Uhren-Versatz der Clients
             "round": self.round,
@@ -986,7 +990,7 @@ class Game:
             "groups": self.groups,
             "effektMeldungen": [] if fuer_spieler else self.effekt_meldungen,
             "slAnsicht": {} if fuer_spieler else self.sl_ansicht,
-            "combatants": self._fuer_spieler(self.combatants) if anon else self.combatants,
+            "combatants": self._fuer_spieler(self.combatants) if fuer_spieler else self.combatants,
             "messages": self.nachrichten_fuer(player_id) if fuer_spieler else self.messages[-MAX_MESSAGES:],
             "requests": self.requests,
             "tvImage": self.tv_image,

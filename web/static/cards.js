@@ -1053,12 +1053,15 @@ function playDiscard(flip, nextSvg, reason) {
     // ... Takt 3: waehrenddessen steigt darunter die neue Karte auf.
     front.innerHTML = nextSvg;
     front.classList.remove("draw-in");
+    flip.classList.remove("draw-glow");
     void front.offsetWidth;            // Animation sicher neu starten
     front.classList.add("draw-in");
+    flip.classList.add("draw-glow");   // Goldring als eigene Ebene (style.css)
     setTimeout(() => {
       ghost.remove();
       tag.remove();
       front.classList.remove("draw-in");
+      flip.classList.remove("draw-glow");
     }, tm.TOSS + 60);
   }, tm.MARK);
 }
