@@ -77,6 +77,42 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht nach 2.0.0: Komplett-Test SL + Spieler (04.11.2026)
+
+Kalle: „ALLES testen, komplett SL und Spieler". Dafür gibt es jetzt
+**Browser-Tests** (`tests/browser/`), die dauerhaft im Repo bleiben:
+- Echter Server pro Test (eigener Datenordner, eigener Port), SL-Browser über
+  127.0.0.1, Handys als Handy-Browser mit Test-Cookie (`testserver.py` – nur dort
+  zählt `swi_test_rolle=spieler` als Handy, nie im echten Spiel).
+- **Knopf-Kriecher** (`test_kriechen.py`): drückt JEDEN sichtbaren Knopf (auch
+  aufgeklappte) beim SL und am Handy – mitten im Kampf, leerer Abend, wartendes
+  „Fortsetzen?", Handy dran/ruhig/Beitritt, TV; Rückfragen einmal abgebrochen,
+  einmal bestätigt. Fehlschlag bei jedem JS-Fehler; am Handy (320/375/390/412/
+  768 px) zusätzlich, wenn die Seite breiter als der Bildschirm wird.
+- **Abläufe** (`test_ablauf.py`): Kampfrunde austeilen→aufdecken→Züge→neue
+  Runde, Joker, Abwarten/Eingreifen, Zonen (einmal pro Runde), Treffer/Heilung/
+  Erholen mit Benny, K.O.+Aufräumen, Bogen, eigene/Gruppen-Notizen (privat,
+  Neuladen, Server-Neustart, Suche, Bearbeiten, Löschen), Flüstern, Bennies,
+  Anfragen, Protokoll freigeben/zurückziehen, Kampf vorbereiten+starten,
+  Verlassen+Wiederkommen, Neuladen, Neustart+Fortsetzen, ↶, Export→Import in
+  frischen Server, SL-Schnittstellen fürs Handy gesperrt.
+- Ohne Playwright werden sie still übersprungen (`pytest` bleibt schnell). Mit:
+  `pip install playwright`, `python -m playwright install chromium`,
+  `python -m pytest tests/browser` (~5 min). GitHub Actions: eigener Job
+  „browser" (Ubuntu).
+- `tests/test_komplett.py`: die 11 bisher ungetesteten SL-Aktionen, Rechte-
+  Matrix Handy (fremde Figur, SL-Aktionen, kaputte Nachrichten), was Handys/
+  Beamer nicht bekommen dürfen.
+
+Gefundene Bugs (gefixt):
+- **SL-Notiz an Figuren** („flieht bei 2 Wunden") stand im Zustand jedes Handys
+  und des Beamers – nur die Anzeige war SL-only. `_fuer_spieler` nimmt `note`
+  jetzt immer raus.
+- **Handy ohne Beitritt** (Beitrittsseite, nach „Verlassen") galt als Besitzer
+  der ersten Figur ohne Handy (Gegner, vom SL eingesetzte Charaktere): konnte
+  deren Zug beenden, Zone ändern, Abwarten, als „Ork" Gruppen-Notizen schreiben.
+  `handle_message` verlangt jetzt eine playerId.
+
 ## 2.0.0 (04.11.2026): erstes großes Release, Stresstest vorab
 
 Erster Sprung der Hauptversion (Kalle wollte das so). Der Updater vergleicht

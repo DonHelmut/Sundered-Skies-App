@@ -871,6 +871,8 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
 
     if mtype == "gm_action":
         action = msg.get("action") or {}
+        if not isinstance(action, dict):
+            return
         atype = action.get("type")
 
         if meta["role"] == "gm":
@@ -892,6 +894,13 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
 
         # Spieler dürfen nur eng begrenzte Aktionen für den eigenen Charakter.
         pid = meta.get("playerId")
+        # Ohne Beitritt (Beitrittsseite, nach „Verlassen") gehört dem Handy
+        # nichts. Vorher passte playerId None auf jede Figur OHNE Handy - Gegner
+        # und vom SL eingesetzte Charaktere: so ein Handy konnte deren Zug
+        # beenden, Karte aufdecken, Zone ändern und als „Ork" Gruppen-Notizen
+        # schreiben (Komplett-Test 04.11.2026).
+        if not pid:
+            return
         own = next((c for c in game.combatants if c.get("playerId") == pid), None)
         if not own:
             return
