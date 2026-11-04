@@ -152,3 +152,45 @@ def test_import_ohne_ids_legt_beitritt_nicht_lahm(fresh_game):
     ids = [r["id"] for r in fresh_game.roster]
     assert len(set(ids)) == 3 and "char-1" in ids
     assert fresh_game.register_player("Tessa", "char-1", None) is not None
+
+
+def test_notizen_gehen_auch_solange_fortsetzen_offen_ist(fresh_game, monkeypatch):
+    """Nach dem Start wartet „Fortsetzen?" auf den SL - die Handys sind aber
+    schon da. Vorher wurden Notizen dann still verworfen: die 👥 Notiz sah
+    niemand (Kalle, 04.11.2026), die eigene war nach dem Neuladen weg."""
+    monkeypatch.setattr(A, "game", fresh_game)
+    monkeypatch.setattr(A, "hub", A.Hub())
+    for name in ("Mira", "Korgo"):
+        fresh_game.apply({"type": "roster_upsert", "name": name})
+    fresh_game.resume_available = True                # „Fortsetzen?" noch offen
+    mira_id, korgo_id = (r["id"] for r in fresh_game.roster)
+
+    async def ablauf():
+        a, b = Leitung(), Leitung()
+        ta = asyncio.create_task(A.websocket_endpoint(a))
+        tb = asyncio.create_task(A.websocket_endpoint(b))
+        await a.rein.put({"type": "join", "name": "Anna", "characterId": mira_id})
+        await b.rein.put({"type": "join", "name": "Tim", "characterId": korgo_id})
+        await a.bis("joined")
+        await b.bis("joined")
+        await a.rein.put({"type": "gm_action", "action": {"type": "gruppen_notiz", "op": "neu",
+                          "eintrag": {"id": "g1", "text": "Treffpunkt Hafen"}}})
+        await a.rein.put({"type": "gm_action", "action": {"type": "notizen_setzen",
+                          "eintraege": [{"id": "n1", "text": "Rask lügt"}]}})
+        for _ in range(200):
+            if [e["id"] for e in b.sent[-1].get("state", {}).get("gruppenNotizen", [])] == ["g1"] \
+                    and a.sent[-1].get("state", {}).get("meineNotizen"):
+                break
+            await asyncio.sleep(0.01)
+        assert [e["text"] for e in b.sent[-1]["state"]["gruppenNotizen"]] == ["Treffpunkt Hafen"]
+        assert [e["text"] for e in a.sent[-1]["state"]["meineNotizen"]] == ["Rask lügt"]
+        assert b.sent[-1]["state"]["meineNotizen"] == []         # eigene bleibt privat
+        # Der Kampf zählt weiter nicht: die Fortsetzen-Frage bleibt stehen.
+        await a.rein.put({"type": "gm_action", "action": {"type": "reveal", "id": "x"}})
+        await asyncio.sleep(0.05)
+        assert fresh_game.resume_available is True
+        for l, t in ((a, ta), (b, tb)):
+            await l.rein.put(None)
+            await t
+
+    asyncio.run(ablauf())

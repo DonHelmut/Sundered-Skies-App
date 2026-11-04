@@ -822,15 +822,33 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             await hub.broadcast_state()
             return
 
-        # Wartet noch eine gespeicherte Sitzung auf „Fortsetzen?", zählen
-        # Spieler-Aktionen nicht: sie träfen nur den vorläufigen Neustart-Stand
-        # und würden (als erste Aktion) die Fortsetzen-Möglichkeit wegwerfen.
-        if game.resume_available:
-            return
         # Spieler dürfen nur eng begrenzte Aktionen für den eigenen Charakter.
         pid = meta.get("playerId")
         own = next((c for c in game.combatants if c.get("playerId") == pid), None)
         if not own:
+            return
+        # Notizen hängen am Charakter bzw. in gruppen_notizen.json, nicht am
+        # Kampf - sie gehen deshalb auch, solange „Fortsetzen?" noch offen ist.
+        # Vorher wurden sie dann still verworfen: die 👥 Notiz tauchte nirgends
+        # auf, die eigene stand nur scheinbar da (Handy-Fassung) und war nach
+        # dem Neuladen weg (Kalle, 04.11.2026: „Notizen für alle … sehe keine").
+        if atype == "notizen_setzen":
+            # Eigene Notizen - nur am eigenen Charakter, nur dieses Handy sieht sie.
+            # "eintraege" seit 1.5.36; "text" = altes Handy mit Freitext-Feld.
+            neu = action.get("eintraege") if "eintraege" in action else action.get("text")
+            if game.notizen_setzen(own["id"], neu):
+                await hub.broadcast_state()
+            return
+        if atype == "gruppen_notiz":
+            # 👥 Notiz für alle Spieler - Schreiber ist immer der eigene Charakter.
+            if game.gruppen_notiz(own["id"], action):
+                await hub.broadcast_state()
+            return
+        # Wartet noch eine gespeicherte Sitzung auf „Fortsetzen?", zählen die
+        # übrigen Spieler-Aktionen nicht: sie träfen nur den vorläufigen
+        # Neustart-Stand und würden (als erste Aktion) die Fortsetzen-
+        # Möglichkeit wegwerfen.
+        if game.resume_available:
             return
         if atype == "confirm_turn" and game.active_id == own["id"]:
             game.apply({"type": "confirm_turn"})
@@ -856,16 +874,6 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             # Charakterbogen: NUR der eigene (die ID kommt vom Server, nicht vom Handy).
             game.apply({"type": "sheet_update", "id": own["id"], "bogen": action.get("bogen")})
             await hub.broadcast_state()
-        elif atype == "notizen_setzen":
-            # Eigene Notizen - nur am eigenen Charakter, nur dieses Handy sieht sie.
-            # "eintraege" seit 1.5.36; "text" = altes Handy mit Freitext-Feld.
-            neu = action.get("eintraege") if "eintraege" in action else action.get("text")
-            if game.notizen_setzen(own["id"], neu):
-                await hub.broadcast_state()
-        elif atype == "gruppen_notiz":
-            # 👥 Notiz für alle Spieler - Schreiber ist immer der eigene Charakter.
-            if game.gruppen_notiz(own["id"], action):
-                await hub.broadcast_state()
         elif atype == "talents_update":
             # Eigene Initiative-Talente - wieder NUR die eigene Figur.
             game.apply({"type": "talents_update", "id": own["id"], "talents": action.get("talents"),
