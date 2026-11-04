@@ -628,6 +628,129 @@ def sprache_finden(ton, modelle: Path, max_s: float = 20.0,
     return stuecke
 
 
+# --- Sprecher nachschärfen ----------------------------------------------------------
+#
+# Erster Testabend 04.11.2026 (Kalle als Korgo + Spielleiter, schnelle
+# Wechsel): die Sprechertrennung (pyannote + Clustering) legte Blöcke von
+# 50 s einem Sprecher zu - kurze SL-Einwürfe („Du hast gewürfelt", „Nächste
+# Runde") standen bei Korgo, und ein Rest-Sprecher S02 war in Wahrheit der SL.
+# Je VAD-Stück einzeln abgehört trennte TitaNet die beiden Stimmen sauber
+# (SL tief ~105 Hz, Korgo ~140 Hz). Darum hört danach ein zweiter Durchgang
+# in kurzen Fenstern nach und gibt jedes Fenster der Stimme, der es am
+# ähnlichsten ist (Start: was die Sprechertrennung sagt). Gemessen: Testabend
+# 28/36 -> 36/36 Stücke richtig, nachgebauter Tisch mit 6 Stimmen und
+# schnellen Wechseln 65–74 % -> 92–96 % der Redezeit beim richtigen Sprecher.
+NACH_FENSTER_S, NACH_SCHRITT_S = 1.5, 0.5   # kürzer = unsichere Abdrücke
+NACH_MIN_S = 3.0          # so viel Rede braucht eine Stimme, um sicher zu gelten
+NACH_KLEIN_GLEICH = 0.4   # kleinere Stimme, die einer großen so ähnelt -> dieselbe
+
+
+def nach_fenster(stuecke: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Fenster über die gefundene Sprache: je 1,5 s, alle 0,5 s; kurze Stücke
+    als Ganzes, Fetzen unter 0,6 s gar nicht (Abdruck taugt nichts)."""
+    erg = []
+    for s, e in stuecke:
+        if e - s < 0.6:
+            continue
+        if e - s <= NACH_FENSTER_S:
+            erg.append((s, e))
+            continue
+        a = s
+        while a + NACH_FENSTER_S <= e + 1e-6:
+            erg.append((a, a + NACH_FENSTER_S))
+            a += NACH_SCHRITT_S
+        if erg[-1][1] < e - 0.1:            # Rest am Ende nicht verlieren
+            erg.append((max(s, e - NACH_FENSTER_S), e))
+    return erg
+
+
+def nachschaerfen(fenster: list[tuple[float, float]], vektoren, teile: list[tuple[float, float, int]],
+                  runden: int = 5) -> list[tuple[float, float, int]]:
+    """fenster + je ein Stimmabdruck (Länge 1) -> neue teile (start, ende, sprecher).
+    Wie k-Means, gestartet mit der Sprechertrennung: Mittel je Sprecher,
+    jedes Fenster zum ähnlichsten, wiederholen. Sprecher unter NACH_MIN_S
+    bleiben nur, wenn sie keiner großen Stimme ähneln (leise Spielerin mit
+    drei Sätzen) - sonst gehen sie in ihr auf (S02 am Testabend)."""
+    import numpy as np
+    if not fenster or not teile:
+        return teile
+    v = np.asarray(vektoren, dtype=np.float32)
+
+    def alt(a: float, b: float) -> Optional[int]:
+        anteil: dict[int, float] = {}
+        for x0, x1, sp in teile:
+            q = min(b, x1) - max(a, x0)
+            if q > 0:
+                anteil[sp] = anteil.get(sp, 0.0) + q
+        return max(anteil, key=anteil.get) if anteil else None
+    lab = [alt(a, b) for a, b in fenster]
+    if all(x is None for x in lab):
+        return teile
+    for _ in range(runden):
+        zentren: dict[int, tuple] = {}
+        for sp in {x for x in lab if x is not None}:
+            m = v[[i for i, x in enumerate(lab) if x == sp]]
+            z = m.mean(0)
+            zentren[sp] = (z / (np.linalg.norm(z) or 1.0), len(m) * NACH_SCHRITT_S)
+        gross = {sp: z for sp, (z, d) in zentren.items() if d >= NACH_MIN_S}
+        for sp, (z, d) in zentren.items():
+            if sp not in gross and d >= 2.0 and (
+                    not gross or max(float(z @ g) for g in gross.values()) < NACH_KLEIN_GLEICH):
+                gross[sp] = z
+        if not gross:
+            return teile
+        namen = list(gross)
+        m = np.stack([gross[k] for k in namen])
+        neu = [namen[int(i)] for i in np.argmax(v @ m.T, axis=1)]
+        if neu == lab:
+            break
+        lab = neu
+    # Einzelne Ausreißer zwischen zwei gleichen Nachbarn glätten (Husten,
+    # Lachen dazwischen) - nur wenn die Fenster lückenlos aneinander liegen.
+    for i in range(1, len(lab) - 1):
+        if lab[i - 1] == lab[i + 1] != lab[i] and fenster[i + 1][0] - fenster[i - 1][1] < 0.1:
+            lab[i] = lab[i - 1]
+    # Fenster überlappen: die Grenze liegt mittig zwischen zwei Fenstermitten.
+    mitte = [(a + b) / 2 for a, b in fenster]
+    erg: list[tuple[float, float, int]] = []
+    for i, ((a, b), sp) in enumerate(zip(fenster, lab)):
+        if i and fenster[i - 1][1] > a:
+            a = (mitte[i - 1] + mitte[i]) / 2
+        if i + 1 < len(fenster) and fenster[i + 1][0] < b:
+            b = (mitte[i] + mitte[i + 1]) / 2
+        if erg and erg[-1][2] == sp and a - erg[-1][1] < 0.05:
+            erg[-1] = (erg[-1][0], b, sp)
+        else:
+            erg.append((a, b, sp))
+    return erg
+
+
+def stimmen_nachhoeren(ton, stuecke: list[tuple[float, float]], teile: list[tuple[float, float, int]],
+                       modelle: Path, threads: int = 1, stopp: Optional[threading.Event] = None,
+                       melden: Callable[[float], None] = lambda a: None) -> list[tuple[float, float, int]]:
+    """Abdrücke je Fenster rechnen und nachschärfen. Geht etwas schief, bleibt
+    es bei der Sprechertrennung - lieber gröber als kein Transkript."""
+    import numpy as np
+    import sherpa_onnx as so
+    fenster = nach_fenster(stuecke)
+    if not fenster:
+        return teile
+    ex = so.SpeakerEmbeddingExtractor(
+        so.SpeakerEmbeddingExtractorConfig(model=str(modelle / MODELLE["stimme"][1]), num_threads=threads))
+    vektoren = []
+    for i, (a, b) in enumerate(fenster):
+        if stopp is not None and i % 200 == 0:
+            if stopp.is_set():
+                raise InterruptedError
+            melden(i / len(fenster))
+        st = ex.create_stream()
+        st.accept_waveform(SR, ton[int(a * SR):int(b * SR)])
+        st.input_finished()
+        x = np.array(ex.compute(st), dtype=np.float32)
+        vektoren.append(x / (np.linalg.norm(x) or 1.0))
+    return nachschaerfen(fenster, vektoren, teile)
+
+
 def stueck_zuordnen(s: float, e: float, tokens: list[str], zeiten: list[float],
                     teile: list[tuple[float, float, int]]) -> list[Abschnitt]:
     """Erkannter Text eines VAD-Stücks [s, e] -> Abschnitte je Sprecher. teile:
@@ -936,6 +1059,14 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
     if stopp.is_set():
         raise InterruptedError
     teile = [(x.start, x.end, x.speaker) for x in roh]
+    # Grob -> fein (Testabend 04.11.: kurze Einwürfe landeten beim Falschen).
+    try:
+        teile = stimmen_nachhoeren(ton, stuecke, teile, modelle, threads, stopp,
+                                   lambda a: melden(0.2 + 0.05 * a, "Stimmen nachhören"))
+    except InterruptedError:
+        raise
+    except Exception:   # noqa: BLE001 - dann eben die gröbere Sprechertrennung
+        pass
     korrektur = _namen_korrektur(namen)
     sprach_s = sum(e - s for s, e in stuecke) or 1
     erledigt = 0.0

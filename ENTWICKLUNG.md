@@ -77,6 +77,36 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.35, 04.11.2026): Sprecher nachschärfen
+
+Erster Testabend mit Aufnahme (Kalle spielt Korgo und SL, 3:44 min, schnelle
+Wechsel). Audio nachgemessen: zwei klar trennbare Stimmen (SL tief ~105 Hz,
+Korgo ~140 Hz). Fehler im Transkript: kurze SL-Einwürfe („Du hast
+gewürfelt", „Nächste Runde", „Rambo Rainer ist ausgeschaltet") standen bei
+Korgo, „Ich hab's geschafft" beim SL, und ein Rest-Sprecher S02 war in
+Wahrheit der SL.
+
+Ursache: die Sprechertrennung (pyannote + Clustering, Schwelle 0,7) legt
+Blöcke von bis zu 50 s einem Sprecher zu; kleine Sprecher gingen danach nach
+**Zeit** an den Nächsten statt nach **Stimme**.
+
+Fix (`sprache.stimmen_nachhoeren` / `nachschaerfen`): danach Stimmabdrücke in
+1,5-s-Fenstern (alle 0,5 s), jedes Fenster zur ähnlichsten Stimme (k-Means,
+Start = Sprechertrennung). Kleine Sprecher (< 3 s) gehen in einer ähnlichen
+großen Stimme auf, sonst bleiben sie (leise Spielerin). Kostet ~1/8 der
+Sprechertrennung.
+
+Gemessen (Redezeit beim richtigen Sprecher):
+- Testabend: 28/36 → 36/36 Stücke.
+- Nachgebauter Tisch, 6 Piper-Stimmen, Hall, Brummen, schnelle Wechsel:
+  65–74 % → 91–97 %.
+- Dasselbe mit Durcheinanderreden (Überlappungen, Reinquatschen in die
+  Erzählung): 58–59 % → 66–75 %. Wo zwei gleichzeitig reden, bekommt der Text
+  nur einer – ein Erkenner hört nur eine Mischung.
+
+Testwerkzeug: Piper-Stimmen von k2-fsa/sherpa-onnx `tts-models` (GitHub,
+Hugging Face ist gesperrt), gesprochen mit `pip install piper-tts`.
+
 ## 1.5.35 (04.11.2026): Notizen nach Neuladen weg
 
 Kalle: Spieler-Notiz gespeichert, Seite neu geladen → Feld leer. Der Server
