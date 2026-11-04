@@ -48,19 +48,108 @@ def test_treffer_meldung_nennt_aktiven_gegner(fresh_game):
 
 # --- Notizen ------------------------------------------------------------------
 
+def _texte(liste):
+    return [e["text"] for e in liste]
+
+
 def test_notizen_nur_fuer_das_eigene_handy(fresh_game):
     g = fresh_game
     mira, korgo = _mira(g)
-    assert g.notizen_setzen(_figur(g, "Mira")["id"], "Rask schuldet uns 50 Gold")
-    assert g.notizen_fuer(mira["id"]) == "Rask schuldet uns 50 Gold"
-    assert g.notizen_fuer(korgo["id"]) == ""
+    eintrag = {"id": "n1", "text": "Rask schuldet uns 50 Gold", "thema": "NSC", "erledigt": False}
+    assert g.notizen_setzen(_figur(g, "Mira")["id"], [eintrag])
+    assert g.notizen_fuer(mira["id"]) == [eintrag]
+    assert g.notizen_fuer(korgo["id"]) == []
     snap = g.snapshot(fuer_spieler=True, player_id=korgo["id"])
     assert "Rask" not in json.dumps(snap, ensure_ascii=False)
-    assert g.snapshot(fuer_spieler=True, player_id=mira["id"])["meineNotizen"].startswith("Rask")
+    assert g.snapshot(fuer_spieler=True, player_id=mira["id"])["meineNotizen"] == [eintrag]
     # Bleiben am Charakter, auch wenn der SL ihn bearbeitet.
     g.apply({"type": "roster_upsert", "id": "char_mira", "name": "Mira die Flinke", "isWildCard": True})
-    assert g.roster[0]["notizen"].startswith("Rask")
-    assert not g.notizen_setzen(_figur(g, "Mira die Flinke")["id"], "Rask schuldet uns 50 Gold")   # unverändert
+    assert g.roster[0]["notizen"] == [eintrag]
+    assert not g.notizen_setzen(_figur(g, "Mira die Flinke")["id"], [eintrag])   # unverändert
+
+
+def test_notizen_thema_haken_und_bereinigen(fresh_game):
+    g = fresh_game
+    mira, _ = _mira(g)
+    cid = _figur(g, "Mira")["id"]
+    g.notizen_setzen(cid, [
+        {"id": "a", "text": "Rask\nschuldet 50 Gold", "thema": "  NSC  ", "erledigt": 1},
+        {"id": "b", "text": "  "}, 7, {"text": "ohne id"}, {"id": "a", "text": "doppelte id"},
+    ])
+    liste = g.notizen_fuer(mira["id"])
+    assert liste[0] == {"id": "a", "text": "Rask\nschuldet 50 Gold", "thema": "NSC", "erledigt": True}
+    assert _texte(liste) == ["Rask\nschuldet 50 Gold", "ohne id", "doppelte id"]
+    assert len({e["id"] for e in liste}) == 3                     # IDs eindeutig
+    assert not g.notizen_setzen(cid, {"kaputt": 1})
+
+
+def test_alte_freitext_notiz_wird_zeilenweise_zu_eintraegen(fresh_game):
+    g = fresh_game
+    mira, _ = _mira(g)
+    g.roster[0]["notizen"] = "Rask schuldet 50 Gold\r\n\n  Karte im Turm  \n"   # Stand 1.5.35
+    liste = g.notizen_fuer(mira["id"])
+    assert _texte(liste) == ["Rask schuldet 50 Gold", "Karte im Turm"]
+    assert all(e["thema"] == "" and not e["erledigt"] for e in liste)
+    assert liste == g.notizen_fuer(mira["id"])                    # IDs bleiben beim erneuten Lesen gleich
+    # Altes Handy (schickt noch Text) geht weiter.
+    assert g.notizen_setzen(_figur(g, "Mira")["id"], "A\nB")
+    assert _texte(g.roster[0]["notizen"]) == ["A", "B"]
+
+
+def test_notizen_grenzen(fresh_game):
+    g = fresh_game
+    mira, _ = _mira(g)
+    from server.game import MAX_NOTIZ_LAENGE, MAX_NOTIZ_EINTRAEGE
+    g.notizen_setzen(_figur(g, "Mira")["id"], ["x" * 5000] + ["y"] * 500)
+    liste = g.notizen_fuer(mira["id"])
+    assert len(liste[0]["text"]) == MAX_NOTIZ_LAENGE and len(liste) == MAX_NOTIZ_EINTRAEGE
+
+
+def test_notiz_quelle_bleibt_und_sl_sieht_private_notizen_nicht(fresh_game):
+    g = fresh_game
+    mira, _ = _mira(g)
+    g.notizen_setzen(_figur(g, "Mira")["id"], [{"id": "a", "text": "Zahlenschloss 7-?-3", "thema": "Offen", "quelle": "msg-1"}])
+    assert g.notizen_fuer(mira["id"])[0]["quelle"] == "msg-1"
+    assert "Zahlenschloss" not in json.dumps(g.snapshot(), ensure_ascii=False)   # SL-Laptop
+
+
+def test_gruppen_notizen_fuer_alle_mit_schreiber(fresh_game):
+    g = fresh_game
+    mira, korgo = _mira(g)
+    m, k = _figur(g, "Mira")["id"], _figur(g, "Korgo")["id"]
+    assert g.gruppen_notiz(m, {"op": "neu", "eintrag": {"id": "g1", "text": "Beute: 3 Heiltränke", "thema": "Beute"}})
+    assert g.gruppen_notiz(k, {"op": "neu", "eintrag": {"id": "g2", "text": "Treffpunkt Hafen"}})
+    for pid in (mira["id"], korgo["id"]):
+        snap = g.snapshot(fuer_spieler=True, player_id=pid)
+        assert [e["text"] for e in snap["gruppenNotizen"]] == ["Treffpunkt Hafen", "Beute: 3 Heiltränke"]
+    assert g.gruppen_notizen[1]["von"] == "Mira" and g.gruppen_notizen[0]["von"] == "Korgo"
+    # Korgo hakt Miras Notiz ab, ändert sie - Schreiber bleibt Mira.
+    assert g.gruppen_notiz(k, {"op": "aendern", "id": "g1", "erledigt": True, "text": "Beute: 2 Heiltränke"})
+    assert g.gruppen_notizen[1] == {"id": "g1", "text": "Beute: 2 Heiltränke", "thema": "Beute", "erledigt": True,
+                                    "von": "Mira", "vonId": "char_mira"}
+    weg = g.gruppen_notizen[1]
+    assert g.gruppen_notiz(k, {"op": "loeschen", "id": "g1"})
+    # Rückgängig: an alter Stelle, alter Schreiber.
+    assert g.gruppen_notiz(k, {"op": "neu", "eintrag": weg, "index": 1})
+    assert g.gruppen_notizen[1]["von"] == "Mira"
+    assert not g.gruppen_notiz(k, {"op": "neu", "eintrag": weg})          # gleiche ID nicht doppelt
+    assert not g.gruppen_notiz(k, {"op": "kaputt", "id": "g1"})
+    # Dauerhaft und in der Sicherung.
+    neu = type(g)()
+    assert [e["id"] for e in neu.gruppen_notizen] == ["g2", "g1"]
+    assert g.export_data()["gruppenNotizen"] == g.gruppen_notizen
+
+
+def test_namen_fuer_notizen_verraten_keine_sl_vorbereitung(fresh_game):
+    g = fresh_game
+    _mira(g)
+    g.bestiary = [{"id": "b1", "name": "Schattendrache"}]
+    g.protokolle = [{"id": "p1", "freigegeben": True, "text": "Wir trafen Rask in Rabenfels."},
+                    {"id": "p2", "freigegeben": False, "text": "Geheim: Vexmoor wartet."}]
+    namen = g.namen_fuer_notizen(fuer_spieler=True)
+    assert {"Mira", "Korgo", "Rask", "Rabenfels"} <= set(namen)
+    assert "Schattendrache" not in namen and "Vexmoor" not in namen
+    assert "Vexmoor" in g.namen_fuer_notizen(fuer_spieler=False)
 
 
 # --- Protokoll als Vorgeschichte ---------------------------------------------------
