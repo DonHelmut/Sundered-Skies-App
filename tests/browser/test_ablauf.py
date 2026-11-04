@@ -268,7 +268,10 @@ def test_sl_fluestert_nur_einem_handy(tisch):
     sl = tisch.sl()
     tessa = tisch.handy("Tessa")
     korgo = tisch.handy("Korgo")
-    sl.locator("summary", has_text="Nachricht").first.click()
+    # Nur aufklappen, wenn zu - ein Klick auf ein offenes Panel klappt es zu
+    # (je nach gemerktem Zustand war es schon offen: so in der CI).
+    if not sl.locator("#msgtext").is_visible():
+        sl.locator("summary", has_text="Nachricht").first.click()
     sl.page.locator("select[data-act=msg-ziel]").select_option(tessa.js("App.myPlayerId"))
     sl.page.locator("#msgtext").fill("Du hörst ein Flüstern")
     _knopf(sl, "send-message")
@@ -299,7 +302,8 @@ def test_bennies_per_nachricht_und_anfrage_benny_ausgeben(tisch):
 def test_protokoll_einfuegen_freigeben_lesen(tisch):
     sl = tisch.sl()
     h = tisch.handy("Tessa")
-    sl.locator("summary", has_text="Protokolle").first.click()
+    if not sl.locator("[data-act=prot-neu]").first.is_visible():
+        sl.locator("summary", has_text="Protokolle").first.click()
     _knopf(sl, "prot-neu")
     sl.page.locator(".app-dialog-hg textarea, textarea").last.fill(
         "# Nebel über Varn\nDie Gruppe erreichte den Hafen.")
