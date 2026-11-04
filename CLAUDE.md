@@ -23,7 +23,8 @@ zu Beginn lesen.**
 .venv\Scripts\python -m server.run
 ```
 
-Die Tests laufen in wenigen Sekunden. `server.run` startet im LAN mit QR-Code.
+Mit Browser-Tests (`tests/browser`, Playwright, SL + Handys) dauert der Lauf
+~5 min; nur Server-Tests: `pytest --ignore=tests/browser` (Sekunden). `server.run` startet im LAN mit QR-Code.
 Optisches prüfen auf `http://localhost:8000/static/_lab.html` (Musterseite).
 Über `localhost` ist man immer Spielleiter; die Spieleransicht braucht die
 LAN-Adresse.

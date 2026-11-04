@@ -96,10 +96,11 @@ Kalle: „ALLES testen, komplett SL und Spieler". Dafür gibt es jetzt
   Anfragen, Protokoll freigeben/zurückziehen, Kampf vorbereiten+starten,
   Verlassen+Wiederkommen, Neuladen, Neustart+Fortsetzen, ↶, Export→Import in
   frischen Server, SL-Schnittstellen fürs Handy gesperrt.
-- Ohne Playwright werden sie still übersprungen (`pytest` bleibt schnell). Mit:
-  `pip install playwright`, `python -m playwright install chromium`,
-  `python -m pytest tests/browser` (~5 min). GitHub Actions: eigener Job
-  „browser" (Ubuntu).
+- Laufen bei jedem `pytest` mit (Kalle: „will die besten Tests"): Playwright
+  steht in requirements-dev.txt, `run-tests.bat` holt Chromium einmalig. Ganzer
+  Lauf ~5 min; nur die schnellen Server-Tests: `pytest --ignore=tests/browser`.
+  GitHub Actions (Windows) holt Chromium ebenfalls und prüft alles. Fehlt
+  Playwright/Chromium, werden die Browser-Tests übersprungen statt rot.
 - `tests/test_komplett.py`: die 11 bisher ungetesteten SL-Aktionen, Rechte-
   Matrix Handy (fremde Figur, SL-Aktionen, kaputte Nachrichten), was Handys/
   Beamer nicht bekommen dürfen.
