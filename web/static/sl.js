@@ -674,11 +674,19 @@ function renderControlBody() {
   // Vorbereitete Kämpfe genau dann anbieten, wenn keiner läuft (Sitzungsbeginn,
   // nach „Kampf abräumen") - im Kampf wäre die Auswahl nur Ballast.
   const kaempfe = s.encounters || [];
-  const schnellstart = kaempfe.length && !s.combatants.some((c) => c.kind === "npc")
-    ? `<div class="schnellkampf"><span class="muted small">Vorbereitet:</span>
+  // Der Weg zu „Kämpfe vorbereiten" (Kalle 04.11.2026: lag zu versteckt im
+  // dritten Bibliotheks-Reiter) steht hier mit drin - aber auch nur, solange
+  // kein Kampf läuft. Im Kampf bleibt die Leiste frei, wer nichts vorbereitet,
+  // sieht nur einen kleinen Knopf.
+  const keinKampf = !s.combatants.some((c) => c.kind === "npc");
+  const verwalten = `<button class="ghost small" data-act="kaempfe-zeigen" title="Kämpfe vorab zusammenstellen, bearbeiten, kopieren (Bibliothek → Kämpfe)">⚔ ${kaempfe.length ? "Kämpfe verwalten" : "Kampf vorbereiten"}</button>`;
+  const schnellstart = !keinKampf ? ""
+    : kaempfe.length
+      ? `<div class="schnellkampf"><span class="muted small">Vorbereitet:</span>
         <select id="schnellkampf">${kaempfe.map((k) => `<option value="${k.id}">${esc(k.name)}</option>`).join("")}</select>
-        <button class="small primary" data-act="schnellkampf-start" title="Kampf einsetzen, Charaktere an ihre Startzone und austeilen">▶ Starten</button></div>`
-    : "";
+        <button class="small primary" data-act="schnellkampf-start" title="Kampf einsetzen, Charaktere an ihre Startzone und austeilen">▶ Starten</button>
+        ${verwalten}</div>`
+      : `<div class="schnellkampf">${verwalten}</div>`;
   return `
     ${cleanupRow}
     ${heilRow}

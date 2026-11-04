@@ -118,6 +118,12 @@ Sicherungen, 4 Handy-Text bei offenem „Fortsetzen?".
   Automatische Sicherungen" listet sie, „↺ Zurückholen" spielt eine ein und
   sichert vorher den jetzigen Stand. Der laufende Kampf ist nicht drin (der
   hat `session.json` + Fortsetzen).
+- **⚔ Kämpfe vorbereiten leichter finden** (lag im 3. Bibliotheks-Reiter;
+  Varianten A Reiter vorne / B eigenes Panel / C Knopf, Kalle: C, aber „nicht
+  zu auffällig, wenn ich keinen vorbereiteten Kampf will"): Knopf im
+  Kampf-Panel NUR solange kein Kampf läuft - „⚔ Kampf vorbereiten" (öffnet
+  gleich den Baukasten) bzw. neben „Vorbereitet: … ▶ Starten" „⚔ Kämpfe
+  verwalten". Im Kampf verschwindet er.
 
 ## 1.5.37 (04.11.2026): Notizen gingen bei offenem „Fortsetzen?" verloren
 

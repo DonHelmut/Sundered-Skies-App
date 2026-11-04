@@ -337,6 +337,19 @@ document.addEventListener("click", (e) => {
     "einladung-kopieren": () => einladungKopieren(),
     "einladung-bild": () => einladungsBildKopieren(),
     "qr-gross": () => qrGrossZeigen(),
+    // ⚔ Kämpfe verwalten / Kampf vorbereiten (Kampf-Panel, nur ohne laufenden
+    // Kampf): Bibliothek auf, Reiter „Kämpfe", hinscrollen.
+    "kaempfe-zeigen": () => {
+      try { localStorage.setItem("bibReiter", "encounters"); } catch { /* egal */ }
+      App.collapsed.bibliothek = false;
+      try { localStorage.setItem("collapsed", JSON.stringify(App.collapsed)); } catch { /* egal */ }
+      slAnsichtSichern();
+      // Noch keiner da: gleich den Baukasten auf.
+      if (!(S.encounters || []).length && !App.kampfEntwurf) App.kampfEntwurf = kampfEntwurfAus(null);
+      render();
+      const p = document.querySelector('details.section[data-sec="bibliothek"]');
+      if (p) p.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
     "bib-reiter": () => {
       try { localStorage.setItem("bibReiter", target.dataset.reiter); } catch { /* egal */ }
       render();
