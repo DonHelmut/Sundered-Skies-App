@@ -1,18 +1,24 @@
-# Tests bei jedem Push und PR – fängt Fehler ab, bevor der andere PC sie
+# Tests bei jedem PR und Push auf main – fängt Fehler ab, bevor der andere PC sie
 # per `git pull` holt. Windows-Runner, weil das Spiel nur dort läuft (winnet,
 # ctypes.windll); unter Linux würden Windows-Pfade ungeprüft bleiben.
 name: Tests
 
+# Push nur auf main: Branches laufen über ihren PR. Vorher lief jeder Commit
+# doppelt (push + pull_request) und jeder Release-Tag nochmal - doppelte
+# Mails, und ein wackliger Test hatte doppelt so viele Chancen, rot zu werden.
+# Getestet wird dasselbe: der PR-Lauf prüft sogar den Stand nach dem Merge.
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   pytest:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip

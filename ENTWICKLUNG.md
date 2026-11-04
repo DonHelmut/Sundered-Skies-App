@@ -77,6 +77,24 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (04.11.2026): CI ruhiger – keine roten Wackel-Läufe, keine Doppel-Mails
+
+Nach 2.0.1 kamen viele „Run failed: Tests"-Mails. Ursachen:
+- `test_handy_ist_ruhig_wenn_nichts_passiert` (tests/browser/test_design.py)
+  wartete fest 1,5 s nach „Du bist dran". Die App schiebt neue Stände während
+  der Aufdeck-Animation auf (`App.revealLockUntil` → `App.pendingRender`); auf
+  dem langsamen Windows-Runner kam das aufgeschobene Zeichnen erst in der
+  Messung → main rot, derselbe Commit als Tag-Lauf grün. Jetzt
+  `_warte_bis_ruhig`: Sperre vorbei, nichts aufgeschoben, Seite 1 s still
+  (max. 15 s). Kein App-Fehler. Ganze Browser-Suite unter Volllast (4 Kerne
+  dauerhaft belegt) grün.
+- Jeder Commit lief doppelt (push + pull_request), jeder Release-Tag nochmal.
+  tests.yml: Push nur noch auf main, Branches über ihren PR, Tags gar nicht;
+  dazu „Run workflow" von Hand. Abdeckung gleich. checkout/setup-python auf
+  v5/v6 (Node-20-Warnung).
+- Mails: GitHub → Settings → Notifications → System → Actions →
+  „Only notify for failed workflows" (oder Haken bei E-Mail weg).
+
 ## 2.0.1 (04.11.2026): Komplett-Test SL + Spieler
 
 Kalle: „ALLES testen, komplett SL und Spieler". Dafür gibt es jetzt
