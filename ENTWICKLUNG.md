@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (nach 1.5.35, 04.11.2026): Sprecher nachschärfen
+## 1.5.36 (04.11.2026): Sprecher nachschärfen
 
 Erster Testabend mit Aufnahme (Kalle spielt Korgo und SL, 3:44 min, schnelle
 Wechsel). Audio nachgemessen: zwei klar trennbare Stimmen (SL tief ~105 Hz,
@@ -106,7 +106,7 @@ Gemessen (Redezeit beim richtigen Sprecher):
 
 Testwerkzeug: Piper-Stimmen von k2-fsa/sherpa-onnx `tts-models` (GitHub,
 Hugging Face ist gesperrt), gesprochen mit `pip install piper-tts`.
-## Unveröffentlicht (04.11.2026): Aktualisieren klappt auch mit OneDrive
+## 1.5.36 (04.11.2026): Aktualisieren klappt auch mit OneDrive
 
 - **Fehler:** Kalles App im OneDrive-Desktop, Aktualisieren 1.5.34→1.5.35 brach
   bei jedem Versuch mit „[WinError 5] Zugriff verweigert: …\_aktualisieren.neu"
@@ -134,7 +134,7 @@ Hugging Face ist gesperrt), gesprochen mit `pip install piper-tts`.
   per Zip von Hand (data rüberkopieren); danach läuft der neue Updater.
 - Tests: `tests/test_aktualisieren.py` (Sperren per gepatchtem `rename`).
 
-## Unveröffentlicht (04.11.2026): Notizen als Liste mit Themen-Reitern
+## 1.5.36 (04.11.2026): Notizen als Liste mit Themen-Reitern
 
 Kalle: Notizfeld fühlte sich an wie eine .txt bearbeiten, soll hochwertig sein.
 Varianten gezeigt (Bilder im Projektordner `screenshots/notizen/`), gewählt:
