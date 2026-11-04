@@ -72,3 +72,110 @@ def test_fortschrittsbalken():
     assert halb.count("█") == 15 and " 50 %" in halb and "13,0 / 26,0 MB" in halb
     assert akt.fortschritt_balken(26 * mb, 26 * mb).count("█") == 30
     assert akt.fortschritt_balken(30 * mb, 26 * mb).count("█") == 30      # nie über 100 %
+
+
+# --- Gesperrte Dateien (OneDrive, Virenscanner) -----------------------------
+# Vorgeschichte 1.5.35: „Zugriff verweigert" auf _aktualisieren.neu, bei jedem
+# Versuch – und danach war _aktualisieren leer. Gesperrt wird hier simuliert,
+# indem rename für bestimmte Namen scheitert.
+
+import pathlib
+
+import pytest
+
+
+def _alte_app(ordner):
+    ordner.mkdir()
+    (ordner / akt.APP_EXE).write_text("exe alt")
+    (ordner / "_internal").mkdir()
+    (ordner / "_internal" / "alt.dll").write_text("alt")
+    (ordner / "START-HIER.txt").write_text("x (Version 1.4)")
+    (ordner / "data").mkdir()
+    (ordner / "data" / "roster.json").write_text("[Korgo]")
+    (ordner / akt.SELBST_EXE).write_text("updater alt")
+    (ordner / akt.SELBST_ORDNER).mkdir()
+    (ordner / akt.SELBST_ORDNER / "base.zip").write_text("updater alt")
+    return ordner
+
+
+@pytest.fixture
+def sperren(monkeypatch):
+    """Namen in ``gesperrt`` lassen sich nicht umbenennen; Zahl = wie oft noch."""
+    monkeypatch.setattr(akt, "GEDULD_S", 0.3)
+    monkeypatch.setattr(akt, "GEDULD_KURZ_S", 0.1)
+    monkeypatch.setattr(akt, "PAUSE_S", 0.01)
+    gesperrt = {}
+    echt = pathlib.Path.rename
+
+    def rename(self, ziel):
+        for name in (self.name, pathlib.Path(ziel).name):
+            if name in gesperrt and gesperrt[name] != 0:
+                gesperrt[name] -= 1
+                raise PermissionError(5, "Zugriff verweigert", str(self))
+        return echt(self, ziel)
+
+    monkeypatch.setattr(pathlib.Path, "rename", rename)
+    return gesperrt
+
+
+def test_haengendes_updater_neu_blockiert_die_app_nicht(tmp_path, sperren):
+    ordner = _alte_app(tmp_path / "App")
+    (ordner / (akt.SELBST_ORDNER + ".neu")).mkdir()      # Rest, dauerhaft gesperrt
+    sperren[akt.SELBST_ORDNER + ".neu"] = -1
+    quelle = _paket(tmp_path / "neu", "1.5", "updater neu")
+
+    akt.austauschen(quelle, ordner)
+    assert (ordner / akt.APP_EXE).read_text() == "exe 1.5"
+    assert (ordner / "_internal" / "neu.dll").exists()
+    assert akt.version_aus_starthier(ordner) == "1.5"
+    assert (ordner / akt.SELBST_ORDNER / "base.zip").read_text() == "updater alt"
+    assert not [p for p in ordner.iterdir() if akt.KOMMT in p.name]
+
+
+def test_kurze_sperre_wird_abgewartet(tmp_path, sperren):
+    ordner = _alte_app(tmp_path / "App")
+    sperren["_internal"] = 3
+    akt.austauschen(_paket(tmp_path / "neu", "1.5", "u"), ordner)
+    assert (ordner / "_internal" / "neu.dll").exists()
+    assert not (ordner / "_internal" / "alt.dll").exists()
+
+
+def test_dauersperre_tauscht_zurueck_und_alte_version_bleibt(tmp_path, sperren):
+    ordner = _alte_app(tmp_path / "App")
+    sperren["_internal"] = -1
+    with pytest.raises(akt.AustauschFehler) as fehler:
+        akt.austauschen(_paket(tmp_path / "neu", "1.5", "u"), ordner)
+    assert fehler.value.alt_heil
+    assert (ordner / akt.APP_EXE).read_text() == "exe alt"
+    assert (ordner / "_internal" / "alt.dll").exists()
+    assert akt.version_aus_starthier(ordner) == "1.4"      # zweiter Versuch tut was
+    assert (ordner / "data" / "roster.json").read_text() == "[Korgo]"
+    sperren.clear()
+    akt.aufraeumen(ordner)
+    assert sorted(p.name for p in ordner.iterdir()) == sorted(
+        ["Aktualisieren.exe", "START-HIER.txt", akt.APP_EXE, "_aktualisieren", "_internal", "data"])
+
+
+def test_nachziehen_laesst_nie_einen_leeren_updater_zurueck(tmp_path, sperren):
+    ordner = _alte_app(tmp_path / "App")
+    neu = ordner / (akt.SELBST_ORDNER + ".neu")
+    neu.mkdir()
+    (neu / "base.zip").write_text("updater neu")
+    sperren[akt.SELBST_ORDNER + ".neu"] = -1
+    assert akt.updater_nachziehen(ordner) is False
+    assert (ordner / akt.SELBST_ORDNER / "base.zip").read_text() == "updater alt"
+    sperren.clear()
+    assert akt.updater_nachziehen(ordner) is True
+    assert (ordner / akt.SELBST_ORDNER / "base.zip").read_text() == "updater neu"
+    assert not [p for p in ordner.iterdir() if akt.WEG in p.name]
+
+
+def test_nachziehen_raeumt_leere_reste_weg(tmp_path):
+    ordner = _alte_app(tmp_path / "App")
+    (ordner / (akt.SELBST_ORDNER + ".neu")).mkdir()
+    (ordner / ("_internal" + akt.WEG + "20261104")).mkdir()
+    (ordner / ("_internal" + akt.WEG + "20261104") / "x.dll").write_text("x")
+    assert akt.updater_nachziehen(ordner) is False
+    assert (ordner / akt.SELBST_ORDNER / "base.zip").read_text() == "updater alt"
+    assert sorted(p.name for p in ordner.iterdir()) == sorted(
+        ["Aktualisieren.exe", "START-HIER.txt", akt.APP_EXE, "_aktualisieren", "_internal", "data"])
