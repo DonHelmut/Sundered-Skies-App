@@ -2597,9 +2597,94 @@ button.aufn-sprecher.benannt { opacity: .9; font-weight: 600; }
 .ruhe-titel { font-weight: 700; color: var(--muted); text-align: center; margin-bottom: 10px; }
 .ruhe-werte { flex: none; }
 .ruhe-knoepfe { justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-/* Eigene Notizen */
-.panel.notizen textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; line-height: 1.4; }
-.notizen-stand { margin-top: 4px; text-align: right; }
+/* Eigene Notizen: Einträge mit Haken unter Themen-Reitern (seit 1.5.36, vorher
+   ein Freitextfeld). Erledigtes zugeklappt unten. */
+.notizen-kopf { display: flex; align-items: center; gap: 8px; }
+.notizen-kopf h2 { margin: 0; }
+.notizen-zahl { font-size: 0.75rem; font-weight: 700; color: var(--muted); border: 1px solid var(--line);
+  border-radius: 999px; padding: 0 8px; line-height: 1.5; }
+.notiz-neu { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
+.notiz-neu textarea, .zeile.bearbeiten textarea { flex: 1; width: 100%; resize: none; overflow: hidden;
+  font: inherit; line-height: 1.4; border-radius: 10px; padding: 9px 12px; min-height: 0;
+  background: var(--input-bg); color: var(--text); border: 1px solid var(--line); }
+.notiz-neu textarea:focus, .zeile.bearbeiten textarea:focus { outline: none; border-color: var(--accent); }
+.notiz-plus { flex: none; width: 42px; height: 42px; padding: 0; border-radius: 10px; font-size: 1.35rem; line-height: 1; }
+/* Reiter: eine Zeile, seitlich wischbar statt umbrechen (Handy-Breite). */
+.notiz-reiter-leiste { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 10px -14px 0;
+  padding: 0 14px 10px; border-bottom: 1px solid var(--line); }
+.notiz-reiter-leiste::-webkit-scrollbar { display: none; }
+button.notiz-reiter { flex: none; border-radius: 999px; padding: 5px 12px; font-size: 0.85rem; background: transparent;
+  color: var(--muted); white-space: nowrap; }
+button.notiz-reiter b { font-weight: 400; opacity: 0.8; margin-left: 2px; }
+button.notiz-reiter.on { background: var(--accent2); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+button.notiz-reiter.neu { padding: 5px 11px; border-style: dashed; }
+.zeilen { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 12px;
+  overflow: hidden; background: var(--input-bg); }
+.zeile { display: flex; gap: 10px; align-items: flex-start; padding: 8px 6px 8px 12px; }
+.zeile + .zeile { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+button.haken { flex: none; width: 24px; height: 24px; margin-top: 2px; padding: 0; border-radius: 7px;
+  border: 2px solid var(--line); background: transparent; color: #fff; font-size: 0.8rem; font-weight: 700; line-height: 1; }
+.zeile.erl button.haken { background: var(--good); border-color: var(--good); }
+.zt { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; padding-top: 2px; cursor: text; }
+.ztitel { display: block; font-weight: 700; }
+.zrest { display: block; color: var(--muted); font-size: 0.92rem; }
+.zeile.erl .zt { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, 0.35); }
+.ttag { display: inline-block; font-size: 0.72rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
+  padding: 0 7px; margin-left: 4px; white-space: nowrap; text-decoration: none; vertical-align: 1px; }
+.zk { display: flex; flex: none; }
+/* Große Trefferfläche (Daumen), aber optisch leise - die Notiz soll vorne stehen. */
+button.notiz-knopf { background: transparent; border: none; color: var(--muted); width: 34px; height: 30px;
+  padding: 0; border-radius: 8px; font-size: 1rem; line-height: 1; }
+button.notiz-knopf:hover { background: var(--panel2); color: var(--text); }
+button.notiz-knopf.weg:hover { color: var(--bad); }
+.zeile.bearbeiten { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; background: var(--panel2); }
+.notiz-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+button.notiz-chip { border-radius: 999px; padding: 3px 10px; font-size: 0.8rem; background: transparent; color: var(--muted); }
+button.notiz-chip.on { border-color: var(--accent); color: var(--accent); background: rgba(214, 162, 74, 0.12); }
+.notiz-edit-knoepfe { display: flex; justify-content: flex-end; gap: 8px; }
+button.notiz-erl-kopf { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 10px;
+  background: transparent; border: 1px dashed var(--line); border-radius: 10px; padding: 7px 12px;
+  color: var(--muted); font-size: 0.88rem; }
+.zeilen.erledigt { margin-top: 6px; }
+.notiz-undo { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px;
+  padding: 6px 6px 6px 12px; border-radius: 10px; background: var(--panel2); font-size: 0.9rem; }
+.notizen-leer { margin-top: 12px; padding: 14px 12px; text-align: center; color: var(--muted);
+  border: 1px dashed var(--line); border-radius: 10px; font-size: 0.9rem; line-height: 1.5; }
+.notizen-leer span { font-size: 0.85rem; opacity: 0.85; }
+.notizen-leer.klein { padding: 10px; }
+.notizen-leer.klein:empty { display: none; }
+/* 🔒/👥: für wen die neue Notiz ist */
+button.notiz-ziel { flex: none; width: 42px; height: 42px; padding: 0; border-radius: 10px; font-size: 1.1rem; background: transparent; }
+button.notiz-ziel.gruppe { border-color: var(--accent); background: rgba(214, 162, 74, 0.15); }
+button.notiz-ziel:disabled { opacity: 1; cursor: default; }
+.zeile.gruppe { box-shadow: inset 3px 0 0 var(--accent); }
+.wer { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 1px; text-decoration: none; }
+/* ✨ Namen beim Tippen */
+.notiz-vorschlag { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.notiz-vorschlag:empty { display: none; }
+.notiz-vtitel { font-size: 0.85rem; }
+button.notiz-vchip { border-radius: 999px; padding: 4px 11px; font-size: 0.85rem; background: transparent;
+  border-color: var(--accent); color: var(--accent); }
+/* 🔎 Suche */
+button.notiz-reiter.such { padding: 5px 10px; }
+.notiz-suche { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 2px 4px 2px 12px;
+  border: 1px solid var(--accent); border-radius: 10px; background: var(--input-bg); }
+.notiz-suche input { border: none; background: transparent; padding: 8px 0; flex: 1; min-width: 0; }
+.notiz-suche input:focus { outline: none; }
+.panel.notizen mark { background: rgba(214, 162, 74, 0.45); color: inherit; border-radius: 3px; padding: 0 1px; }
+/* Eigenes Thema: Emoji + Name */
+.tm-titel { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.tm-vorschlaege { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tm-zeile { display: flex; gap: 8px; }
+.tm-zeile .tm-emoji { flex: none; width: 52px; text-align: center; font-size: 1.4rem; padding: 6px 4px; }
+.tm-emojis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin-top: 10px; }
+.tm-emojis button { padding: 0; height: 36px; font-size: 1.15rem; border-radius: 9px; background: transparent; }
+.tm-emojis button.on { border: 2px solid var(--accent); background: rgba(214, 162, 74, 0.18); }
+button.tm-loeschen { color: var(--bad); border-color: var(--bad); margin-right: auto; }
+.tm-hinweis { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+/* 💬 SL-Nachricht merken */
+.msg .msg-merk { display: block; width: fit-content; margin-top: 8px; padding: 3px 10px; font-size: 0.82rem; border-radius: 8px; background: transparent; }
+.msg span.msg-merk.ok { border: 1px solid var(--good); color: var(--good); }
 /* SL: Gegnerzug-Karte über der Leiste */
 .gegnerzug .gz-werte { font-size: 0.85rem; color: var(--muted); border-left: 3px solid var(--bad); padding: 2px 8px; margin-bottom: 8px; }
 .gz-art { font-size: 0.75rem; border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; margin-left: 4px; white-space: nowrap; }
