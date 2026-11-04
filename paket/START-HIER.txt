@@ -1,4 +1,4 @@
-Sundered Skies – Initiative  (Version 1.5.36)
+Sundered Skies – Initiative  (Version 1.5.37)
 ==========================================
 
 Du brauchst NICHTS zu installieren. Kein Python, keine Zusatzpakete –
