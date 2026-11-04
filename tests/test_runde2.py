@@ -48,19 +48,61 @@ def test_treffer_meldung_nennt_aktiven_gegner(fresh_game):
 
 # --- Notizen ------------------------------------------------------------------
 
+def _texte(liste):
+    return [e["text"] for e in liste]
+
+
 def test_notizen_nur_fuer_das_eigene_handy(fresh_game):
     g = fresh_game
     mira, korgo = _mira(g)
-    assert g.notizen_setzen(_figur(g, "Mira")["id"], "Rask schuldet uns 50 Gold")
-    assert g.notizen_fuer(mira["id"]) == "Rask schuldet uns 50 Gold"
-    assert g.notizen_fuer(korgo["id"]) == ""
+    eintrag = {"id": "n1", "text": "Rask schuldet uns 50 Gold", "thema": "NSC", "erledigt": False}
+    assert g.notizen_setzen(_figur(g, "Mira")["id"], [eintrag])
+    assert g.notizen_fuer(mira["id"]) == [eintrag]
+    assert g.notizen_fuer(korgo["id"]) == []
     snap = g.snapshot(fuer_spieler=True, player_id=korgo["id"])
     assert "Rask" not in json.dumps(snap, ensure_ascii=False)
-    assert g.snapshot(fuer_spieler=True, player_id=mira["id"])["meineNotizen"].startswith("Rask")
+    assert g.snapshot(fuer_spieler=True, player_id=mira["id"])["meineNotizen"] == [eintrag]
     # Bleiben am Charakter, auch wenn der SL ihn bearbeitet.
     g.apply({"type": "roster_upsert", "id": "char_mira", "name": "Mira die Flinke", "isWildCard": True})
-    assert g.roster[0]["notizen"].startswith("Rask")
-    assert not g.notizen_setzen(_figur(g, "Mira die Flinke")["id"], "Rask schuldet uns 50 Gold")   # unverändert
+    assert g.roster[0]["notizen"] == [eintrag]
+    assert not g.notizen_setzen(_figur(g, "Mira die Flinke")["id"], [eintrag])   # unverändert
+
+
+def test_notizen_thema_haken_und_bereinigen(fresh_game):
+    g = fresh_game
+    mira, _ = _mira(g)
+    cid = _figur(g, "Mira")["id"]
+    g.notizen_setzen(cid, [
+        {"id": "a", "text": "Rask\nschuldet 50 Gold", "thema": "  NSC  ", "erledigt": 1},
+        {"id": "b", "text": "  "}, 7, {"text": "ohne id"}, {"id": "a", "text": "doppelte id"},
+    ])
+    liste = g.notizen_fuer(mira["id"])
+    assert liste[0] == {"id": "a", "text": "Rask\nschuldet 50 Gold", "thema": "NSC", "erledigt": True}
+    assert _texte(liste) == ["Rask\nschuldet 50 Gold", "ohne id", "doppelte id"]
+    assert len({e["id"] for e in liste}) == 3                     # IDs eindeutig
+    assert not g.notizen_setzen(cid, {"kaputt": 1})
+
+
+def test_alte_freitext_notiz_wird_zeilenweise_zu_eintraegen(fresh_game):
+    g = fresh_game
+    mira, _ = _mira(g)
+    g.roster[0]["notizen"] = "Rask schuldet 50 Gold\r\n\n  Karte im Turm  \n"   # Stand 1.5.35
+    liste = g.notizen_fuer(mira["id"])
+    assert _texte(liste) == ["Rask schuldet 50 Gold", "Karte im Turm"]
+    assert all(e["thema"] == "" and not e["erledigt"] for e in liste)
+    assert liste == g.notizen_fuer(mira["id"])                    # IDs bleiben beim erneuten Lesen gleich
+    # Altes Handy (schickt noch Text) geht weiter.
+    assert g.notizen_setzen(_figur(g, "Mira")["id"], "A\nB")
+    assert _texte(g.roster[0]["notizen"]) == ["A", "B"]
+
+
+def test_notizen_grenzen(fresh_game):
+    g = fresh_game
+    mira, _ = _mira(g)
+    from server.game import MAX_NOTIZ_LAENGE, MAX_NOTIZ_EINTRAEGE
+    g.notizen_setzen(_figur(g, "Mira")["id"], ["x" * 5000] + ["y"] * 500)
+    liste = g.notizen_fuer(mira["id"])
+    assert len(liste[0]["text"]) == MAX_NOTIZ_LAENGE and len(liste) == MAX_NOTIZ_EINTRAEGE
 
 
 # --- Protokoll als Vorgeschichte ---------------------------------------------------

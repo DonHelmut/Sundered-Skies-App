@@ -850,7 +850,9 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             await hub.broadcast_state()
         elif atype == "notizen_setzen":
             # Eigene Notizen - nur am eigenen Charakter, nur dieses Handy sieht sie.
-            if game.notizen_setzen(own["id"], action.get("text")):
+            # "eintraege" seit 1.5.36; "text" = altes Handy mit Freitext-Feld.
+            neu = action.get("eintraege") if "eintraege" in action else action.get("text")
+            if game.notizen_setzen(own["id"], neu):
                 await hub.broadcast_state()
         elif atype == "talents_update":
             # Eigene Initiative-Talente - wieder NUR die eigene Figur.

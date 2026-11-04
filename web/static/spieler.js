@@ -258,40 +258,276 @@ function ruhePanelHtml(s, mine) {
 }
 
 // Eigene Notizen: hängen am Charakter, nur dieses Handy bekommt sie
-// (Server: notizen_setzen / meineNotizen). Speichern von selbst, kurz nach
-// dem Tippen und beim Verlassen des Feldes.
+// (Server: notizen_setzen / meineNotizen). Seit 1.5.36 einzelne Einträge
+// {id, text, thema, erledigt} in Themen-Gruppen mit Haken, ✎ und 🗑 - vorher
+// EIN Freitextfeld, das sich anfühlte wie eine .txt bearbeiten (Kalle,
+// 04.11.2026, wählte aus Varianten „Gruppen + Haken"). Alter Text kommt vom
+// Server schon zeilenweise zerlegt an (Thema leer = „Sonstiges").
+// Jede Änderung schickt sofort die ganze Liste; bis der Server sie
+// zurückmeldet, gilt die eigene Fassung (sonst blitzte nach dem Löschen kurz
+// der alte Stand auf).
+const NOTIZ_THEMEN = [["NSC", "👤"], ["Orte", "🗺"], ["Beute", "💰"], ["Offen", "❓"]];
+function notizIcon(thema) {
+  if (!thema) return "📝";
+  const t = NOTIZ_THEMEN.find(([n]) => n === thema);
+  return t ? t[1] : "🏷";
+}
+function notizThemaName(thema) { return thema || "Sonstiges"; }
+function notizSpeicherLesen(schluessel, ersatz) {
+  try { const w = JSON.parse(localStorage.getItem(schluessel)); return w == null ? ersatz : w; } catch { return ersatz; }
+}
+function notizSpeicherSchreiben(schluessel, wert) {
+  try { localStorage.setItem(schluessel, JSON.stringify(wert)); } catch { /* privates Fenster */ }
+}
+function notizenListe() {
+  let liste = (App.state && App.state.meineNotizen) || [];
+  if (!Array.isArray(liste)) liste = String(liste).split("\n").filter((z) => z.trim());   // alter Server
+  liste = liste.map((e, i) => typeof e === "string" ? { id: `alt${i}`, text: e.trim(), thema: "", erledigt: false } : e);
+  if (App.notizenLokal) {
+    if (JSON.stringify(App.notizenLokal) !== JSON.stringify(liste)) return App.notizenLokal;
+    App.notizenLokal = null;
+  }
+  return liste;
+}
+function notizenSpeichern(liste) {
+  App.notizenLokal = liste;
+  gmAction({ type: "notizen_setzen", eintraege: liste });
+  render();
+}
+function notizNeueId() { return `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; }
+// Themen für die Chips: die vier festen, dann eigene (benutzte und frisch
+// angelegte - die merkt sich das Handy, sonst wäre ein neues Thema ohne
+// Eintrag beim nächsten Neuzeichnen wieder weg).
+function notizThemenAlle(liste) {
+  const eigene = notizSpeicherLesen("notizEigeneThemen", []);
+  const namen = NOTIZ_THEMEN.map(([n]) => n);
+  [...eigene, ...liste.map((e) => e.thema)].forEach((t) => { if (t && !namen.includes(t)) namen.push(t); });
+  return namen;
+}
+// Mehrzeiliger Eintrag: erste Zeile fett (z. B. „Rask" und darunter, was man
+// über ihn weiß).
+function notizTextHtml(text) {
+  const [kopf, ...rest] = text.split("\n");
+  return rest.length
+    ? `<span class="ztitel">${esc(kopf)}</span><span class="zrest">${esc(rest.join("\n"))}</span>`
+    : esc(kopf);
+}
+function notizZeileHtml(e, mitThema) {
+  const ed = App.notizEdit;
+  if (ed && ed.id === e.id) {
+    const chips = notizThemenAlle(notizenListe()).concat([""]).map((t) =>
+      `<button type="button" class="notiz-chip${ed.thema === t ? " on" : ""}" data-act="notiz-edit-thema" data-thema="${esc(t)}">${notizIcon(t)} ${esc(notizThemaName(t))}</button>`).join("");
+    const h = App.notizHoehe && App.notizHoehe["notiz-edit"];
+    return `<li class="zeile bearbeiten" data-id="${esc(e.id)}">
+      <textarea id="notiz-edit" rows="2" maxlength="1000" aria-label="Notiz bearbeiten"${h ? ` style="height:${h}px"` : ""}>${esc(ed.text)}</textarea>
+      <div class="notiz-chips klein">${chips}</div>
+      <div class="notiz-edit-knoepfe">
+        <button type="button" class="ghost small" data-act="notiz-abbrechen">Abbrechen</button>
+        <button type="button" class="primary small" data-act="notiz-fertig">✓ Fertig</button>
+      </div>
+    </li>`;
+  }
+  const id = esc(e.id);
+  return `<li class="zeile${e.erledigt ? " erl" : ""}" data-id="${id}">
+    <button type="button" class="haken" data-act="notiz-haken" data-id="${id}" role="checkbox" aria-checked="${e.erledigt}" aria-label="Erledigt">${e.erledigt ? "✓" : ""}</button>
+    <div class="zt" data-act="notiz-bearbeiten" data-id="${id}">${notizTextHtml(e.text)}${mitThema && e.thema ? ` <span class="ttag">${notizIcon(e.thema)} ${esc(e.thema)}</span>` : ""}</div>
+    <span class="zk">
+      <button type="button" class="notiz-knopf" data-act="notiz-bearbeiten" data-id="${id}" aria-label="Bearbeiten" title="Bearbeiten">✎</button>
+      <button type="button" class="notiz-knopf weg" data-act="notiz-loeschen" data-id="${id}" aria-label="Löschen" title="Löschen">🗑</button>
+    </span>
+  </li>`;
+}
 function notizenPanelHtml() {
-  const text = App.notizenEntwurf != null ? App.notizenEntwurf : ((App.state && App.state.meineNotizen) || "");
+  const liste = notizenListe();
+  const themen = notizThemenAlle(liste);
+  let filter = App.notizFilter != null ? App.notizFilter : notizSpeicherLesen("notizFilter", null);
+  if (filter !== null && filter !== "" && !themen.includes(filter)) filter = null;
+  const offenZahl = (t) => liste.filter((e) => e.thema === t && !e.erledigt).length;
+  // Reiter: „Alle" + Themen (Kalle wählte Reiter statt Gruppen, 04.11.2026).
+  // Der gewählte Reiter filtert die Liste UND ist das Thema für die nächste
+  // neue Notiz - so landet sie gleich dort, wo man hinschaut.
+  const reiter = (t, label, an) =>
+    `<button type="button" class="notiz-reiter${an ? " on" : ""}" data-act="notiz-filter" data-thema="${t === null ? "*" : esc(t)}">${label}</button>`;
+  const zahl = (n) => n ? ` <b>${n}</b>` : "";
+  const reiterHtml = [reiter(null, `Alle${zahl(liste.filter((e) => !e.erledigt).length)}`, filter === null),
+    ...themen.map((t) => reiter(t, `${notizIcon(t)} ${esc(t)}${zahl(offenZahl(t))}`, filter === t)),
+    ...(liste.some((e) => !e.thema) ? [reiter("", `📝 Sonstiges${zahl(offenZahl(""))}`, filter === "")] : []),
+    `<button type="button" class="notiz-reiter neu" data-act="notiz-thema-neu" aria-label="Neues Thema" title="Neues Thema">＋</button>`].join("");
+  const sicht = filter === null ? liste : liste.filter((e) => e.thema === filter);
+  const offen = sicht.filter((e) => !e.erledigt), erl = sicht.filter((e) => e.erledigt);
+  // Abgehakte zugeklappt (nehmen sonst Platz weg, Kalle 04.11.) - offen nur,
+  // wenn angetippt oder gerade einer davon bearbeitet wird.
+  const erlAuf = App.notizErlAuf || (App.notizEdit && erl.some((e) => e.id === App.notizEdit.id));
+  const zeile = (e) => notizZeileHtml(e, filter === null);
+  const inhalt = !sicht.length
+    ? `<div class="notizen-leer klein">${filter === null ? "" : `Noch nichts unter ${notizIcon(filter)} ${esc(notizThemaName(filter))}.`}</div>`
+    : `${offen.length ? `<ul class="zeilen">${offen.map(zeile).join("")}</ul>`
+        : `<div class="notizen-leer klein">Alles abgehakt ✓</div>`}
+      ${erl.length ? `<button type="button" class="notiz-erl-kopf" data-act="notiz-erl" aria-expanded="${!!erlAuf}">
+          <span>✓ ${erl.length} erledigt</span><span class="pfeil">${erlAuf ? "▾" : "▸"}</span></button>
+        ${erlAuf ? `<ul class="zeilen erledigt">${erl.map(zeile).join("")}</ul>` : ""}` : ""}`;
+  const weg = App.notizWeg;
+  const ziel = filter === null ? "" : filter;
+  const h = App.notizNeu && App.notizHoehe && App.notizHoehe["notiz-neu"];
   return `<div class="panel notizen">
-    <h2>📝 Meine Notizen</h2>
-    <textarea id="meine-notizen" rows="5" maxlength="8000" placeholder="NSC-Namen, Hinweise, Beute, offene Fragen … – nur du siehst das">${esc(text)}</textarea>
-    <div class="muted small notizen-stand">${App.notizenEntwurf != null ? "speichert …" : "Wird von selbst gespeichert."}</div>
+    <div class="notizen-kopf"><h2>📝 Meine Notizen</h2>${liste.length ? `<span class="notizen-zahl">${liste.filter((e) => !e.erledigt).length}</span>` : ""}</div>
+    <div class="notiz-neu">
+      <textarea id="notiz-neu" rows="1" maxlength="1000" enterkeyhint="done" aria-label="Neue Notiz"${h ? ` style="height:${h}px"` : ""}
+        placeholder="${ziel ? `Neu unter ${notizIcon(ziel)} ${esc(ziel)} …` : "Neue Notiz …"}">${esc(App.notizNeu || "")}</textarea>
+      <button type="button" class="primary notiz-plus" data-act="notiz-hinzu" aria-label="Notiz hinzufügen" title="Hinzufügen"${(App.notizNeu || "").trim() ? "" : " disabled"}>＋</button>
+    </div>
+    <div class="notiz-reiter-leiste">${reiterHtml}</div>
+    ${weg ? `<div class="notiz-undo"><span>Notiz gelöscht</span><button type="button" class="ghost small" data-act="notiz-zurueck">↶ Rückgängig</button></div>` : ""}
+    ${liste.length ? inhalt
+      : `<div class="notizen-leer">Noch nichts notiert.<br><span>NSC-Namen, Orte, Beute, offene Fragen – nur du siehst das.</span></div>`}
   </div>`;
 }
-function notizenSenden() {
-  clearTimeout(App.notizenTimer);
-  if (App.notizenEntwurf == null) return;
-  gmAction({ type: "notizen_setzen", text: App.notizenEntwurf });
-  App.notizenEntwurf = null;
-  const st = document.querySelector(".notizen-stand");
-  if (st) st.textContent = "✓ gespeichert";
+// Feld wächst mit dem Text (rows="1" sah sonst nach einer Zeile aus, auch wenn
+// drei drinstanden). field-sizing kann Safari noch nicht. Die Höhe merken und
+// ins HTML schreiben - sonst setzte das Neuzeichnen das Feld wieder auf klein.
+function notizFeldHoehe(el) {
+  if (!el) return;
+  el.style.height = "auto";
+  const h = el.scrollHeight + 2;
+  el.style.height = `${h}px`;
+  App.notizHoehe = { ...(App.notizHoehe || {}), [el.id]: h };
+}
+function notizFilterJetzt() {
+  const f = App.notizFilter != null ? App.notizFilter : notizSpeicherLesen("notizFilter", null);
+  return f == null ? "" : f;
+}
+function notizHinzu() {
+  const text = (App.notizNeu || "").trim();
+  if (!text) return;
+  App.notizNeu = "";
+  const feld = $("notiz-neu");
+  if (feld) { feld.value = ""; notizFeldHoehe(feld); }
+  // Neueste oben: das Eingabefeld steht oben, der Eintrag erscheint gleich darunter.
+  const thema = notizFilterJetzt();
+  notizenSpeichern([{ id: notizNeueId(), text, thema, erledigt: false }, ...notizenListe()]);
+}
+function notizFertig() {
+  const ed = App.notizEdit;
+  if (!ed) return;
+  App.notizEdit = null;
+  const text = ed.text.trim();
+  const liste = notizenListe().slice();
+  const i = liste.findIndex((e) => e.id === ed.id);
+  if (i < 0) { render(); return; }
+  if (!text) { notizLoeschen(ed.id); return; }      // leer gespeichert = löschen (mit Rückgängig)
+  if (liste[i].text === text && liste[i].thema === ed.thema) { render(); return; }
+  liste[i] = { ...liste[i], text, thema: ed.thema };
+  notizenSpeichern(liste);
+}
+// Löschen ohne Rückfrage, dafür ein paar Sekunden „↶ Rückgängig" - eine
+// Rückfrage bei jeder Zeile nervt, versehentlich weg wäre schlimmer.
+function notizLoeschen(id) {
+  const liste = notizenListe().slice();
+  const i = liste.findIndex((e) => e.id === id);
+  if (i < 0) return;
+  const [eintrag] = liste.splice(i, 1);
+  if (App.notizEdit && App.notizEdit.id === id) App.notizEdit = null;
+  clearTimeout(App.notizWegTimer);
+  App.notizWeg = { eintrag, i };
+  App.notizWegTimer = setTimeout(() => { App.notizWeg = null; render(); }, 7000);
+  notizenSpeichern(liste);
 }
 document.addEventListener("input", (e) => {
-  if (!e.target || e.target.id !== "meine-notizen") return;
-  App.notizenEntwurf = e.target.value;
-  const st = document.querySelector(".notizen-stand");
-  if (st) st.textContent = "speichert …";
-  clearTimeout(App.notizenTimer);
-  App.notizenTimer = setTimeout(notizenSenden, 900);
+  const t = e.target;
+  if (!t) return;
+  if (t.id === "notiz-neu") {
+    App.notizNeu = t.value;
+    notizFeldHoehe(t);
+    const plus = document.querySelector('[data-act="notiz-hinzu"]');
+    if (plus) plus.disabled = !t.value.trim();
+  } else if (t.id === "notiz-edit" && App.notizEdit) {
+    App.notizEdit.text = t.value;
+    notizFeldHoehe(t);
+  }
 });
-document.addEventListener("focusout", (e) => {
-  if (e.target && e.target.id === "meine-notizen") notizenSenden();
+document.addEventListener("keydown", (e) => {
+  if (!e.target || e.isComposing) return;
+  // Neue Notiz: Enter = hinzufügen (Handy-Tastatur „Fertig"), Umschalt+Enter = neue Zeile.
+  if (e.target.id === "notiz-neu" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); notizHinzu(); }
+  // Beim Bearbeiten ist Enter eine neue Zeile (Überschrift + Details);
+  // Strg/⌘+Enter speichert, Esc bricht ab.
+  if (e.target.id === "notiz-edit") {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); notizFertig(); }
+    else if (e.key === "Escape") { e.preventDefault(); App.notizEdit = null; render(); }
+  }
 });
-// Neuladen/Wegwischen kurz nach dem Tippen: der 900-ms-Wecker kam sonst nie
-// mehr dran (und „focusout" feuert beim Neuladen nicht zuverlässig) - das
-// zuletzt Getippte war weg. Beim Verstecken der Seite sofort schicken.
-window.addEventListener("pagehide", notizenSenden);
-document.addEventListener("visibilitychange", () => { if (document.hidden) notizenSenden(); });
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest("[data-act]");
+  if (!t || !t.dataset.act.startsWith("notiz-")) return;
+  e.preventDefault();
+  const id = t.dataset.id;
+  const thema = t.dataset.thema;
+  switch (t.dataset.act) {
+    case "notiz-hinzu": notizHinzu(); break;
+    case "notiz-filter":
+      App.notizFilter = thema === "*" ? null : thema;
+      notizSpeicherSchreiben("notizFilter", App.notizFilter);
+      render();
+      break;
+    case "notiz-thema-neu": {
+      const name = await eingabe("Neues Thema für Notizen (z. B. „Schiff“, „Fraktionen“):", "", "Anlegen");
+      const sauber = name && name.replace(/\s+/g, " ").trim().slice(0, 30);
+      if (!sauber) break;
+      notizSpeicherSchreiben("notizEigeneThemen", [...new Set([...notizSpeicherLesen("notizEigeneThemen", []), sauber])]);
+      App.notizFilter = sauber;
+      notizSpeicherSchreiben("notizFilter", sauber);
+      render();
+      break;
+    }
+    case "notiz-erl":
+      App.notizErlAuf = !App.notizErlAuf;
+      render();
+      break;
+    case "notiz-haken":
+      notizenSpeichern(notizenListe().map((n) => n.id === id ? { ...n, erledigt: !n.erledigt } : n));
+      break;
+    case "notiz-bearbeiten": {
+      if (App.notizEdit && App.notizEdit.id !== id) notizFertig();   // anderes offen -> erst speichern
+      const n = notizenListe().find((x) => x.id === id);
+      if (!n) break;
+      App.notizEdit = { id, text: n.text, thema: n.thema };
+      if (App.notizHoehe) delete App.notizHoehe["notiz-edit"];
+      render();
+      const feld = $("notiz-edit");
+      if (feld) {
+        notizFeldHoehe(feld);
+        feld.focus();
+        feld.setSelectionRange(feld.value.length, feld.value.length);
+      }
+      break;
+    }
+    case "notiz-edit-thema":
+      if (App.notizEdit) { App.notizEdit.thema = thema; render(); }
+      break;
+    case "notiz-fertig": notizFertig(); break;
+    case "notiz-abbrechen": App.notizEdit = null; render(); break;
+    case "notiz-loeschen": notizLoeschen(id); break;
+    case "notiz-zurueck": {
+      const weg = App.notizWeg;
+      if (!weg) break;
+      clearTimeout(App.notizWegTimer);
+      App.notizWeg = null;
+      const liste = notizenListe().slice();
+      liste.splice(Math.min(weg.i, liste.length), 0, weg.eintrag);
+      notizenSpeichern(liste);
+      break;
+    }
+  }
+});
+// Neuladen/Wegwischen mitten im Tippen: Halbfertiges nicht verlieren. Offene
+// Bearbeitung und Text im „Neue Notiz"-Feld werden beim Verstecken der Seite
+// gespeichert (focusout feuert beim Neuladen nicht zuverlässig).
+function notizenSichern() {
+  if (App.notizEdit) notizFertig();
+  if ((App.notizNeu || "").trim()) notizHinzu();
+}
+window.addEventListener("pagehide", notizenSichern);
+document.addEventListener("visibilitychange", () => { if (document.hidden) notizenSichern(); });
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-act]");
   if (!t) return;

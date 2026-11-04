@@ -77,6 +77,25 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (04.11.2026): Notizen als Liste mit Themen-Reitern
+
+Kalle: Notizfeld fühlte sich an wie eine .txt bearbeiten, soll hochwertig sein.
+Varianten gezeigt (Bilder im Projektordner `screenshots/notizen/`), gewählt:
+Themen-**Reiter** (Alle · 👤 NSC · 🗺 Orte · 💰 Beute · ❓ Offen · eigene über ＋)
++ Zeilen mit **Haken**, ✎/🗑 je Zeile, abgehakte unten **zugeklappt**
+(„✓ 2 erledigt ▸“). Gewählter Reiter = Thema der nächsten neuen Notiz. Löschen
+ohne Rückfrage, dafür 7 s „↶ Rückgängig“. Mehrzeilige Notiz: erste Zeile fett.
+
+- Server (`game.py`): `notizen` am Charakter jetzt Liste `{id, text, thema,
+  erledigt}`; `_notizen_liste()` bereinigt und wandelt den alten Freitext
+  zeilenweise um (feste IDs `alt0…`, gespeichert erst bei der nächsten Änderung).
+  `notizen_setzen` nimmt `eintraege` (Liste) oder – altes Handy – `text`.
+- Handy (`spieler.js`): schickt nach jeder Änderung die ganze Liste; eigene
+  Fassung gilt, bis der Server sie zurückmeldet. Reiter/eigene Themen merkt
+  sich das Handy (localStorage). Beim Verstecken der Seite wird offenes
+  Bearbeiten/Getipptes gespeichert.
+- Nicht gemacht: Wischgesten (versteckt), Gruppen untereinander (Mix 1).
+
 ## 1.5.35 (04.11.2026): Notizen nach Neuladen weg
 
 Kalle: Spieler-Notiz gespeichert, Seite neu geladen → Feld leer. Der Server

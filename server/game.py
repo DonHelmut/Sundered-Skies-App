@@ -64,7 +64,9 @@ SETTINGS_FILE = DATA_DIR / "settings.json"   # dauerhafte SL-Voreinstellungen
 UPLOAD_DIR = DATA_DIR / "uploads"
 
 MAX_MESSAGES = 50
-MAX_NOTIZEN = 8000      # Zeichen eigene Notizen je Charakter
+MAX_NOTIZEN = 8000      # Zeichen eigene Notizen je Charakter (alle Einträge zusammen)
+MAX_NOTIZ_EINTRAEGE = 200
+MAX_NOTIZ_LAENGE = 1000  # Zeichen je Eintrag
 MAX_PROTOKOLL = 60000   # Zeichen je Protokoll (1–2 Seiten sind ~6000; Schutz vor Versehen)
 
 
@@ -317,6 +319,49 @@ def _nachricht_an(target, player_id) -> bool:
     if not player_id:
         return False
     return target == player_id or (isinstance(target, list) and player_id in target)
+
+
+def _notiz_eintrag(e, i: int) -> Optional[dict]:
+    """Ein Notiz-Eintrag {id, text, thema, erledigt}, bereinigt. Alte Einträge
+    (reiner Text) bekommen eine feste ID aus ihrer Position - sonst hätte jedes
+    Lesen neue IDs erfunden und ein offener ✎ am Handy ins Leere gezeigt."""
+    if isinstance(e, str):
+        e = {"text": e}
+    if not isinstance(e, dict) or not isinstance(e.get("text"), str):
+        return None
+    text = e["text"].replace("\r\n", "\n").strip()[:MAX_NOTIZ_LAENGE]
+    if not text:
+        return None
+    nid = e.get("id")
+    nid = nid[:40] if isinstance(nid, str) and nid.strip() else f"alt{i}"
+    thema = e.get("thema")
+    thema = " ".join(thema.split())[:30] if isinstance(thema, str) else ""
+    return {"id": nid, "text": text, "thema": thema, "erledigt": bool(e.get("erledigt"))}
+
+
+def _notizen_liste(wert) -> list:
+    """Notizen als Liste von Einträgen. Bis 1.5.35 war es EIN Freitext (fühlte
+    sich an wie eine .txt bearbeiten, Kalle 04.11.2026) - der wird beim Lesen
+    zeilenweise in Einträge ohne Thema zerlegt, leere Zeilen fallen weg.
+    Gespeichert wird die neue Form erst, wenn der Spieler etwas ändert."""
+    if isinstance(wert, str):
+        wert = [z for z in wert.replace("\r\n", "\n").split("\n")]
+    if not isinstance(wert, list):
+        return []
+    liste, ids, summe = [], set(), 0
+    for i, e in enumerate(wert[:MAX_NOTIZ_EINTRAEGE * 2]):
+        e = _notiz_eintrag(e, i)
+        if not e or summe + len(e["text"]) > MAX_NOTIZEN:
+            continue
+        if e["id"] in ids:
+            e["id"] = f"{e['id']}-{i}"
+        ids.add(e["id"])
+        summe += len(e["text"])
+        liste.append(e)
+        if len(liste) >= MAX_NOTIZ_EINTRAEGE:
+            break
+    return liste
+
 
 class Game:
     def __init__(self) -> None:
@@ -889,7 +934,7 @@ class Game:
             # Besitzer - kommen einzeln als „meineNotizen" (notizen_fuer).
             "roster": [{k: v for k, v in r.items() if k != "notizen"} for r in self.roster]
                       if fuer_spieler else self.roster,
-            "meineNotizen": self.notizen_fuer(player_id) if fuer_spieler else "",
+            "meineNotizen": self.notizen_fuer(player_id) if fuer_spieler else [],
             "bestiary": [] if fuer_spieler else self.bestiary,
             # Vorbereitung des SL geht die Handys nichts an: gespeicherte
             # Begegnungen verrieten sonst geplante Kämpfe samt echter Namen
@@ -1963,26 +2008,29 @@ class Game:
     # NSC-Namen, Hinweise, Beute: hängen am Charakter (bleiben bis zum nächsten
     # Abend, reisen in der Sicherung mit) und gehen nur an das eigene Handy.
 
-    def notizen_setzen(self, cid: Optional[str], text) -> bool:
+    def notizen_setzen(self, cid: Optional[str], eintraege) -> bool:
+        """Ganze Liste der Notiz-Einträge setzen (das Handy schickt nach jeder
+        Änderung alles - es sind nur ein paar Zeilen, und so kann nichts
+        auseinanderlaufen). Ein Text (Handy mit 1.5.34/35) wird zeilenweise übernommen."""
         c = self._combatant(cid)
-        if not c or not isinstance(text, str):
+        if not c or not isinstance(eintraege, (str, list)):
             return False
         char = next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
         if char is None:
             return False
-        text = text.replace("\r\n", "\n")[:MAX_NOTIZEN]
-        if char.get("notizen", "") == text:
+        liste = _notizen_liste(eintraege)
+        if char.get("notizen") == liste:
             return False
-        char["notizen"] = text
+        char["notizen"] = liste
         self.save_roster()
         return True
 
-    def notizen_fuer(self, player_id: Optional[str]) -> str:
+    def notizen_fuer(self, player_id: Optional[str]) -> list:
         if not player_id:
-            return ""
+            return []
         c = next((x for x in self.combatants if x.get("playerId") == player_id), None)
         char = c and next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
-        return (char or {}).get("notizen", "") if char else ""
+        return _notizen_liste((char or {}).get("notizen")) if char else []
 
     def figur_rueckseite_setzen(self, cid: Optional[str], wert) -> None:
         """Rückseite für die Karten EINER Figur (Standard/Profil/eigenes Bild).
