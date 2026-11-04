@@ -73,6 +73,13 @@ function knotenAbgleichen(alt, neu) {
   }
   // Template-Elemente tragen ihren Inhalt in .content, nicht als Kinder.
   if (alt.nodeName === "TEMPLATE") { alt.innerHTML = neu.innerHTML; return; }
+  // Sollwerte VOR dem Kinder-Abgleich lesen: der zieht neue Knoten aus dem
+  // Template heraus (Text einer <textarea>, <option>s), danach war neu.value
+  // leer - sonst kam z. B. die gespeicherte Notiz nach dem Neuladen an und
+  // wurde gleich wieder auf "" gesetzt (Feld leer, obwohl der Server sie hatte).
+  const sollWert = neu.nodeName === "TEXTAREA" ? neu.textContent
+    : neu.nodeName === "INPUT" ? neu.value : null;
+  const sollIndex = neu.nodeName === "SELECT" ? neu.selectedIndex : -1;
   kinderAbgleichen(alt, neu);
   // Formularfelder: innerHTML hätte den Wert neu gesetzt. Bei bestehenden
   // Feldern hängt .value aber nicht mehr am Attribut -> selbst setzen.
@@ -81,11 +88,11 @@ function knotenAbgleichen(alt, neu) {
   const tag = alt.nodeName;
   if (tag === "INPUT") {
     if (alt.type === "checkbox" || alt.type === "radio") { if (alt.checked !== neu.checked) alt.checked = neu.checked; }
-    else if (alt.type !== "file" && alt.value !== neu.value) alt.value = neu.value;
+    else if (alt.type !== "file" && alt.value !== sollWert) alt.value = sollWert;
   } else if (tag === "TEXTAREA") {
-    if (alt.value !== neu.value) alt.value = neu.value;
+    if (alt.value !== sollWert) alt.value = sollWert;
   } else if (tag === "SELECT") {
-    if (alt.selectedIndex !== neu.selectedIndex) alt.selectedIndex = neu.selectedIndex;
+    if (alt.selectedIndex !== sollIndex) alt.selectedIndex = sollIndex;
   } else if (tag === "DETAILS") {
     if (alt.open !== neu.open) alt.open = neu.open;
   }
