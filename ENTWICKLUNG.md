@@ -77,7 +77,10 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Stresstest vor 2.0 (04.11.2026)
+## 2.0.0 (04.11.2026): erstes großes Release, Stresstest vorab
+
+Erster Sprung der Hauptversion (Kalle wollte das so). Der Updater vergleicht
+Zahlen, 1.5.37 → 2.0.0 geht also normal durch.
 
 Durchgespielt mit SL + 7 Handys im Browser (Playwright): gleichzeitiger
 Beitritt, 3 Runden mit Aufdecken/Zug beenden/Freigeben, 21 Gruppen-Notizen

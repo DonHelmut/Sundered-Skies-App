@@ -22,7 +22,8 @@ Paket bauen:
 
 Versionen: bis v101 fortlaufend gezaehlt, seit dem Release 1.0 (25.09.2026)
 als 1.1, 1.2, ... 1.9, dann 1.10, 1.11 usw. weiter (Stefan: kleine Schritte,
-kein Sprung auf 2.0). Tags heissen v1.0, v1.1, ...
+kein Sprung auf 2.0). Am 04.11.2026 dann bewusst 2.0.0 als erstes grosses
+Release (Kalle), ab da 2.0.1 usw. Tags heissen v1.0, v1.1, ..., v2.0.0
 
 Vor jedem Release die Version an DREI Stellen hochzaehlen:
   server/paths.py  APP_VERSION
