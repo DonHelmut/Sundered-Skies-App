@@ -287,6 +287,11 @@ document.addEventListener("input", (e) => {
 document.addEventListener("focusout", (e) => {
   if (e.target && e.target.id === "meine-notizen") notizenSenden();
 });
+// Neuladen/Wegwischen kurz nach dem Tippen: der 900-ms-Wecker kam sonst nie
+// mehr dran (und „focusout" feuert beim Neuladen nicht zuverlässig) - das
+// zuletzt Getippte war weg. Beim Verstecken der Seite sofort schicken.
+window.addEventListener("pagehide", notizenSenden);
+document.addEventListener("visibilitychange", () => { if (document.hidden) notizenSenden(); });
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-act]");
   if (!t) return;

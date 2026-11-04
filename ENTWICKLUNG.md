@@ -77,6 +77,19 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (nach 1.5.34, 04.11.2026): Notizen nach Neuladen weg
+
+Kalle: Spieler-Notiz gespeichert, Seite neu geladen → Feld leer. Der Server
+hatte sie (roster.json), Fehler lag im stückweisen Neuzeichnen
+(`render.js`/`knotenAbgleichen`): der Kinder-Abgleich zieht neue Knoten aus dem
+Template heraus, danach war `neu.value` der `<textarea>` leer und das Feld wurde
+auf "" gesetzt. Betraf jedes Feld, das leer gezeichnet und dann mit Inhalt
+nachgezeichnet wird (auch `<select>`-Auswahl). Jetzt Sollwert VOR dem Abgleich
+gelesen. Zusätzlich schickt das Handy die Notiz beim Verlassen/Verstecken der
+Seite sofort (vorher nur nach 900 ms Tipp-Pause). Test:
+`tests/test_render_formular.py` (echter Chromium über Node-Playwright, ohne
+Node/Playwright übersprungen).
+
 ## 1.5.34 (02.11.2026): Ideenrunde 2 + Bugs
 
 Durchgespielt als SL, mit 4 Handys und als Schriftführer (Testabend mit
