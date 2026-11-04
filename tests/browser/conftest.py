@@ -150,8 +150,11 @@ class Seite:
         return self.page.evaluate("App.state")
 
     def warte_bis(self, ausdruck: str, arg=None, frist: float = 5000):
-        """Wartet, bis ``ausdruck`` (JS, Funktion von arg) wahr ist."""
-        self.page.wait_for_function(ausdruck, arg=arg, timeout=frist)
+        """Wartet, bis ``ausdruck`` (JS, Funktion von arg) wahr ist. Wirft der
+        Ausdruck (Seite lädt gerade neu, App.state noch leer), gilt das als
+        „noch nicht" - nicht als Fehler der App."""
+        sicher = f"(arg) => {{ try {{ return ({ausdruck})(arg); }} catch (e) {{ return false; }} }}"
+        self.page.wait_for_function(sicher, arg=arg, timeout=frist)
 
     def text(self) -> str:
         return self.page.inner_text("body")

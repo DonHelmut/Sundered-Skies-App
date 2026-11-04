@@ -37,6 +37,14 @@ def _tipp(loc):
     loc.click()
 
 
+def _panel_auf(sl, sec):
+    """SL-Panel sicher aufklappen. Ein Klick auf die Überschrift klappt ein
+    schon offenes Panel ZU - und ob es offen ist, hängt vom gemerkten Zustand
+    ab (in der CI anders als lokal)."""
+    sl.js("(id) => { App.collapsed[id] = false; render(); }", sec)
+    sl.warte_bis("(id) => !!document.querySelector(`details[data-sec='${id}'][open]`)", sec)
+
+
 # --- Kampf, Karten, Initiative ------------------------------------------------
 
 def test_kampfrunde_von_austeilen_bis_neue_runde(tisch):
@@ -212,12 +220,12 @@ def test_eigene_notizen_bleiben_privat_und_ueberleben_neuladen(tisch, server):
     assert "Der Wirt lügt" not in json.dumps(korgo.state())
     assert "Der Wirt lügt" not in json.dumps(sl.state()), "SL bekommt private Notizen"
     tessa.reload()
-    tessa.warte_bis("() => (App.state.meineNotizen || []).some(n => n.text === 'Der Wirt lügt')")
+    tessa.warte_bis("() => App.state && (App.state.meineNotizen || []).some(n => n.text === 'Der Wirt lügt')")
     # Auch nach einem Server-Neustart (vor dem Fortsetzen!).
     server.neustart()
     tessa.reload()
-    tessa.warte_bis("() => (App.state.meineNotizen || []).some(n => n.text === 'Der Wirt lügt')",
-                    frist=15000)
+    tessa.warte_bis("() => App.state && (App.state.meineNotizen || []).some("
+                    "n => n.text === 'Der Wirt lügt')", frist=15000)
 
 
 def test_gruppen_notiz_sehen_alle_handys(tisch):
@@ -268,10 +276,8 @@ def test_sl_fluestert_nur_einem_handy(tisch):
     sl = tisch.sl()
     tessa = tisch.handy("Tessa")
     korgo = tisch.handy("Korgo")
-    # Nur aufklappen, wenn zu - ein Klick auf ein offenes Panel klappt es zu
-    # (je nach gemerktem Zustand war es schon offen: so in der CI).
-    if not sl.locator("#msgtext").is_visible():
-        sl.locator("summary", has_text="Nachricht").first.click()
+    _panel_auf(sl, "message")
+    sl.locator("#msgtext").wait_for()
     sl.page.locator("select[data-act=msg-ziel]").select_option(tessa.js("App.myPlayerId"))
     sl.page.locator("#msgtext").fill("Du hörst ein Flüstern")
     _knopf(sl, "send-message")
@@ -302,8 +308,7 @@ def test_bennies_per_nachricht_und_anfrage_benny_ausgeben(tisch):
 def test_protokoll_einfuegen_freigeben_lesen(tisch):
     sl = tisch.sl()
     h = tisch.handy("Tessa")
-    if not sl.locator("[data-act=prot-neu]").first.is_visible():
-        sl.locator("summary", has_text="Protokolle").first.click()
+    _panel_auf(sl, "protokolle")
     _knopf(sl, "prot-neu")
     sl.page.locator(".app-dialog-hg textarea, textarea").last.fill(
         "# Nebel über Varn\nDie Gruppe erreichte den Hafen.")
