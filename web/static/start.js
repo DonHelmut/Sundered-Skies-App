@@ -152,4 +152,44 @@ setInterval(() => {
   }).catch(() => { /* offline - der Reconnect kuemmert sich */ });
 }, 120000);
 
+// --- „Neu in 2.0" -------------------------------------------------------------
+// Einmal nach dem großen Update zeigen, was dazugekommen ist (Kalle,
+// 04.11.2026) - SL und Handy je mit eigener Liste. Wer die App zum ersten Mal
+// öffnet, bekommt nichts: für ihn ist alles neu, die Karte wäre nur im Weg.
+// Ob jemand die App schon kannte, muss VOR dem Verbinden feststehen (danach
+// stehen playerId & Co. sowieso im Speicher). ?neu=1 zeigt sie zum Ansehen.
+const NEU_STAND = "2.0";
+const NEU_FRUEHER_GENUTZT = !!App.myPlayerId || !ansichtFehlteBeimStart.has("skin");
+const NEU_SL = [
+  ["🌙", "Abend starten", "Fortsetzen, Spieler zurückholen und austeilen in einem Klick"],
+  ["⚔", "Gegnerzug-Karte", "Angriff des aktiven Gegners, Ziele mit Parade, Ergebnis per Tipp"],
+  ["🎙", "Aufnahme → Protokoll", "Mitschrift läuft lokal, Sprecher werden selbst erkannt"],
+  ["📜", "Protokolle & „Was bisher geschah“", "freigeben, wann du willst – die Handys lesen mit"],
+  ["📋", "Kämpfe vorbereiten", "Gegner mit Spickzettel, Anzahl, Zone und verdeckt"],
+];
+const NEU_HANDY = [
+  ["📝", "Notizen", "mit Themen, Haken, Suche – und 👥 Notizen für die ganze Gruppe"],
+  ["⚔", "Angreifen", "Ziel antippen, der Spielleiter sagt dir das Ergebnis"],
+  ["🩸", "Treffer-Meldung", "du siehst sofort, was dich erwischt hat und was es kostet"],
+  ["📖", "Regeln", "die wichtigsten Proben und Zustände als Spickzettel"],
+  ["📜", "Protokolle", "jeden Spielabend als Geschichte nachlesen"],
+];
+function neuigkeitenZeigen() {
+  if (App._neuGezeigt || !App.role || App.role === "tv") return;
+  const ansehen = new URLSearchParams(location.search).has("neu");
+  let gesehen = null;
+  try { gesehen = localStorage.getItem("neuGesehen"); } catch { /* egal */ }
+  if (!ansehen && (parseInt(ASSET_VERSION, 10) < 2 || gesehen === NEU_STAND)) return;
+  App._neuGezeigt = true;
+  try { localStorage.setItem("neuGesehen", NEU_STAND); } catch { /* egal */ }
+  if (!ansehen && !NEU_FRUEHER_GENUTZT) return;
+  const punkte = App.role === "gm" ? NEU_SL : NEU_HANDY;
+  dialog({
+    text: `✨ Neu in Sundered Skies Initiative ${NEU_STAND}`,
+    inhalt: `<ul class="neu-liste">${punkte.map(([icon, titel, satz]) =>
+      `<li><span class="neu-icon">${icon}</span><span><b>${esc(titel)}</b><br><span class="muted">${esc(satz)}</span></span></li>`).join("")}</ul>`,
+    knoepfe: [{ text: "Los geht's", art: "primary", abbruch: true, standard: true }],
+  });
+}
+
 connect();

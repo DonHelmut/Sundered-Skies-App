@@ -2553,6 +2553,10 @@ button.aufn-sprecher:hover { opacity: 1; text-decoration: underline; }
 button.aufn-sprecher.benannt { opacity: .9; font-weight: 600; }
 .app-dialog-inhalt { margin-bottom: 14px; }
 .app-dialog-inhalt textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; }
+/* „Neu in 2.0": eine Zeile je Neuerung, Symbol links, Satz darunter klein. */
+.neu-liste { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; }
+.neu-liste li { display: flex; gap: 12px; align-items: flex-start; line-height: 1.35; }
+.neu-liste .neu-icon { font-size: 1.4em; width: 1.6em; text-align: center; flex: none; }
 .aufn-wer-liste { max-height: 55vh; overflow-y: auto; display: grid; gap: 10px; }
 .aufn-wer { border-top: 1px solid var(--line, rgba(255,255,255,.08)); padding-top: 8px; }
 .aufn-wer:first-child { border-top: 0; padding-top: 0; }

@@ -99,6 +99,17 @@ gleichzeitig, Neuladen mitten im Kampf, 20 s Netz weg, Server-Neustart +
 - „Verlassen" ohne Figur ließ den Spieler für immer als verbunden stehen.
 - Tests: `tests/test_stresstest.py`.
 
+Vorschläge danach (Bilder `screenshots/stresstest-2.0/`): Kalle wählte **3 „Neu
+in 2.0"-Karte** (gebaut), **2 getrennte Runden/Kampagnen** nur merken (falls
+mal eine andere Kampagne mit anderem Regelwerk). Nicht gewählt: 1 automatische
+Sicherungen, 4 Handy-Text bei offenem „Fortsetzen?".
+
+- **✨ Neu in 2.0** (`start.js` `neuigkeitenZeigen`): einmal nach dem Update
+  auf 2.x eine Karte mit 5 Neuerungen, SL und Handy je eigene Liste (Handy
+  erst nach dem Beitritt). Wer die App zum ersten Mal öffnet, bekommt sie
+  nicht. Gemerkt in localStorage `neuGesehen`. Ansehen vorab: `?neu=1`.
+  Für die nächste große Version `NEU_STAND` + Listen anpassen.
+
 ## 1.5.37 (04.11.2026): Notizen gingen bei offenem „Fortsetzen?" verloren
 
 - **Bug (Kalle: „Notizen für alle geht nicht, sehe keine"):** Nach dem Start
