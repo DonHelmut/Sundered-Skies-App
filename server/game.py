@@ -59,6 +59,7 @@ BESTIARY_FILE = DATA_DIR / "bestiary.json"   # dauerhafte Gegner-Vorlagen (mit B
 ALLIES_FILE = DATA_DIR / "allies.json"        # dauerhafte Verbündeten-Vorlagen (mit Bild)
 ENCOUNTERS_FILE = DATA_DIR / "encounters.json"  # gespeicherte Begegnungen (Gegner-Gruppen)
 PROTOKOLLE_FILE = DATA_DIR / "protokolle.json"  # Spielabend-Protokolle (SL fügt ein, gibt frei)
+GRUPPEN_NOTIZEN_FILE = DATA_DIR / "gruppen_notizen.json"  # 👥 Notizen, die alle Spieler sehen
 SESSION_FILE = DATA_DIR / "session.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"   # dauerhafte SL-Voreinstellungen
 UPLOAD_DIR = DATA_DIR / "uploads"
@@ -336,7 +337,15 @@ def _notiz_eintrag(e, i: int) -> Optional[dict]:
     nid = nid[:40] if isinstance(nid, str) and nid.strip() else f"alt{i}"
     thema = e.get("thema")
     thema = " ".join(thema.split())[:30] if isinstance(thema, str) else ""
-    return {"id": nid, "text": text, "thema": thema, "erledigt": bool(e.get("erledigt"))}
+    eintrag = {"id": nid, "text": text, "thema": thema, "erledigt": bool(e.get("erledigt"))}
+    # Woher (z. B. SL-Nachricht, „📝 Merken") - damit dort „✓ In Notizen" steht.
+    if isinstance(e.get("quelle"), str) and e["quelle"]:
+        eintrag["quelle"] = e["quelle"][:40]
+    # Gruppen-Notizen: wer sie geschrieben hat (Charakter), steht klein darunter.
+    for feld in ("von", "vonId"):
+        if isinstance(e.get(feld), str) and e[feld]:
+            eintrag[feld] = e[feld][:60]
+    return eintrag
 
 
 def _notizen_liste(wert) -> list:
@@ -380,6 +389,9 @@ class Game:
         # Wie die Bibliotheken dauerhaft und NICHT Teil der Sitzung: ein
         # „Verwerfen" beim Start oder ein Rückgängig darf kein Protokoll kosten.
         self.protokolle: list[dict] = _lade_liste(PROTOKOLLE_FILE)
+        # 👥 Gruppen-Notizen: gehören keinem Charakter, sondern der Runde -
+        # dauerhaft wie die Protokolle, ein „Verwerfen" beim Start kostet sie nicht.
+        self.gruppen_notizen: list[dict] = _notizen_liste(_lade_liste(GRUPPEN_NOTIZEN_FILE))
         self.combatants: list[dict] = []
         self.players: list[dict] = []
         self.messages: list[dict] = []
@@ -511,6 +523,9 @@ class Game:
     def save_protokolle(self) -> None:
         _write_json(PROTOKOLLE_FILE, self.protokolle, backup=True)
 
+    def save_gruppen_notizen(self) -> None:
+        _write_json(GRUPPEN_NOTIZEN_FILE, self.gruppen_notizen, backup=True)
+
     def save_settings(self) -> None:
         """Sichert die dauerhaften Voreinstellungen (Timer-/Benny-Startwert)."""
         _write_json(SETTINGS_FILE, {
@@ -538,6 +553,7 @@ class Game:
             "roster": self.roster, "bestiary": self.bestiary,
             "allies": self.allies, "encounters": self.encounters,
             "protokolle": self.protokolle,
+            "gruppenNotizen": self.gruppen_notizen,
             "settings": {"bennyStart": self.benny_start,
                          "autoIncap": self.auto_incap,
                          "statistenKo": self.statisten_ko,
@@ -590,6 +606,11 @@ class Game:
             sichern()
             bericht["uebernommen"][anzeige] = len(gut)
             bericht["verworfen"] += schlecht
+            touched = True
+        if isinstance(data.get("gruppenNotizen"), list):
+            self.gruppen_notizen = _notizen_liste(data["gruppenNotizen"])
+            self.save_gruppen_notizen()
+            bericht["uebernommen"]["Gruppen-Notizen"] = len(self.gruppen_notizen)
             touched = True
         s = data.get("settings")
         if isinstance(s, dict):
@@ -932,9 +953,10 @@ class Game:
             "canUndo": len(self._history) > 0,
             # Eigene Notizen der Spieler (am Charakter) gehen nur an den
             # Besitzer - kommen einzeln als „meineNotizen" (notizen_fuer).
-            "roster": [{k: v for k, v in r.items() if k != "notizen"} for r in self.roster]
-                      if fuer_spieler else self.roster,
+            # Auch nicht an den SL: am Handy steht „nur du siehst das".
+            "roster": [{k: v for k, v in r.items() if k != "notizen"} for r in self.roster],
             "meineNotizen": self.notizen_fuer(player_id) if fuer_spieler else [],
+            "gruppenNotizen": self.gruppen_notizen,
             "bestiary": [] if fuer_spieler else self.bestiary,
             # Vorbereitung des SL geht die Handys nichts an: gespeicherte
             # Begegnungen verrieten sonst geplante Kämpfe samt echter Namen
@@ -2031,6 +2053,64 @@ class Game:
         c = next((x for x in self.combatants if x.get("playerId") == player_id), None)
         char = c and next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
         return _notizen_liste((char or {}).get("notizen")) if char else []
+
+    def gruppen_notiz(self, cid: Optional[str], a: dict) -> bool:
+        """👥 Gruppen-Notiz ändern. Einzelne Schritte statt ganzer Liste: hier
+        schreiben mehrere Handys gleichzeitig, eine ganze Liste vom einen
+        hätte den frischen Eintrag des anderen überschrieben."""
+        c = self._combatant(cid)
+        if not c or not isinstance(a, dict):
+            return False
+        op = a.get("op")
+        liste = self.gruppen_notizen
+        if op == "neu":
+            e = _notiz_eintrag(a.get("eintrag"), len(liste))
+            if not e or len(liste) >= MAX_NOTIZ_EINTRAEGE or any(x["id"] == e["id"] for x in liste):
+                return False
+            if sum(len(x["text"]) for x in liste) + len(e["text"]) > MAX_NOTIZEN:
+                return False
+            # Rückgängig nach Löschen bringt den alten Schreiber mit, sonst der Neue.
+            if not e.get("vonId"):
+                e["von"], e["vonId"] = c.get("name", "")[:60], c.get("characterId") or c["id"]
+            pos = a.get("index")
+            pos = pos if isinstance(pos, int) and 0 <= pos <= len(liste) else 0
+            liste.insert(pos, e)
+        else:
+            i = next((k for k, x in enumerate(liste) if x["id"] == a.get("id")), None)
+            if i is None:
+                return False
+            if op == "loeschen":
+                liste.pop(i)
+            elif op == "aendern":
+                neu = dict(liste[i])
+                for feld in ("text", "thema", "erledigt"):
+                    if feld in a:
+                        neu[feld] = a[feld]
+                neu = _notiz_eintrag(neu, i)
+                if not neu or neu == liste[i]:
+                    return False
+                liste[i] = neu
+            else:
+                return False
+        self.save_gruppen_notizen()
+        return True
+
+    def namen_fuer_notizen(self, fuer_spieler: bool) -> list[str]:
+        """Namen für die Vorschläge beim Tippen einer Notiz: die Charaktere der
+        Runde und die Namen/Orte aus den (freigegebenen) Protokollen. NICHT aus
+        Gegner-Vorlagen oder Spickzettel - das verriete den Spielern, was der
+        SL vorbereitet hat."""
+        from . import namen as N
+        erg = [r.get("name") for r in self.roster if isinstance(r, dict)]
+        for p in self.protokolle[:N.PROTOKOLLE_FUER_NAMEN * 2]:
+            if isinstance(p, dict) and (p.get("freigegeben") or not fuer_spieler):
+                erg += N.fachwoerter(p.get("text") or "")
+        gesehen, aus = set(), []
+        for n in erg:
+            if isinstance(n, str) and n.strip() and n.strip().lower() not in gesehen:
+                gesehen.add(n.strip().lower())
+                aus.append(n.strip())
+        return aus[:500]
 
     def figur_rueckseite_setzen(self, cid: Optional[str], wert) -> None:
         """Rückseite für die Karten EINER Figur (Standard/Profil/eigenes Bild).

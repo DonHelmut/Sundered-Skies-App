@@ -96,6 +96,27 @@ ohne Rückfrage, dafür 7 s „↶ Rückgängig“. Mehrzeilige Notiz: erste Zei
   Bearbeiten/Getipptes gespeichert.
 - Nicht gemacht: Wischgesten (versteckt), Gruppen untereinander (Mix 1).
 
+Danach 8 Zusatz-Ideen gezeigt (`screenshots/notizen/ideen.png`), Kalle wählte
+2, 3, 6, 8:
+- **👥 Gruppen-Notizen**: 🔒/👥 neben dem Feld (gilt nur für die eine Notiz,
+  sonst landete die nächste private bei allen), Reiter „👥 Gruppe“. Alle
+  Spieler sehen/ändern sie, Schreiber steht klein drunter. Server:
+  `gruppen_notizen` in `data/gruppen_notizen.json` (dauerhaft, in der
+  Sicherung), Aktion `gruppen_notiz` mit einzelnen Schritten neu/aendern/
+  loeschen – eine ganze Liste hätte gleichzeitige Einträge anderer Handys
+  überschrieben.
+- **✨ Namen beim Tippen**: `/api/notiz-namen` (Charaktere + Fachwörter aus
+  FREIGEGEBENEN Protokollen, nie Gegner-Vorlagen/Spickzettel – verriete die
+  SL-Vorbereitung) plus Namen aus den Notizen. Thema automatisch setzen ging
+  nicht zuverlässig (Protokoll sagt nicht, ob NSC oder Ort) → weggelassen.
+- **💬 SL-Nachricht merken**: „📝 Merken“ unter jeder Nachricht → eigene Notiz
+  (Thema Offen, Feld `quelle` = Nachrichten-ID → „✓ In Notizen“).
+- **🔎 Suche**: ab 8 Notizen, über alle Themen + Gruppe, Treffer markiert.
+- Nebenbei: private Notizen gingen bisher im Roster auch an den SL-Laptop –
+  jetzt nirgends mehr außer ans eigene Handy.
+- Nicht gewählt: 📌 Anheften, 🌙 Abend-Stempel, 📜 Vorschläge aus Protokoll,
+  ⚡ Schnell-Notiz-Knopf.
+
 ## 1.5.35 (04.11.2026): Notizen nach Neuladen weg
 
 Kalle: Spieler-Notiz gespeichert, Seite neu geladen → Feld leer. Der Server

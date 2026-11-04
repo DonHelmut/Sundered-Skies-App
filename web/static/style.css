@@ -2653,6 +2653,28 @@ button.notiz-erl-kopf { display: flex; justify-content: space-between; align-ite
 .notizen-leer span { font-size: 0.85rem; opacity: 0.85; }
 .notizen-leer.klein { padding: 10px; }
 .notizen-leer.klein:empty { display: none; }
+/* 🔒/👥: für wen die neue Notiz ist */
+button.notiz-ziel { flex: none; width: 42px; height: 42px; padding: 0; border-radius: 10px; font-size: 1.1rem; background: transparent; }
+button.notiz-ziel.gruppe { border-color: var(--accent); background: rgba(214, 162, 74, 0.15); }
+button.notiz-ziel:disabled { opacity: 1; cursor: default; }
+.zeile.gruppe { box-shadow: inset 3px 0 0 var(--accent); }
+.wer { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 1px; text-decoration: none; }
+/* ✨ Namen beim Tippen */
+.notiz-vorschlag { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.notiz-vorschlag:empty { display: none; }
+.notiz-vtitel { font-size: 0.85rem; }
+button.notiz-vchip { border-radius: 999px; padding: 4px 11px; font-size: 0.85rem; background: transparent;
+  border-color: var(--accent); color: var(--accent); }
+/* 🔎 Suche */
+button.notiz-reiter.such { padding: 5px 10px; }
+.notiz-suche { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 2px 4px 2px 12px;
+  border: 1px solid var(--accent); border-radius: 10px; background: var(--input-bg); }
+.notiz-suche input { border: none; background: transparent; padding: 8px 0; flex: 1; min-width: 0; }
+.notiz-suche input:focus { outline: none; }
+.panel.notizen mark { background: rgba(214, 162, 74, 0.45); color: inherit; border-radius: 3px; padding: 0 1px; }
+/* 💬 SL-Nachricht merken */
+.msg .msg-merk { display: block; width: fit-content; margin-top: 8px; padding: 3px 10px; font-size: 0.82rem; border-radius: 8px; background: transparent; }
+.msg span.msg-merk.ok { border: 1px solid var(--good); color: var(--good); }
 /* SL: Gegnerzug-Karte über der Leiste */
 .gegnerzug .gz-werte { font-size: 0.85rem; color: var(--muted); border-left: 3px solid var(--bad); padding: 2px 8px; margin-bottom: 8px; }
 .gz-art { font-size: 0.75rem; border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; margin-left: 4px; white-space: nowrap; }

@@ -107,7 +107,10 @@ function renderPlayer() {
   const anWen = (m) => !geflustert(m) ? "An alle"
     : mitwisser(m).length ? `🤫 Nur an dich und ${mitwisser(m).join(", ")}` : "🤫 Nur an dich";
   const msgs = gmMsgs.slice().reverse().slice(0, 8)
-    .map((m) => `<div class="msg${geflustert(m) ? " gefluestert" : ""}"><div class="to">${anWen(m)}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
+    .map((m) => `<div class="msg${geflustert(m) ? " gefluestert" : ""}"><div class="to">${anWen(m)}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}${
+      // 💬 Hinweis vom SL als Notiz merken - ging sonst im Verlauf unter.
+      m.text && m.id ? (nachrichtGemerkt(m.id) ? `<span class="msg-merk ok">✓ In Notizen</span>`
+        : `<button type="button" class="msg-merk" data-act="notiz-merken" data-id="${esc(m.id)}">📝 Merken</button>`) : ""}</div>`).join("");
 
   // Blockierendes Banner für jede neue SL-Nachricht.
   const newest = gmMsgs[gmMsgs.length - 1];
@@ -259,14 +262,19 @@ function ruhePanelHtml(s, mine) {
 
 // Eigene Notizen: hängen am Charakter, nur dieses Handy bekommt sie
 // (Server: notizen_setzen / meineNotizen). Seit 1.5.36 einzelne Einträge
-// {id, text, thema, erledigt} in Themen-Gruppen mit Haken, ✎ und 🗑 - vorher
-// EIN Freitextfeld, das sich anfühlte wie eine .txt bearbeiten (Kalle,
-// 04.11.2026, wählte aus Varianten „Gruppen + Haken"). Alter Text kommt vom
-// Server schon zeilenweise zerlegt an (Thema leer = „Sonstiges").
-// Jede Änderung schickt sofort die ganze Liste; bis der Server sie
+// {id, text, thema, erledigt} unter Themen-Reitern mit Haken, ✎ und 🗑 -
+// vorher EIN Freitextfeld, das sich anfühlte wie eine .txt bearbeiten (Kalle,
+// 04.11.2026, aus Varianten gewählt). Alter Text kommt vom Server schon
+// zeilenweise zerlegt an (Thema leer = „Sonstiges"). Dazu gewählt: 👥
+// Gruppen-Notizen (sehen alle Spieler), Namen-Vorschläge beim Tippen,
+// SL-Nachricht „📝 Merken" und 🔎 Suche.
+// Eigene: jede Änderung schickt sofort die ganze Liste; bis der Server sie
 // zurückmeldet, gilt die eigene Fassung (sonst blitzte nach dem Löschen kurz
-// der alte Stand auf).
+// der alte Stand auf). Gruppe: einzelne Schritte (gruppen_notiz), weil dort
+// mehrere Handys gleichzeitig schreiben.
 const NOTIZ_THEMEN = [["NSC", "👤"], ["Orte", "🗺"], ["Beute", "💰"], ["Offen", "❓"]];
+const NOTIZ_GRUPPE = "\u0001gruppe";   // Reiter „👥 Gruppe" (kein echtes Thema)
+const NOTIZ_SUCHE_AB = 8;              // ab so vielen Notizen gibt es die 🔎
 function notizIcon(thema) {
   if (!thema) return "📝";
   const t = NOTIZ_THEMEN.find(([n]) => n === thema);
@@ -289,13 +297,26 @@ function notizenListe() {
   }
   return liste;
 }
+function gruppenNotizen() {
+  const l = App.state && App.state.gruppenNotizen;
+  return Array.isArray(l) ? l : [];
+}
+// Eigene und Gruppen-Notizen zusammen, Gruppe markiert (für Anzeige/Suche).
+function notizenAlle() {
+  return [...notizenListe().map((e) => ({ ...e, gruppe: false })),
+          ...gruppenNotizen().map((e) => ({ ...e, gruppe: true }))];
+}
+function notizFinden(id, gruppe) {
+  return (gruppe ? gruppenNotizen() : notizenListe()).find((e) => e.id === id);
+}
 function notizenSpeichern(liste) {
   App.notizenLokal = liste;
   gmAction({ type: "notizen_setzen", eintraege: liste });
   render();
 }
+function gruppenNotizSchicken(schritt) { gmAction({ type: "gruppen_notiz", ...schritt }); }
 function notizNeueId() { return `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; }
-// Themen für die Chips: die vier festen, dann eigene (benutzte und frisch
+// Themen für die Reiter: die vier festen, dann eigene (benutzte und frisch
 // angelegte - die merkt sich das Handy, sonst wäre ein neues Thema ohne
 // Eintrag beim nächsten Neuzeichnen wieder weg).
 function notizThemenAlle(liste) {
@@ -304,22 +325,67 @@ function notizThemenAlle(liste) {
   [...eigene, ...liste.map((e) => e.thema)].forEach((t) => { if (t && !namen.includes(t)) namen.push(t); });
   return namen;
 }
+// Text mit markierten Suchtreffern (erst escapen, dann <mark> drumherum).
+function notizMarkiert(text, q) {
+  if (!q) return esc(text);
+  const klein = text.toLowerCase(), ql = q.toLowerCase();
+  let aus = "", pos = 0, i;
+  while ((i = klein.indexOf(ql, pos)) >= 0) {
+    aus += esc(text.slice(pos, i)) + `<mark>${esc(text.slice(i, i + q.length))}</mark>`;
+    pos = i + q.length;
+  }
+  return aus + esc(text.slice(pos));
+}
 // Mehrzeiliger Eintrag: erste Zeile fett (z. B. „Rask" und darunter, was man
 // über ihn weiß).
-function notizTextHtml(text) {
+function notizTextHtml(text, q) {
   const [kopf, ...rest] = text.split("\n");
   return rest.length
-    ? `<span class="ztitel">${esc(kopf)}</span><span class="zrest">${esc(rest.join("\n"))}</span>`
-    : esc(kopf);
+    ? `<span class="ztitel">${notizMarkiert(kopf, q)}</span><span class="zrest">${notizMarkiert(rest.join("\n"), q)}</span>`
+    : notizMarkiert(kopf, q);
 }
-function notizZeileHtml(e, mitThema) {
+// --- ✨ Namen beim Tippen ------------------------------------------------------
+// Namen aus Charakteren und freigegebenen Protokollen (Server, einmal geholt)
+// plus großgeschriebene Wörter aus den eigenen/Gruppen-Notizen. Beim Tippen
+// des letzten Worts ab 2 Buchstaben bis zu 4 Vorschläge - antippen ersetzt
+// das Wort, richtig geschrieben („Rask" statt „Rsk"/„rask").
+function notizNamenHolen() {
+  if (App.notizNamen || App.notizNamenLaedt) return;
+  App.notizNamenLaedt = true;
+  fetch("/api/notiz-namen", { cache: "no-store" }).then((r) => r.json())
+    .then((l) => { App.notizNamen = Array.isArray(l) ? l : []; })
+    .catch(() => { App.notizNamenLaedt = false; });
+}
+function notizNamenVorschlaege(text) {
+  const m = /([A-Za-zÄÖÜäöüß][\wÄÖÜäöüß-]*)$/.exec(text || "");
+  if (!m || m[1].length < 2) return [];
+  const wort = m[1].toLowerCase();
+  const aus = new Map();
+  const dazu = (n) => { const k = n.toLowerCase(); if (k.startsWith(wort) && k !== wort && !aus.has(k)) aus.set(k, n); };
+  (App.notizNamen || []).forEach(dazu);
+  notizenAlle().forEach((e) => (e.text.match(/\b[A-ZÄÖÜ][a-zäöüß]{2,}(?:-[A-ZÄÖÜ]?[a-zäöüß]+)*/g) || []).forEach(dazu));
+  return [...aus.values()].slice(0, 4);
+}
+function notizVorschlagHtml(feld, text) {
+  const l = notizNamenVorschlaege(text);
+  return l.length ? `<span class="notiz-vtitel">✨</span>${l.map((n) =>
+    `<button type="button" class="notiz-vchip" data-act="notiz-name" data-feld="${feld}" data-name="${esc(n)}">${esc(n)}</button>`).join("")}` : "";
+}
+function notizVorschlagZeigen(feld, text) {
+  const box = $(`notiz-vorschlag-${feld}`);
+  if (box) box.innerHTML = notizVorschlagHtml(feld, text);
+}
+// --- Ansicht ---------------------------------------------------------------------
+function notizZeileHtml(e, mitThema, q) {
   const ed = App.notizEdit;
-  if (ed && ed.id === e.id) {
-    const chips = notizThemenAlle(notizenListe()).concat([""]).map((t) =>
+  const g = e.gruppe ? "1" : "";
+  if (ed && ed.id === e.id && ed.gruppe === e.gruppe) {
+    const chips = notizThemenAlle(notizenAlle()).concat([""]).map((t) =>
       `<button type="button" class="notiz-chip${ed.thema === t ? " on" : ""}" data-act="notiz-edit-thema" data-thema="${esc(t)}">${notizIcon(t)} ${esc(notizThemaName(t))}</button>`).join("");
     const h = App.notizHoehe && App.notizHoehe["notiz-edit"];
     return `<li class="zeile bearbeiten" data-id="${esc(e.id)}">
       <textarea id="notiz-edit" rows="2" maxlength="1000" aria-label="Notiz bearbeiten"${h ? ` style="height:${h}px"` : ""}>${esc(ed.text)}</textarea>
+      <div class="notiz-vorschlag" id="notiz-vorschlag-edit">${notizVorschlagHtml("edit", ed.text)}</div>
       <div class="notiz-chips klein">${chips}</div>
       <div class="notiz-edit-knoepfe">
         <button type="button" class="ghost small" data-act="notiz-abbrechen">Abbrechen</button>
@@ -328,58 +394,89 @@ function notizZeileHtml(e, mitThema) {
     </li>`;
   }
   const id = esc(e.id);
-  return `<li class="zeile${e.erledigt ? " erl" : ""}" data-id="${id}">
-    <button type="button" class="haken" data-act="notiz-haken" data-id="${id}" role="checkbox" aria-checked="${e.erledigt}" aria-label="Erledigt">${e.erledigt ? "✓" : ""}</button>
-    <div class="zt" data-act="notiz-bearbeiten" data-id="${id}">${notizTextHtml(e.text)}${mitThema && e.thema ? ` <span class="ttag">${notizIcon(e.thema)} ${esc(e.thema)}</span>` : ""}</div>
+  const daten = `data-id="${id}" data-gruppe="${g}"`;
+  const tags = [mitThema && e.thema ? `${notizIcon(e.thema)} ${esc(e.thema)}` : "", mitThema && e.gruppe ? "👥" : ""].filter(Boolean);
+  return `<li class="zeile${e.erledigt ? " erl" : ""}${e.gruppe ? " gruppe" : ""}" data-id="${id}">
+    <button type="button" class="haken" data-act="notiz-haken" ${daten} role="checkbox" aria-checked="${!!e.erledigt}" aria-label="Erledigt">${e.erledigt ? "✓" : ""}</button>
+    <div class="zt" data-act="notiz-bearbeiten" ${daten}>${notizTextHtml(e.text, q)}${tags.length ? ` <span class="ttag">${tags.join(" · ")}</span>` : ""}${e.gruppe && e.von ? `<span class="wer">${esc(e.von)}</span>` : ""}</div>
     <span class="zk">
-      <button type="button" class="notiz-knopf" data-act="notiz-bearbeiten" data-id="${id}" aria-label="Bearbeiten" title="Bearbeiten">✎</button>
-      <button type="button" class="notiz-knopf weg" data-act="notiz-loeschen" data-id="${id}" aria-label="Löschen" title="Löschen">🗑</button>
+      <button type="button" class="notiz-knopf" data-act="notiz-bearbeiten" ${daten} aria-label="Bearbeiten" title="Bearbeiten">✎</button>
+      <button type="button" class="notiz-knopf weg" data-act="notiz-loeschen" ${daten} aria-label="Löschen" title="Löschen">🗑</button>
     </span>
   </li>`;
 }
+function notizFilterJetzt() {
+  const f = App.notizFilter !== undefined ? App.notizFilter : notizSpeicherLesen("notizFilter", null);
+  return f === undefined ? null : f;
+}
+function notizZielGruppe() {
+  return notizFilterJetzt() === NOTIZ_GRUPPE || App.notizZiel === "gruppe";
+}
 function notizenPanelHtml() {
-  const liste = notizenListe();
-  const themen = notizThemenAlle(liste);
-  let filter = App.notizFilter != null ? App.notizFilter : notizSpeicherLesen("notizFilter", null);
-  if (filter !== null && filter !== "" && !themen.includes(filter)) filter = null;
-  const offenZahl = (t) => liste.filter((e) => e.thema === t && !e.erledigt).length;
-  // Reiter: „Alle" + Themen (Kalle wählte Reiter statt Gruppen, 04.11.2026).
-  // Der gewählte Reiter filtert die Liste UND ist das Thema für die nächste
-  // neue Notiz - so landet sie gleich dort, wo man hinschaut.
+  const alle = notizenAlle();
+  const themen = notizThemenAlle(alle);
+  let filter = notizFilterJetzt();
+  if (filter !== null && filter !== "" && filter !== NOTIZ_GRUPPE && !themen.includes(filter)) filter = null;
+  const q = App.notizSuche != null ? App.notizSuche.trim() : "";
+  const offenZahl = (pruef) => alle.filter((e) => pruef(e) && !e.erledigt).length;
+  // Reiter: „Alle", „👥 Gruppe" + Themen (Kalle wählte Reiter statt Gruppen,
+  // 04.11.2026). Der gewählte Reiter filtert die Liste UND ist das Thema für
+  // die nächste neue Notiz - so landet sie gleich dort, wo man hinschaut.
   const reiter = (t, label, an) =>
     `<button type="button" class="notiz-reiter${an ? " on" : ""}" data-act="notiz-filter" data-thema="${t === null ? "*" : esc(t)}">${label}</button>`;
   const zahl = (n) => n ? ` <b>${n}</b>` : "";
-  const reiterHtml = [reiter(null, `Alle${zahl(liste.filter((e) => !e.erledigt).length)}`, filter === null),
-    ...themen.map((t) => reiter(t, `${notizIcon(t)} ${esc(t)}${zahl(offenZahl(t))}`, filter === t)),
-    ...(liste.some((e) => !e.thema) ? [reiter("", `📝 Sonstiges${zahl(offenZahl(""))}`, filter === "")] : []),
+  const reiterHtml = [reiter(null, `Alle${zahl(offenZahl(() => true))}`, filter === null),
+    reiter(NOTIZ_GRUPPE, `👥 Gruppe${zahl(offenZahl((e) => e.gruppe))}`, filter === NOTIZ_GRUPPE),
+    ...themen.map((t) => reiter(t, `${notizIcon(t)} ${esc(t)}${zahl(offenZahl((e) => e.thema === t))}`, filter === t)),
+    ...(alle.some((e) => !e.thema) ? [reiter("", `📝 Sonstiges${zahl(offenZahl((e) => !e.thema))}`, filter === "")] : []),
     `<button type="button" class="notiz-reiter neu" data-act="notiz-thema-neu" aria-label="Neues Thema" title="Neues Thema">＋</button>`].join("");
-  const sicht = filter === null ? liste : liste.filter((e) => e.thema === filter);
+  const suchKnopf = alle.length >= NOTIZ_SUCHE_AB
+    ? `<button type="button" class="notiz-reiter such" data-act="notiz-suche-auf" aria-label="Suchen" title="Suchen">🔎</button>` : "";
+  // Suche: über alle Themen und die Gruppe, Abgehakte gleich mit aufgeklappt.
+  const sicht = q ? alle.filter((e) => `${e.text}\n${e.thema}\n${e.von || ""}`.toLowerCase().includes(q.toLowerCase()))
+    : filter === null ? alle
+    : filter === NOTIZ_GRUPPE ? alle.filter((e) => e.gruppe)
+    : alle.filter((e) => e.thema === filter);
   const offen = sicht.filter((e) => !e.erledigt), erl = sicht.filter((e) => e.erledigt);
   // Abgehakte zugeklappt (nehmen sonst Platz weg, Kalle 04.11.) - offen nur,
-  // wenn angetippt oder gerade einer davon bearbeitet wird.
-  const erlAuf = App.notizErlAuf || (App.notizEdit && erl.some((e) => e.id === App.notizEdit.id));
-  const zeile = (e) => notizZeileHtml(e, filter === null);
+  // wenn angetippt, gesucht oder gerade einer davon bearbeitet wird.
+  const erlAuf = q || App.notizErlAuf || (App.notizEdit && erl.some((e) => e.id === App.notizEdit.id));
+  const mitThema = !!q || filter === null || filter === NOTIZ_GRUPPE;
+  const zeile = (e) => notizZeileHtml(e, mitThema, q);
+  const leerText = q ? `Nichts gefunden für „${esc(q)}“.`
+    : filter === null ? ""
+    : filter === NOTIZ_GRUPPE ? "Noch keine Gruppen-Notiz. Alles hier sehen alle Spieler."
+    : `Noch nichts unter ${notizIcon(filter)} ${esc(notizThemaName(filter))}.`;
   const inhalt = !sicht.length
-    ? `<div class="notizen-leer klein">${filter === null ? "" : `Noch nichts unter ${notizIcon(filter)} ${esc(notizThemaName(filter))}.`}</div>`
+    ? `<div class="notizen-leer klein">${leerText}</div>`
     : `${offen.length ? `<ul class="zeilen">${offen.map(zeile).join("")}</ul>`
         : `<div class="notizen-leer klein">Alles abgehakt ✓</div>`}
       ${erl.length ? `<button type="button" class="notiz-erl-kopf" data-act="notiz-erl" aria-expanded="${!!erlAuf}">
           <span>✓ ${erl.length} erledigt</span><span class="pfeil">${erlAuf ? "▾" : "▸"}</span></button>
         ${erlAuf ? `<ul class="zeilen erledigt">${erl.map(zeile).join("")}</ul>` : ""}` : ""}`;
   const weg = App.notizWeg;
-  const ziel = filter === null ? "" : filter;
+  const zielGruppe = notizZielGruppe();
+  const thema = filter === null || filter === NOTIZ_GRUPPE ? "" : filter;
   const h = App.notizNeu && App.notizHoehe && App.notizHoehe["notiz-neu"];
+  const platzhalter = zielGruppe ? `Für alle${thema ? ` unter ${notizIcon(thema)} ${esc(thema)}` : ""} …`
+    : thema ? `Neu unter ${notizIcon(thema)} ${esc(thema)} …` : "Neue Notiz …";
   return `<div class="panel notizen">
-    <div class="notizen-kopf"><h2>📝 Meine Notizen</h2>${liste.length ? `<span class="notizen-zahl">${liste.filter((e) => !e.erledigt).length}</span>` : ""}</div>
+    <div class="notizen-kopf"><h2>📝 Notizen</h2>${alle.length ? `<span class="notizen-zahl">${offenZahl(() => true)}</span>` : ""}</div>
     <div class="notiz-neu">
       <textarea id="notiz-neu" rows="1" maxlength="1000" enterkeyhint="done" aria-label="Neue Notiz"${h ? ` style="height:${h}px"` : ""}
-        placeholder="${ziel ? `Neu unter ${notizIcon(ziel)} ${esc(ziel)} …` : "Neue Notiz …"}">${esc(App.notizNeu || "")}</textarea>
+        placeholder="${platzhalter}">${esc(App.notizNeu || "")}</textarea>
+      <button type="button" class="notiz-ziel${zielGruppe ? " gruppe" : ""}" data-act="notiz-ziel"${filter === NOTIZ_GRUPPE ? " disabled" : ""}
+        aria-label="${zielGruppe ? "Für alle Spieler" : "Nur für mich"}" title="${zielGruppe ? "👥 Für alle Spieler – tippen: nur für mich" : "🔒 Nur für mich – tippen: für alle Spieler"}">${zielGruppe ? "👥" : "🔒"}</button>
       <button type="button" class="primary notiz-plus" data-act="notiz-hinzu" aria-label="Notiz hinzufügen" title="Hinzufügen"${(App.notizNeu || "").trim() ? "" : " disabled"}>＋</button>
     </div>
-    <div class="notiz-reiter-leiste">${reiterHtml}</div>
+    <div class="notiz-vorschlag" id="notiz-vorschlag-neu">${notizVorschlagHtml("neu", App.notizNeu)}</div>
+    ${App.notizSuche != null
+      ? `<div class="notiz-suche"><span>🔎</span><input id="notiz-suche" type="text" enterkeyhint="search" value="${esc(App.notizSuche)}" placeholder="In allen Notizen suchen …" aria-label="Suchen" autocomplete="off">
+          <button type="button" class="notiz-knopf" data-act="notiz-suche-zu" aria-label="Suche schließen">✕</button></div>`
+      : `<div class="notiz-reiter-leiste">${suchKnopf}${reiterHtml}</div>`}
     ${weg ? `<div class="notiz-undo"><span>Notiz gelöscht</span><button type="button" class="ghost small" data-act="notiz-zurueck">↶ Rückgängig</button></div>` : ""}
-    ${liste.length ? inhalt
-      : `<div class="notizen-leer">Noch nichts notiert.<br><span>NSC-Namen, Orte, Beute, offene Fragen – nur du siehst das.</span></div>`}
+    ${alle.length ? inhalt
+      : `<div class="notizen-leer">Noch nichts notiert.<br><span>NSC-Namen, Orte, Beute, offene Fragen. 🔒 nur du, 👥 alle Spieler.</span></div>`}
   </div>`;
 }
 // Feld wächst mit dem Text (rows="1" sah sonst nach einer Zeile aus, auch wenn
@@ -392,58 +489,86 @@ function notizFeldHoehe(el) {
   el.style.height = `${h}px`;
   App.notizHoehe = { ...(App.notizHoehe || {}), [el.id]: h };
 }
-function notizFilterJetzt() {
-  const f = App.notizFilter != null ? App.notizFilter : notizSpeicherLesen("notizFilter", null);
-  return f == null ? "" : f;
-}
+// --- Ändern ------------------------------------------------------------------------
 function notizHinzu() {
   const text = (App.notizNeu || "").trim();
   if (!text) return;
   App.notizNeu = "";
   const feld = $("notiz-neu");
   if (feld) { feld.value = ""; notizFeldHoehe(feld); }
+  notizVorschlagZeigen("neu", "");
+  const f = notizFilterJetzt();
+  const thema = f === null || f === NOTIZ_GRUPPE ? "" : f;
+  const eintrag = { id: notizNeueId(), text, thema, erledigt: false };
   // Neueste oben: das Eingabefeld steht oben, der Eintrag erscheint gleich darunter.
-  const thema = notizFilterJetzt();
-  notizenSpeichern([{ id: notizNeueId(), text, thema, erledigt: false }, ...notizenListe()]);
+  if (notizZielGruppe()) {
+    // 👥 gilt nur für diese eine Notiz - sonst landete die nächste private
+    // Notiz versehentlich bei allen.
+    App.notizZiel = "ich";
+    gruppenNotizSchicken({ op: "neu", eintrag });
+    render();
+    return;
+  }
+  notizenSpeichern([eintrag, ...notizenListe()]);
 }
 function notizFertig() {
   const ed = App.notizEdit;
   if (!ed) return;
   App.notizEdit = null;
   const text = ed.text.trim();
-  const liste = notizenListe().slice();
-  const i = liste.findIndex((e) => e.id === ed.id);
-  if (i < 0) { render(); return; }
-  if (!text) { notizLoeschen(ed.id); return; }      // leer gespeichert = löschen (mit Rückgängig)
-  if (liste[i].text === text && liste[i].thema === ed.thema) { render(); return; }
-  liste[i] = { ...liste[i], text, thema: ed.thema };
-  notizenSpeichern(liste);
+  const alt = notizFinden(ed.id, ed.gruppe);
+  if (!alt) { render(); return; }
+  if (!text) { notizLoeschen(ed.id, ed.gruppe); return; }      // leer gespeichert = löschen (mit Rückgängig)
+  if (alt.text === text && alt.thema === ed.thema) { render(); return; }
+  if (ed.gruppe) { gruppenNotizSchicken({ op: "aendern", id: ed.id, text, thema: ed.thema }); render(); return; }
+  notizenSpeichern(notizenListe().map((e) => e.id === ed.id ? { ...e, text, thema: ed.thema } : e));
 }
 // Löschen ohne Rückfrage, dafür ein paar Sekunden „↶ Rückgängig" - eine
 // Rückfrage bei jeder Zeile nervt, versehentlich weg wäre schlimmer.
-function notizLoeschen(id) {
-  const liste = notizenListe().slice();
+function notizLoeschen(id, gruppe) {
+  const liste = gruppe ? gruppenNotizen() : notizenListe();
   const i = liste.findIndex((e) => e.id === id);
   if (i < 0) return;
-  const [eintrag] = liste.splice(i, 1);
   if (App.notizEdit && App.notizEdit.id === id) App.notizEdit = null;
   clearTimeout(App.notizWegTimer);
-  App.notizWeg = { eintrag, i };
+  App.notizWeg = { eintrag: liste[i], i, gruppe };
   App.notizWegTimer = setTimeout(() => { App.notizWeg = null; render(); }, 7000);
-  notizenSpeichern(liste);
+  if (gruppe) { gruppenNotizSchicken({ op: "loeschen", id }); render(); return; }
+  notizenSpeichern(liste.filter((e) => e.id !== id));
 }
+// 💬 SL-Nachricht als eigene Notiz merken (Thema „Offen").
+function notizAusNachricht(msgId) {
+  const m = ((App.state && App.state.messages) || []).find((x) => x.id === msgId);
+  if (!m || !m.text || notizenListe().some((e) => e.quelle === msgId)) return;
+  notizenSpeichern([{ id: notizNeueId(), text: m.text.trim().slice(0, 1000), thema: "Offen", erledigt: false, quelle: msgId },
+    ...notizenListe()]);
+}
+function nachrichtGemerkt(msgId) { return notizenListe().some((e) => e.quelle === msgId); }
 document.addEventListener("input", (e) => {
   const t = e.target;
   if (!t) return;
   if (t.id === "notiz-neu") {
     App.notizNeu = t.value;
     notizFeldHoehe(t);
+    notizVorschlagZeigen("neu", t.value);
     const plus = document.querySelector('[data-act="notiz-hinzu"]');
     if (plus) plus.disabled = !t.value.trim();
   } else if (t.id === "notiz-edit" && App.notizEdit) {
     App.notizEdit.text = t.value;
     notizFeldHoehe(t);
+    notizVorschlagZeigen("edit", t.value);
+  } else if (t.id === "notiz-suche") {
+    App.notizSuche = t.value;
+    render();
   }
+});
+document.addEventListener("focusin", (e) => {
+  if (e.target && (e.target.id === "notiz-neu" || e.target.id === "notiz-edit")) notizNamenHolen();
+});
+// Vorschlag antippen soll das Feld nicht verlassen (sonst klappt am Handy
+// die Tastatur zu und wieder auf).
+document.addEventListener("pointerdown", (e) => {
+  if (e.target.closest && e.target.closest(".notiz-vchip")) e.preventDefault();
 });
 document.addEventListener("keydown", (e) => {
   if (!e.target || e.isComposing) return;
@@ -455,18 +580,24 @@ document.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); notizFertig(); }
     else if (e.key === "Escape") { e.preventDefault(); App.notizEdit = null; render(); }
   }
+  if (e.target.id === "notiz-suche" && e.key === "Escape") { App.notizSuche = null; render(); }
 });
 document.addEventListener("click", async (e) => {
   const t = e.target.closest("[data-act]");
   if (!t || !t.dataset.act.startsWith("notiz-")) return;
   e.preventDefault();
   const id = t.dataset.id;
+  const gruppe = t.dataset.gruppe === "1";
   const thema = t.dataset.thema;
   switch (t.dataset.act) {
     case "notiz-hinzu": notizHinzu(); break;
     case "notiz-filter":
       App.notizFilter = thema === "*" ? null : thema;
       notizSpeicherSchreiben("notizFilter", App.notizFilter);
+      render();
+      break;
+    case "notiz-ziel":
+      App.notizZiel = App.notizZiel === "gruppe" ? "ich" : "gruppe";
       render();
       break;
     case "notiz-thema-neu": {
@@ -479,18 +610,28 @@ document.addEventListener("click", async (e) => {
       render();
       break;
     }
+    case "notiz-suche-auf":
+      App.notizSuche = "";
+      render();
+      if ($("notiz-suche")) $("notiz-suche").focus();
+      break;
+    case "notiz-suche-zu": App.notizSuche = null; render(); break;
     case "notiz-erl":
       App.notizErlAuf = !App.notizErlAuf;
       render();
       break;
-    case "notiz-haken":
-      notizenSpeichern(notizenListe().map((n) => n.id === id ? { ...n, erledigt: !n.erledigt } : n));
-      break;
-    case "notiz-bearbeiten": {
-      if (App.notizEdit && App.notizEdit.id !== id) notizFertig();   // anderes offen -> erst speichern
-      const n = notizenListe().find((x) => x.id === id);
+    case "notiz-haken": {
+      const n = notizFinden(id, gruppe);
       if (!n) break;
-      App.notizEdit = { id, text: n.text, thema: n.thema };
+      if (gruppe) { gruppenNotizSchicken({ op: "aendern", id, erledigt: !n.erledigt }); break; }
+      notizenSpeichern(notizenListe().map((x) => x.id === id ? { ...x, erledigt: !x.erledigt } : x));
+      break;
+    }
+    case "notiz-bearbeiten": {
+      if (App.notizEdit && (App.notizEdit.id !== id || App.notizEdit.gruppe !== gruppe)) notizFertig();   // anderes offen -> erst speichern
+      const n = notizFinden(id, gruppe);
+      if (!n) break;
+      App.notizEdit = { id, gruppe, text: n.text, thema: n.thema };
       if (App.notizHoehe) delete App.notizHoehe["notiz-edit"];
       render();
       const feld = $("notiz-edit");
@@ -504,14 +645,26 @@ document.addEventListener("click", async (e) => {
     case "notiz-edit-thema":
       if (App.notizEdit) { App.notizEdit.thema = thema; render(); }
       break;
+    case "notiz-name": {
+      // Letztes (angefangenes) Wort durch den Namen ersetzen.
+      const feld = $(`notiz-${t.dataset.feld}`);
+      if (!feld) break;
+      feld.value = feld.value.replace(/([A-Za-zÄÖÜäöüß][\wÄÖÜäöüß-]*)$/, t.dataset.name) + " ";
+      feld.dispatchEvent(new Event("input", { bubbles: true }));
+      feld.focus();
+      feld.setSelectionRange(feld.value.length, feld.value.length);
+      break;
+    }
+    case "notiz-merken": notizAusNachricht(id); break;
     case "notiz-fertig": notizFertig(); break;
     case "notiz-abbrechen": App.notizEdit = null; render(); break;
-    case "notiz-loeschen": notizLoeschen(id); break;
+    case "notiz-loeschen": notizLoeschen(id, gruppe); break;
     case "notiz-zurueck": {
       const weg = App.notizWeg;
       if (!weg) break;
       clearTimeout(App.notizWegTimer);
       App.notizWeg = null;
+      if (weg.gruppe) { gruppenNotizSchicken({ op: "neu", eintrag: weg.eintrag, index: weg.i }); render(); break; }
       const liste = notizenListe().slice();
       liste.splice(Math.min(weg.i, liste.length), 0, weg.eintrag);
       notizenSpeichern(liste);
@@ -548,7 +701,7 @@ document.addEventListener("click", (e) => {
 // Reihenfolge der Bereiche unter der Karte - jeder Spieler stellt sie im ⚙
 // selbst ein (Kalle, 25.10.2026), gemerkt auf dem Handy. Standard: Bogen nach
 // unten, im Kampf braucht man zuerst Reihenfolge und Zonen.
-const HANDY_BEREICHE = { order: "Initiative-Reihenfolge", zones: "Kampfzonen", bogen: "Mein Charakter", msgs: "Nachrichten", notizen: "Meine Notizen" };
+const HANDY_BEREICHE = { order: "Initiative-Reihenfolge", zones: "Kampfzonen", bogen: "Mein Charakter", msgs: "Nachrichten", notizen: "Notizen" };
 function handyBereiche() {
   let liste = [];
   try { liste = JSON.parse(localStorage.getItem("handyBereiche") || "[]"); } catch { /* egal */ }

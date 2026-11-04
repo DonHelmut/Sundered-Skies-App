@@ -389,6 +389,14 @@ async def protokoll_lesen(request: Request, pid: str):
     return JSONResponse(p, headers={"Cache-Control": "no-store"})
 
 
+@app.get("/api/notiz-namen")
+async def notiz_namen(request: Request):
+    """Namen für die Vorschläge beim Notiz-Tippen (einmal je Handy geholt -
+    im Zustand gingen sie sonst bei jedem Update mit)."""
+    return JSONResponse(game.namen_fuer_notizen(fuer_spieler=not _is_loopback(request)),
+                        headers={"Cache-Control": "no-store"})
+
+
 # --- Spielabend aufnehmen (nur SL/Laptop) -------------------------------------
 # Der Browser des Laptops nimmt auf und schickt Stücke, siehe server/aufnahme.py.
 
@@ -853,6 +861,10 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             # "eintraege" seit 1.5.36; "text" = altes Handy mit Freitext-Feld.
             neu = action.get("eintraege") if "eintraege" in action else action.get("text")
             if game.notizen_setzen(own["id"], neu):
+                await hub.broadcast_state()
+        elif atype == "gruppen_notiz":
+            # 👥 Notiz für alle Spieler - Schreiber ist immer der eigene Charakter.
+            if game.gruppen_notiz(own["id"], action):
                 await hub.broadcast_state()
         elif atype == "talents_update":
             # Eigene Initiative-Talente - wieder NUR die eigene Figur.
