@@ -77,6 +77,19 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nächste Version (04.11.2026): Notizen gingen bei offenem „Fortsetzen?" verloren
+
+- **Bug (Kalle: „Notizen für alle geht nicht, sehe keine"):** Nach dem Start
+  wartet „Fortsetzen?" auf den SL, die Handys melden sich aber schon an.
+  Solange zählte der Server KEINE Spieler-Aktion - auch keine Notiz. 👥
+  Gruppen-Notizen tauchten deshalb nirgends auf, eigene standen nur
+  scheinbar da (Handy-Fassung) und waren nach dem Neuladen weg.
+- **Fix (`server/app.py`):** `notizen_setzen` und `gruppen_notiz` werden vor
+  der Fortsetzen-Sperre behandelt. Sie hängen am Charakter bzw. an
+  `gruppen_notizen.json`, nicht am Kampf - die Fortsetzen-Frage bleibt
+  stehen, alle anderen Spieler-Aktionen zählen weiter erst danach.
+- Test: `test_notizen_gehen_auch_solange_fortsetzen_offen_ist` (zwei Handys).
+
 ## 1.5.36 (04.11.2026): Sprecher nachschärfen
 
 Erster Testabend mit Aufnahme (Kalle spielt Korgo und SL, 3:44 min, schnelle
