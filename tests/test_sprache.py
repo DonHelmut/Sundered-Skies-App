@@ -373,3 +373,42 @@ def test_obergrenze_aus_app_mit_platz_fuer_gaeste(tmp_path):
     sp.personen_quelle = lambda: 0
     sp.einstellen(personen=0)
     assert sp.hoechstens() == 0                       # unbekannt -> bis zu 8
+
+
+def test_nachhoeren_findet_kurze_einwuerfe_im_falschen_block():
+    # Testabend 04.11.: die Sprechertrennung gab 40 s am Stück Korgo (1),
+    # mittendrin sagte der SL (0) „Du hast gewürfelt". Die Stimmabdrücke der
+    # Fenster zeigen es - das Fenster geht an den SL.
+    np = pytest.importorskip("numpy")
+    sl, korgo = np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0])
+    stuecke = [(0.0, 10.0), (11.0, 21.0), (22.0, 23.2), (24.0, 34.0)]
+    fenster = SP.nach_fenster(stuecke)
+    assert fenster[0] == (0.0, 1.5) and (22.0, 23.2) in fenster
+    teile = [(0.0, 10.0, 0), (11.0, 34.0, 1)]
+    vek = [sl if a < 10 or 22 <= a < 23.5 else korgo for a, b in fenster]
+    neu = SP.nachschaerfen(fenster, vek, teile)
+    assert SP.sprecher_um(22.5, neu) == 0
+    assert SP.sprecher_um(15.0, neu) == 1 and SP.sprecher_um(30.0, neu) == 1
+    assert SP.sprecher_um(5.0, neu) == 0
+
+
+def test_nachhoeren_rest_sprecher_mit_bekannter_stimme_geht_auf():
+    # S02 am Testabend war der SL: ähnliche Stimme, wenig Redezeit -> SL.
+    # Eine leise Spielerin mit eigener Stimme bleibt dagegen eigene Person.
+    np = pytest.importorskip("numpy")
+    sl, korgo, mira = np.array([1.0, 0, 0, 0]), np.array([0, 1.0, 0, 0]), np.array([0, 0, 1.0, 0])
+    fast_sl = np.array([0.9, 0.0, 0.0, 0.43]) / np.linalg.norm([0.9, 0.0, 0.0, 0.43])
+    stuecke = [(0.0, 20.0), (21.0, 41.0), (42.0, 44.5), (45.0, 49.0)]
+    fenster = SP.nach_fenster(stuecke)
+    teile = [(0.0, 20.0, 0), (21.0, 41.0, 1), (42.0, 44.5, 2), (45.0, 49.0, 3)]
+
+    def stimme(a):
+        return sl if a < 20 else korgo if a < 41 else fast_sl if a < 44.6 else mira
+    neu = SP.nachschaerfen(fenster, [stimme(a) for a, b in fenster], teile)
+    assert SP.sprecher_um(43.0, neu) == 0
+    assert SP.sprecher_um(46.0, neu) == 3
+
+
+def test_nachhoeren_ohne_sprechertrennung_bleibt_alles():
+    assert SP.nachschaerfen([], [], [(0, 1, 0)]) == [(0, 1, 0)]
+    assert SP.nachschaerfen([(0, 1.5)], [[1.0, 0.0]], []) == []
