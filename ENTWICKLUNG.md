@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht nach 2.0.0: Komplett-Test SL + Spieler (04.11.2026)
+## 2.0.1 (04.11.2026): Komplett-Test SL + Spieler
 
 Kalle: „ALLES testen, komplett SL und Spieler". Dafür gibt es jetzt
 **Browser-Tests** (`tests/browser/`), die dauerhaft im Repo bleiben:
