@@ -105,6 +105,25 @@ Kalle: „ALLES testen, komplett SL und Spieler". Dafür gibt es jetzt
   Matrix Handy (fremde Figur, SL-Aktionen, kaputte Nachrichten), was Handys/
   Beamer nicht bekommen dürfen.
 
+Design/Flüssigkeit am Handy (Kalle: „kein Stottern, smooth und clean"):
+- Gemessen mit Playwright, CPU 4× gedrosselt: Bildfolge, lange Aufgaben,
+  springende Inhalte, laufende Animationen bei Austeilen, Aufdecken, Dran,
+  Treffer, Neue Runde, Scrollen. Bilderserien: Projektordner
+  `screenshots/design-test/`.
+- Gefixt: Verwerf-Glut und Goldring „neu gezogen" (Schnell/Kühler Kopf) und der
+  Anfragen-Puls beim SL animierten box-shadow (Hausregel verletzt) → feste
+  Ebene `.flip-inner::after` bzw. `::after`, nur Deckkraft. Zonen-/Reihenfolge-
+  Gleiten (`playTokens`/`playFlip`) liest erst alle Positionen, dann schreibt es.
+  Papiermuster der Karten wird in einer ruhigen Sekunde gebaut statt beim
+  ersten Austeilen.
+- Tests: `tests/test_design_regeln.py` (CSS: Keyframes nur transform/opacity,
+  Ausnahmen mit Grund; kein transition auf filter) und
+  `tests/browser/test_design.py` (zur Laufzeit nur flüssige Animationen in 3
+  Größen, Ruhe ohne Neuzeichnen/Springen, kein Hänger > 400 ms gedrosselt,
+  große Karte passt auf 320–412 px).
+- Grenze: Die Grafikkarte eines echten Handys lässt sich im Test nicht
+  nachbilden – das letzte Wort hat ein Blick am echten Handy.
+
 Gefundene Bugs (gefixt):
 - **SL-Notiz an Figuren** („flieht bei 2 Wunden") stand im Zustand jedes Handys
   und des Beamers – nur die Anzeige war SL-only. `_fuer_spieler` nimmt `note`

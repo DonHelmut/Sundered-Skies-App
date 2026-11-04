@@ -409,12 +409,19 @@ function captureRects() {
   return m;
 }
 function playFlip(prev) {
+  // Erst ALLE Positionen lesen, dann schreiben. Abwechselnd lesen und
+  // schreiben zwang den Browser pro Figur zu einer neuen Layout-Rechnung -
+  // beim Aufdecken am Handy (4× gedrosselt) ~80 ms Stocken.
+  const bewegt = [];
   document.querySelectorAll(".combatant[data-cid]").forEach((e) => {
     const o = prev[e.dataset.cid];
     if (!o) return;
     const n = e.getBoundingClientRect();
     const dx = o.left - n.left, dy = o.top - n.top;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    bewegt.push([e, dx, dy]);
+  });
+  bewegt.forEach(([e, dx, dy]) => {
     e.style.transition = "none";
     e.style.transform = `translate(${dx}px, ${dy}px)`;
     requestAnimationFrame(() => {
@@ -431,12 +438,19 @@ function captureTokens() {
   return m;
 }
 function playTokens(prev) {
+  // Erst ALLE Positionen lesen, dann schreiben. Abwechselnd lesen und
+  // schreiben zwang den Browser pro Figur zu einer neuen Layout-Rechnung -
+  // beim Aufdecken am Handy (4× gedrosselt) ~80 ms Stocken.
+  const bewegt = [];
   document.querySelectorAll(".zone-token[data-id]").forEach((e) => {
     const o = prev[e.dataset.id];
     if (!o) return;
     const n = e.getBoundingClientRect();
     const dx = o.left - n.left, dy = o.top - n.top;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    bewegt.push([e, dx, dy]);
+  });
+  bewegt.forEach(([e, dx, dy]) => {
     e.style.transition = "none";
     e.style.transform = `translate(${dx}px, ${dy}px)`;
     requestAnimationFrame(() => {

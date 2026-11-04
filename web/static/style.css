@@ -714,14 +714,16 @@ details.section > .panel-body { margin-top: 10px; }
 
 /* Offene Spieler-Anfragen: Kasten fällt auf (SL soll nichts verpassen). */
 details.section[data-sec="requests"] {
-  border-color: var(--warn);
-  animation: reqpulse 1.6s ease-in-out infinite;
+  border-color: var(--warn); position: relative;
+  box-shadow: 0 0 0 1px var(--warn), 0 0 8px rgba(224, 168, 56, 0.25);
+}
+/* Pulsieren als eigene Ebene, nur Deckkraft (box-shadow nie animieren). */
+details.section[data-sec="requests"]::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--warn), 0 0 18px rgba(224, 168, 56, 0.55);
+  opacity: 0; animation: glimmen 1.6s ease-in-out infinite;
 }
 details.section[data-sec="requests"] > .sec-head .sec-title { color: var(--warn); }
-@keyframes reqpulse {
-  0%, 100% { box-shadow: 0 0 0 1px var(--warn), 0 0 8px rgba(224, 168, 56, 0.25); }
-  50% { box-shadow: 0 0 0 2px var(--warn), 0 0 18px rgba(224, 168, 56, 0.55); }
-}
 
 /* --- Timer --- */
 .timer {
@@ -1203,10 +1205,18 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
   0%, 100% { transform: scale(1); }
   50%      { transform: scale(1.08); }
 }
-.flip.discard-mark .flip-front { animation: discardGlow var(--puls, 0.55s) ease-in-out 2; }
-@keyframes discardGlow {
-  0%, 100% { box-shadow: 0 0 10px rgba(255, 120, 50, 0.35); }
-  50%      { box-shadow: 0 0 44px 8px rgba(255, 90, 30, 0.95); }
+/* Glut-Schein als eigene, fest gemalte Ebene (.flip-inner::after), die nur in
+   der Deckkraft pulsiert. Vorher wuchs ein 44-px-box-shadow direkt auf der
+   großen Karte: das Handy malte sie samt Bild in jedem Frame neu, genau beim
+   Ziehen mit Schnell/Kühler Kopf (Komplett-Test 04.11.2026). */
+.flip.discard-mark .flip-inner::after, .flip.draw-glow .flip-inner::after {
+  content: ""; position: absolute; inset: 0; border-radius: 7.5% / 5.36%;
+  pointer-events: none; opacity: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.flip.discard-mark .flip-inner::after {
+  box-shadow: 0 0 44px 8px rgba(255, 90, 30, 0.95);
+  animation: glimmen var(--puls, 0.55s) ease-in-out 2;
 }
 .flip.discard-mark:not(.revealing) .flip-front::before {
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
@@ -1285,10 +1295,16 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
 /* Takt 3: neue Karte steigt auf, mit kurzem Goldring als „neu gezogen". */
 .flip-front.draw-in { animation: discardDrawIn 0.58s cubic-bezier(0.2, 0.8, 0.25, 1) 0.14s both; }
 @keyframes discardDrawIn {
-  0%   { transform: translateY(8%) scale(0.9); opacity: 0; box-shadow: 0 0 0 rgba(255, 220, 120, 0); }
-  55%  { opacity: 1; box-shadow: 0 0 36px 5px rgba(255, 220, 120, 0.9); }
-  100% { transform: none; opacity: 1; box-shadow: 0 0 0 rgba(255, 220, 120, 0); }
+  0%   { transform: translateY(8%) scale(0.9); opacity: 0; }
+  55%  { opacity: 1; }
+  100% { transform: none; opacity: 1; }
 }
+/* Goldring „neu gezogen": eigene Ebene, nur Deckkraft (siehe oben). */
+.flip.draw-glow .flip-inner::after {
+  box-shadow: 0 0 36px 5px rgba(255, 220, 120, 0.9);
+  animation: drawGlow 0.58s ease-out 0.14s both;
+}
+@keyframes drawGlow { 0% { opacity: 0; } 55% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Verbindung weg: ruhiger Vollbild-Hinweis. Der letzte Spielstand bleibt
    dahinter sichtbar - das beruhigt mehr als eine leere Seite und macht

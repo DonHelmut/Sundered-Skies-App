@@ -193,3 +193,12 @@ function neuigkeitenZeigen() {
 }
 
 connect();
+
+// Papier-Muster der Karten schon in einer ruhigen Sekunde bauen, nicht erst
+// beim ersten Austeilen: das kostete am Handy (4× gedrosselt) ~35 ms genau in
+// dem Moment, in dem die Karten einfliegen (Komplett-Test 04.11.2026).
+try {
+  (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(() => {
+    try { ensureGlobalDefs(); } catch { /* egal - dann eben beim Austeilen */ }
+  });
+} catch { /* egal */ }
