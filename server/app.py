@@ -794,9 +794,21 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         # Spieler verlässt bewusst: eigenen Teilnehmer + Spielereintrag entfernen.
         pid = meta.get("playerId")
         own = next((c for c in game.combatants if c.get("playerId") == pid), None) if pid else None
-        if own:
+        if own and game.resume_available:
+            # Wartet „Fortsetzen?" noch, wäre remove_combatant die „erste
+            # Aktion" und hätte die gespeicherte Sitzung verworfen - ein Handy,
+            # das nach dem Neustart „Verlassen" tippt, kostete den ganzen Kampf.
+            # Nur den vorläufigen Eintrag lösen; im gespeicherten Kampf steht
+            # die Figur nach dem Fortsetzen wie bei einem Gerät, das weg ist.
+            diag.log(f"VERLASSEN    {own.get('name', '?')} (vor dem Fortsetzen)")
+            game.combatants = [c for c in game.combatants if c.get("playerId") != pid]
+            game.set_player_connected(pid, False)
+        elif own:
             diag.log(f"VERLASSEN    {own.get('name', '?')} (ip={meta.get('ip', '?')})")
             game.apply({"type": "remove_combatant", "id": own["id"]})
+        elif pid:
+            # Ohne Figur blieb der Eintrag sonst für immer „verbunden" stehen.
+            game.set_player_connected(pid, False)
         meta["playerId"] = None
         await hub.broadcast_state()
         return

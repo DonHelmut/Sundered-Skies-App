@@ -879,6 +879,8 @@ setInterval(() => {
   // mehrere Akteure auf einmal übersprungen).
   if (App.role === "gm" && rem === 0 && App._timedOutFor !== s.timerEndsAt) {
     App._timedOutFor = s.timerEndsAt;
-    gmAction({ type: "timeout" });
+    // Mit Akteur und Ablaufzeit: hat der Spieler im selben Moment selbst
+    // beendet, verwirft der Server diesen Timeout (sonst Zug des Nächsten weg).
+    gmAction({ type: "timeout", fuer: s.activeId, endsAt: s.timerEndsAt });
   }
 }, 250);

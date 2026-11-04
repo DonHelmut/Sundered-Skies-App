@@ -25,15 +25,15 @@ document.addEventListener("click", (e) => {
 
   const handlers = {
     // SL – Kampf
-    "new-round": () => gmAction({ type: "new_round" }),
+    "new-round": () => gmAction({ type: "new_round", runde: S.round }),
     "alle-wieder-rein": () => gmAction({ type: "unbench_all" }),
     "clear-all": async () => {
       if (await frage("Kampf abräumen?\n\nAlle Gegner und Verbündeten werden entfernt, die Spieler pausiert (sie bleiben verbunden und behalten ihren Charakter). Die Zonen sind danach leer.\n\nRückgängig geht mit ↶.", "Abräumen", true)) gmAction({ type: "clear_all" });
     },
     "reset": async () => { if (await frage("Initiative komplett zurücksetzen?", "Zurücksetzen", true)) gmAction({ type: "reset" }); },
     "release": () => gmAction({ type: "release" }),
-    "confirm-turn": () => gmActionOrPlayer({ type: "confirm_turn" }),
-    "skip-turn": () => gmAction({ type: "confirm_turn" }),   // ohne Timer zum nächsten
+    "confirm-turn": () => gmActionOrPlayer({ type: "confirm_turn", fuer: S.activeId }),
+    "skip-turn": () => gmAction({ type: "confirm_turn", fuer: S.activeId }),   // ohne Timer zum nächsten
     "redraw": () => gmAction({ type: "redraw", id }),
     "set-active": () => gmAction({ type: "set_active", id }),
     "edit-combatant": () => { App.editCombatantId = App.editCombatantId === id ? null : id; render(); },
@@ -471,7 +471,7 @@ document.addEventListener("keydown", (e) => {
   if (!aktiv) {
     if ((e.key === " " || e.key === "Enter") && s.combatants.some((c) => !c.benched)) {
       e.preventDefault();
-      gmAction({ type: "new_round" });
+      gmAction({ type: "new_round", runde: s.round });
     }
     return;
   }
@@ -486,10 +486,10 @@ document.addEventListener("keydown", (e) => {
   if (App.trefferWahl && e.key === "Escape") { App.trefferWahl = false; render(); return; }
   if (e.key === " " || e.key === "Enter") {
     e.preventDefault();
-    gmAction(s.phase === "running" ? { type: "confirm_turn" } : { type: "release" });
+    gmAction(s.phase === "running" ? { type: "confirm_turn", fuer: s.activeId } : { type: "release" });
   } else if (taste === "w") {
     e.preventDefault();
-    gmAction({ type: "confirm_turn" });     // „Weiter" = Zug beenden ohne Timer
+    gmAction({ type: "confirm_turn", fuer: s.activeId });     // „Weiter" = Zug beenden ohne Timer
   } else if (taste === "t") {
     e.preventDefault();
     gmAction({ type: "apply_hit", id: aktiv.id });
