@@ -103,6 +103,10 @@ Gefunden und behoben (Tests: `tests/test_pruefung.py`):
 - **Auto-Sicherung las lebende Listen im Nebenfaden:** speicherte ein Handy
   gerade Notizen/Bogen, konnte eine halbe Fassung in die Zip geraten oder die
   Sicherung abbrechen. Jetzt Kopie im Event-Loop.
+- **Auto-Sicherungen in derselben Minute falsch sortiert:** bei gleicher
+  Dateizeit stand `…_10-01.zip` als Text nach `…_10-01-2.zip` (Punkt > Strich)
+  → die ältere galt als neueste, das Aufräumen löschte die neuere. Nummer jetzt
+  als Zahl (`sicherung._reihenfolge`). Fiel als Wackel-Test auf.
 
 Geprüft, ohne Befund: Updater (Abbruch beim Download → Zip kaputt → nichts
 geändert; Austausch mit Rücktausch), Modell-Download (Teil-Datei, Tar mit

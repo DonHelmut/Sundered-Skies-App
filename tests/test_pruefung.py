@@ -145,3 +145,20 @@ def test_schluessel_ueberlebt_neustart_und_fortsetzen(fresh_game, monkeypatch):
     assert fresh_game.schluessel_passt(pid, schl)
     p = next(x for x in fresh_game.players if x["id"] == pid)
     assert p["connected"] and p["schluessel"] == schl
+
+
+# --- Auto-Sicherung: Reihenfolge in derselben Minute ------------------------------
+
+def test_auto_sicherungen_gleiche_minute_nach_nummer(tmp_path):
+    """„…-9" ist älter als „…-13" - als Text sortiert stand es davor, und das
+    Aufräumen warf die neuere weg."""
+    import os
+    from server import sicherung as S
+    namen = ["auto-2026-11-05_10-00.zip"] + [f"auto-2026-11-05_10-00-{n}.zip" for n in range(2, 14)]
+    for n in namen:
+        (tmp_path / n).write_bytes(b"x")
+        os.utime(tmp_path / n, (1_800_000_000, 1_800_000_000))     # gleiche Zeit
+    reihe = [e["name"] for e in S.auto_liste(tmp_path)]
+    assert reihe == list(reversed(namen))
+    S.auto_aufraeumen(tmp_path, 10)
+    assert sorted(p.name for p in tmp_path.iterdir()) == sorted(namen[3:])
