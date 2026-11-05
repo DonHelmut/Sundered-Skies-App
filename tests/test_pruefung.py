@@ -2,8 +2,6 @@
 LAN-Schutz, die die bisherigen Tests nicht abgedeckt haben."""
 import asyncio
 
-from fastapi.testclient import TestClient
-
 from server import app as A
 
 
@@ -32,11 +30,13 @@ def test_uploads_liefert_nur_bildnamen(tmp_path, monkeypatch):
     monkeypatch.setattr(A, "UPLOAD_DIR", tmp_path)
     (tmp_path / ("a" * 32 + ".png")).write_bytes(b"\x89PNG")
     (tmp_path / "geheim.json").write_text("{}")
-    c = TestClient(A.app)
-    assert c.get("/uploads/" + "a" * 32 + ".png").status_code == 200
-    for boese in ("geheim.json", "C:%5CWindows%5Cwin.ini", "%5CWindows%5Cwin.ini",
-                  "..%5C..%5Csession.json", "x.png%00.json", ".png"):
-        assert c.get("/uploads/" + boese).status_code == 404, boese
+    # Direkt aufrufen statt TestClient (braucht ein Zusatzpaket, das auf
+    # GitHub fehlt). Starlette reicht den Namen schon entschlüsselt durch.
+    holen = lambda name: asyncio.run(A.serve_upload(name)).status_code
+    assert holen("a" * 32 + ".png") == 200
+    for boese in ("geheim.json", "C:\\Windows\\win.ini", "\\Windows\\win.ini",
+                  "..\\..\\session.json", "x.png\x00.json", ".png"):
+        assert holen(boese) == 404, boese
 
 
 def test_upload_name_muster():
@@ -64,8 +64,7 @@ def test_fremde_webseite_auf_dem_laptop_ist_kein_sl():
 
 
 def test_fremde_webseite_kann_nichts_einspielen():
-    c = TestClient(A.app)
-    r = c.post("/api/aufnahme/loeschen/2026-01-01_20-00", headers={"Origin": "https://boese.example"})
+    r = asyncio.run(A.aufnahme_loeschen(_Anfrage("127.0.0.1", "https://boese.example"), "2026-01-01_20-00"))
     assert r.status_code == 403
 
 
