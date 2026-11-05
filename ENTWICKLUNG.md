@@ -77,6 +77,43 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (05.11.2026): Prüfung des bisher Ungeprüften – 4 Lücken zu
+
+Kalle: „Überprüfe das, was du noch nicht überprüft hast. Stelle alles in
+Frage." Angesehen: Updater, Auto-Sicherung/Zurückholen, Aufnahme-/Modell-
+Pipeline, .spec, Server-Schnittstellen, Wiederbeitritt, Langzeit-Grenzen.
+Gefunden und behoben (Tests: `tests/test_pruefung.py`):
+
+- **Jede Datei des Laptops war für Handys lesbar:** `/uploads/{name}` prüfte nur
+  auf „..". Unter Windows ersetzt pathlib bei `ordner / "C:\…"` den ganzen Pfad
+  → `/uploads/C:%5CUsers%5C…` lieferte beliebige Dateien. Jetzt nur noch
+  Bildnamen wie beim Hochladen (`UPLOAD_NAME`).
+- **Fremde Figur per Spieler-ID übernehmbar:** Die Spieler-IDs aller stehen im
+  Zustand jedes Handys. Wer im Browser die eigene gegen eine fremde tauschte,
+  wurde dieser Spieler – mit dessen Geflüstertem und privaten Notizen. Jetzt
+  bekommt jedes Gerät beim Beitritt einen geheimen **Geräte-Schlüssel**
+  (`schluessel`, localStorage), ohne den die ID nicht reicht (`Game.schluessel_passt`).
+  Spieler aus alten Sitzungen ohne Schlüssel kommen wie bisher rein und bekommen
+  einen. Gilt auch vor „Fortsetzen" (gegen die gespeicherte Sitzung geprüft),
+  über ↶ und Fortsetzen hinweg.
+- **Fremde Webseite im SL-Browser galt als SL:** Alles von 127.0.0.1 war SL –
+  auch ein Formular/WebSocket einer beliebigen anderen Seite, die der SL offen
+  hat (Sicherung einspielen, Aufnahmen löschen, Kampf steuern). `_is_loopback`
+  lehnt jetzt einen fremden `Origin` ab.
+- **Auto-Sicherung las lebende Listen im Nebenfaden:** speicherte ein Handy
+  gerade Notizen/Bogen, konnte eine halbe Fassung in die Zip geraten oder die
+  Sicherung abbrechen. Jetzt Kopie im Event-Loop.
+- **Auto-Sicherungen in derselben Minute falsch sortiert:** bei gleicher
+  Dateizeit stand `…_10-01.zip` als Text nach `…_10-01-2.zip` (Punkt > Strich)
+  → die ältere galt als neueste, das Aufräumen löschte die neuere. Nummer jetzt
+  als Zahl (`sicherung._reihenfolge`). Fiel als Wackel-Test auf.
+
+Geprüft, ohne Befund: Updater (Abbruch beim Download → Zip kaputt → nichts
+geändert; Austausch mit Rücktausch), Modell-Download (Teil-Datei, Tar mit
+`filter="data"`), Zip-Import (nur Bildnamen, Größengrenzen), Aufnahme-Namen
+(Muster), Grenzen für Nachrichten/Notizen/Undo/Log, .spec (alle Skripte über
+`web`, `_lab*` gefiltert).
+
 ## Unveröffentlicht (04.11.2026): CI ruhiger – keine roten Wackel-Läufe, keine Doppel-Mails
 
 Nach 2.0.1 kamen viele „Run failed: Tests"-Mails. Ursachen:

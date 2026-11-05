@@ -59,11 +59,11 @@ def test_stilles_wiederbeitreten_nur_fuer_bekannte_geraete(fresh_game, monkeypat
     fremd["characterId"] = fresh_game.roster[-1]["id"]
     asyncio.run(A.handle_message(ws, meta, {**fremd, "auto": False}))
     assert ws.sent[-1]["type"] == "joined"
-    pid = ws.sent[-1]["playerId"]
+    pid, schluessel = ws.sent[-1]["playerId"], ws.sent[-1]["schluessel"]
     ws2 = FakeWS()
     asyncio.run(A.handle_message(ws2, {"role": "player", "playerId": None, "ip": "10.0.0.5"},
-                                 {**fremd, "playerId": pid}))
-    assert ws2.sent[-1] == {"type": "joined", "playerId": pid}
+                                 {**fremd, "playerId": pid, "schluessel": schluessel}))
+    assert ws2.sent[-1] == {"type": "joined", "playerId": pid, "schluessel": schluessel}
 
 
 def test_spieler_setzt_nur_die_eigene_rueckseite(fresh_game, monkeypatch):

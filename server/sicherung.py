@@ -159,7 +159,17 @@ def auto_liste(ordner: Path) -> list[dict]:
         if p.is_file() and AUTO_NAME.match(p.name):
             st = p.stat()
             raus.append({"name": p.name, "bytes": st.st_size, "zeit": int(st.st_mtime * 1000)})
-    return sorted(raus, key=lambda e: (e["zeit"], e["name"]), reverse=True)
+    return sorted(raus, key=_reihenfolge, reverse=True)
+
+
+def _reihenfolge(e: dict) -> tuple:
+    """Nach Zeit, bei gleicher Zeit nach Name - die laufende Nummer aber als
+    ZAHL: als Text stand „…-9" nach „…-13", und das Aufräumen löschte bei
+    mehreren Sicherungen in derselben Minute die neuere (wackelnder Test
+    test_auto_sicherung_…, Prüfung 05.11.2026)."""
+    m = re.match(r"^(auto-\d{4}-\d{2}-\d{2}_\d{2}-\d{2})(?:-(\d+))?\.zip$", e["name"])
+    basis, nr = (m.group(1), int(m.group(2) or 1)) if m else (e["name"], 0)
+    return (e["zeit"], basis, nr)
 
 
 def auto_aufraeumen(ordner: Path, behalten: int = AUTO_BEHALTEN) -> int:
