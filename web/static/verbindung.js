@@ -125,8 +125,11 @@ function connect() {
       if (msg.grund === "unbekannt") {
         // Gemerkte ID stammt von einem anderen/alten Server: vergessen, damit
         // das Handy nicht bei jedem Verbinden wieder anklopft.
-        App.myPlayerId = null; App.myCharacterId = null;
-        try { localStorage.removeItem("playerId"); localStorage.removeItem("characterId"); } catch { /* egal */ }
+        App.myPlayerId = null; App.mySchluessel = null; App.myCharacterId = null;
+        try {
+          localStorage.removeItem("playerId"); localStorage.removeItem("schluessel");
+          localStorage.removeItem("characterId");
+        } catch { /* egal */ }
       }
       if (App.state && (App.state.roster || []).length) App.joinEntwurf.modus = "liste";
       if (msg.grund === "charakter-unbekannt") {
@@ -138,8 +141,12 @@ function connect() {
       render();
     } else if (msg.type === "joined") {
       App.myPlayerId = msg.playerId;
+      App.mySchluessel = msg.schluessel || null;
       App.joined = true;
-      localStorage.setItem("playerId", msg.playerId);
+      try {
+        localStorage.setItem("playerId", msg.playerId);
+        if (msg.schluessel) localStorage.setItem("schluessel", msg.schluessel);
+      } catch { /* privates Fenster */ }
       render();
       neuigkeitenZeigen();
     }

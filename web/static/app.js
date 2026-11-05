@@ -23,6 +23,9 @@ const App = {
   role: null,
   state: null,
   myPlayerId: localStorage.getItem("playerId") || null,
+  // Geheimer Geräte-Schlüssel zur Spieler-ID (vom Server beim Beitritt). Die
+  // ID kennen alle Handys - ohne Schlüssel kann niemand damit beitreten.
+  mySchluessel: localStorage.getItem("schluessel") || null,
   myName: localStorage.getItem("playerName") || "",
   myCharacterId: localStorage.getItem("characterId") || null,
   joined: false,

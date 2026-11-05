@@ -89,9 +89,11 @@ def test_alte_leitung_stirbt_nach_neuverbinden_spieler_bleibt_online(fresh_game,
         alt, neu = Leitung(), Leitung()
         t_alt = asyncio.create_task(A.websocket_endpoint(alt))
         await alt.rein.put({"type": "join", "name": "Tessa", "neuerCharakter": "Tessa"})
-        pid = (await alt.bis("joined"))["playerId"]
+        beitritt = await alt.bis("joined")
+        pid = beitritt["playerId"]
         t_neu = asyncio.create_task(A.websocket_endpoint(neu))
         await neu.rein.put({"type": "join", "name": "Tessa", "playerId": pid, "auto": True,
+                            "schluessel": beitritt["schluessel"],
                             "characterId": fresh_game.roster[0]["id"]})
         await neu.bis("joined")
         await alt.rein.put(None)            # alte Leitung stirbt jetzt erst

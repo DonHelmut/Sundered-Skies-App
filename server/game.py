@@ -11,6 +11,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import re
+import secrets
 import json
 import os
 import time
@@ -312,6 +313,14 @@ def _bogen_sauber(roh: dict) -> dict:
 
 
 
+def _schluessel_uebernehmen(p: dict, jetzt: Optional[dict]) -> None:
+    """Der Geräte-Schlüssel eines JETZT verbundenen Handys gilt weiter, auch
+    wenn ein älterer Stand (Undo, Fortsetzen) einen anderen oder keinen hat -
+    sonst stünde das Handy beim nächsten Verbinden ohne seine Figur da."""
+    if jetzt and jetzt.get("schluessel"):
+        p["schluessel"] = jetzt["schluessel"]
+
+
 def _nachricht_an(target, player_id) -> bool:
     """Geht eine Nachricht mit diesem Ziel an diesen Spieler? Ziel ist "all",
     eine Spieler-ID oder eine Liste davon (Flüstern an mehrere)."""
@@ -513,6 +522,7 @@ class Game:
                 c.update(eigen_figur[c["id"]])
         for p in self.players:
             p["connected"] = bool(jetzt.get(p["id"], {}).get("connected"))
+            _schluessel_uebernehmen(p, jetzt.get(p["id"]))
         # Verbundene Geräte, die es im alten Stand noch nicht gab, bleiben
         # angemeldet (ohne Figur) - sie wählen ihren Charakter einfach neu.
         bekannt = {p["id"] for p in self.players}
@@ -718,6 +728,7 @@ class Game:
         self.players = data.get("players", [])
         for p in self.players:
             p["connected"] = p["id"] in jetzt
+            _schluessel_uebernehmen(p, jetzt.get(p["id"]))
         bekannt = {p["id"] for p in self.players}
         self.players += [p for pid, p in jetzt.items() if pid not in bekannt]
         self.requests = data.get("requests", [])
@@ -986,7 +997,9 @@ class Game:
             "allies": [] if fuer_spieler else self.allies,
             "encounters": [] if fuer_spieler else self.encounters,
             "protokolle": self.protokoll_liste(fuer_spieler),
-            "players": self.players,
+            # Ohne Geräte-Schlüssel: er beweist beim Wiederbeitreten, dass das
+            # Handy wirklich dieses Gerät ist (siehe schluessel_passt).
+            "players": [{k: v for k, v in p.items() if k != "schluessel"} for p in self.players],
             "groups": self.groups,
             "effektMeldungen": [] if fuer_spieler else self.effekt_meldungen,
             "slAnsicht": {} if fuer_spieler else self.sl_ansicht,
@@ -2862,6 +2875,43 @@ class Game:
                 if char:
                     self.add_combatant_from_character(char, player_id, player_name=name)
         return player
+
+    # --- Geräte-Schlüssel -------------------------------------------------------
+    # Die Spieler-ID allein reichte zum Wiederbeitreten - und jedes Handy kennt
+    # die IDs ALLER Spieler (stehen im Zustand an jeder Figur). Wer im Browser
+    # die eigene ID gegen die eines anderen tauschte, übernahm dessen Figur
+    # mitten im Spiel und bekam sein Geflüstertes und seine privaten Notizen
+    # (Prüfung 05.11.2026). Jetzt bekommt jedes Gerät beim Beitritt zusätzlich
+    # einen geheimen Schlüssel, der nie an andere Geräte geht.
+
+    def _gespeicherter_spieler(self, player_id: str) -> Optional[dict]:
+        """Spielereintrag aus der Sitzung, die noch auf „Fortsetzen" wartet."""
+        if not self.resume_available:
+            return None
+        gespeichert = _read_json(SESSION_FILE)
+        spieler = gespeichert.get("players") if isinstance(gespeichert, dict) else None
+        return next((p for p in spieler or [] if isinstance(p, dict) and p.get("id") == player_id), None)
+
+    def schluessel_passt(self, player_id: Optional[str], schluessel) -> bool:
+        """Darf ein Gerät mit dieser Spieler-ID weitermachen? Einträge ohne
+        Schlüssel (Handys von vor 2.0.2) passen zu jedem - sie bekommen beim
+        Beitritt einen und sind ab dann geschützt."""
+        if not player_id:
+            return True
+        p = next((x for x in self.players if x.get("id") == player_id), None) \
+            or self._gespeicherter_spieler(player_id)
+        erwartet = p.get("schluessel") if p else None
+        if not erwartet:
+            return True
+        return isinstance(schluessel, str) and secrets.compare_digest(erwartet, schluessel)
+
+    def schluessel_fuer(self, player: dict, mitgebracht=None) -> str:
+        """Schlüssel des Spielers (legt ihn an, falls er noch keinen hat). Bringt
+        das Handy einen gültigen mit (Beitritt vor „Fortsetzen"), bleibt der."""
+        if not player.get("schluessel"):
+            ok = isinstance(mitgebracht, str) and 16 <= len(mitgebracht) <= 100
+            player["schluessel"] = mitgebracht if ok else secrets.token_urlsafe(24)
+        return player["schluessel"]
 
     def hat_eigene_figur(self, player_id: Optional[str]) -> bool:
         """Steht schon eine Figur dieses Geraets im Kampf? Dann darf es auch ohne

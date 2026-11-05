@@ -95,7 +95,7 @@ function veraltetNeuLaden(serverVersion, eigene) {
 function maybeAutoRejoin() {
   if (App.role === "player" && App.myPlayerId && App.myName) {
     // auto: der Server nimmt das nur von Geräten an, die er kennt (sonst Beitrittsseite).
-    wsSend({ type: "join", name: App.myName, characterId: App.myCharacterId, playerId: App.myPlayerId, auto: true });
+    wsSend({ type: "join", name: App.myName, characterId: App.myCharacterId, playerId: App.myPlayerId, schluessel: App.mySchluessel, auto: true });
     App.joined = true;
   }
 }

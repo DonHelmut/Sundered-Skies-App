@@ -8,14 +8,17 @@ LAN-IP und sind damit automatisch Spieler – sie können nicht SL werden.
 from __future__ import annotations
 
 import asyncio
+import copy
 import io
 from contextlib import asynccontextmanager
 import json
 import os
+import re
 import threading
 import time
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import qrcode
 from fastapi import FastAPI, Request, UploadFile, WebSocket, WebSocketDisconnect
@@ -102,8 +105,13 @@ async def _auto_sicherung() -> None:
     await asyncio.sleep(SICHERUNG_ERSTE)
     while True:
         try:
+            # Kopie HIER im Event-Loop ziehen: export_data verweist auf die
+            # lebenden Listen. Der Nebenfaden packte sonst, während ein Handy
+            # gerade Notizen oder Bogen speichert - halbe Stände in der Zip
+            # oder „dictionary changed size during iteration" (Prüfung 05.11.).
+            daten = copy.deepcopy(game.export_data())
             pfad = await asyncio.get_event_loop().run_in_executor(
-                None, sicherung.auto_sichern, game.export_data(), UPLOAD_DIR, SICHERUNG_DIR)
+                None, sicherung.auto_sichern, daten, UPLOAD_DIR, SICHERUNG_DIR)
             if pfad:
                 diag.log(f"AUTO-SICHERUNG: {pfad.name}")
         except Exception as e:  # noqa: BLE001
@@ -196,10 +204,28 @@ async def qr_png(request: Request):
     return Response(content=buf.getvalue(), media_type="image/png")
 
 
+_LOKAL = ("127.0.0.1", "::1", "localhost")
+
+
 def _is_loopback(request_or_ws) -> bool:
     client = getattr(request_or_ws, "client", None)
     host = client.host if client else None
-    return host in ("127.0.0.1", "::1", "localhost")
+    if host not in _LOKAL:
+        return False
+    # Kommt die Anfrage zwar vom Laptop, aber aus einer FREMDEN Webseite (der
+    # Browser setzt dann Origin auf deren Adresse), ist das nicht der SL: jede
+    # Seite, die der SL nebenbei offen hat, hätte sonst per Formular oder
+    # WebSocket an localhost:8000 Sicherungen einspielen, Aufnahmen löschen
+    # oder den Kampf steuern können (Prüfung 05.11.2026). Eigene Seiten
+    # schicken localhost/127.0.0.1 oder gar keinen Origin.
+    origin = (getattr(request_or_ws, "headers", None) or {}).get("origin")
+    if origin:
+        try:
+            herkunft = urlsplit(origin).hostname
+        except ValueError:
+            return False
+        return herkunft in _LOKAL
+    return True
 
 
 def _player_name(pid):
@@ -676,10 +702,20 @@ async def aufnahme_loeschen(request: Request, name: str):
     return JSONResponse({"ok": ok})
 
 
+# So heißen hochgeladene Bilder (siehe /api/upload). Alles andere gibt es hier
+# nicht: vorher prüfte die Route nur auf „..". Unter Windows hängt pathlib aber
+# einen absoluten Namen nicht an, sondern ERSETZT den Pfad - jedes Handy im WLAN
+# konnte mit /uploads/C:%5CUsers%5C… beliebige Dateien des Laptops lesen
+# (Prüfung 05.11.2026).
+UPLOAD_NAME = re.compile(r"^[0-9A-Za-z_-]{1,80}\.(png|jpg|jpeg|gif|webp)$", re.IGNORECASE)
+
+
 @app.get("/uploads/{name}")
 async def serve_upload(name: str):
+    if not UPLOAD_NAME.match(name):
+        return Response(status_code=404)
     path = UPLOAD_DIR / name
-    if not path.is_file() or ".." in name:
+    if not path.is_file():
         return Response(status_code=404)
     return FileResponse(path)
 
@@ -767,6 +803,17 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         return
 
     if mtype == "join":
+        # Fremde Spieler-ID ohne den passenden Geräte-Schlüssel: nicht dieses
+        # Gerät (siehe Game.schluessel_passt). Still beitreten geht dann nicht,
+        # ein Beitritt per Tipp läuft wie bei einem neuen Gerät - mit dem
+        # Charakter wie gewohnt, solange der nicht gerade gespielt wird.
+        if not game.schluessel_passt(msg.get("playerId"), msg.get("schluessel")):
+            diag.log(f"SCHLUESSEL passt nicht: {str(msg.get('name') or '?')[:40]!r} "
+                     f"(ip={meta.get('ip', '?')}) - als neues Gerät behandelt")
+            if msg.get("auto"):
+                await ws.send_json({"type": "joinError", "grund": "unbekannt", "message": ""})
+                return
+            msg = {**msg, "playerId": None, "schluessel": None}
         # Stilles Wiederbeitreten (Handy verbindet sich neu, ohne dass jemand
         # etwas angetippt hat) nur für Geräte, die dieser Server kennt. Sonst
         # tauchten Browser mit gemerkter ID aus alten Installationen ungefragt
@@ -840,9 +887,10 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             })
             return
         meta["playerId"] = player["id"]
+        schluessel = game.schluessel_fuer(player, msg.get("schluessel"))
         diag.log(f"BEIGETRETEN  {player.get('name', '?')} (ip={meta.get('ip', '?')})")
         game.save_session()
-        await ws.send_json({"type": "joined", "playerId": player["id"]})
+        await ws.send_json({"type": "joined", "playerId": player["id"], "schluessel": schluessel})
         await hub.broadcast_state()
         return
 

@@ -241,7 +241,7 @@ function doJoin(characterId, neu) {
     if (char) localStorage.setItem("characterId", char.id); else localStorage.removeItem("characterId");
   } catch { /* privates Fenster */ }
   if (char || neuerCharakter) merkeLetztenCharakter(char ? char.id : null, char ? char.name : neuerCharakter);
-  wsSend({ type: "join", name, characterId: App.myCharacterId, neuerCharakter, playerId: App.myPlayerId });
+  wsSend({ type: "join", name, characterId: App.myCharacterId, neuerCharakter, playerId: App.myPlayerId, schluessel: App.mySchluessel });
   App.joined = true;
   E.modus = null; E.neuName = "";
 }
@@ -251,7 +251,8 @@ function doLeave() {
   // (sonst erscheint man beim Neu-Beitreten doppelt).
   if (App.myPlayerId) wsSend({ type: "leave", playerId: App.myPlayerId });
   localStorage.removeItem("playerId");
+  localStorage.removeItem("schluessel");
   localStorage.removeItem("characterId");
-  App.myPlayerId = null; App.myCharacterId = null; App.joined = false;
+  App.myPlayerId = null; App.mySchluessel = null; App.myCharacterId = null; App.joined = false;
   render();
 }
