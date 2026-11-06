@@ -94,7 +94,8 @@ gewählt **A + B**. Nicht gewählt: C (Kampf-Ordner, der automatisch gelesen wir
   Schlüssel (Kalle: „kampfpirat 3, Chefpirat 1, orks 2"): Stücke „Name Zahl"/
   „Zahl Name" je Komma/Zeile/„und"; greift nur, wenn irgendwo eine Zahl steht
   (sonst wäre KI-Geplauder ein Gegner); Name ohne KAMPF-Zeile = Aufzählung der
-  Gegner. Unbekannte Zeilen bei einem
+  Gegner. Verdeckt in Kurzform: „Chefpirat 1 verdeckt", „Chefpirat (verdeckt)"
+  oder Zeile „verdeckt: Chefpirat, Kapitän". Unbekannte Zeilen bei einem
   Gegner landen in seinen Spielwerten. Mehrere KAMPF-Zeilen = mehrere Kämpfe.
 - **Werte aus der Bibliothek**: gleichnamige Vorlage (Groß/klein egal) liefert
   Parade/Robustheit/Spielwerte/Bild/Glück; was der Text nennt, gewinnt und

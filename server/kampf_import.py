@@ -152,6 +152,9 @@ def _neue_gruppe(name: str, ally: bool) -> dict:
             "anon": False, "ally": ally, "talents": [], "spielwerte": []}
 
 
+_VERDECKT_RE = re.compile(r"\b(?:verdeckt|geheim|anonym|unbekannt)\b", re.I)
+
+
 def _kurzform(zeilen: list[str]) -> list[str]:
     """Ganz ohne GEGNER-Zeilen (Kalle 06.11.2026: „kampfpirat 3, Chefpirat 1,
     orks 2" in die .txt): jedes Stück zwischen Komma/Semikolon/Zeile/„und"
@@ -162,22 +165,34 @@ def _kurzform(zeilen: list[str]) -> list[str]:
         zeile = _zierrat_weg(roh)
         if not zeile or zeile.startswith("```"):
             continue
-        feld, _wert, roh_key = _schluessel(zeile)
+        feld, wert, roh_key = _schluessel(zeile)
+        if feld == "verdeckt" and _flach(wert) not in ("ja", "nein", "yes", "no", "true", "false", ""):
+            # „verdeckt: Chefpirat, Kapitän" - eine Liste verdeckter Gegner.
+            feld, roh_key, zeile = None, "", "verdeckt " + wert.replace(",", ", verdeckt ")
         if feld:
             gelesen.append((zeile, []))
         elif not roh_key and not zeile.endswith((":", "!", "?")):   # sonst KI-Geplauder
-            stuecke = [_name_und_anzahl(t.strip(" .")) for t in re.split(r"[,;]|\s+und\s+", zeile) if t.strip(" .")]
-            gelesen.append((None, [(n, a) for n, a in stuecke if len(n.split()) <= 4]))
+            stuecke = []
+            for t in re.split(r"[,;]|\s+und\s+", zeile):
+                # „Chefpirat 1 verdeckt" / „verdeckt: Chefpirat" - Spieler sehen
+                # den Namen erst, wenn der SL ihn aufdeckt.
+                t, treffer = _VERDECKT_RE.subn(" ", t)
+                t = re.sub(r"\s+", " ", t).strip(" .:()")
+                if t:
+                    name, anzahl = _name_und_anzahl(t)
+                    if len(name.split()) <= 4:
+                        stuecke.append((name, anzahl, bool(treffer)))
+            gelesen.append((None, stuecke))
     # Nur wenn irgendwo eine Anzahl steht - sonst wäre jeder Satz („Hallo,
     # ich bin Gemini") ein Gegner. Dann zählt auch „Chefpirat" ohne Zahl als einer.
-    if not any(a is not None for _, st in gelesen for _, a in st):
+    if not any(a is not None for _, st in gelesen for _, a, _v in st):
         return []
     raus = []
     for feldzeile, stuecke in gelesen:
         if feldzeile:
             raus.append(feldzeile)
-        for name, anzahl in stuecke:
-            raus += [f"GEGNER: {name}", f"ANZAHL: {anzahl or 1}"]
+        for name, anzahl, verdeckt in stuecke:
+            raus += [f"GEGNER: {name}", f"ANZAHL: {anzahl or 1}"] + (["VERDECKT: ja"] if verdeckt else [])
     return raus
 
 

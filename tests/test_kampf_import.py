@@ -106,6 +106,11 @@ def test_kurzform_nur_namen_und_zahlen():
         assert [(g["name"], g["anzahl"]) for g in k["gruppen"]] == [
             ("kampfpirat", 3), ("Chefpirat", 1), ("orks", 2)], text
         assert k["name"] == "kampfpirat ×3, Chefpirat, orks ×2"
+    for text in ("kampfpirat 3, Chefpirat 1 verdeckt, orks 2", "kampfpirat 3\nverdeckt: Chefpirat\norks 2",
+                 "kampfpirat 3, Chefpirat (verdeckt), 2 orks"):
+        (k,) = kampf_aus_text(text, T)["kaempfe"]
+        assert [(g["name"], g["anzahl"], g["anon"]) for g in k["gruppen"]] == [
+            ("kampfpirat", 3, False), ("Chefpirat", 1, True), ("orks", 2, False)], text
     (k,) = kampf_aus_text("KAMPF: Hafen\nkampfpirat 3, Chefpirat 1", T)["kaempfe"]
     assert k["name"] == "Hafen" and len(k["gruppen"]) == 2
 
