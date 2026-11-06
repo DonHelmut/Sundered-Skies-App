@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional
 
-from . import engine
+from . import engine, kampf_import
 from .paths import BASE_DIR
 
 # Standard: data/ neben der .exe. Über SWI_DATA_DIR umlegbar (z. B. für Tests).
@@ -155,6 +155,13 @@ TALENTS: dict[str, dict[str, str]] = {
     "maechtiger_hieb": {"label": "Mächtiger Hieb", "kind": "hint"},
     "volltreffer": {"label": "Volltreffer", "kind": "hint"},
     "energieschub": {"label": "Energieschub", "kind": "hint"},
+}
+
+# Aktionen, die nur Bibliotheken/vorbereitete Kämpfe ändern, nie den Tisch.
+# Sie beenden die „Fortsetzen?"-Möglichkeit nicht (siehe apply).
+BIBLIOTHEK_AKTIONEN = {
+    "bestiary_upsert", "bestiary_delete", "ally_upsert", "ally_delete",
+    "encounter_upsert", "encounter_copy", "delete_encounter", "encounter_import",
 }
 
 # Kampfzonen: fünf abstrakte Entfernungsstufen (innen -> außen). Index = Zone.
@@ -1087,10 +1094,16 @@ class Game:
 
         handler = getattr(self, f"_do_{t}", None)
         if handler:
-            # Erste Aktion = frische Sitzung begonnen -> keine Fortsetzen-Abfrage mehr.
-            self.resume_available = False
-            # Zustand vor der Änderung sichern (für Rückgängig).
-            self._push_history()
+            # Bibliothek pflegen, solange „Fortsetzen?" noch offen ist (z. B. am
+            # Spielabend erst den unterwegs geschriebenen Kampf einfügen): kein
+            # Spielzug - sonst galt das als erste Aktion, und der gespeicherte
+            # Kampf vom letzten Mal war weg. Auch kein Rückgängig-Schritt: der
+            # zeigte auf den leeren Stand VOR dem Fortsetzen.
+            if not (self.resume_available and t in BIBLIOTHEK_AKTIONEN):
+                # Erste Aktion = frische Sitzung begonnen -> keine Fortsetzen-Abfrage mehr.
+                self.resume_available = False
+                # Zustand vor der Änderung sichern (für Rückgängig).
+                self._push_history()
             handler(action)
             self._offline_aufdecken()
             if self._bennies_merken() or t == "benny_refresh":
@@ -1357,6 +1370,73 @@ class Game:
         else:
             self.encounters.append(eintrag)
         self.save_encounters()
+
+    def _gleichnamige_vorlage(self, g: dict) -> Optional[dict]:
+        liste = self.allies if g["ally"] else self.bestiary
+        name = g["name"].strip().lower()
+        return next((r for r in liste if str(r.get("name", "")).strip().lower() == name), None)
+
+    def kampf_import_vorschau(self, text: str) -> dict:
+        gelesen = kampf_import.kampf_aus_text(text, TALENTS)
+        # Die Vorschau sagt dazu, welche Gegner schon in der Bibliothek stehen
+        # (deren Werte kommen dann von dort, der Text braucht sie nicht).
+        for k in gelesen["kaempfe"]:
+            for g in k["gruppen"]:
+                g["inBibliothek"] = self._gleichnamige_vorlage(g) is not None
+        return gelesen
+
+    def _vorlage_fuer_import(self, g: dict, anlegen: bool) -> Optional[dict]:
+        """Bibliotheks-Vorlage zum Gegner aus dem Text. Gibt es eine
+        gleichnamige, gilt die (Kalle 06.11.2026: unterwegs nur „Wolkenpirat,
+        Anzahl 4" diktieren - Parade & Co. stehen in der Bibliothek oder kommen
+        später). Nennt der Text doch Werte, frischen sie die Vorlage auf; Leeres
+        löscht nichts. Ohne Vorlage auf Wunsch neu anlegen."""
+        alt = self._gleichnamige_vorlage(g)
+        if not anlegen:
+            return alt
+        neu = {**alt} if alt else {"name": g["name"], "id": _new_id("ally" if g["ally"] else "npc")}
+        for feld in ("parade", "robustheit", "panzer"):
+            if g[feld] is not None:
+                neu[feld] = g[feld]
+        if g["spielwerte"]:
+            neu["spielwerte"] = g["spielwerte"]
+        if g["talents"]:
+            neu["talents"] = g["talents"]
+        if g["isWildCard"]:
+            neu["isWildCard"] = True
+        (self._do_ally_upsert if g["ally"] else self._do_bestiary_upsert)(neu)
+        liste = self.allies if g["ally"] else self.bestiary
+        return next((r for r in liste if r.get("id") == neu["id"]), None)
+
+    def _do_encounter_import(self, a: dict) -> None:
+        """Kampf (oder mehrere) aus Text als vorbereitete Kämpfe anlegen.
+        Charaktere wie beim neuen Kampf im Baukasten: alle dabei, Nahbereich -
+        wer fehlt, wird im Spiel entfernt."""
+        gelesen = kampf_import.kampf_aus_text(a.get("text"), TALENTS)
+        for k in gelesen["kaempfe"]:
+            members = []
+            for g in k["gruppen"]:
+                v = self._vorlage_fuer_import(g, bool(a.get("bibliothek")))
+                # Werte: was der Text sagt, sonst die der Vorlage (wie beim
+                # Baukasten, wenn man einen Gegner aus der Bibliothek holt).
+                figur = {**g}
+                if v:
+                    figur.update({"vorlage": v["id"], "image": v.get("image"), "name": v.get("name") or g["name"],
+                                  "isWildCard": g["isWildCard"] or bool(v.get("isWildCard")),
+                                  "talents": g["talents"] or v.get("talents") or [],
+                                  "gluck": v.get("gluck", False), "grosses_gluck": v.get("grosses_gluck", False),
+                                  "spielwerte": g["spielwerte"] or v.get("spielwerte") or ""})
+                    for feld in ("parade", "robustheit", "panzer"):
+                        if figur[feld] is None:
+                            figur[feld] = v.get(feld)
+                for _ in range(g["anzahl"]):
+                    m = self._kampf_mitglied(figur)
+                    if m:
+                        members.append(m)
+            self._do_encounter_upsert({
+                "name": k["name"], "note": k["note"], "members": members,
+                "charaktere": [{"characterId": r["id"], "zone": DEFAULT_ZONE_PLAYER} for r in self.roster],
+            })
 
     def _do_encounter_copy(self, a: dict) -> None:
         enc = next((e for e in self.encounters if e.get("id") == a.get("id")), None)

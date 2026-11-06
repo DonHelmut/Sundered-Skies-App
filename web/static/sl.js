@@ -1720,8 +1720,10 @@ function encounterInhalt() {
     <div class="muted small hilfe">Kämpfe vorab zusammenstellen (Charaktere mit Startzone, Gegner und Verbündete aus der Bibliothek) und im Spiel mit EINEM Klick starten. Fehlt ein Spieler, einfach per Rechtsklick entfernen.</div>
     <div class="row" style="margin:6px 0; gap:6px">
       <button class="primary" data-act="kb-neu">➕ Kampf vorbereiten</button>
+      <button class="ghost" data-act="kampf-import" title="Kampf, den du unterwegs mit Gemini, ChatGPT & Co. geschrieben hast, einfügen">📋 Aus Text einfügen</button>
       <button class="ghost small" data-act="encounter-save" ${imKampf ? "" : "disabled"} title="${imKampf ? "Den laufenden Kampf (Figuren und Zonen) als vorbereiteten Kampf speichern" : "Gerade steht niemand im Kampf"}">💾 Laufenden Kampf merken</button>
     </div>
+    <div class="kampf-ablage muted small" title="Textdatei mit einem Kampf (z. B. von Gemini) hier ablegen">📄 Textdatei hierher ziehen – oder <button type="button" class="linkknopf" data-act="kampf-import-datei">Datei wählen …</button></div>
     <div style="margin-top:8px">${items}</div>`;
 }
 
@@ -1773,7 +1775,11 @@ function kampfBaukastenHtml() {
       ${(s.bestiary || []).length ? `<optgroup label="Gegner">${opt(s.bestiary, "b")}</optgroup>` : ""}
       ${(s.allies || []).length ? `<optgroup label="Verbündete">${opt(s.allies, "a")}</optgroup>` : ""}
     </select>`;
+  // Wer den Kampf schon unterwegs (KI) geschrieben hat, soll ihn nicht
+  // abtippen: beim neuen Kampf direkt der Weg zum Einfügen.
+  const importTipp = E.id ? "" : `<div class="muted small kb-import-tipp">Schon fertig in Gemini &amp; Co.? <button type="button" class="linkknopf" data-act="kampf-import">📋 Aus Text einfügen</button></div>`;
   return `<div class="kampf-bau">
+    ${importTipp}
     <label class="field"><span>Name des Kampfes</span>
       <input id="kb-name" value="${esc(E.name)}" placeholder="z. B. Skree-Überfall" maxlength="60" autocomplete="off"></label>
     <div class="kb-abschnitt">👥 Charaktere <span class="muted small">– Startzone</span></div>
@@ -1803,6 +1809,168 @@ function kampfSpeichern() {
   App.kampfEntwurf = null;
   render();
 }
+
+// --- Kampf aus Text (Gemini, ChatGPT …) ------------------------------------
+// Der SL schreibt den Kampf unterwegs mit einer KI (fertige Anleitung per
+// „✨ Anleitung"), schickt sich den Text und fügt ihn am Spielabend ein oder
+// zieht die .txt aufs Panel. Gelesen wird auf dem Server (kampf_import.py) -
+// die Vorschau zeigt beim Tippen, was erkannt wurde, bevor etwas gespeichert ist.
+const KAMPF_TEXT_MAX = 60000;
+
+async function kampfImportVorschau(text) {
+  try {
+    const r = await fetch("/api/kampf-import/vorschau", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
+function kampfImportVorschauHtml(v) {
+  if (!v) return `<div class="muted small">Vorschau gerade nicht möglich – Verbindung zum Laptop?</div>`;
+  const zonen = (App.state && App.state.zones) || [];
+  const kaempfe = (v.kaempfe || []).map((k) => {
+    const zeilen = k.gruppen.map((g) => {
+      const z = zonen[g.zone] || {};
+      // Ohne Werte im Text (diktiert: nur Name + Anzahl) sagen, woher sie
+      // kommen: aus der gleichnamigen Vorlage - oder eben später.
+      const eigene = g.parade != null || g.robustheit != null || g.spielwerte;
+      const teile = [`${z.emoji || ""} ${z.label || ""}`.trim(),
+        g.isWildCard ? "Wild Card" : "",
+        g.parade != null ? `P ${g.parade}` : "", g.robustheit != null ? `R ${g.robustheit}${g.panzer ? ` (${g.panzer})` : ""}` : "",
+        g.anon ? "verdeckt" : "",
+        ...(g.talents || []).map((t) => ((App.state.talents || {})[t] || {}).label || t),
+        g.spielwerte ? "📋 Werte" : "",
+        g.inBibliothek && !eigene ? "📚 Werte aus der Bibliothek" : "",
+        !g.inBibliothek && !eigene ? "Werte später" : ""].filter(Boolean);
+      return `<div class="ki-gruppe"><span class="kb-name${g.ally ? " verbuendet" : " feind"}">${g.ally ? "🤝 " : ""}${esc(g.name)}${g.anzahl > 1 ? ` <b>×${g.anzahl}</b>` : ""}</span>
+        <span class="muted small">${esc(teile.join(" · "))}</span></div>`;
+    }).join("");
+    return `<div class="kb-abschnitt">✅ ${esc(k.name)}</div>${zeilen}${k.note ? `<div class="muted small">📝 ${esc(k.note)}</div>` : ""}`;
+  }).join("");
+  const warn = (v.warnungen || []).map((w) => `<div class="small ki-warnung">⚠ ${esc(w)}</div>`).join("");
+  return (kaempfe || `<div class="muted small">Noch nichts erkannt – jeder Gegner beginnt mit „GEGNER: Name".</div>`) + warn;
+}
+
+async function kiAnleitungHolen() {
+  try { const r = await fetch("/api/kampf-import/anleitung"); return r.ok ? (await r.json()).text : null; } catch { return null; }
+}
+
+async function kiAnleitungKopieren() {
+  const text = await kiAnleitungHolen();
+  if (!text) { toast("Anleitung gerade nicht abrufbar"); return; }
+  try { await navigator.clipboard.writeText(text); toast("✨ Anleitung kopiert – in Gemini einfügen, dann den Kampf beschreiben"); }
+  catch { kiAnleitungSpeichern(text); }
+}
+
+// Als Datei: zum Weiterschicken aufs Handy (unterwegs ist kein Laptop da).
+async function kiAnleitungSpeichern(text) {
+  text = text || await kiAnleitungHolen();
+  if (!text) { toast("Anleitung gerade nicht abrufbar"); return; }
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = "kampf-anleitung-fuer-ki.txt";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast("Anleitung gespeichert (Downloads)");
+}
+
+async function kampfDateiLesen(datei) {
+  if (!datei) return null;
+  if (datei.size > KAMPF_TEXT_MAX * 4) { hinweis("Die Datei ist zu groß für einen Kampf – ist es die richtige?"); return null; }
+  try { return await datei.text(); } catch { hinweis("Die Datei ließ sich nicht lesen."); return null; }
+}
+
+function kampfDateiWaehlen() {
+  return new Promise((fertig) => {
+    const f = document.createElement("input");
+    f.type = "file"; f.accept = ".txt,.md,text/plain";
+    f.addEventListener("change", async () => fertig(await kampfDateiLesen(f.files && f.files[0])));
+    f.click();
+  });
+}
+
+async function kampfImportDialog(vorgabe = "") {
+  const ergebnis = dialog({
+    text: "📋 Kampf aus Text einfügen",
+    inhalt: `<div class="muted small ki-hilfe">Text aus Gemini, ChatGPT, Mail oder Notiz hineinkopieren.
+        Noch keinen? <button type="button" class="linkknopf" data-ki="kopieren">✨ Anleitung für die KI kopieren</button>
+        (oder <button type="button" class="linkknopf" data-ki="speichern">als Datei</button> fürs Handy), in der KI einfügen, Kampf beschreiben.
+        Ganz kurz geht auch: <i>kampfpirat 3, Chefpirat 1 verdeckt, orks 2</i></div>
+      <textarea class="ki-text" maxlength="${KAMPF_TEXT_MAX}" spellcheck="false" placeholder="KAMPF: Überfall der Wolkenpiraten&#10;GEGNER: Wolkenpirat&#10;ANZAHL: 4&#10;ZONE: Nahbereich"></textarea>
+      <div class="row" style="justify-content:space-between; gap:6px; margin:4px 0 2px">
+        <button type="button" class="ghost small" data-ki="datei">📄 Datei wählen …</button>
+        <label class="small ki-bib" title="Neue Gegner als Vorlage anlegen - Parade &amp; Co. trägst du dort später einmal ein"><input type="checkbox" class="ki-bibliothek" checked> Neue Gegner in die Bibliothek</label>
+      </div>
+      <div class="ki-vorschau"></div>`,
+    knoepfe: [{ text: "Abbrechen", wert: null, abbruch: true }, { text: "💾 Als Kampf speichern", art: "primary" }],
+    lesen: (box) => ({ text: box.querySelector(".ki-text").value, bibliothek: box.querySelector(".ki-bibliothek").checked }),
+  });
+  const box = [...document.querySelectorAll(".app-dialog-hg")].pop();
+  if (box) {
+    box.querySelector(".app-dialog").classList.add("ki-dialog");
+    const feld = box.querySelector(".ki-text");
+    const vorschau = box.querySelector(".ki-vorschau");
+    let warte = null, nr = 0;
+    const neu = () => {
+      clearTimeout(warte);
+      warte = setTimeout(async () => {
+        const meins = ++nr;
+        if (!feld.value.trim()) { vorschau.innerHTML = ""; return; }
+        const v = await kampfImportVorschau(feld.value);
+        if (meins !== nr) return;           // schon weitergetippt
+        vorschau.innerHTML = kampfImportVorschauHtml(v);
+      }, 250);
+    };
+    feld.addEventListener("input", neu);
+    box.addEventListener("click", async (e) => {
+      const k = e.target.closest("[data-ki]");
+      if (!k) return;
+      e.preventDefault();
+      if (k.dataset.ki === "kopieren") kiAnleitungKopieren();
+      else if (k.dataset.ki === "speichern") kiAnleitungSpeichern();
+      else if (k.dataset.ki === "datei") {
+        const text = await kampfDateiWaehlen();
+        if (text != null) { feld.value = text.slice(0, KAMPF_TEXT_MAX); neu(); }
+      }
+    });
+    if (vorgabe) { feld.value = vorgabe.slice(0, KAMPF_TEXT_MAX); neu(); }
+    feld.focus();
+  }
+  const wahl = await ergebnis;
+  if (!wahl) return;
+  const v = await kampfImportVorschau(wahl.text);
+  const n = v ? (v.kaempfe || []).length : 0;
+  if (!n) {
+    await hinweis(v ? "Darin steht noch kein Gegner – jeder beginnt mit „GEGNER: Name\"." : "Der Laptop antwortet gerade nicht – bitte gleich nochmal.");
+    return kampfImportDialog(wahl.text);   // Text nicht verlieren
+  }
+  gmAction({ type: "encounter_import", text: wahl.text, bibliothek: wahl.bibliothek });
+  toast(n > 1 ? `⚔ ${n} Kämpfe gespeichert` : `⚔ „${v.kaempfe[0].name}" gespeichert`);
+  App.kampfEntwurf = null;
+  try { localStorage.setItem("bibReiter", "encounters"); } catch { /* egal */ }
+  render();
+}
+
+// Textdatei aufs Kämpfe-Panel ziehen. Nur über der Ablage abfangen - sonst
+// öffnete der Browser die Datei und die App wäre weg.
+document.addEventListener("dragover", (e) => {
+  const ziel = e.target.closest && e.target.closest(".kampf-ablage");
+  if (!ziel) return;
+  e.preventDefault();
+  ziel.classList.add("drueber");
+});
+document.addEventListener("dragleave", (e) => {
+  const ziel = e.target.closest && e.target.closest(".kampf-ablage");
+  if (ziel) ziel.classList.remove("drueber");
+});
+document.addEventListener("drop", async (e) => {
+  const ziel = e.target.closest && e.target.closest(".kampf-ablage");
+  if (!ziel) return;
+  e.preventDefault();
+  ziel.classList.remove("drueber");
+  const text = await kampfDateiLesen(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
+  if (text != null) kampfImportDialog(text);
+});
 
 function renderAllyForm(existing) {
   const c = existing || { id: "", name: "", isWildCard: false, talents: [], image: null };

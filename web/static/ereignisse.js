@@ -111,6 +111,8 @@ document.addEventListener("click", (e) => {
       if (name && name.trim()) gmAction({ type: "save_encounter", name: name.trim() });
     },
     "encounter-to-combat": () => gmAction({ type: "add_encounter", id }),
+    "kampf-import": () => kampfImportDialog(),
+    "kampf-import-datei": async () => { const t = await kampfDateiWaehlen(); if (t != null) kampfImportDialog(t); },
     "encounter-copy": () => { gmAction({ type: "encounter_copy", id }); toast("Kopie angelegt"); },
     "sicherungen-zeigen": () => sicherungenZeigen(),
     "sicherung-zurueck": () => sicherungZurueck(id),

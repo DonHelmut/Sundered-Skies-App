@@ -77,6 +77,43 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (06.11.2026): Kampf aus Text (Gemini & Co.) einfügen
+
+Kalle: der SL will Kämpfe unterwegs (auch aus dem Auto diktiert) mit Gemini
+erstellen und erst am Spielabend in die App holen. Varianten mit Bildern
+(`screenshots/kampf-import/`): A Einfügen, B Textdatei, C OneDrive-Ordner -
+gewählt **A + B**. Nicht gewählt: C (Kampf-Ordner, der automatisch gelesen wird).
+
+- **Format** (`server/kampf_import.py`): `KAMPF:`, `GEGNER:` (oder
+  `VERBÜNDETER:`), `ANZAHL:`, optional `ZONE:`. Mehr braucht es nicht (Kalle:
+  „nur Wolkenpirat, Anzahl 4 – Parade & Co. entscheidet man später").
+  Optional verstanden: NOTIZ, WILDCARD, PARADE, ROBUSTHEIT „8 (2)", PANZER,
+  VERDECKT, TALENTE, WERTE. Gnädig gelesen: Groß/klein, Markdown/Sternchen,
+  KI-Geplauder davor, ohne Doppelpunkt („Gegner Wolkenpirat"), mehrere Felder
+  in einer Zeile (`;`/`,`), „Wolkenpirat ×4". **Kurzform** ganz ohne
+  Schlüssel (Kalle: „kampfpirat 3, Chefpirat 1, orks 2"): Stücke „Name Zahl"/
+  „Zahl Name" je Komma/Zeile/„und"; greift nur, wenn irgendwo eine Zahl steht
+  (sonst wäre KI-Geplauder ein Gegner); Name ohne KAMPF-Zeile = Aufzählung der
+  Gegner. Verdeckt in Kurzform: „Chefpirat 1 verdeckt", „Chefpirat (verdeckt)"
+  oder Zeile „verdeckt: Chefpirat, Kapitän". Unbekannte Zeilen bei einem
+  Gegner landen in seinen Spielwerten. Mehrere KAMPF-Zeilen = mehrere Kämpfe.
+- **Werte aus der Bibliothek**: gleichnamige Vorlage (Groß/klein egal) liefert
+  Parade/Robustheit/Spielwerte/Bild/Glück; was der Text nennt, gewinnt und
+  frischt die Vorlage auf (Leeres löscht nie). Häkchen „Neue Gegner in die
+  Bibliothek" legt Unbekannte als leere Vorlage an. Charaktere: alle,
+  Nahbereich (wie neuer Kampf im Baukasten).
+- **Oberfläche** (`sl.js`): Bibliothek → Kämpfe „📋 Aus Text einfügen" +
+  Ablage „📄 Textdatei hierher ziehen / Datei wählen"; im leeren Baukasten ein
+  Hinweis. Dialog mit Live-Vorschau (Server `POST /api/kampf-import/vorschau`,
+  nur SL), „✨ Anleitung für die KI kopieren" bzw. als .txt fürs Handy
+  (`GET /api/kampf-import/anleitung`).
+- **Bug gefunden & behoben**: Bibliothek pflegen (Gegner/Verbündete/Kämpfe
+  anlegen, ändern, löschen) zählte als „erste Aktion" und warf das
+  „Fortsetzen?" weg - wer am Abend erst den Kampf einfügt, hätte den
+  gespeicherten Kampf verloren. Jetzt `BIBLIOTHEK_AKTIONEN` in `game.py`:
+  solange die Frage offen ist, kein Ende der Frage und kein Rückgängig-Schritt.
+- Tests: `tests/test_kampf_import.py`, Browser `test_kampf_aus_text_einfuegen_und_datei`.
+
 ## Unveröffentlicht (05.11.2026): Prüfung des bisher Ungeprüften – 4 Lücken zu
 
 Kalle: „Überprüfe das, was du noch nicht überprüft hast. Stelle alles in

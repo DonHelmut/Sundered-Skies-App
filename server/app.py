@@ -25,11 +25,12 @@ from fastapi import FastAPI, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .game import Game, UPLOAD_DIR, DATA_DIR
+from .game import Game, UPLOAD_DIR, DATA_DIR, TALENTS
 from .paths import RESOURCE_DIR, HOSTNAME, APP_VERSION, local_ip, all_lan_ips, active_port
 from . import diag
 from . import winnet
 from . import sicherung
+from . import kampf_import
 from .aufnahme import Aufnahmen, MAX_TRANSKRIPT
 from .sprache import Sprache
 from .namen import namen_aus_spiel
@@ -383,6 +384,28 @@ async def import_backup(request: Request, file: UploadFile):
     if bericht.get("ok"):
         await hub.broadcast_state()
     return JSONResponse(bericht)
+
+
+@app.post("/api/kampf-import/vorschau")
+async def kampf_import_vorschau(request: Request):
+    """Was steht im eingefügten Kampf-Text? (nur SL, nur lesen) - der Dialog
+    zeigt es beim Tippen an, gespeichert wird erst per encounter_import."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        daten = await request.json()
+    except ValueError:
+        return JSONResponse({"error": "bad_json"}, status_code=400)
+    text = daten.get("text") if isinstance(daten, dict) else ""
+    return JSONResponse(game.kampf_import_vorschau(str(text or "")))
+
+
+@app.get("/api/kampf-import/anleitung")
+async def kampf_import_anleitung(request: Request):
+    """Die Anleitung für die KI (Gemini & Co.) - Talente aus der App."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    return JSONResponse({"text": kampf_import.anleitung(TALENTS)})
 
 
 @app.get("/api/sicherungen")
