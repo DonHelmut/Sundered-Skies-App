@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (06.11.2026): Kampf aus Text (Gemini & Co.) einfügen
+## 2.0.2 (06.11.2026): Kampf aus Text (Gemini & Co.) einfügen
 
 Kalle: der SL will Kämpfe unterwegs (auch aus dem Auto diktiert) mit Gemini
 erstellen und erst am Spielabend in die App holen. Varianten mit Bildern
@@ -114,7 +114,7 @@ gewählt **A + B**. Nicht gewählt: C (Kampf-Ordner, der automatisch gelesen wir
   solange die Frage offen ist, kein Ende der Frage und kein Rückgängig-Schritt.
 - Tests: `tests/test_kampf_import.py`, Browser `test_kampf_aus_text_einfuegen_und_datei`.
 
-## Unveröffentlicht (05.11.2026): Prüfung des bisher Ungeprüften – 4 Lücken zu
+## 2.0.2 (05.11.2026): Prüfung des bisher Ungeprüften – 4 Lücken zu
 
 Kalle: „Überprüfe das, was du noch nicht überprüft hast. Stelle alles in
 Frage." Angesehen: Updater, Auto-Sicherung/Zurückholen, Aufnahme-/Modell-
@@ -151,7 +151,7 @@ geändert; Austausch mit Rücktausch), Modell-Download (Teil-Datei, Tar mit
 (Muster), Grenzen für Nachrichten/Notizen/Undo/Log, .spec (alle Skripte über
 `web`, `_lab*` gefiltert).
 
-## Unveröffentlicht (04.11.2026): CI ruhiger – keine roten Wackel-Läufe, keine Doppel-Mails
+## 2.0.2 (04.11.2026): CI ruhiger – keine roten Wackel-Läufe, keine Doppel-Mails
 
 Nach 2.0.1 kamen viele „Run failed: Tests"-Mails. Ursachen:
 - `test_handy_ist_ruhig_wenn_nichts_passiert` (tests/browser/test_design.py)
