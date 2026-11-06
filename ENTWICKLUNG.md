@@ -90,7 +90,11 @@ gewählt **A + B**. Nicht gewählt: C (Kampf-Ordner, der automatisch gelesen wir
   Optional verstanden: NOTIZ, WILDCARD, PARADE, ROBUSTHEIT „8 (2)", PANZER,
   VERDECKT, TALENTE, WERTE. Gnädig gelesen: Groß/klein, Markdown/Sternchen,
   KI-Geplauder davor, ohne Doppelpunkt („Gegner Wolkenpirat"), mehrere Felder
-  in einer Zeile (`;`/`,`), „Wolkenpirat ×4". Unbekannte Zeilen bei einem
+  in einer Zeile (`;`/`,`), „Wolkenpirat ×4". **Kurzform** ganz ohne
+  Schlüssel (Kalle: „kampfpirat 3, Chefpirat 1, orks 2"): Stücke „Name Zahl"/
+  „Zahl Name" je Komma/Zeile/„und"; greift nur, wenn irgendwo eine Zahl steht
+  (sonst wäre KI-Geplauder ein Gegner); Name ohne KAMPF-Zeile = Aufzählung der
+  Gegner. Unbekannte Zeilen bei einem
   Gegner landen in seinen Spielwerten. Mehrere KAMPF-Zeilen = mehrere Kämpfe.
 - **Werte aus der Bibliothek**: gleichnamige Vorlage (Groß/klein egal) liefert
   Parade/Robustheit/Spielwerte/Bild/Glück; was der Text nennt, gewinnt und

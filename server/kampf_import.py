@@ -135,6 +135,8 @@ def _name_und_anzahl(wert: str) -> tuple[str, Optional[int]]:
         (r"^(.+?)\s*[x×*]\s*(\d+)$", 1, 2),
         (r"^(.+?)\s*\((\d+)\)$", 1, 2),
         (r"^(.+?)\s+(?:anzahl|menge)\s*:?\s*(\d+)$", 1, 2),   # diktiert, ohne Komma
+        (r"^(.+?)\s+(\d+)$", 1, 2),                  # Kurzform „orks 2"
+        (r"^(\d+)\s+(.+)$", 2, 1),                   # „2 Orks"
     ):
         m = re.match(muster, w, re.I)
         if m:
@@ -148,6 +150,35 @@ def _neue_gruppe(name: str, ally: bool) -> dict:
             "anzahl": anzahl or 1, "isWildCard": False, "parade": None,
             "robustheit": None, "panzer": None, "zone": ZONE_STANDARD,
             "anon": False, "ally": ally, "talents": [], "spielwerte": []}
+
+
+def _kurzform(zeilen: list[str]) -> list[str]:
+    """Ganz ohne GEGNER-Zeilen (Kalle 06.11.2026: „kampfpirat 3, Chefpirat 1,
+    orks 2" in die .txt): jedes Stück zwischen Komma/Semikolon/Zeile/„und"
+    ist ein Gegner mit Anzahl. Wird in die Langform übersetzt, damit danach
+    alles gleich gelesen wird. KAMPF:/NOTIZ:/ZONE: dürfen trotzdem dabei sein."""
+    gelesen = []      # (Feld-Zeile oder None, Stücke)
+    for roh in zeilen:
+        zeile = _zierrat_weg(roh)
+        if not zeile or zeile.startswith("```"):
+            continue
+        feld, _wert, roh_key = _schluessel(zeile)
+        if feld:
+            gelesen.append((zeile, []))
+        elif not roh_key and not zeile.endswith((":", "!", "?")):   # sonst KI-Geplauder
+            stuecke = [_name_und_anzahl(t.strip(" .")) for t in re.split(r"[,;]|\s+und\s+", zeile) if t.strip(" .")]
+            gelesen.append((None, [(n, a) for n, a in stuecke if len(n.split()) <= 4]))
+    # Nur wenn irgendwo eine Anzahl steht - sonst wäre jeder Satz („Hallo,
+    # ich bin Gemini") ein Gegner. Dann zählt auch „Chefpirat" ohne Zahl als einer.
+    if not any(a is not None for _, st in gelesen for _, a in st):
+        return []
+    raus = []
+    for feldzeile, stuecke in gelesen:
+        if feldzeile:
+            raus.append(feldzeile)
+        for name, anzahl in stuecke:
+            raus += [f"GEGNER: {name}", f"ANZAHL: {anzahl or 1}"]
+    return raus
 
 
 def kampf_aus_text(text: str, talente: dict) -> dict:
@@ -168,6 +199,8 @@ def kampf_aus_text(text: str, talente: dict) -> dict:
         return kampf
 
     zeilen = str(text or "")[:TEXT_MAX].replace("\r\n", "\n").split("\n")
+    if not any(_schluessel(_zierrat_weg(z))[0] in ("gegner", "verbuendeter") for z in zeilen):
+        zeilen = _kurzform(zeilen) or zeilen
     for nr, roh in enumerate(zeilen, 1):
         if roh.strip().startswith("```"):
             continue
@@ -259,7 +292,10 @@ def kampf_aus_text(text: str, talente: dict) -> dict:
         for g in k["gruppen"]:
             g["spielwerte"] = "\n".join(g["spielwerte"]).strip()[:3000]
         if not k["name"]:
-            k["name"] = (k["gruppen"][0]["name"] if k["gruppen"] else "Kampf")[:60]
+            # Ohne KAMPF-Zeile: die Gegner selbst sind der Name („Kampfpirat ×3,
+            # Chefpirat, Orks ×2") - so findet man ihn in der Liste wieder.
+            k["name"] = (", ".join(f"{g['name']} ×{g['anzahl']}" if g["anzahl"] > 1 else g["name"]
+                                   for g in k["gruppen"]) or "Kampf")[:60]
     leer = [k for k in kaempfe if not k["gruppen"]]
     if leer:
         warnungen.append("Kein Gegner gefunden – jeder Gegner beginnt mit „GEGNER: Name\".")

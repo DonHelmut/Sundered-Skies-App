@@ -97,6 +97,19 @@ def test_diktiert_nur_name_und_anzahl():
         assert r["warnungen"] == []
 
 
+def test_kurzform_nur_namen_und_zahlen():
+    """Kalle: „kampfpirat 3, Chefpirat 1, orks 2" in die .txt - das reicht."""
+    for text in ("kampfpirat 3, Chefpirat 1, orks 2",
+                 "kampfpirat 3\nChefpirat\n2 orks",
+                 "Hier ist dein Kampf:\n- **kampfpirat x3**\n- Chefpirat 1 und orks 2"):
+        (k,) = kampf_aus_text(text, T)["kaempfe"]
+        assert [(g["name"], g["anzahl"]) for g in k["gruppen"]] == [
+            ("kampfpirat", 3), ("Chefpirat", 1), ("orks", 2)], text
+        assert k["name"] == "kampfpirat ×3, Chefpirat, orks ×2"
+    (k,) = kampf_aus_text("KAMPF: Hafen\nkampfpirat 3, Chefpirat 1", T)["kaempfe"]
+    assert k["name"] == "Hafen" and len(k["gruppen"]) == 2
+
+
 def test_werte_kommen_aus_der_bibliothek(fresh_game):
     g = fresh_game
     g.apply({"type": "bestiary_upsert", "name": "Wolkenpirat", "parade": 5, "robustheit": 6,

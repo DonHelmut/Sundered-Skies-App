@@ -1894,7 +1894,8 @@ async function kampfImportDialog(vorgabe = "") {
     text: "📋 Kampf aus Text einfügen",
     inhalt: `<div class="muted small ki-hilfe">Text aus Gemini, ChatGPT, Mail oder Notiz hineinkopieren.
         Noch keinen? <button type="button" class="linkknopf" data-ki="kopieren">✨ Anleitung für die KI kopieren</button>
-        (oder <button type="button" class="linkknopf" data-ki="speichern">als Datei</button> fürs Handy), in der KI einfügen, Kampf beschreiben.</div>
+        (oder <button type="button" class="linkknopf" data-ki="speichern">als Datei</button> fürs Handy), in der KI einfügen, Kampf beschreiben.
+        Ganz kurz geht auch: <i>kampfpirat 3, Chefpirat 1, orks 2</i></div>
       <textarea class="ki-text" maxlength="${KAMPF_TEXT_MAX}" spellcheck="false" placeholder="KAMPF: Überfall der Wolkenpiraten&#10;GEGNER: Wolkenpirat&#10;ANZAHL: 4&#10;ZONE: Nahbereich"></textarea>
       <div class="row" style="justify-content:space-between; gap:6px; margin:4px 0 2px">
         <button type="button" class="ghost small" data-ki="datei">📄 Datei wählen …</button>
