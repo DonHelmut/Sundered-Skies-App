@@ -349,6 +349,36 @@ def test_kampf_vorbereiten_und_starten(tisch):
     assert "Boss kommt später" not in json.dumps(tisch.seiten[1].state())
 
 
+def test_kampf_aus_text_einfuegen_und_datei(tisch):
+    """Kampf unterwegs mit der KI geschrieben: einfügen, Vorschau, speichern,
+    starten - und als .txt aufs Panel ziehen."""
+    sl = tisch.sl()
+    tisch.gm({"type": "roster_upsert", "name": "Tessa"})
+    _knopf(sl, "kaempfe-zeigen")
+    sl.warte_bis("() => !!document.querySelector('.kb-import-tipp [data-act=kampf-import]')")
+    sl.page.locator(".kb-import-tipp [data-act=kampf-import]").click()
+    sl.page.locator(".ki-text").fill("Hier dein Kampf:\n**KAMPF:** Hai-Angriff\n"
+                                     "**GEGNER:** Himmelshai x2\nParade 6; Robustheit 9 (2)\nVERDECKT: ja")
+    sl.warte_bis("() => document.querySelectorAll('.ki-gruppe').length === 1")
+    assert "×2" in sl.page.locator(".ki-gruppe").inner_text()
+    sl.page.locator(".ki-dialog .app-dialog-knoepfe button.primary").click()
+    sl.warte_bis("() => App.state.encounters.length === 1 && App.state.bestiary.length === 1")
+    enc = sl.state()["encounters"][0]
+    assert enc["name"] == "Hai-Angriff" and len(enc["members"]) == 2 and enc["members"][0]["anon"]
+    sl.warte_bis("() => !!document.querySelector('.kampf-ablage')")
+    sl.js("""(t) => { const dt = new DataTransfer();
+        dt.items.add(new File([t], 'kampf.txt', {type: 'text/plain'}));
+        document.querySelector('.kampf-ablage').dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: dt})); }""",
+          "KAMPF: Golems\nGEGNER: Golem\nWILDCARD: ja")
+    sl.warte_bis("() => document.querySelectorAll('.ki-gruppe').length === 1")
+    sl.page.locator(".ki-dialog .app-dialog-knoepfe button.primary").click()
+    sl.warte_bis("() => App.state.encounters.length === 2")
+    sl.page.locator(f"[data-act=encounter-start][data-id='{enc['id']}']").first.evaluate("e => e.click()")
+    if sl.page.locator(".app-dialog-hg").count():
+        sl.page.locator(".app-dialog-hg button.primary").last.click()
+    sl.warte_bis("() => App.state.combatants.filter(c => c.kind === 'npc' && c.robustheit === 9).length === 2")
+
+
 # --- Verlassen, Neuladen, Neustart ----------------------------------------------
 
 def test_verlassen_und_wieder_beitreten(tisch):
