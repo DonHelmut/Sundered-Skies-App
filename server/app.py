@@ -574,6 +574,23 @@ async def aufnahme_stop(request: Request):
     return JSONResponse({**aufnahmen.status(), "sprache": sprache.status()})
 
 
+@app.post("/api/aufnahme/pause")
+async def aufnahme_pause(request: Request):
+    """⏸/▶: {"an": true|false}. Die Aufnahme bleibt dieselbe (eine Datei, eine
+    Mitschrift); „genau" startet erst nach ■ Beenden."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    an = bool((body if isinstance(body, dict) else {}).get("an"))
+    ok = aufnahmen.pause(an)
+    if ok:
+        diag.log(f"AUFNAHME {'pausiert' if an else 'fortgesetzt'}")
+    return JSONResponse({"ok": ok, **aufnahmen.status()})
+
+
 @app.post("/api/aufnahme/marke")
 async def aufnahme_marke(request: Request):
     if not _is_loopback(request):

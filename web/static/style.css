@@ -2583,6 +2583,15 @@ body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px))
 .aufn-kopf .aufn-punkt { width: 8px; height: 8px; }
 .aufn-kopf.still .aufn-punkt { background: var(--muted); animation: none; }
 .aufn-kopf .aufn-stille { font-size: 0.8rem; }
+/* ⏸ Pause: Punkt wird ein ruhiges Quadrat in Warnfarbe, Pille leicht getönt.
+   Nach 15 min (.lang) glimmt ein fester Schein auf ::after - nur opacity,
+   kein animierter Schatten (Konvention, ruckelt sonst am Laptop). */
+.aufn-punkt.pause, .aufn-kopf.pausiert .aufn-punkt { background: var(--warn); animation: none; border-radius: 2px; }
+.aufn-kopf.pausiert { position: relative; background: color-mix(in srgb, var(--warn) 22%, transparent);
+  border-color: var(--warn); }
+.aufn-kopf.pausiert.lang::after { content: ""; position: absolute; inset: -3px; border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--warn), 0 0 10px var(--warn); opacity: 0; pointer-events: none;
+  animation: glimmen 1.8s ease-in-out infinite; }
 /* Mitschrift: Sprecher benennen, Namen & Begriffe */
 button.aufn-sprecher { all: unset; cursor: pointer; font-size: 10px; opacity: .7; font-variant-numeric: tabular-nums; }
 button.aufn-sprecher:hover { opacity: 1; text-decoration: underline; }
