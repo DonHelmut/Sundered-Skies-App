@@ -54,6 +54,31 @@ def uhrzeit(ms: int) -> str:
     return f"{s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d}"
 
 
+def ton_ms(meta: dict, wand_ms: int) -> int:
+    """Wanduhr -> Stelle im Ton (ms ab Aufnahmebeginn). Pausen fehlen im Ton
+    (der Browser hält nur an), darum zählt die Zeit in Pausen nicht mit. Ohne
+    Pausen einfach wand_ms - start, wie vor 2.0.3."""
+    start = meta.get("start") or 0
+    weg = 0
+    for von, bis in meta.get("pausen") or []:
+        bis = wand_ms if bis is None else min(bis, wand_ms)
+        if bis > von:
+            weg += bis - von
+    return max(0, int(wand_ms) - start - weg)
+
+
+def _pausen_zeilen(meta: dict) -> list[str]:
+    """„- bei 01:12:30 (25 min)": wo im Ton eine Pause war - Claude soll
+    wissen, dass Gespräch dort abreißt und Zeit vergangen ist."""
+    zeilen = []
+    for von, bis in meta.get("pausen") or []:
+        if bis is None or bis <= von:
+            continue
+        minuten = max(1, round((bis - von) / 60000))
+        zeilen.append(f"- bei {uhrzeit(ton_ms(meta, von))} ({minuten} min)")
+    return zeilen
+
+
 def name_gueltig(name) -> bool:
     return isinstance(name, str) and bool(_NAME_MUSTER.match(name))
 
@@ -151,6 +176,8 @@ class Aufnahmen:
             "name": name, "start": jetzt, "ende": None, "dauerMs": 0,
             "endung": endung_fuer(mime), "mime": str(mime or "")[:80],
             "personen": {}, "ereignisse": [],
+            # [[von, bis], ...] Wanduhr-ms; bis = None, solange die Pause läuft.
+            "pausen": [],
         }
         self.aktiv = meta
         self._letztes_stueck = jetzt
@@ -172,8 +199,34 @@ class Aufnahmen:
         with open(pfad, "ab") as f:
             f.write(daten)
         self._letztes_stueck = now_ms()
-        self.aktiv["dauerMs"] = self._letztes_stueck - self.aktiv["start"]
+        self.aktiv["dauerMs"] = ton_ms(self.aktiv, self._letztes_stueck)
         return True
+
+    def pause(self, an: bool) -> bool:
+        """⏸/▶ (Kalle 07.11.2026: Pizza, Raucherpause). Der Browser hält den
+        MediaRecorder nur an - die Tondatei bleibt EINE, ohne Lücke, und daraus
+        wird EINE Mitschrift; „genau" wartet weiter aufs ■ Beenden. Weil die
+        Pause im Ton fehlt, zählen Marken und Kampfzeiten ab hier ohne sie
+        (siehe ton_ms), sonst lägen sie nach der Pause zu spät im Transkript."""
+        a = self.aktiv
+        if not a:
+            return False
+        pausen = a.setdefault("pausen", [])
+        offen = bool(pausen) and pausen[-1][1] is None
+        jetzt = now_ms()
+        if an and not offen:
+            pausen.append([jetzt, None])
+        elif not an and offen:
+            pausen[-1][1] = jetzt
+        else:
+            return True
+        self._meta_schreiben(a)
+        return True
+
+    @property
+    def pausiert(self) -> bool:
+        p = (self.aktiv or {}).get("pausen") or []
+        return bool(p) and p[-1][1] is None
 
     def stoppen(self, game=None) -> Optional[dict]:
         meta = self.aktiv
@@ -184,10 +237,14 @@ class Aufnahmen:
         # Ende = letztes angekommenes Stück, nicht „jetzt": nach einem Absturz
         # käme sonst die ganze Zeit bis zum Neustart als Tonlänge dazu.
         ende_ms = max(self._letztes_stueck, meta["start"])
+        # In der Pause beendet: die Pause endet mit dem letzten Ton.
+        for p in meta.get("pausen") or []:
+            if p[1] is None:
+                p[1] = max(p[0], ende_ms)
         if self._war_im_kampf:
             self._ereignis({"art": "kampf_ende", "runden": self._runden}, ende_ms)
         meta["ende"] = ende_ms
-        meta["dauerMs"] = ende_ms - meta["start"]
+        meta["dauerMs"] = ton_ms(meta, ende_ms)
         self._meta_schreiben(meta)
         self.aktiv = None
         self._war_im_kampf = False
@@ -195,7 +252,7 @@ class Aufnahmen:
 
     def marke(self, text: str = "") -> bool:
         """SL tippt 📌: „das hier war wichtig" - kommt betont ins Protokoll."""
-        if not self.aktiv:
+        if not self.aktiv or self.pausiert:
             return False
         self._ereignis({"art": "marke", "text": str(text or "")[:200]})
         self._meta_schreiben(self.aktiv)
@@ -226,7 +283,7 @@ class Aufnahmen:
         return True
 
     def _ereignis(self, e: dict, zeit_ms: Optional[int] = None) -> None:
-        t = (zeit_ms if zeit_ms is not None else now_ms()) - self.aktiv["start"]
+        t = ton_ms(self.aktiv, zeit_ms if zeit_ms is not None else now_ms())
         self.aktiv["ereignisse"].append({"t": max(0, t), **e})
 
     # --- Live-Mitschrift -------------------------------------------------------------
@@ -321,6 +378,7 @@ class Aufnahmen:
             "aktiv": None if not a else {
                 "name": a["name"], "start": a["start"],
                 "letztesStueck": self._letztes_stueck,
+                "pausiert": self.pausiert,
                 "marken": sum(1 for e in a["ereignisse"] if e.get("art") == "marke"),
                 "stimmen": [e.get("figur") for e in a["ereignisse"] if e.get("art") == "stimme"],
             },
@@ -344,7 +402,7 @@ class Aufnahmen:
                 # Server mittendrin beendet (Absturz, Fenster zu): die Länge
                 # steht dann nur im Speicher. Letzte Änderung der Tondatei
                 # = letztes angekommenes Stück.
-                dauer = max(dauer, int(audio.stat().st_mtime * 1000) - (meta.get("start") or 0))
+                dauer = max(dauer, ton_ms(meta, int(audio.stat().st_mtime * 1000)))
             erg.append({
                 "name": meta["name"], "start": meta.get("start"),
                 "dauerMs": dauer,
@@ -874,6 +932,9 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
         teile += ["", "KÄMPFE (laut Initiative-App, Zeit ab Aufnahmebeginn – zum Einordnen; die Höhepunkte stehen im Transkript):", *kaempfe]
     if marken:
         teile += ["", "VOM SPIELLEITER MARKIERTE MOMENTE (besonders erwähnen):", *marken]
+    pausen = _pausen_zeilen(meta)
+    if pausen:
+        teile += ["", "PAUSEN (Aufnahme angehalten – dort ist Zeit vergangen, das Gespräch kann abreißen):", *pausen]
     if extra and extra.strip():
         teile += ["", "HINWEISE DES SPIELLEITERS:", extra.strip()[:2000]]
     # Das Protokoll vom letzten Mal: damit Namen, Orte und offene Fäden gleich

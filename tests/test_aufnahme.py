@@ -340,3 +340,52 @@ def test_prompt_will_nacherzaehlung_auf_zwei_seiten():
     p = A.baue_prompt({"start": 0, "personen": PERSONEN}, "[00:00:01] S00: Hallo.")
     assert "höchstens 2 DIN-A4-Seiten" in p
     assert "im Charakter" in p and "spannende oder krasse Momente" in p
+
+
+def test_pause_bleibt_eine_aufnahme_und_zeiten_ohne_pause(fresh_game, tmp_path, monkeypatch):
+    # ⏸/▶ (07.11.2026): eine Datei, eine Mitschrift. Die Pause fehlt im Ton,
+    # also dürfen Marken danach nicht um die Pausenlänge zu spät liegen.
+    uhr = [1_000_000]
+    monkeypatch.setattr(A, "now_ms", lambda: uhr[0])
+    a = A.Aufnahmen(tmp_path)
+    meta = a.starten("audio/webm", fresh_game)
+    uhr[0] += 60_000
+    a.stueck(meta["name"], b"a")
+    assert a.pause(True) and a.status()["aktiv"]["pausiert"]
+    assert not a.marke("in der Pause")            # Merken geht in der Pause nicht
+    uhr[0] += 25 * 60_000                         # 25 min Pizza
+    assert a.pause(True)                          # doppelt drücken schadet nicht
+    assert a.pause(False) and not a.status()["aktiv"]["pausiert"]
+    uhr[0] += 30_000
+    assert a.marke("nach der Pause")
+    a.stueck(meta["name"], b"b")
+    fertig = a.stoppen(fresh_game)
+    assert a.audio_pfad(meta["name"]).read_bytes() == b"ab"
+    assert [x["name"] for x in a.liste()] == [meta["name"]]
+    marke = [e for e in fertig["ereignisse"] if e.get("art") == "marke"]
+    assert marke == [{"t": 90_000, "art": "marke", "text": "nach der Pause"}]
+    assert fertig["dauerMs"] == 90_000
+    p = a.prompt(meta["name"], "[00:00:01] S00: Hallo.")
+    assert "PAUSEN" in p and "- bei 00:01:00 (25 min)" in p
+
+
+def test_beenden_in_der_pause_schliesst_sie(tmp_path, monkeypatch):
+    uhr = [1_000_000]
+    monkeypatch.setattr(A, "now_ms", lambda: uhr[0])
+    a = A.Aufnahmen(tmp_path)
+    meta = a.starten("audio/webm")
+    uhr[0] += 10_000
+    a.stueck(meta["name"], b"a")
+    a.pause(True)
+    uhr[0] += 600_000
+    fertig = a.stoppen()
+    assert fertig["pausen"][-1][1] is not None
+    assert fertig["dauerMs"] == 10_000
+    assert not a.pause(False)                      # nichts mehr aktiv
+
+
+def test_ohne_pause_wie_bisher(tmp_path):
+    a = A.Aufnahmen(tmp_path)
+    meta = a.starten("audio/webm")
+    a.stueck(meta["name"], b"a")
+    assert "PAUSEN" not in a.prompt(meta["name"], "[00:00:01] S00: Hallo.")

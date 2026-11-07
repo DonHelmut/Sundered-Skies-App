@@ -32,7 +32,18 @@ const Aufn = {
   live: [],         // letzte Zeilen der Live-Mitschrift (server/sprache.py)
   liveN: 0,
   liveNamen: {},    // „S01" -> „Korgo (Tim)", vom SL live zugeordnet
+  pauseSeit: 0,     // ⏸: seit wann angehalten (0 = läuft)
+  pauseGesamt: 0,   // ms aller bisherigen Pausen - fehlen im Ton und in der Zeit
 };
+// Pause länger als 15 min: oben leise erinnern, sonst spielt man nach der
+// Pizza weiter und merkt am Ende, dass nichts aufgenommen ist (Kalle 07.11.2026).
+const AUFN_PAUSE_ERINNERN_MS = 15 * 60000;
+
+// Aufgenommene Zeit ohne Pausen - so lang ist auch die Tondatei.
+function aufnLaenge() {
+  const jetzt = Aufn.pauseSeit || Date.now();
+  return jetzt - Aufn.start - Aufn.pauseGesamt;
+}
 // Erst nach 90 s Stille melden, und dann nur leise: Pausen am Tisch (Pizza,
 // Regeln nachlesen) sind normal - die Anzeige soll informieren, nicht nerven
 // (Kalle, 30.10.2026: „eher im Hintergrund").
@@ -78,9 +89,18 @@ function aufnMikroWahl() {
 // dass aufgenommen wird, und kann einen Moment merken.
 function aufnahmeKopfHtml() {
   if (!Aufn.rec) return "";
+  if (Aufn.pauseSeit) {
+    // Pause: oben gleich „▶ Weiter" - von überall ein Tipp (Variante B).
+    return `<span class="pill aufn-kopf pausiert" title="Aufnahme angehalten – „▶ Weiter“ nimmt in derselben Aufnahme weiter auf">
+        <span class="aufn-punkt"></span><span class="aufn-pause-text">${aufnPauseText()}</span></span>
+      <button class="primary" data-act="aufn-weiter" title="Weiter aufnehmen (gleiche Aufnahme, gleiche Mitschrift)">▶ Weiter</button>`;
+  }
+  // ⏸ oben nur als Symbol: die Kopfleiste ist voll, sonst schiebt sie sich
+  // unter die „Verbunden"-Pille in der Mitte.
   return `<span class="pill aufn-kopf" title="Spielabend wird aufgenommen"><span class="aufn-punkt"></span>
-      <span class="aufn-zeit">${aufnZeit(Date.now() - Aufn.start)}</span>
+      <span class="aufn-zeit">${aufnZeit(aufnLaenge())}</span>
       <span class="aufn-pegel klein"><i></i></span><span class="aufn-stille muted" style="display:none">kein Ton?</span></span>
+    <button class="ghost" data-act="aufn-pause" title="Pause: Aufnahme anhalten – „▶ Weiter“ nimmt danach in derselben Aufnahme auf">⏸</button>
     <button class="ghost" data-act="aufn-marke" title="Diesen Moment fürs Protokoll merken (wird dort besonders erwähnt)">📌 Merken</button>`;
 }
 
@@ -90,9 +110,18 @@ function renderAufnahmePanel() {
   const sp = st.sprache || {};
   const kannAufnehmen = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
   let oben;
-  if (Aufn.rec) {
+  if (Aufn.rec && Aufn.pauseSeit) {
+    oben = `<div class="aufn-laeuft"><span class="aufn-punkt pause"></span> Pause
+        <b class="aufn-zeit">${aufnZeit(aufnLaenge())}</b> aufgenommen
+        <span class="muted small aufn-pause-seit">· angehalten seit ${aufnDauer(Date.now() - Aufn.pauseSeit)}</span></div>
+      <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
+        <button class="primary" data-act="aufn-weiter">▶ Weiter aufnehmen</button>
+        <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
+      </div>
+      <div class="muted small hilfe" style="margin-top:6px">In der Pause wird nichts aufgenommen. „Weiter“ hängt an dieselbe Aufnahme an – es bleibt eine Mitschrift.</div>`;
+  } else if (Aufn.rec) {
     oben = `<div class="aufn-laeuft"><span class="aufn-punkt"></span> Aufnahme läuft
-        <b class="aufn-zeit">${aufnZeit(Date.now() - Aufn.start)}</b>
+        <b class="aufn-zeit">${aufnZeit(aufnLaenge())}</b>
         <span class="aufn-pegel" title="Pegel: zappelt der Balken beim Reden, kommt Ton an"><i></i></span>
         <span class="muted small aufn-groesse">${aufnGroesse(Aufn.bytes)} gespeichert</span></div>
       <div class="aufn-live" title="Live-Mitschrift – grob, fürs Protokoll gibt es danach „Genau transkribieren“">${aufnLiveHtml()}</div>
@@ -101,6 +130,7 @@ function renderAufnahmePanel() {
       ${aufnStimmenHtml(st)}
       <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
         <button class="ghost" data-act="aufn-marke">📌 Moment merken</button>
+        <button class="ghost" data-act="aufn-pause" title="Aufnahme anhalten – danach geht es in derselben Aufnahme weiter">⏸ Pause</button>
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
       </div>
       <div class="muted small hilfe" style="margin-top:6px">Tab offen lassen, Laptop nicht zuklappen.</div>`;
@@ -272,7 +302,7 @@ async function aufnahmeStarten() {
     hinweis("Server antwortet nicht – Aufnahme nicht gestartet.");
     return;
   }
-  Object.assign(Aufn, { rec, stream, name, start: Date.now(), bytes: 0, kette: Promise.resolve() });
+  Object.assign(Aufn, { rec, stream, name, start: Date.now(), bytes: 0, kette: Promise.resolve(), pauseSeit: 0, pauseGesamt: 0 });
   rec.ondataavailable = (e) => { if (e.data && e.data.size) aufnStueckSenden(name, e.data); };
   // Mikro abgezogen / Treiber weg: nicht still weiter „aufnehmen".
   stream.getAudioTracks().forEach((t) => { t.onended = () => {
@@ -312,6 +342,7 @@ async function aufnahmeBeenden(still = false) {
   const { rec, stream } = Aufn;
   if (!rec) return;
   Aufn.rec = null;
+  Aufn.pauseSeit = 0;
   await new Promise((fertig) => {
     rec.onstop = fertig;
     try { rec.stop(); } catch { fertig(); }
@@ -325,6 +356,40 @@ async function aufnahmeBeenden(still = false) {
   try { Aufn.status = await (await fetch("/api/aufnahme/stop", { method: "POST" })).json(); } catch { /* egal */ }
   if (!still) toast("■ Aufnahme beendet und gespeichert");
   render();
+}
+
+// ⏸ Pause / ▶ Weiter: MediaRecorder nur anhalten, nicht beenden - so bleibt es
+// EINE Tondatei (ohne die Pause darin) und EINE Mitschrift, und „genau" läuft
+// erst nach ■ Beenden. Der Server merkt sich die Pausen, damit Marken und
+// Kampfzeiten danach zum Ton passen.
+async function aufnPause() {
+  const rec = Aufn.rec;
+  if (!rec || Aufn.pauseSeit || rec.state !== "recording") return;
+  // Was bis jetzt aufgenommen ist, gleich abliefern (sonst hinge es bis zum
+  // Weiter im Recorder - und die Live-Mitschrift wartet darauf).
+  try { rec.requestData(); } catch { /* egal */ }
+  rec.pause();
+  Aufn.pauseSeit = Date.now();
+  try { await fetch("/api/aufnahme/pause", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ an: true }) }); } catch { /* egal */ }
+  toast("⏸ Aufnahme angehalten");
+  render();
+}
+async function aufnWeiter() {
+  const rec = Aufn.rec;
+  if (!rec || !Aufn.pauseSeit) return;
+  try { rec.resume(); } catch { /* unten */ }
+  Aufn.pauseGesamt += Date.now() - Aufn.pauseSeit;
+  Aufn.pauseSeit = 0;
+  Aufn.stilleSeit = Date.now();          // Pause ist keine Stille
+  try { await fetch("/api/aufnahme/pause", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ an: false }) }); } catch { /* egal */ }
+  toast("● Aufnahme läuft weiter");
+  render();
+}
+function aufnPauseText() {
+  const lang = Date.now() - Aufn.pauseSeit >= AUFN_PAUSE_ERINNERN_MS;
+  // Kurz halten: „▶ Weiter" steht gleich daneben, und die Kopfleiste ist voll.
+  return lang ? `Pause seit ${aufnDauer(Date.now() - Aufn.pauseSeit)}`
+    : `Pause <b>${aufnZeit(aufnLaenge())}</b>`;
 }
 
 // Pegel messen: Beim ersten Test lief die Aufnahme sonst gern über das
@@ -356,7 +421,7 @@ function aufnPegelMessen() {
   document.querySelectorAll(".aufn-stille").forEach((x) => { x.style.display = still ? "" : "none"; });
   document.querySelectorAll(".aufn-kopf").forEach((x) => x.classList.toggle("still", still));
 }
-setInterval(() => { if (Aufn.rec) aufnPegelMessen(); }, 150);
+setInterval(() => { if (Aufn.rec && !Aufn.pauseSeit) aufnPegelMessen(); }, 150);
 
 // Bildschirm wach halten: Geht der Laptop schlafen, endet die Aufnahme.
 async function aufnWachHalten() {
@@ -375,7 +440,17 @@ window.addEventListener("beforeunload", (e) => {
 // Laufzeit-Anzeige jede Sekunde nachführen, ohne alles neu zu zeichnen.
 setInterval(() => {
   if (!Aufn.rec) return;
-  const t = aufnZeit(Date.now() - Aufn.start);
+  if (Aufn.pauseSeit) {
+    const lang = Date.now() - Aufn.pauseSeit >= AUFN_PAUSE_ERINNERN_MS;
+    document.querySelectorAll(".aufn-kopf.pausiert").forEach((x) => {
+      x.classList.toggle("lang", lang);
+      const txt = x.querySelector(".aufn-pause-text");
+      if (txt) txt.innerHTML = aufnPauseText();
+    });
+    document.querySelectorAll(".aufn-pause-seit").forEach((x) => { x.textContent = `· angehalten seit ${aufnDauer(Date.now() - Aufn.pauseSeit)}`; });
+    return;
+  }
+  const t = aufnZeit(aufnLaenge());
   document.querySelectorAll(".aufn-zeit").forEach((x) => { x.textContent = t; });
   document.querySelectorAll(".aufn-groesse").forEach((x) => { x.textContent = `${aufnGroesse(Aufn.bytes)} gespeichert`; });
 }, 1000);
@@ -436,7 +511,7 @@ async function aufnMarke() {
   try { await fetch("/api/aufnahme/marke", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); } catch { return; }
   // Danach optional ein Stichwort („Korgos Joker", „Rask flieht") - Kalle
   // 02.11.2026. Die Zeit steht schon; Enter ohne Text oder Esc = nur die Zeit.
-  const text = await eingabe(`📌 Gemerkt bei ${aufnZeit(Date.now() - Aufn.start)}. Stichwort dazu? (optional)`, "", "Merken");
+  const text = await eingabe(`📌 Gemerkt bei ${aufnZeit(aufnLaenge())}. Stichwort dazu? (optional)`, "", "Merken");
   if (!text) return;
   try {
     await fetch("/api/aufnahme/marke", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -642,6 +717,8 @@ document.addEventListener("click", async (e) => {
     e.preventDefault();
     if (await frage("Aufnahme beenden?", "Beenden")) aufnahmeBeenden();
   } else if (act === "aufn-marke") { e.preventDefault(); aufnMarke(); }
+  else if (act === "aufn-pause") { e.preventDefault(); aufnPause(); }
+  else if (act === "aufn-weiter") { e.preventDefault(); aufnWeiter(); }
   else if (act === "aufn-stimme") { e.preventDefault(); aufnStimme(t.dataset.figur); }
   else if (act === "aufn-prompt") { e.preventDefault(); aufnPromptAus(t.dataset.name, t.dataset.quelle); }
   else if (act === "aufn-modelle") { e.preventDefault(); aufnSprache("/api/sprache/modelle"); }
