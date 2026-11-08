@@ -22,8 +22,18 @@ FAKE_MIKRO = """() => {
 
 
 def _aufnahme_panel_auf(sl):
-    if not sl.js("() => document.querySelector('details[data-sec=aufnahme]').open"):
-        sl.klick("details[data-sec=aufnahme] > summary")
+    # Mehrmals versuchen und nachsehen, ob es offen BLEIBT: auf einem langsamen
+    # Rechner kam nach dem Klick noch ein Neuzeichnen vom Start und klappte das
+    # Panel wieder zu (Jonsbo, 08.11.2026) - dann war „● Nur aufnehmen" unsichtbar.
+    offen = "() => document.querySelector('details[data-sec=aufnahme]').open"
+    sl.warte_bis("() => !!document.querySelector('details[data-sec=aufnahme]')")
+    for _ in range(6):
+        if not sl.js(offen):
+            sl.klick("details[data-sec=aufnahme] > summary")
+        time.sleep(0.5)
+        if sl.js(offen):
+            return
+    raise AssertionError("Aufnahme-Panel ließ sich nicht aufklappen")
 
 
 def test_pause_bleibt_eine_aufnahme_ohne_pausen_ton(tisch):

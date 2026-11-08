@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.2 (07.11.2026): Aufnahme pausieren und fortsetzen
+## 2.0.3 (07.11.2026): Aufnahme pausieren und fortsetzen
 
 Kalle: „Aufnahme stoppen und fortsetzen button?" Drei Varianten gezeigt
 (`screenshots/aufnahme-pause/` im Projektordner), gewählt **B + Erinnerung**:
