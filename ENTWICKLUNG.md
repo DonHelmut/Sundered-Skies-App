@@ -77,6 +77,31 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.2 (07.11.2026): Aufnahme pausieren und fortsetzen
+
+Kalle: „Aufnahme stoppen und fortsetzen button?" Drei Varianten gezeigt
+(`screenshots/aufnahme-pause/` im Projektordner), gewählt **B + Erinnerung**:
+- **⏸** oben neben 📌 Merken und **⏸ Pause** im Aufnahme-Panel. In der Pause
+  steht oben „Pause 0:42:11" (Warnfarbe, Quadrat statt Punkt) mit
+  **▶ Weiter**, im Panel „▶ Weiter aufnehmen" / „■ Aufnahme beenden". 📌 gibt
+  es in der Pause nicht (Server lehnt Marken in der Pause ab).
+- Nach 15 min Pause: „Pause seit 16 min", Pille glimmt (fester Schein auf
+  `::after`, nur opacity) – sonst spielt man nach der Pizza ohne Aufnahme weiter.
+- Technik: `MediaRecorder.pause()/resume()` – EINE Tondatei, die Pause fehlt
+  darin (Chromium macht keine Lücke, im Browser-Test mit av nachgemessen),
+  EINE Mitschrift, „genau" wartet weiter aufs ■ Beenden (Aufnahme bleibt
+  aktiv). Vor dem Anhalten `requestData()`, damit live nichts hängt.
+- Server (`aufnahme.py`): `pausen` [[von, bis]] in der Aufnahme-.json,
+  `POST /api/aufnahme/pause {an}`. `ton_ms()` rechnet Wanduhr → Stelle im Ton
+  ohne Pausen; Marken, Kampfzeiten, Züge und `dauerMs` laufen darüber – sonst
+  lägen sie nach einer Pause um deren Länge zu spät im Transkript. Live-Zeilen
+  kommen schon in Ton-Zeit. Der Prompt nennt die Pausen („PAUSEN … bei
+  01:12:30 (25 min)").
+- Seite in der Pause neu geladen: wie bisher „Weiter aufnehmen" = neue
+  Aufnahme, die alte ist sauber beendet.
+- Tests: `tests/test_aufnahme.py` (Zeiten, Beenden in der Pause),
+  `tests/browser/test_aufnahme_pause.py` (echter MediaRecorder, Oszillator als Mikro).
+
 ## 2.0.2 (06.11.2026): Kampf aus Text (Gemini & Co.) einfügen
 
 Kalle: der SL will Kämpfe unterwegs (auch aus dem Auto diktiert) mit Gemini
