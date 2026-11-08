@@ -388,6 +388,16 @@ def _notizen_liste(wert) -> list:
     return liste
 
 
+# Teile der App, die der SL für seine Runde ein- und ausschalten kann
+# (Kalle 08.11.2026: „was wir alles verwenden möchten – mit Toggle", z. B. nur
+# Karten austeilen + Zonen, Würfeln/Treffer/Wunden am Tisch). Ausgeschaltet
+# heißt nur ausgeblendet: Wunden, Bennies, Notizen bleiben gespeichert und sind
+# beim Wiedereinschalten wieder da. Zusatz-Zustände und Spieler-Anfragen haben
+# ihre alten eigenen Schalter (conditionsEnabled/requestsEnabled) behalten.
+FUNKTIONEN = ("zonen", "timer", "angriff", "wunden", "bennies",
+              "aufnahme", "notizen", "nachrichten", "boegen", "regeln")
+
+
 class Game:
     def __init__(self) -> None:
         # Darf NIE den Start verhindern - ohne Schreibrechte laeuft die Runde
@@ -434,6 +444,7 @@ class Game:
         self.schaden_rechnen: bool = False      # Schaden eintippen, App rechnet mit Robustheit
         self.gruppen_karte: bool = False        # gleiche Statisten teilen sich eine Karte
         self.spieler_angriff: bool = True       # Spieler wählen am Handy selbst ihr Ziel (Probe)
+        self.funktionen: dict = {k: True for k in FUNKTIONEN}
         self.benny_to_gm: bool = True      # Hausregel: Spieler-Benny -> SL-Pool
         self.auto_release: bool = False    # naechsten Zug ohne Klick freigeben
         # Gruppen: mehrere Figuren zusammenfassen und gemeinsam bewegen
@@ -465,6 +476,11 @@ class Game:
         self.schaden_rechnen = bool(settings.get("schadenRechnen", False))
         self.gruppen_karte = bool(settings.get("gruppenKarte", False))
         self.spieler_angriff = bool(settings.get("spielerAngriff", True))
+        gespeichert = settings.get("funktionen")
+        if isinstance(gespeichert, dict):
+            for k in FUNKTIONEN:
+                if k in gespeichert:
+                    self.funktionen[k] = bool(gespeichert[k])
         # Eigenes Rückseitenbild (vom SL hochgeladen, liegt nur in data/uploads -
         # kommt also nie ins öffentliche Repo oder Paket).
         # None = mitgeliefertes Standardbild, "gruen" = schlichte grüne Rückseite.
@@ -577,6 +593,7 @@ class Game:
             "schadenRechnen": self.schaden_rechnen,
             "gruppenKarte": self.gruppen_karte,
             "spielerAngriff": self.spieler_angriff,
+            "funktionen": self.funktionen,
             "rueckseiteBild": self.rueckseite_bild,
         })
 
@@ -987,6 +1004,7 @@ class Game:
             "schadenRechnen": self.schaden_rechnen,
             "gruppenKarte": self.gruppen_karte,
             "spielerAngriff": self.spieler_angriff,
+            "funktionen": dict(self.funktionen),
             "rueckseiteBild": self.rueckseite_bild,
             "deckCount": len(self.deck),
             "hasSavedSession": self.resume_available,
@@ -1087,6 +1105,16 @@ class Game:
         if t == "talents_update":
             self.talente_setzen(action.get("id"), action.get("talents"),
                                 action.get("gluck"), action.get("grosses_gluck"))
+            return
+
+        # 🎛 Teile der App an/aus: eine Einstellung wie Design oder Ton, kein
+        # Spielzug. Darum kein Undo-Ziel und keine „erste Aktion" - wer zu
+        # Beginn des Abends erst „Nur Reihenfolge" wählt und dann fortsetzen
+        # will, verlöre sonst den gespeicherten Kampf.
+        if t == "set_funktionen":
+            self._do_set_funktionen(action)
+            if not self.resume_available:
+                self.save_session()
             return
 
         if self._veraltet(action):
@@ -2377,7 +2405,7 @@ class Game:
         except (TypeError, ValueError):
             pass
         if self.phase == "running" and self.timer_ends_at is not None:
-            self.timer_ends_at = now_ms() + self.timer_seconds * 1000
+            self.timer_ends_at = self._uhr_ab_jetzt()
         self.save_settings()   # letzter Wert bleibt Default
 
     def _do_release(self, a: dict) -> None:
@@ -2390,7 +2418,17 @@ class Game:
             if self.active_id is None:
                 return
         self.phase = "running"
-        self.timer_ends_at = now_ms() + self.timer_seconds * 1000
+        self.timer_ends_at = self._uhr_ab_jetzt()
+
+    def _uhr_ab_jetzt(self) -> Optional[int]:
+        """Ende der Zug-Uhr ab jetzt - oder keine Uhr, wenn der SL den Timer
+        ausgeschaltet hat (dann endet der Zug nur per ✓/Weiter)."""
+        if not self.funktionen.get("timer", True):
+            return None
+        return now_ms() + self.timer_seconds * 1000
+
+    def funktion(self, name: str) -> bool:
+        return self.funktionen.get(name, True)
 
     def _timer_anhalten(self, cid) -> None:
         """Der Aktive handelt (greift an, erholt sich): Uhr anhalten, damit er in
@@ -2406,7 +2444,7 @@ class Game:
         self._advance_active()
         if self.auto_release and self.active_id:
             self.phase = "running"
-            self.timer_ends_at = now_ms() + self.timer_seconds * 1000
+            self.timer_ends_at = self._uhr_ab_jetzt()
         else:
             self.phase = "gate"
             self.timer_ends_at = None
@@ -2534,7 +2572,7 @@ class Game:
             c["done"] = False
             self.active_id = c["id"]
             self.phase = "running"
-            self.timer_ends_at = now_ms() + self.timer_seconds * 1000
+            self.timer_ends_at = self._uhr_ab_jetzt()
 
     # Nachrichten -------------------------------------------------------------
 
@@ -2662,7 +2700,7 @@ class Game:
         # ausprobieren, ohne das ganze Anfragen-System einzuschalten); Erholen
         # ist keine Anfrage mehr und geht immer; der Rest nur mit Anfragen an.
         if kind == "attack":
-            if not self.spieler_angriff:
+            if not self.spieler_angriff or not self.funktion("angriff"):
                 return
         elif not erholen and not self.requests_enabled:
             return                      # Anfragen sind abgeschaltet
@@ -2745,6 +2783,31 @@ class Game:
             if feld == "spieler_angriff" and not self.spieler_angriff:
                 self.requests = [r for r in self.requests if r.get("kind") != "attack"]
             self.save_settings()
+
+    def _do_set_funktionen(self, a: dict) -> None:
+        """Teile der App an/aus (🎛 „Was nutzen wir heute?"). ``werte`` ist ein
+        Teil-Satz {name: bool}; Zusatz-Zustände und Anfragen laufen über ihre
+        alten Felder. Treffer ohne Wunden ergibt keinen Sinn (ein Treffer IST
+        angeschlagen/Wunde) - darum ziehen sich die beiden gegenseitig mit."""
+        werte = a.get("werte")
+        if not isinstance(werte, dict):
+            return
+        for k, v in werte.items():
+            if k in FUNKTIONEN:
+                self.funktionen[k] = bool(v)
+        if "zustaende" in werte:
+            self.conditions_enabled = bool(werte["zustaende"])
+        if "anfragen" in werte:
+            self._do_set_requests_enabled({"on": bool(werte["anfragen"])})
+        if "angriff" in werte and werte["angriff"]:
+            self.funktionen["wunden"] = True
+        elif "wunden" in werte and not werte["wunden"]:
+            self.funktionen["angriff"] = False
+        if not self.funktionen["angriff"]:
+            self.requests = [r for r in self.requests if r.get("kind") != "attack"]
+        if not self.funktionen["timer"] and self.phase == "running":
+            self.timer_ends_at = None
+        self.save_settings()
 
     def _do_set_rueckseite(self, a: dict) -> None:
         """Eigenes Bild für die Kartenrückseite (für ALLE Karten gleich - darf den

@@ -77,6 +77,42 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.2 (08.11.2026): 🎛 Spielmodus + 📖 Anleitung für den SL
+
+Kalle: „kleine Hilfe für den SL, was alles möglich ist" und „Spielmodi – was
+wir alles verwenden möchten, mit Toggle (angreifen oder ohne: nur Karten
+austeilen für Reihenfolge und wo ist wer)". Varianten mit Bildern
+(`screenshots/spielmodi-hilfe/`), gewählt **A + A**. Nicht gewählt: nur
+Schalterliste ohne Vorlagen (B), ein einziger Umschalter (C), Abend-Fahrplan
+mit Haken, Rundgang mit Spotlight.
+
+- **🎛 „Was nutzen wir heute?"** (Knopf oben in der Kopfleiste zeigt den
+  Modus, auch ☰ Mehr, und ein Link in ⋯ → ⚙): Kacheln *🃏 Nur Reihenfolge* /
+  *⚔ Voller Kampf* / *✎ Eigene Auswahl* + Einzelschalter. Kampf: Zonen,
+  Zug-Uhr, Angreifen & Treffer, Wunden & Angeschlagen, Zusatz-Zustände,
+  Bennies, Anfragen. Abend: Aufnahme & Protokoll, Notizen, Nachrichten,
+  Charakterbögen, Regel-Spickzettel. Karten sind immer an.
+- Vorlagen setzen nur ihre Schalter (Zug-Uhr und „rund um den Abend" bleiben).
+  „Eigene Auswahl" = passt zu keiner Vorlage.
+- Server (`game.py`): `FUNKTIONEN`, `funktionen` in settings.json und im
+  Zustand, Aktion `set_funktionen {werte}`. Zustände/Anfragen laufen über die
+  alten Felder `conditionsEnabled`/`requestsEnabled`. Treffer ohne Wunden geht
+  nicht: Wunden aus → Angreifen aus, Angreifen an → Wunden an. Angreifen aus
+  räumt offene Angriffe weg und lehnt neue ab. Zug-Uhr aus: `_uhr_ab_jetzt()`
+  liefert None, der Zug endet nur per ✓/Weiter. **Kein Spielzug**: kein Undo,
+  keine „erste Aktion" – sonst verlöre, wer vor „Fortsetzen" umschaltet, den
+  gespeicherten Kampf.
+- Client: `funktionAn(name)` (app.js), TV `tvAn`. Ausgeschaltet = nur
+  ausgeblendet (Wunden, Bennies, Notizen bleiben gespeichert): Panels
+  (`PANEL_BAU`), Leiste (Treffer/Heilung/Gegnerzug/Erholen), Wunden-Spalte,
+  😵/☠ auf Karten, Bennies (Pills, Münzen, Kontextmenü), Handy-Bereiche
+  (`bereichAn`), „Mein Zug" ohne Bögen, Regeln-Knöpfe, Tasten T/H/Z, TV
+  (Zonen, Wunden, Uhr). Läuft eine Aufnahme, bleibt ihr Panel trotz „aus".
+- **📖 Anleitung** (`modi.js`, ☰ Mehr): Kapitel links, nummerierte Schritte
+  rechts, Tipp-Kasten. Kapitel/Schritte mit `f` erscheinen nur, wenn der Teil an
+  ist; Kapitel „⌨ Tasten" nutzt `tastenTabelleHtml()` (sl.js).
+- Tests: `tests/test_funktionen.py`, `tests/browser/test_modi.py`.
+
 ## Nach 2.0.2 (07.11.2026): Aufnahme pausieren und fortsetzen
 
 Kalle: „Aufnahme stoppen und fortsetzen button?" Drei Varianten gezeigt

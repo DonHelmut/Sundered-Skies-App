@@ -119,6 +119,17 @@ function adressBereich(ip) {
 
 const HANDY_IP_FINDEN = "iPhone: Einstellungen → WLAN → ⓘ beim Netz · Android: Einstellungen → WLAN → Zahnrad beim Netz (ggf. „Erweitert“) → IP-Adresse";
 
+// 🎛 Teile der App, die der SL an-/ausgeschaltet hat (Server: FUNKTIONEN).
+// Ohne Angabe (alter Server, Stand noch nicht da) gilt alles als an.
+// Zusatz-Zustände und Anfragen haben ihre alten eigenen Felder.
+function funktionAn(name) {
+  const s = App.state;
+  if (!s) return true;
+  if (name === "zustaende") return s.conditionsEnabled !== false;
+  if (name === "anfragen") return s.requestsEnabled !== false;
+  return !s.funktionen || s.funktionen[name] !== false;
+}
+
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 // Einklappbares Panel (merkt sich den Zustand pro id in localStorage, Default offen).
@@ -383,7 +394,7 @@ function kartenGruppeVon(c) {
 // Wer darf fürs Erholen einen Benny ausgeben - und woher kommt er?
 // Nur Wild Cards. Gegner-Wild-Cards zahlen aus dem SL-Pool, alle anderen selbst.
 function bennyQuelle(c) {
-  if (!c || !c.isWildCard) return null;
+  if (!c || !c.isWildCard || !funktionAn("bennies")) return null;
   const feind = c.kind === "npc" && !c.ally;
   return { feind, n: feind ? ((App.state && App.state.slBennies) || 0) : (c.bennies || 0) };
 }

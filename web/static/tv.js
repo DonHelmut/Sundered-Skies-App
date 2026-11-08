@@ -117,8 +117,15 @@ function setStatus(kind) {
   s.textContent = kind === "online" ? "Live" : "Getrennt…";
 }
 
+// 🎛 Vom SL ausgeschaltete Teile der App (wie funktionAn in app.js - die
+// TV-Seite lädt app.js nicht).
+function tvAn(name) {
+  const f = TV.state && TV.state.funktionen;
+  return !f || f[name] !== false;
+}
+
 function statusOverlay(st) {
-  if (!st) return "";
+  if (!st || !tvAn("wunden")) return "";
   let out = "";
   if (st.out) out += `<div class="st-cover">☠</div>`;
   const corner = [];
@@ -130,10 +137,11 @@ function statusOverlay(st) {
 
 function statusBadges(c) {
   const st = c.status; if (!st) return "";
-  if (st.out) return `<span class="pill bad">Ausgeschaltet</span>`;
+  const wunden = tvAn("wunden");
+  if (st.out && wunden) return `<span class="pill bad">Ausgeschaltet</span>`;
   const b = [];
-  if (st.shaken) b.push(`<span class="pill warn">Angeschlagen</span>`);
-  if (st.wounds > 0) b.push(`<span class="pill bad">🩸 ${st.wounds} W · −${st.wounds}</span>`);
+  if (st.shaken && wunden) b.push(`<span class="pill warn">Angeschlagen</span>`);
+  if (st.wounds > 0 && wunden) b.push(`<span class="pill bad">🩸 ${st.wounds} W · −${st.wounds}</span>`);
   const conds = (TV.state && TV.state.conditions) || {};
   Object.keys(conds).forEach((k) => { if (st[k]) b.push(`<span class="pill">${esc(conds[k])}</span>`); });
   return b.join(" ");
@@ -169,12 +177,12 @@ function render() {
   const prevRects = captureRects();
   const prevTokens = captureTokens();
 
-  const zonesBlock = (s.combatants.length && window.Zones)
+  const zonesBlock = (s.combatants.length && window.Zones && tvAn("zonen"))
     ? `<div class="tv-zones"><h2 class="tv-zones-title">Kampfzonen</h2><div class="tv-zones-inhalt">${Zones.renderTarget(s.combatants, { zones: s.zones, activeId: s.activeId, interactive: false, blurAnon: true })}</div></div>`
     : "";
 
   const timerBlock = s.phase === "running"
-    ? `<div class="tv-timer" id="tvtimer">…</div>`
+    ? (tvAn("timer") ? `<div class="tv-timer" id="tvtimer">…</div>` : `<div class="tv-phase">Am Zug</div>`)
     : `<div class="tv-phase">${s.phase === "gate" ? "Bereit – warte auf Freigabe" : "Bereit"}</div>`;
 
   const spotlight = active

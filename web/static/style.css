@@ -2746,3 +2746,62 @@ button.tm-loeschen { color: var(--bad); border-color: var(--bad); margin-right: 
 .gz-weg { opacity: 0.55; }
 /* Stimm-Anmeldung: Stimme von früher bekannt */
 .aufn-stimmen button.bekannt { color: var(--muted); border-style: dashed; }
+
+/* 🎛 „Was nutzen wir heute?" + 📖 Anleitung (modi.js, Kalle 08.11.2026).
+   Ein Hintergrund, ein Fenster - wie die Tastenkürzel-Übersicht. Schalter
+   gleiten nur per transform (kein box-shadow/filter animieren). */
+.modus-hg { position: fixed; inset: 0; z-index: 125; background: rgba(0,0,0,0.45); display: flex;
+  align-items: center; justify-content: center; padding: 16px; }
+.modus-fenster { max-width: 780px; width: 100%; max-height: calc(100vh - 32px); overflow: auto;
+  padding: 18px 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
+.modus-titel { margin: 0; font-size: 1.15rem; }
+.modus-unter { margin: 4px 0 12px; }
+.modus-kopf { white-space: nowrap; }
+.modus-kacheln { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 6px; }
+.modus-kachel { text-align: left; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px;
+  background: var(--panel2); display: block; height: auto; }
+.modus-kachel b { display: block; font-size: 1rem; margin-bottom: 4px; }
+.modus-kachel span { display: block; font-size: 0.82rem; color: var(--muted); line-height: 1.3; font-weight: 400; }
+.modus-kachel.on { border-color: var(--accent2); box-shadow: inset 0 0 0 2px var(--accent); background: var(--panel); }
+.modus-kachel.on b::after { content: " ✓"; color: var(--accent2); }
+.modus-spalten { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+.modus-gruppe { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent2);
+  font-weight: 700; margin: 12px 0 4px; }
+.modus-zeile { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 0; text-align: left;
+  background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; color: var(--text); }
+.modus-zeile:hover { background: none; }
+.modus-zeile .mz-text { flex: 1; font-size: 0.92rem; }
+.modus-zeile .mz-text small { display: block; color: var(--muted); font-size: 0.78rem; }
+.modus-zeile.aus .mz-text { opacity: 0.55; }
+.modus-zeile.fest { cursor: default; }
+.modus-schalter { width: 40px; height: 22px; border-radius: 11px; background: var(--line); position: relative; flex: none;
+  transition: background 0.15s; }
+.modus-schalter::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.3); transition: transform 0.15s; }
+.modus-schalter.an { background: var(--accent2); }
+.modus-schalter.an::after { transform: translateX(18px); }
+.modus-fuss { margin-top: 14px; align-items: center; gap: 10px; }
+.anleitung { max-width: 920px; }
+.anl-raster { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+.anl-nav { display: flex; flex-direction: column; gap: 2px; }
+.anl-nav button { text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 8px;
+  font-size: 0.92rem; color: var(--text); }
+.anl-nav button:hover { background: var(--panel2); }
+.anl-nav button.on { background: var(--accent2); color: var(--on-accent); font-weight: 700; }
+.anl-inhalt h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.anl-inhalt table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+.anl-inhalt td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.anl-inhalt td:first-child { white-space: nowrap; width: 1%; }
+.anl-schritte { counter-reset: s; margin: 0; padding: 0; list-style: none; }
+.anl-schritte li { counter-increment: s; position: relative; padding: 8px 0 8px 36px; border-bottom: 1px solid var(--line);
+  font-size: 0.93rem; line-height: 1.4; }
+.anl-schritte li::before { content: counter(s); position: absolute; left: 0; top: 7px; width: 24px; height: 24px;
+  border-radius: 50%; background: var(--accent2); color: var(--on-accent); font-weight: 700; font-size: 0.8rem;
+  display: flex; align-items: center; justify-content: center; }
+.anl-tipp { background: var(--panel2); border-left: 3px solid var(--accent); padding: 8px 10px; border-radius: 6px;
+  font-size: 0.88rem; margin-top: 10px; }
+@media (max-width: 700px) {
+  .modus-kacheln, .modus-spalten { grid-template-columns: 1fr; }
+  .anl-raster { grid-template-columns: 1fr; }
+  .anl-nav { flex-direction: row; flex-wrap: wrap; }
+}

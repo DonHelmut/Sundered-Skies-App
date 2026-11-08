@@ -232,6 +232,22 @@ Statt selbst am Spielstand zu drehen, können Spieler beim SL **anfragen**
 Doppelte Anfragen werden unterdrückt. Das ganze System lässt sich **komplett
 abschalten** – dann sehen die Spieler den Knopf gar nicht erst.
 
+## 🎛 Was nutzen wir heute? (Spielmodus)
+
+Oben in der SL-Kopfleiste (oder ☰ Mehr): Teile der App an- und ausschalten –
+gilt für Laptop, Handys und TV und bleibt gespeichert.
+
+- **🃏 Nur Reihenfolge** – Karten austeilen und wo ist wer. Kein Angreifen am
+  Handy, keine Treffer, Wunden, Bennies, Anfragen – das macht ihr am Tisch.
+- **⚔ Voller Kampf** – alles an.
+- **✎ Eigene Auswahl** – Einzelschalter: Zonen, Zug-Uhr, Angreifen & Treffer,
+  Wunden, Zusatz-Zustände, Bennies, Anfragen, Aufnahme & Protokoll, Notizen,
+  Nachrichten, Charakterbögen, Regel-Spickzettel.
+
+Ausgeschaltetes wird nur ausgeblendet – Wunden, Bennies und Notizen bleiben
+gespeichert. **📖 Anleitung für den SL** (☰ Mehr) erklärt kurz, was geht und wo
+es steckt.
+
 ## Einstellungen (bleiben dauerhaft)
 
 | Schalter | Wirkung |
