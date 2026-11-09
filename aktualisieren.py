@@ -24,6 +24,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -342,18 +344,56 @@ def updater_nachziehen(ordner: Path) -> bool:
 
 # --- Netz ---------------------------------------------------------------------
 
-def _anfrage(url: str) -> urllib.request.Request:
-    return urllib.request.Request(url, headers={"User-Agent": "SunderedSkies-Aktualisieren"})
+def _anfrage(url: str, methode: str = "GET") -> urllib.request.Request:
+    return urllib.request.Request(url, headers={"User-Agent": "SunderedSkies-Aktualisieren"}, method=methode)
 
 
-def neueste_version() -> tuple[str, str, int]:
-    """(Version, Download-Adresse, Größe) des neuesten Releases."""
+def _tag_aus_adresse(adresse: str) -> str | None:
+    """…/releases/tag/v2.0.4  ->  "v2.0.4" (sonst None)."""
+    m = re.search(r"/releases/tag/([^/?#]+)", adresse)
+    return urllib.parse.unquote(m.group(1)) if m else None
+
+
+def _neueste_ueber_link() -> tuple[str, str, int]:
+    """Über den normalen Release-Link statt über die GitHub-API: die API
+    erlaubt ohne Anmeldung nur 60 Abfragen pro Stunde je Internetanschluss
+    („HTTP Error 403: rate limit exceeded“, Kalle 09.11.2026). Der Link
+    …/releases/latest leitet auf …/releases/tag/vX weiter, der Download liegt
+    unter …/releases/download/vX/<Zip> – beides ohne dieses Limit."""
+    with urllib.request.urlopen(_anfrage(f"https://github.com/{REPO}/releases/latest", "HEAD"), timeout=20) as r:
+        tag = _tag_aus_adresse(r.geturl())
+    if not tag:
+        raise RuntimeError("Kein Release gefunden.")
+    url = f"https://github.com/{REPO}/releases/download/{tag}/{ZIP_NAME}"
+    try:
+        with urllib.request.urlopen(_anfrage(url, "HEAD"), timeout=20) as r:
+            groesse = int(r.headers.get("Content-Length") or 0)
+    except urllib.error.HTTPError as fehler:
+        if fehler.code == 404:
+            raise RuntimeError(f"Im neuesten Release fehlt {ZIP_NAME}.") from fehler
+        raise
+    return tag.lstrip("v"), url, groesse
+
+
+def _neueste_ueber_api() -> tuple[str, str, int]:
     with urllib.request.urlopen(_anfrage(f"https://api.github.com/repos/{REPO}/releases/latest"), timeout=20) as r:
         info = json.load(r)
     zip_ = next((a for a in info.get("assets", []) if a.get("name") == ZIP_NAME), None)
     if not zip_:
         raise RuntimeError(f"Im neuesten Release fehlt {ZIP_NAME}.")
     return info.get("tag_name", "").lstrip("v"), zip_["browser_download_url"], int(zip_.get("size") or 0)
+
+
+def neueste_version() -> tuple[str, str, int]:
+    """(Version, Download-Adresse, Größe) des neuesten Releases. Erst über den
+    Release-Link (kein Abfrage-Limit), nur wenn das scheitert über die API."""
+    try:
+        return _neueste_ueber_link()
+    except Exception as fehler_link:
+        try:
+            return _neueste_ueber_api()
+        except Exception:
+            raise fehler_link
 
 
 def fortschritt_balken(geladen: int, groesse: int, breite: int = 30, zeichen: str = "█░") -> str:
@@ -370,6 +410,7 @@ def herunterladen(url: str, ziel: Path, groesse: int) -> None:
     # (umgeleitete Ausgabe, Tests) nur ab und zu eine Zeile, sonst Zeichenmüll.
     fenster = sys.stdout.isatty()
     with urllib.request.urlopen(_anfrage(url), timeout=60) as r, open(ziel, "wb") as f:
+        groesse = groesse or int(r.headers.get("Content-Length") or 0)
         geladen, zuletzt, zuletzt_zeit = 0, -1, 0.0
         while True:
             stueck = r.read(128 * 1024)
@@ -455,7 +496,7 @@ def main() -> None:
         tmp = Path(tmp)
         datei = tmp / "app.zip"
         try:
-            print(f"Lade Version {neu} herunter ({round(groesse / 1024 / 1024)} MB) …")
+            print(f"Lade Version {neu} herunter" + (f" ({round(groesse / 1024 / 1024)} MB)" if groesse else "") + " …")
             herunterladen(url, datei, groesse)
             print("Entpacke …")
             with zipfile.ZipFile(datei) as z:
