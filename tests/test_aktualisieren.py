@@ -218,3 +218,26 @@ def test_neueste_version_faellt_auf_api_zurueck(monkeypatch):
         return _Antwort("https://github.com/irgendwo/ohne-tag")
     monkeypatch.setattr(akt.urllib.request, "urlopen", urlopen)
     assert akt.neueste_version() == ("2.0.6", "https://x/z.zip", 5)
+
+
+def test_groessen_probe_scheitert_kein_api_rueckfall(monkeypatch):
+    # Scheitert nur die Größen-Probe (nicht 404), nicht auf die API ausweichen –
+    # dort sitzt das 60er-Limit. Größe kommt dann beim Download.
+    def urlopen(anfrage, timeout=None):
+        url = anfrage.full_url
+        assert "api.github.com" not in url
+        if url.endswith("/releases/latest"):
+            return _Antwort(f"https://github.com/{akt.REPO}/releases/tag/v2.0.7")
+        raise akt.urllib.error.HTTPError(url, 500, "Server Error", {}, None)
+    monkeypatch.setattr(akt.urllib.request, "urlopen", urlopen)
+    neu, url, groesse = akt.neueste_version()
+    assert (neu, groesse) == ("2.0.7", 0)
+
+
+def test_limit_meldung_sagt_nicht_keine_verbindung():
+    limit = akt.urllib.error.HTTPError("u", 403, "rate limit exceeded", {}, None)
+    text = "\n".join(akt.fehler_meldung(limit))
+    assert "Keine Verbindung" not in text and "Limit" in text and "releases/latest" in text
+    assert "Keine Verbindung" in akt.fehler_meldung(OSError("weg"))[0]
+    assert akt.ist_limit(akt.urllib.error.HTTPError("u", 429, "Too Many", {}, None))
+    assert not akt.ist_limit(akt.urllib.error.HTTPError("u", 403, "Forbidden", {}, None))

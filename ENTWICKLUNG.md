@@ -109,6 +109,17 @@ Kalle: „mehr als festes Programm statt HTTP". Varianten A/B/C gezeigt
 - **Gemerkt (C):** pywebview-Eigenfenster (✕ = App aus, +~10 MB; Mikrofon und
   Downloads im WebView2 erst testen).
 
+## Nächste Version: Updater-Limit nachgeschärft
+
+Kalle bekam trotz 2.0.5 wieder „Keine Verbindung … 403 rate limit exceeded“.
+Grund: Ein alter Updater (vor 2.0.5) fragt nur die API; der neue Updater kommt
+erst mit dem nächsten App-Start nach einem Update an (`updater_nachziehen`) –
+aus einem alten Stand holt man 2.0.5+ also einmal per Zip von Hand. Zusätzlich:
+- Scheitert nur die Größen-Probe des Zips (nicht 404), nicht mehr auf die API
+  ausweichen (dort sitzt das Limit); Größe liefert der Download.
+- 403/429-Limit sagt nicht mehr „Keine Verbindung“, sondern „GitHub-Limit, in
+  einer Stunde nochmal oder Zip von releases/latest holen“.
+
 ## 2.0.5 (09.11.2026): Aktualisieren ohne GitHub-Abfrage-Limit
 
 Kalle bekam beim Aktualisieren „HTTP Error 403: rate limit exceeded“. Die

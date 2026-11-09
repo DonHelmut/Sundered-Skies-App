@@ -365,13 +365,18 @@ def _neueste_ueber_link() -> tuple[str, str, int]:
     if not tag:
         raise RuntimeError("Kein Release gefunden.")
     url = f"https://github.com/{REPO}/releases/download/{tag}/{ZIP_NAME}"
+    # Größe nur nachschauen, nicht davon abhängen: scheitert diese Probe aus
+    # anderem Grund als „Zip fehlt", ginge es sonst auf die API zurück – genau
+    # dorthin, wo das Limit sitzt. Die Größe liefert der Download notfalls selbst.
+    groesse = 0
     try:
         with urllib.request.urlopen(_anfrage(url, "HEAD"), timeout=20) as r:
             groesse = int(r.headers.get("Content-Length") or 0)
     except urllib.error.HTTPError as fehler:
         if fehler.code == 404:
             raise RuntimeError(f"Im neuesten Release fehlt {ZIP_NAME}.") from fehler
-        raise
+    except Exception:
+        pass
     return tag.lstrip("v"), url, groesse
 
 
@@ -394,6 +399,25 @@ def neueste_version() -> tuple[str, str, int]:
             return _neueste_ueber_api()
         except Exception:
             raise fehler_link
+
+
+def ist_limit(fehler: Exception) -> bool:
+    """GitHub bremst (403 „rate limit exceeded" / 429) – das Netz ist da."""
+    return isinstance(fehler, urllib.error.HTTPError) and (
+        fehler.code == 429 or (fehler.code == 403 and "limit" in str(fehler).lower()))
+
+
+def fehler_meldung(fehler: Exception) -> list[str]:
+    """Zeilen für den Fall, dass die neueste Version nicht zu holen war. Ein
+    Limit ist kein Verbindungsproblem – früher stand dann trotzdem „Ist der
+    Laptop im Internet?" da (Kalle 09.11.2026) und schickte auf die falsche Spur."""
+    if ist_limit(fehler):
+        return ["GitHub lässt gerade keine weiteren Abfragen zu (Limit, kein Netzproblem).",
+                "In einer Stunde nochmal versuchen – oder die neue Version selbst holen:",
+                f"https://github.com/{REPO}/releases/latest",
+                "Zip entpacken und den Ordner data hineinkopieren.",
+                f"({fehler})"]
+    return ["Keine Verbindung zu GitHub. Ist der Laptop im Internet?", f"({fehler})"]
 
 
 def fortschritt_balken(geladen: int, groesse: int, breite: int = 30, zeichen: str = "█░") -> str:
@@ -465,9 +489,9 @@ def main() -> None:
     lokal = version_aus_starthier(ordner)
     try:
         neu, url, groesse = neueste_version()
-    except Exception as fehler:  # kein Netz, GitHub down, Proxy …
-        print("Keine Verbindung zu GitHub. Ist der Laptop im Internet?")
-        print(f"({fehler})")
+    except Exception as fehler:  # kein Netz, GitHub down, Proxy, Limit …
+        for zeile in fehler_meldung(fehler):
+            print(zeile)
         _ende(1)
     print(f"Installiert: {lokal or 'unbekannt'}")
     print(f"Neueste:     {neu}")
