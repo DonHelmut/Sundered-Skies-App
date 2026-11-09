@@ -526,17 +526,25 @@ function notizFertig() {
   const text = ed.text.trim();
   const alt = notizFinden(ed.id, ed.gruppe);
   if (!alt) { render(); return; }
-  if (!text) { notizLoeschen(ed.id, ed.gruppe); return; }      // leer gespeichert = löschen (mit Rückgängig)
+  if (!text) { notizLoeschen(ed.id, ed.gruppe); return; }      // leer gespeichert = löschen (mit Rückfrage)
   if (alt.text === text && alt.thema === ed.thema) { render(); return; }
   if (ed.gruppe) { gruppenNotizSchicken({ op: "aendern", id: ed.id, text, thema: ed.thema }); render(); return; }
   notizenSpeichern(notizenListe().map((e) => e.id === ed.id ? { ...e, text, thema: ed.thema } : e));
 }
-// Löschen ohne Rückfrage, dafür ein paar Sekunden „↶ Rückgängig" - eine
-// Rückfrage bei jeder Zeile nervt, versehentlich weg wäre schlimmer.
-function notizLoeschen(id, gruppe) {
+// Löschen mit Rückfrage (Kalle, 09.11.2026 - erst ging es ohne, nur mit
+// „↶ Rückgängig"; das übersieht man am Handy aber leicht, und eine
+// Gruppennotiz ist dann für alle weg). Das Rückgängig bleibt trotzdem als
+// zweites Netz. Danach frisch suchen: während der Rückfrage kann die Liste
+// sich geändert haben (Gruppennotizen kommen vom Server).
+async function notizLoeschen(id, gruppe) {
+  const vorher = notizFinden(id, gruppe);
+  if (!vorher) return;
+  const kurz = vorher.text.length > 80 ? `${vorher.text.slice(0, 80).trimEnd()} …` : vorher.text;
+  const ok = await frage(`Notiz löschen?\n\n„${kurz}“${gruppe ? "\n\n👥 Gruppennotiz – sie verschwindet für alle." : ""}`, "Löschen", true);
+  if (!ok) { render(); return; }
   const liste = gruppe ? gruppenNotizen() : notizenListe();
   const i = liste.findIndex((e) => e.id === id);
-  if (i < 0) return;
+  if (i < 0) { render(); return; }
   if (App.notizEdit && App.notizEdit.id === id) App.notizEdit = null;
   clearTimeout(App.notizWegTimer);
   App.notizWeg = { eintrag: liste[i], i, gruppe };
