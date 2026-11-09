@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.2 (08.11.2026): 🎛 Spielmodus + 📖 Anleitung für den SL
+## Nach 2.0.3 (08.11.2026): 🎛 Spielmodus + 📖 Anleitung für den SL
 
 Kalle: „kleine Hilfe für den SL, was alles möglich ist" und „Spielmodi – was
 wir alles verwenden möchten, mit Toggle (angreifen oder ohne: nur Karten
@@ -113,7 +113,7 @@ mit Haken, Rundgang mit Spotlight.
   ist; Kapitel „⌨ Tasten" nutzt `tastenTabelleHtml()` (sl.js).
 - Tests: `tests/test_funktionen.py`, `tests/browser/test_modi.py`.
 
-## Nach 2.0.2 (07.11.2026): Aufnahme pausieren und fortsetzen
+## 2.0.3 (07.11.2026): Aufnahme pausieren und fortsetzen
 
 Kalle: „Aufnahme stoppen und fortsetzen button?" Drei Varianten gezeigt
 (`screenshots/aufnahme-pause/` im Projektordner), gewählt **B + Erinnerung**:
