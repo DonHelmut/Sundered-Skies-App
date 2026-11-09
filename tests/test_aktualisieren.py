@@ -179,3 +179,42 @@ def test_nachziehen_raeumt_leere_reste_weg(tmp_path):
     assert (ordner / akt.SELBST_ORDNER / "base.zip").read_text() == "updater alt"
     assert sorted(p.name for p in ordner.iterdir()) == sorted(
         ["Aktualisieren.exe", "START-HIER.txt", akt.APP_EXE, "_aktualisieren", "_internal", "data"])
+
+
+# --- Neueste Version ohne API-Limit (09.11.2026) --------------------------------
+
+class _Antwort:
+    def __init__(self, adresse="", laenge=None):
+        self._adresse, self.headers = adresse, {"Content-Length": laenge} if laenge else {}
+    def geturl(self):
+        return self._adresse
+    def __enter__(self):
+        return self
+    def __exit__(self, *a):
+        return False
+
+
+def test_neueste_version_ueber_release_link_ohne_api(monkeypatch):
+    aufrufe = []
+    def urlopen(anfrage, timeout=None):
+        url = anfrage.full_url
+        aufrufe.append(url)
+        assert "api.github.com" not in url
+        if url.endswith("/releases/latest"):
+            return _Antwort(f"https://github.com/{akt.REPO}/releases/tag/v2.0.5")
+        return _Antwort(url, "1234")
+    monkeypatch.setattr(akt.urllib.request, "urlopen", urlopen)
+    neu, url, groesse = akt.neueste_version()
+    assert (neu, groesse) == ("2.0.5", 1234)
+    assert url == f"https://github.com/{akt.REPO}/releases/download/v2.0.5/{akt.ZIP_NAME}"
+
+
+def test_neueste_version_faellt_auf_api_zurueck(monkeypatch):
+    import io, json
+    def urlopen(anfrage, timeout=None):
+        if "api.github.com" in anfrage.full_url:
+            daten = {"tag_name": "v2.0.6", "assets": [{"name": akt.ZIP_NAME, "browser_download_url": "https://x/z.zip", "size": 5}]}
+            return io.BytesIO(json.dumps(daten).encode())
+        return _Antwort("https://github.com/irgendwo/ohne-tag")
+    monkeypatch.setattr(akt.urllib.request, "urlopen", urlopen)
+    assert akt.neueste_version() == ("2.0.6", "https://x/z.zip", 5)
