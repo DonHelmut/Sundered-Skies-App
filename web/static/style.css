@@ -2805,3 +2805,24 @@ button.tm-loeschen { color: var(--bad); border-color: var(--bad); margin-right: 
   .anl-raster { grid-template-columns: 1fr; }
   .anl-nav { flex-direction: row; flex-wrap: wrap; }
 }
+
+/* „Als App aufs Handy" (als-app.js): Knopf im ⚙ nur am Handy, Streifen unten,
+   Anleitung im Dialog. */
+body.sl-ansicht .nur-handy { display: none; }
+#als-app-streifen { position: fixed; left: 10px; right: 10px; bottom: calc(14px + env(safe-area-inset-bottom));
+  z-index: 60; display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px;
+  background: #3b2a1a; color: #f7e9c3; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); font-size: 14.5px;
+  animation: als-app-rein .35s ease-out; }
+@keyframes als-app-rein { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+#als-app-streifen img { width: 38px; height: 38px; border-radius: 9px; flex: none; }
+#als-app-streifen .als-app-text { flex: 1; display: flex; flex-direction: column; line-height: 1.3; }
+#als-app-streifen .als-app-text span { opacity: .85; font-size: 13px; }
+#als-app-streifen .als-app-los { background: #e8c05a; color: #2a1b0c; border: 0; border-radius: 9px;
+  padding: 8px 10px; font-weight: 700; white-space: nowrap; }
+#als-app-streifen .als-app-zu { background: none; border: 0; color: inherit; opacity: .7; font-size: 18px; padding: 4px 6px; }
+.als-app-reiterzeile { display: flex; gap: 6px; margin-bottom: 6px; }
+.als-app-reiter { cursor: pointer; opacity: .6; }
+.als-app-reiter.aktiv { opacity: 1; font-weight: 700; }
+.als-app-schritte { margin: 6px 0 0 18px; padding: 0; line-height: 1.55; text-align: left; }
+.als-app-taste { border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; }
+.als-app-fuss { text-align: left; margin: 8px 0 0; }

@@ -5,7 +5,8 @@ from PyInstaller.utils.hooks import collect_all
 # Wörterbuch der Namenskorrektur (server/namen.py) liegt neben dem Code.
 datas = [('web', 'web'), ('server/woerter-de.txt.gz', 'server')]
 binaries = []
-hiddenimports = ['qrcode', 'ifaddr']
+# pystray waehlt sein Windows-Backend erst zur Laufzeit - PyInstaller sieht es sonst nicht.
+hiddenimports = ['qrcode', 'ifaddr', 'pystray._win32']
 hiddenimports += collect_submodules('PIL')
 tmp_ret = collect_all('uvicorn')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
@@ -61,7 +62,9 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    # Kein schwarzes Fenster mehr (2.0.6): Symbol neben der Uhr, siehe server/fenster.py.
+    console=False,
+    icon='web/static/app.ico',
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
