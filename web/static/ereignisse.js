@@ -494,6 +494,9 @@ document.addEventListener("keydown", (e) => {
   }
 
   const taste = e.key.toLowerCase();
+  // 🎛 Treffer/Heilung ausgeschaltet: T/H/Z tun nichts (sonst Wunden „unsichtbar").
+  if (!funktionAn("wunden") && (taste === "t" || taste === "h")) return;
+  if (!funktionAn("angriff") && taste === "z") return;
   if (App.trefferWahl === "treffer" && /^[0-3]$/.test(e.key)) {
     e.preventDefault();
     App.trefferSteigerung = parseInt(e.key, 10);

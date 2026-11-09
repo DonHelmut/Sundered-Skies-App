@@ -27,6 +27,7 @@ function renderGM() {
       <h1 style="margin:0">Spielleiter · Sundered Skies Initiative</h1>
       <div class="row tight">
         ${aufnahmeKopfHtml()}
+        ${modusKopfHtml()}
         ${anordnungIstStandard(spalte) ? "" : `<button class="ghost" data-act="anordnung-zuruecksetzen" title="Panels wieder in die ursprüngliche Reihenfolge bringen">↺ Anordnung zurücksetzen</button>`}
         ${kopfMenueHtml()}
         <button class="ghost" data-act="fokus" title="Alles ausser Kampf, Zonen und Reihenfolge zuklappen">
@@ -40,6 +41,7 @@ function renderGM() {
     </div>
     ${renderAktionsleiste()}
     ${App.tastenHilfe ? tastenHilfeHtml() : ""}
+    ${modusFensterHtml()}${anleitungHtml()}
     ${angriffPopupHtml()}
     <datalist id="effekt-vorschlaege">${EFFEKT_VORSCHLAEGE.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`;
 }
@@ -50,13 +52,17 @@ function renderGM() {
 // Zuklappen). Schluessel = data-sec des Panels.
 const PANEL_BAU = {
   requests: () => renderRequestsPanel(),
-  zones: () => renderZonesPanel(),
-  message: () => renderMessagePanel(),
+  // 🎛 Ausgeschaltete Teile (funktionAn) bauen gar kein Panel - die
+  // Anordnung bleibt trotzdem gemerkt, beim Einschalten steht es wieder da.
+  zones: () => funktionAn("zonen") ? renderZonesPanel() : "",
+  message: () => funktionAn("nachrichten") || funktionAn("bennies") ? renderMessagePanel() : "",
   bibliothek: () => renderBibliothekPanel(),
   connect: () => renderConnectPanel(),
   combat: () => renderOrderPanel(true),
-  aufnahme: () => renderAufnahmePanel(),
-  protokolle: () => renderProtokollPanel(),
+  // Läuft gerade eine Aufnahme, bleibt das Panel - sonst käme man nach dem
+  // Ausschalten nicht mehr an „■ Beenden".
+  aufnahme: () => funktionAn("aufnahme") || Aufn.rec ? renderAufnahmePanel() : "",
+  protokolle: () => funktionAn("aufnahme") ? renderProtokollPanel() : "",
 };
 const STANDARD_ANORDNUNG = {
   links: ["requests", "zones", "message", "bibliothek", "connect", "aufnahme", "protokolle"],
@@ -603,6 +609,8 @@ function kopfMenueHtml() {
   return `<details class="kopf-menue" data-merk="kopfmenue"${App.offeneUnter.has("kopfmenue") ? " open" : ""}>
     <summary title="Werkzeuge: TV-Modus, Sicherung, Bilder aufräumen">☰ Mehr</summary>
     <div class="kopf-menue-inhalt">
+      <button class="ghost" data-act="anleitung-oeffnen" title="Was alles geht und wo es steckt">📖 Anleitung für den SL</button>
+      <button class="ghost" data-act="modus-oeffnen" title="Teile der App an- und ausschalten (z. B. nur Reihenfolge, ohne Treffer)">🎛 Was nutzen wir heute?</button>
       <a href="/tv" target="_blank" rel="noopener"><button class="ghost">📺 TV-/Beamer-Modus öffnen</button></a>
       <a href="/api/export"><button class="ghost" title="Charaktere + Bibliotheken + Begegnungen, mit allen Bildern (Zip)">💾 Sicherung exportieren</button></a>
       <label class="ghost knopf-label" title="Zip-Sicherung (oder alte .json) einspielen">⤵ Sicherung importieren
@@ -753,7 +761,8 @@ function renderAktionsleiste() {
   const anzeigeName = gruppe.length > 1 ? `${grundname(active.name)} ×${gruppe.length}` : active.name;
   // Angeschlagen? Dann gehört die Erholung JEDEN Zug an den Anfang - direkt hier.
   const bq = bennyQuelle(active);
-  const erholen = st.shaken && !st.out && gruppe.length === 1 ? `
+  const mitWunden = funktionAn("wunden"), mitAngriff = funktionAn("angriff");
+  const erholen = mitWunden && st.shaken && !st.out && gruppe.length === 1 ? `
       <button class="st-btn erholt-knopf" data-act="recover" data-id="${active.id}" data-benny="0" title="Probe geschafft (Willenskraft oder Konstitution): nicht mehr angeschlagen">✓ erholt</button>
       ${bq ? `<button class="st-btn" data-act="recover" data-id="${active.id}" data-benny="1" ${bq.n > 0 ? "" : "disabled"}
         title="${bq.feind ? `Benny aus dem SL-Pool (${bq.n})` : `Eigenen Benny ausgeben (${bq.n})`} – sofort erholt">🪙</button>` : ""}` : "";
@@ -775,7 +784,7 @@ function renderAktionsleiste() {
     ? `<span class="al-uhr" id="al-uhr">–</span>`
     // Angehalten (Spieler greift an/erholt sich und würfelt): zeigen, warum
     // nichts mehr herunterzählt. Ohne id - die Uhr-Schleife leert sonst den Text.
-    : s.phase === "running" ? `<span class="al-uhr" title="Uhr angehalten – der Spieler würfelt. Weiter mit „Weiter“.">⏸</span>`
+    : s.phase === "running" && funktionAn("timer") ? `<span class="al-uhr" title="Uhr angehalten – der Spieler würfelt. Weiter mit „Weiter“.">⏸</span>`
     : "";
 
   // Vorn nur noch Treffer + Heilung (Kalle, 23.10.2026). Vorher sieben Knöpfe,
@@ -783,12 +792,12 @@ function renderAktionsleiste() {
   // (😵 ☠ 🔄 ⚙) wird selten gebraucht und liegt hinter ⋯.
   return `<div class="aktionsleiste">
     ${App.leisteEinstellungen ? leisteEinstellungenHtml() : ""}
-    ${App.trefferWahl ? trefferWahlHtml(active) : gegnerzugJetzt(s, active) ? gegnerzugHtml(active) : ""}
+    ${!mitAngriff ? "" : App.trefferWahl ? trefferWahlHtml(active) : gegnerzugJetzt(s, active) ? gegnerzugHtml(active) : ""}
     <div class="al-wer">
       ${rundenZaehler(s)}
       <span class="al-platz">${platz}</span>
       <button class="al-name${istNsc && !active.ally ? " feind" : ""}" data-act="zur-aktiven-zeile" title="Zur Zeile springen">${esc(anzeigeName)}</button>
-      <span class="al-zustand">${st.shaken ? `<span class="tag" style="color:var(--warn);border-color:var(--warn)">😵</span>` : ""}${st.wounds ? `<span class="tag" style="color:var(--bad);border-color:var(--bad)">${st.wounds} 🩸</span>` : ""}</span>
+      <span class="al-zustand">${!mitWunden ? "" : st.shaken ? `<span class="tag" style="color:var(--warn);border-color:var(--warn)">😵</span>` : ""}${st.wounds ? `<span class="tag" style="color:var(--bad);border-color:var(--bad)">${st.wounds} 🩸</span>` : ""}</span>
       ${uhr}
       ${naechster
         ? `<span class="al-naechster" title="Kommt als Nächstes dran">danach: <b>${esc(naechster.name)}</b></span>`
@@ -796,12 +805,12 @@ function renderAktionsleiste() {
     </div>
     <div class="al-knoepfe">
       ${erholen}
-      <button class="st-btn treffer-knopf${App.trefferWahl === "treffer" ? " on" : ""}" data-act="treffer-wahl" title="${esc(active.name)} trifft jemanden: Ziel und Stärke wählen (Taste Z)">🎯<span class="tk-text"> Treffer</span></button>
-      <button class="st-btn treffer-knopf${App.trefferWahl === "heil" ? " on" : ""}" data-act="heil-wahl" title="Jemand wird geheilt: Ziel wählen">🩹<span class="tk-text"> Heilung</span></button>
+      ${mitAngriff ? `<button class="st-btn treffer-knopf${App.trefferWahl === "treffer" ? " on" : ""}" data-act="treffer-wahl" title="${esc(active.name)} trifft jemanden: Ziel und Stärke wählen (Taste Z)">🎯<span class="tk-text"> Treffer</span></button>
+      <button class="st-btn treffer-knopf${App.trefferWahl === "heil" ? " on" : ""}" data-act="heil-wahl" title="Jemand wird geheilt: Ziel wählen">🩹<span class="tk-text"> Heilung</span></button>` : ""}
       <button class="st-btn${App.leisteMehr ? " on" : ""}" data-act="leiste-mehr" title="Mehr: Angeschlagen, K.O., neue Karte, Kampf-Einstellungen">⋯</button>
-      ${App.leisteMehr ? `
+      ${App.leisteMehr ? `${mitWunden ? `
       <button class="st-btn ${st.shaken ? "on-shaken" : ""}" data-act="st-shaken" data-id="${active.id}" title="Angeschlagen">😵</button>
-      <button class="st-btn ${st.out ? "on-out" : ""}" data-act="st-out" data-id="${active.id}" title="K.O.">☠</button>
+      <button class="st-btn ${st.out ? "on-out" : ""}" data-act="st-out" data-id="${active.id}" title="K.O.">☠</button>` : ""}
       <button class="st-btn" data-act="redraw" data-id="${active.id}" title="Neue Karte">🔄</button>
       <button class="st-btn ${App.leisteEinstellungen ? "on" : ""}" data-act="leiste-einstellungen" title="Kampf-Einstellungen">⚙</button>` : ""}
     </div>
@@ -1066,28 +1075,34 @@ function angriffPopupHtml() {
 // Übersicht aller Tastenkürzel (Taste ? oder ☰ Mehr). Viele Kürzel kannte
 // man sonst nur aus dem Kleingedruckten in den Kampf-Einstellungen.
 function tastenHilfeHtml() {
-  const zeile = (tasten, text) => `<tr><td>${tasten.map((t) => `<kbd>${t}</kbd>`).join(" ")}</td><td>${text}</td></tr>`;
   return `<div class="tasten-hilfe-hg" data-act="tasten-hilfe">
     <div class="tasten-hilfe panel" data-act="">
       <div class="row spread" style="align-items:center; margin-bottom:8px">
         <strong>⌨ Tastenkürzel</strong>
         <button class="ghost small" data-act="tasten-hilfe">Schließen</button>
       </div>
-      <table>
+      ${tastenTabelleHtml()}
+    </div>
+  </div>`;
+}
+// Auch im Kapitel „⌨ Tasten" der 📖 Anleitung (modi.js). Ausgeschaltetes (🎛)
+// fehlt - Z/T/H tun dann ja nichts.
+function tastenTabelleHtml() {
+  const zeile = (tasten, text, f) => f && !funktionAn(f) ? ""
+    : `<tr><td>${tasten.map((t) => `<kbd>${t}</kbd>`).join(" ")}</td><td>${text}</td></tr>`;
+  return `<table>
         ${zeile(["Leertaste"], "Zug freigeben bzw. bestätigen · am Rundenende: neue Runde austeilen")}
         ${zeile(["Enter"], "wie Leertaste")}
         ${zeile(["W"], "Weiter: Zug beenden ohne Timer")}
-        ${zeile(["Z"], "🎯 Treffer: Ziel wählen – wen trifft der Aktive?")}
-        ${zeile(["0", "1", "2", "3"], "in der Zielwahl: Stärke fürs Antippen im Board (Erfolg / +1 / +2 / +3)")}
-        ${zeile(["T"], "Der Aktive selbst wird getroffen (angeschlagen bzw. +1 Wunde)")}
-        ${zeile(["H"], "Der Aktive wird geheilt")}
+        ${zeile(["Z"], "🎯 Treffer: Ziel wählen – wen trifft der Aktive?", "angriff")}
+        ${zeile(["0", "1", "2", "3"], "in der Zielwahl: Stärke fürs Antippen im Board (Erfolg / +1 / +2 / +3)", "angriff")}
+        ${zeile(["T"], "Der Aktive selbst wird getroffen (angeschlagen bzw. +1 Wunde)", "wunden")}
+        ${zeile(["H"], "Der Aktive wird geheilt", "wunden")}
         ${zeile(["Strg", "Klick"], "Figuren sammeln (Board oder Liste), dann gemeinsam ziehen")}
         ${zeile(["Rechtsklick"], "auf Figur (Liste oder Board): Treffer, Heilen, Zustand, Bennies … direkt an der Maus")}
         ${zeile(["Esc"], "Zielwahl schließen · Strg-Auswahl aufheben · dieses Fenster schließen")}
-        ${zeile(["?"], "Diese Übersicht")}
-      </table>
-    </div>
-  </div>`;
+        ${zeile(["?"], "Übersicht der Tastenkürzel")}
+      </table>`;
 }
 
 // Die Schalter saßen mitten im Kampf-Panel und haben dort bei jeder Änderung
@@ -1147,7 +1162,8 @@ function leisteEinstellungenHtml() {
       ${hilfe("gruppenKarte", s.gruppenKarte, "🃏 Gleiche Statisten teilen sich eine Karte",
         "Savage Worlds: z. B. alle Orks handeln gemeinsam auf einer Karte (ab der nächsten Runde). Wild Cards bekommen immer eine eigene")}
     </div>
-    <div class="muted small" style="margin-top:10px">Alle Tastenkürzel: Taste <kbd>?</kbd></div>
+    <div class="muted small" style="margin-top:10px">Alle Tastenkürzel: Taste <kbd>?</kbd> ·
+      <button type="button" class="linkknopf" data-act="modus-oeffnen">🎛 Ganze Teile an/aus (Treffer, Wunden, Bennies …)</button></div>
   </div>`;
 }
 
@@ -1433,7 +1449,7 @@ function combatantRow(c, num, isGM, isOpen) {
       <div class="badges">
         ${c.benched
           ? `<span class="tag" style="color:var(--muted);border-color:var(--muted)">⏸ Nicht im Kampf</span>`
-          : `<span class="tag zone-chip z${Zones.zoneOf(c)}">${esc(zoneLabel(Zones.zoneOf(c)))}</span>`}
+          : funktionAn("zonen") ? `<span class="tag zone-chip z${Zones.zoneOf(c)}">${esc(zoneLabel(Zones.zoneOf(c)))}</span>` : ""}
         ${c.ally ? `<span class="tag" style="color:var(--good);border-color:var(--good)">🤝 Verbündet</span>` : ""}
         ${duTag}${naechsterTag}${jokerBadge}
         ${c.isWildCard && !schlank ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card">WC</span>' : ""}
@@ -1441,9 +1457,9 @@ function combatantRow(c, num, isGM, isOpen) {
         ${schlank ? "" : bennyBadge(c)}
       </div>
       <div class="status-badges">${schlank ? "" : statusBadges(c, isGM)}${
-        (isGM && isActive && (c.status || {}).shaken && !(c.status || {}).out)
+        (isGM && isActive && funktionAn("wunden") && (c.status || {}).shaken && !(c.status || {}).out)
           ? ` <button class="st-btn on-shaken" data-act="recover" data-id="${c.id}" data-benny="0" title="Angeschlagen aufheben (Willenskraft- oder Konstitutions-Probe geschafft)">✓ erholt</button>` +
-            (c.isWildCard && (c.bennies || 0) > 0
+            (c.isWildCard && funktionAn("bennies") && (c.bennies || 0) > 0
               ? ` <button class="st-btn" data-act="recover" data-id="${c.id}" data-benny="1" title="Benny ausgeben & sofort erholt">🪙</button>` : "")
           : ""}</div>
     </div>
@@ -1471,17 +1487,18 @@ function kontextMenueHtml() {
   const conds = (App.state && App.state.conditions) || {};
   const b = (act, text, extra = "", titel = "") =>
     `<button class="km-btn${extra ? " " + extra : ""}" data-act="${act}" data-id="${c.id}"${titel ? ` title="${esc(titel)}"` : ""}>${text}</button>`;
-  const treffer = st.out ? "" : `<div class="km-zeile"><span class="km-label">💥 Treffer</span>
+  const mitWunden = funktionAn("wunden");
+  const treffer = st.out || !mitWunden ? "" : `<div class="km-zeile"><span class="km-label">💥 Treffer</span>
       ${[0, 1, 2, 3].map((n) => `<button class="km-btn km-treffer" data-act="km-treffer" data-id="${c.id}" data-n="${n}"
         title="${n ? `Angeschlagen + ${n} Wunde${n > 1 ? "n" : ""}` : "Angeschlagen (bzw. +1 Wunde, wenn schon angeschlagen)"}">${n ? `+${n}` : "Erfolg"}</button>`).join("")}</div>`;
-  const zustand = `<div class="km-zeile">
+  const zustand = !mitWunden ? "" : `<div class="km-zeile">
       ${b("apply-heal", "🩹 Heilen")}
       ${b("st-shaken", "😵 Angeschlagen", (st.shaken ? "on " : "") + "km-bleibt")}
       ${b("st-out", st.out ? "☠ Wieder wach" : "☠ K.O.", st.out ? "on" : "")}
     </div>`;
   const zustaende = Object.keys(conds).length ? `<div class="km-zeile km-klein">${Object.keys(conds).map((key) =>
       `<button class="km-btn km-bleibt${st[key] ? " on" : ""}" data-act="st-cond" data-id="${c.id}" data-cond="${key}">${esc(conds[key])}</button>`).join("")}</div>` : "";
-  const bennies = c.isWildCard ? `<div class="km-zeile"><span class="km-label">🪙 Bennies</span>
+  const bennies = c.isWildCard && funktionAn("bennies") ? `<div class="km-zeile"><span class="km-label">🪙 Bennies</span>
       ${b("benny-minus", "–", "km-bleibt")}<span class="km-zahl">${c.bennies || 0}</span>${b("benny-plus", "+", "km-bleibt")}</div>` : "";
   const zug = `<div class="km-zeile">
       ${c.id === App.state.activeId ? "" : b("set-active", "▶ Aktiv setzen")}
@@ -1500,7 +1517,7 @@ function kontextMenueHtml() {
   return `<div class="kontext-menue" style="left:${k.x}px; top:${k.y}px" role="menu">
     <div class="km-kopf"><b class="${c.kind === "npc" && !c.ally ? "km-feind" : ""}">${esc(c.name)}</b>${
       werte ? `<span class="km-werte">${esc(werte)}</span>` : ""}${
-      st.wounds ? `<span class="km-werte">🩸 ${st.wounds}</span>` : ""}</div>
+      st.wounds && mitWunden ? `<span class="km-werte">🩸 ${st.wounds}</span>` : ""}</div>
     ${treffer}${zustand}${zustaende}${bennies}${zug}${verwalten}
   </div>`;
 }
@@ -2136,28 +2153,30 @@ function renderMessagePanel() {
     // Laptop gespeicherte SL-Ansicht überschreiben, bevor sie geladen ist.
     try { localStorage.setItem("collapsed", JSON.stringify(App.collapsed)); } catch { /* ignore */ }
   }
-  return section("message", `✉ Nachricht / Bild / Bennies <span class="sec-zusatz">· 🪙 Pool ${s.slBennies}</span>`, `
+  const mitNachricht = funktionAn("nachrichten"), mitBenny = funktionAn("bennies");
+  const titel = [mitNachricht ? "✉ Nachricht / Bild" : "", mitBenny ? (mitNachricht ? "Bennies" : "🪙 Bennies") : ""].filter(Boolean).join(" / ");
+  return section("message", `${titel}${mitBenny ? ` <span class="sec-zusatz">· 🪙 Pool ${s.slBennies}</span>` : ""}`, `
     <div class="nachricht-zeile">
       <select id="msgtarget" data-act="msg-ziel" title="Empfänger">${opts}</select>
-      <button data-act="benny-geben" title="Der gewählte Empfänger (bei „Alle Spieler“ jeder) bekommt einen Benny – mit kurzem Hinweis aufs Handy">🪙 +1 Benny</button>
+      ${mitBenny ? `<button data-act="benny-geben" title="Der gewählte Empfänger (bei „Alle Spieler“ jeder) bekommt einen Benny – mit kurzem Hinweis aufs Handy">🪙 +1 Benny</button>` : ""}
     </div>
     ${mehrere}
-    <div class="nachricht-zeile">
+    ${mitNachricht ? `<div class="nachricht-zeile">
       <input id="msgtext" placeholder="Nachricht…">
       <label class="ghost knopf-label${App.pendingImageUrl ? " on" : ""}" title="Bild anhängen">🖼<input type="file" id="msgimage" accept="image/*" data-act="pick-image" style="display:none"></label>
       <button class="primary" data-act="send-message">Senden</button>
     </div>
-    ${preview}
-    <div class="row" style="align-items:center; gap:6px; margin-top:8px">
+    ${preview}` : ""}
+    ${mitBenny ? `<div class="row" style="align-items:center; gap:6px; margin-top:8px">
       <span class="muted small">SL-Pool</span>
       <button class="st-btn" data-act="sl-benny-minus">–</button>
       <span style="min-width:40px; text-align:center; font-weight:700">🪙 ${s.slBennies}</span>
       <button class="st-btn" data-act="sl-benny-plus">+</button>
       <button class="ghost small" data-act="benny-refresh" style="margin-left:auto" title="Jede Wildcard auf den Startwert (+ Glück-Bonus) setzen – z. B. zu Beginn des Abends. Startwert: ⚙ unten in der Leiste">↻ Bennies auffrischen</button>
-    </div>
+    </div>` : ""}
     ${s.tvImage ? `<div class="row" style="margin-top:8px"><span class="pill good">📺 TV zeigt gerade ein Bild</span><button class="ghost small" data-act="clear-tv">TV-Bild entfernen</button></div>` : ""}
-    ${log ? `<details class="unter-klapp" data-merk="verlauf"${App.offeneUnter.has("verlauf") ? " open" : ""}>
+    ${mitNachricht && log ? `<details class="unter-klapp" data-merk="verlauf"${App.offeneUnter.has("verlauf") ? " open" : ""}>
       <summary>Verlauf (letzte ${Math.min(3, s.messages.filter((m) => m.sender !== "kampf").length)})</summary>${log}
       <button class="ghost small" data-act="clear-messages" style="margin-top:6px">Verlauf leeren</button></details>` : ""}
-    ${archivHtml}`, false);
+    ${mitNachricht ? archivHtml : ""}`, false);
 }

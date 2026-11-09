@@ -12,6 +12,7 @@
 //               Großkarte, die der Spieler antippen darf.
 function cardSlot(cid, card, status, extraClass = "", opts = {}) {
   const { open = true, tappable = false } = opts;
+  if (!funktionAn("wunden")) status = null;     // 🎛 keine 😵/☠ auf den Karten
   const key = card ? `${cid}:${card.id}` : `${cid}:none`;
   // Char-Bild dieser Figur: Vorder- UND Rückseite im Design des Bildes.
   const fig = (App.state && App.state.combatants.find((x) => x.id === cid)) || {};
@@ -73,6 +74,7 @@ function statusOverlay(st) {
 function statusBadges(c, ohneKern) {
   const st = c.status;
   if (!st) return "";
+  if (!funktionAn("wunden")) ohneKern = true;   // 🎛 Wunden am Tisch: nur Zustände/Effekte
   if (st.out && !ohneKern) return `<span class="pill bad">Ausgeschaltet</span>`;
   const b = [];
   if (st.shaken && !ohneKern) b.push(`<span class="pill warn">Angeschlagen</span>`);
@@ -91,6 +93,7 @@ function statusBadges(c, ohneKern) {
 // Wunden als Punkte: gefüllt = Wunde, leer = was die Figur noch aushält (nach
 // der eingestellten Hausregel, wie max_wounds am Server). Klick öffnet das ⋯-Feld.
 function zustandZelle(c) {
+  if (!funktionAn("wunden")) return "";        // 🎛 Wunden zählt man am Tisch
   const st = c.status || {};
   const s = App.state || {};
   const max = c.isWildCard ? 3 : Math.max(0, (s.statistenKo || 3) - 1);
@@ -165,20 +168,22 @@ function playerQuickControls(c) {
   const rows = [];
 
   // Benny (nur Wild Cards mit Vorrat).
-  if (c.isWildCard && (c.bennies || 0) > 0) {
+  if (funktionAn("bennies") && c.isWildCard && (c.bennies || 0) > 0) {
     rows.push(reqBtn("🪙 Benny ausgeben", "benny", { delta: -1 }));
   }
-  // Angeschlagen setzen/aufheben.
-  rows.push(st.shaken
-    ? reqBtn("😵 Angeschlagen aufheben", "status", { shaken: false })
-    : reqBtn("😵 Angeschlagen", "status", { shaken: true }));
-  // Wunden – für JEDE Figur (nicht nur Wild Cards).
-  rows.push(reqBtn("🩸 Wunde +", "status", { woundsDelta: 1 }));
-  if ((st.wounds || 0) > 0) rows.push(reqBtn("🩹 Wunde heilen", "status", { woundsDelta: -1 }));
-  // K.O.
-  rows.push(st.out
-    ? reqBtn("☠ Nicht mehr K.O.", "status", { out: false })
-    : reqBtn("☠ K.O.", "status", { out: true }));
+  if (funktionAn("wunden")) {
+    // Angeschlagen setzen/aufheben.
+    rows.push(st.shaken
+      ? reqBtn("😵 Angeschlagen aufheben", "status", { shaken: false })
+      : reqBtn("😵 Angeschlagen", "status", { shaken: true }));
+    // Wunden – für JEDE Figur (nicht nur Wild Cards).
+    rows.push(reqBtn("🩸 Wunde +", "status", { woundsDelta: 1 }));
+    if ((st.wounds || 0) > 0) rows.push(reqBtn("🩹 Wunde heilen", "status", { woundsDelta: -1 }));
+    // K.O.
+    rows.push(st.out
+      ? reqBtn("☠ Nicht mehr K.O.", "status", { out: false })
+      : reqBtn("☠ K.O.", "status", { out: true }));
+  }
   // Alle weiteren Zustände (Verwundbar, Abgelenkt, Am Boden, Betäubt …).
   Object.keys(conds).forEach((k) => rows.push(st[k]
     ? reqBtn(conds[k] + " aufheben", "status", { [k]: false })
@@ -203,7 +208,10 @@ function kopfZustand(c) {
   const st = c.status || {};
   const conds = (App.state && App.state.conditions) || {};
   const b = [];
-  if (st.out) {
+  const mitWunden = funktionAn("wunden");
+  if (!mitWunden) {
+    Object.keys(conds).forEach((k) => { if (st[k]) b.push(`<span class="kz kz-cond">${esc(conds[k])}</span>`); });
+  } else if (st.out) {
     b.push(`<span class="kz kz-out">☠ Ausgeschaltet</span>`);
   } else {
     if (st.shaken) b.push(`<span class="kz kz-shaken">😵 Angeschlagen</span>`);
@@ -213,7 +221,7 @@ function kopfZustand(c) {
     }
     Object.keys(conds).forEach((k) => { if (st[k]) b.push(`<span class="kz kz-cond">${esc(conds[k])}</span>`); });
   }
-  if (!b.length) b.push(`<span class="kz kz-ok">✓ Gesund</span>`);
+  if (!b.length && mitWunden) b.push(`<span class="kz kz-ok">✓ Gesund</span>`);
   (c.effekte || []).forEach((e) => b.push(`<span class="kz kz-cond">⏱ ${esc(e.name)}${e.runden ? ` · ${e.runden} R.` : ""}</span>`));
   return `<div class="kopf-zustand">${b.join("")}</div>`;
 }
@@ -223,7 +231,7 @@ function kopfZustand(c) {
 // Reihenfolge. Antippen = Benny ausgeben (Rückfrage, dann Anfrage an den SL
 // wie bisher über „Etwas anfragen"). Ohne Anfragen nur Anzeige.
 function muenzenKopf(c) {
-  if (!c.isWildCard) return "";
+  if (!c.isWildCard || !funktionAn("bennies")) return "";
   const n = c.bennies || 0;
   const tippbar = !(App.state && App.state.requestsEnabled === false);
   const muenze = tippbar
@@ -237,12 +245,12 @@ function muenzenKopf(c) {
 }
 
 function bennyBadge(c) {
-  if (!c.isWildCard) return "";
+  if (!c.isWildCard || !funktionAn("bennies")) return "";
   return `<span class="pill" style="border-color:var(--gold);color:var(--gold)">🪙 ${c.bennies || 0}</span>`;
 }
 
 function bennyControls(c) {
-  if (!c.isWildCard) return "";
+  if (!c.isWildCard || !funktionAn("bennies")) return "";
   return `<span class="status-ctrl" style="gap:4px">
     <span class="small muted">Bennies</span>
     <button class="st-btn" data-act="benny-minus" data-id="${c.id}">–</button>
@@ -261,12 +269,13 @@ function statusControls(c) {
   ).join("");
   // Treffer/Heilung liegen als 1-Klick-Aktionen oben in der Zeile – hier bleibt
   // das Seltenere: Zustände, K.O., Neu ziehen, Bearbeiten.
-  return `<div class="status-ctrl">
-    ${!st.out ? `<button class="st-btn" data-act="apply-hit" data-id="${c.id}" title="Treffer: nicht angeschlagen → Angeschlagen; sonst +1 Wunde (Steigerungen: 🎯 Treffer unten)">💥 Treffer</button>` : ""}
+  const wundTeil = funktionAn("wunden") ? `    ${!st.out ? `<button class="st-btn" data-act="apply-hit" data-id="${c.id}" title="Treffer: nicht angeschlagen → Angeschlagen; sonst +1 Wunde (Steigerungen: 🎯 Treffer unten)">💥 Treffer</button>` : ""}
     <button class="st-btn" data-act="apply-heal" data-id="${c.id}" title="Heilung: wieder wach / −1 Wunde / Angeschlagen weg">🩹 Heilen</button>
     ${woundBtns}
     <button class="st-btn ${st.shaken ? "on-shaken" : ""}" data-act="st-shaken" data-id="${c.id}">Angeschlagen</button>
-    <button class="st-btn ${st.out ? "on-out" : ""}" data-act="st-out" data-id="${c.id}">${st.out ? "Ausgeschaltet" : "K.O."}</button>
+    <button class="st-btn ${st.out ? "on-out" : ""}" data-act="st-out" data-id="${c.id}">${st.out ? "Ausgeschaltet" : "K.O."}</button>` : "";
+  return `<div class="status-ctrl">
+    ${wundTeil}
     ${condBtns}
     ${c.card && !st.out ? `<button class="st-btn ${c.held ? "on" : ""}" data-act="${c.held ? "intervene" : "hold"}" data-id="${c.id}" title="${c.held ? "Jetzt eingreifen" : "Aktion aufsparen (Abwarten)"}">${c.held ? "⚡ Eingreifen" : "⏸ Abwarten"}</button>` : ""}
     <button class="st-btn" data-act="redraw" data-id="${c.id}" title="Neue Karte ziehen">🔄 Neu ziehen</button>

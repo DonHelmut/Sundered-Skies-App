@@ -39,7 +39,7 @@ function renderPlayer() {
   // als Nächstes"), Kasten unter der Karte („Gleich bist du dran") und eine
   // Zeile darunter („Warte auf Freigabe"). Unter der Karte bleibt nur die Uhr.
   const timer = s.phase === "running" && isMyTurn
-    ? (s.timerEndsAt ? timerRing() : `<div class="timer-halt">⏸ Uhr angehalten – würfle in Ruhe</div>`)
+    ? (s.timerEndsAt ? timerRing() : funktionAn("timer") ? `<div class="timer-halt">⏸ Uhr angehalten – würfle in Ruhe</div>` : "")
     : "";
 
   // Karten-Hinweise („Joker: +2 …", „Berechnend" bei niedriger Karte) erst,
@@ -58,7 +58,7 @@ function renderPlayer() {
   // ohne Angriff. Ohne Anfragen-System (SL hat es abgeschaltet) wie früher.
   const meinAngriff = (s.requests || []).find((r) => r.kind === "attack" && r.combatantId === mine.id);
   // Eigener Schalter (Kampf-Einstellungen), unabhängig vom Anfragen-System.
-  const angriffMoeglich = isMyTurn && s.spielerAngriff !== false;
+  const angriffMoeglich = isMyTurn && s.spielerAngriff !== false && funktionAn("angriff");
   const angriffZiel = meinAngriff && s.combatants.find((c) => c.id === (meinAngriff.detail || {}).targetId);
   const angriffBtn = !angriffMoeglich ? ""
     : meinAngriff
@@ -77,11 +77,11 @@ function renderPlayer() {
   // oder Konstitution - Stefan: am Tisch geht beides).
   const binDran = s.activeId === mine.id;
   // Erholen ist keine Anfrage mehr (gilt sofort) - geht auch ohne Anfragen.
-  const canRecover = binDran && mySt.shaken && !mySt.out;
+  const canRecover = binDran && funktionAn("wunden") && mySt.shaken && !mySt.out;
   const recoverFreeBtn = canRecover
     ? `<button class="primary big" data-act="player-request" data-kind="status" data-detail='{"shaken":false}' data-label="ist nicht mehr angeschlagen">✓ Geschafft</button>`
     : "";
-  const recoverBennyBtn = (canRecover && mine.isWildCard && (mine.bennies || 0) > 0)
+  const recoverBennyBtn = (canRecover && mine.isWildCard && funktionAn("bennies") && (mine.bennies || 0) > 0)
     ? `<button class="good big" data-act="player-request" data-kind="recover" data-detail='{"benny":true}' data-label="gibt einen Benny aus und ist erholt">🪙 Benny</button>`
     : "";
   const recoverGemeldet = (s.requests || []).some((r) => r.combatantId === mine.id && (r.kind === "recover" || (r.kind === "status" && (r.detail || {}).shaken === false)));
@@ -212,11 +212,11 @@ function renderPlayer() {
       </div>
     </div>
     ${cardPanel}
-    ${(kurz ? ["zones"]
+    ${(kurz ? ["zones"].filter(bereichAn)
       // Ohne Kampf: Notizen gleich unter die Werte, Reihenfolge und Zonen
       // sagen dann nichts.
       : ruhe ? ["notizen", ...handyBereiche().filter((k) => !["order", "zones", "notizen"].includes(k))]
-      : handyBereiche()).map((k) => ({
+      : handyBereiche()).filter(bereichAn).map((k) => ({
       order: orderPanel,
       zones: mine.benched ? "" : renderZonesPanel(),
       bogen: renderBogen(mine),
@@ -249,11 +249,11 @@ function ruhePanelHtml(s, mine) {
   const prot = typeof protokollListe === "function" && protokollListe().length;
   return `<div class="panel ruhe">
     <div class="ruhe-titel">${gleichKampf ? "⚔ Gleich geht's los – der Spielleiter teilt aus" : "🌤 Gerade kein Kampf"}</div>
-    <div class="zk-werte ruhe-werte">${werteKachelnHtml(mine)}</div>
+    ${funktionAn("boegen") ? `<div class="zk-werte ruhe-werte">${werteKachelnHtml(mine)}</div>` : ""}
     ${wundAbzugHtml(mine)}
     <div class="row ruhe-knoepfe">
       ${prot ? `<button type="button" class="ghost small" data-act="ruhe-protokoll">📜 Was bisher geschah</button>` : ""}
-      <button type="button" class="ghost small" data-act="regeln-oeffnen">📖 Regeln</button>
+      ${funktionAn("regeln") ? `<button type="button" class="ghost small" data-act="regeln-oeffnen">📖 Regeln</button>` : ""}
       ${mine.card ? `<button type="button" class="ghost small" data-act="ruhe-aus" title="Karte und Reihenfolge für diese Runde zeigen">🃏 Kampfansicht</button>` : ""}
     </div>
     ${playerQuickControls(mine)}
@@ -805,6 +805,10 @@ document.addEventListener("click", (e) => {
 // selbst ein (Kalle, 25.10.2026), gemerkt auf dem Handy. Standard: Bogen nach
 // unten, im Kampf braucht man zuerst Reihenfolge und Zonen.
 const HANDY_BEREICHE = { order: "Initiative-Reihenfolge", zones: "Kampfzonen", bogen: "Mein Charakter", msgs: "Nachrichten", notizen: "Notizen" };
+// 🎛 Bereiche, die der SL ausgeschaltet hat, gar nicht erst bauen. Die eigene
+// Reihenfolge bleibt gemerkt - beim Wiedereinschalten steht alles wie vorher.
+const BEREICH_FUNKTION = { zones: "zonen", bogen: "boegen", msgs: "nachrichten", notizen: "notizen" };
+function bereichAn(k) { return !BEREICH_FUNKTION[k] || funktionAn(BEREICH_FUNKTION[k]); }
 function handyBereiche() {
   let liste = [];
   try { liste = JSON.parse(localStorage.getItem("handyBereiche") || "[]"); } catch { /* egal */ }
@@ -815,7 +819,10 @@ function handyBereiche() {
 }
 function handyBereichSchieben(k, dir) {
   const liste = handyBereiche();
-  const i = liste.indexOf(k), j = i + dir;
+  const i = liste.indexOf(k);
+  // Ausgeblendete Bereiche (🎛) überspringen - sonst täte „▲" scheinbar nichts.
+  let j = i + dir;
+  while (j >= 0 && j < liste.length && !bereichAn(liste[j])) j += dir;
   if (i < 0 || j < 0 || j >= liste.length) return;
   [liste[i], liste[j]] = [liste[j], liste[i]];
   try { localStorage.setItem("handyBereiche", JSON.stringify(liste)); } catch { /* privates Fenster */ }
@@ -825,11 +832,11 @@ function handyBereichSchieben(k, dir) {
 // braucht. Stand vorher unten auf der Seite (Ton, Rückseite) bzw. als
 // „Verlassen" direkt neben „Runde", wo man leicht draufkam.
 function spielerMenueHtml(mine) {
-  const liste = handyBereiche();
+  const liste = handyBereiche().filter(bereichAn);
   const zeilen = liste.map((k, i) => `<div class="hb-zeile"><span>${HANDY_BEREICHE[k]}</span>
       <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="-1"${i === 0 ? " disabled" : ""} title="Nach oben">▲</button>
       <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="1"${i === liste.length - 1 ? " disabled" : ""} title="Nach unten">▼</button></div>`).join("");
-  return `<button type="button" class="ghost sm-regeln" data-act="regeln-oeffnen">📖 Regeln nachschlagen</button>
+  return `${funktionAn("regeln") ? `<button type="button" class="ghost sm-regeln" data-act="regeln-oeffnen">📖 Regeln nachschlagen</button>` : ""}
     <div class="sm-titel">Mein Handy</div>
     <label class="row tight sm-ton">
       <input type="checkbox" data-act="toggle-notify" ${localStorage.getItem("notifyTurn") !== "off" ? "checked" : ""} style="width:auto">

@@ -102,7 +102,8 @@ function kurzAnsichtAn() {
 // „Alles zeigen" gilt nur für DIESEN Zug - beim nächsten ist es wieder kurz.
 function zugSchluessel(s, mine) { return `${s.round}:${mine.id}:${mine.card ? mine.card.id : ""}`; }
 function kurzAnsichtJetzt(s, mine, isMyTurn) {
-  return isMyTurn && kurzAnsichtAn() && !mine.benched && !!mine.revealed
+  // Ohne Charakterbögen (🎛) hätte „Mein Zug" nur leere Kacheln.
+  return isMyTurn && funktionAn("boegen") && kurzAnsichtAn() && !mine.benched && !!mine.revealed
     && App.zugAllesZeigen !== zugSchluessel(s, mine);
 }
 
@@ -118,6 +119,7 @@ function werteKachelnHtml(mine) {
 }
 // Alle Abzüge auf einen Blick: Wunden zählen bis −3.
 function wundAbzugHtml(mine) {
+  if (!funktionAn("wunden")) return "";
   const st = mine.status || {};
   const wundAbzug = Math.min(3, st.wounds || 0);
   return wundAbzug ? `<div class="zk-abzug">−${wundAbzug} auf alle Würfe <span class="muted small">(${st.wounds} Wunde${st.wounds > 1 ? "n" : ""})</span></div>` : "";
@@ -146,7 +148,7 @@ function zugPanelHtml(mine, extras) {
     ${fert ? `<div class="zk-ferts">${fert}</div>` : ""}
     ${leer}
     <div class="row zk-knoepfe">
-      <button type="button" class="ghost small" data-act="regeln-oeffnen">📖 Regeln</button>
+      ${funktionAn("regeln") ? `<button type="button" class="ghost small" data-act="regeln-oeffnen">📖 Regeln</button>` : ""}
       <button type="button" class="ghost small" data-act="zug-alles">Alles zeigen ▾</button>
     </div>
     ${extras.anfragen || ""}
