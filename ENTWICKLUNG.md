@@ -77,6 +77,14 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## 2.0.5 (09.11.2026): Aktualisieren ohne GitHub-Abfrage-Limit
+
+Kalle bekam beim Aktualisieren „HTTP Error 403: rate limit exceeded“. Die
+GitHub-API erlaubt ohne Anmeldung nur 60 Abfragen pro Stunde je
+Internetanschluss. `aktualisieren.py` liest die Version jetzt über den Link
+`releases/latest` (Weiterleitung auf den Tag) und lädt von
+`releases/download/<tag>/<zip>`; die API ist nur noch Rückfall (PR #48).
+
 ## 2.0.4 (09.11.2026): Notiz löschen fragt nach
 
 Kalle: „Notiz löschen braucht ne sind sie sicher frage." Bisher löschte 🗑
