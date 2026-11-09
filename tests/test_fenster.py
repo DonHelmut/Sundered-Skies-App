@@ -41,7 +41,8 @@ def test_ohne_konsole_wird_umgeleitet(monkeypatch):
     monkeypatch.setattr(sys, "stderr", None)
     fenster.ausgaben_umleiten()
     assert sys.stdout is not None and sys.stderr is not None
-    assert sys.stdout.isatty() is False
+    # Nur aufrufbar muss es sein (Windows meldet „nul" als Gerät → True).
+    sys.stdout.isatty()
     print("geht ins Leere")
 
 
@@ -53,13 +54,22 @@ def test_mit_konsole_bleibt_alles(monkeypatch):
 
 
 def test_starthinweise_nur_fuer_den_sl():
-    from fastapi.testclient import TestClient
+    # Ohne TestClient (braucht httpx, fehlt in CI): Anfrage von Hand bauen.
+    import asyncio
+    import json
+    from starlette.requests import Request
     from server import app as app_modul
+
+    def info(ip):
+        anfrage = Request({"type": "http", "method": "GET", "path": "/api/info",
+                           "headers": [(b"host", b"x:8000")], "query_string": b"",
+                           "client": (ip, 5555), "server": ("x", 8000), "scheme": "http"})
+        return json.loads(asyncio.run(app_modul.api_info(anfrage)).body)
+
     app_modul.START_HINWEISE[:] = ["⚠ Die App liegt in OneDrive."]
     try:
-        # TestClient kommt als "testclient" - kein Loopback = Handy.
-        r = TestClient(app_modul.app).get("/api/info")
-        assert r.json()["startHinweise"] == []
+        assert info("192.168.1.50")["startHinweise"] == []          # Handy
+        assert info("127.0.0.1")["startHinweise"] == ["⚠ Die App liegt in OneDrive."]  # SL
     finally:
         app_modul.START_HINWEISE.clear()
 
