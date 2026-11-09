@@ -342,6 +342,78 @@ def updater_nachziehen(ordner: Path) -> bool:
     return getauscht
 
 
+def selbst_tausch_skript(pid: int) -> str:
+    """cmd-Skript, das wartet, bis dieser Updater (``pid``) zu ist, und dann
+    die ``*.neu``-Dateien des Updaters einsetzt. Kalle (09.11.2026): „Soll
+    über Aktualisieren.exe ALLES geupdatet werden" – vorher kam der neue
+    Updater erst beim nächsten App-Start an (``updater_nachziehen``), und wer
+    danach gleich wieder Aktualisieren.exe startete, hatte noch den alten
+    (bei 2.0.5: der mit dem API-Limit). ``updater_nachziehen`` bleibt als
+    Rückfall, falls das Skript nicht drankommt (z.B. Sperre über Minuten).
+    Alter Stand wird nur beiseite gelegt (``.weg-``, räumt die App weg) und
+    zurückgeholt, wenn das Einsetzen scheitert – nie ein kaputter Updater."""
+    zeilen = [
+        "@echo off",
+        "setlocal",
+        # Skript liegt im App-Ordner: kein Pfad im Skript (Umlaute im Pfad
+        # vertragen sich nicht mit der Codepage von cmd).
+        'cd /d "%~dp0"',
+        "set /a n=0",
+        # Warten, bis der Updater zu ist (Fenster mit „Enter drücken" offen).
+        ":warten",
+        f'tasklist /FI "PID eq {pid}" /NH 2>nul | find "{pid}" >nul',
+        "if errorlevel 1 goto los",
+        "set /a n+=1",
+        "if %n% GEQ 1800 goto ende",
+        "ping -n 2 127.0.0.1 >nul",
+        "goto warten",
+        ":los",
+        "set /a n=0",
+        ":tauschen",
+        "set fertig=1",
+        f'call :eins "{SELBST_ORDNER}" d',
+        f'call :eins "{SELBST_EXE}" f',
+        'if "%fertig%"=="1" goto ende',
+        "set /a n+=1",
+        "if %n% GEQ 30 goto ende",
+        "ping -n 3 127.0.0.1 >nul",
+        "goto tauschen",
+        # :eins <name> <d|f> – einen Eintrag tauschen
+        ":eins",
+        'if not exist "%~1.neu" exit /b',
+        f'set "weg=%~1{WEG}tausch"',
+        'if exist "%weg%" call :weg %2',
+        'if exist "%~1" move /y "%~1" "%weg%" >nul 2>&1 || (set fertig=0& exit /b)',
+        'move /y "%~1.neu" "%~1" >nul 2>&1 || (move /y "%weg%" "%~1" >nul 2>&1& set fertig=0& exit /b)',
+        "call :weg %2",
+        "exit /b",
+        ":weg",
+        'if "%~1"=="d" (rmdir /s /q "%weg%" 2>nul) else (del /f /q "%weg%" 2>nul)',
+        "exit /b",
+        ":ende",
+        # Skript löscht sich selbst (klassischer cmd-Trick).
+        '(goto) 2>nul & del "%~f0"',
+    ]
+    return "\r\n".join(zeilen) + "\r\n"
+
+
+def selbst_tausch_starten(ordner: Path) -> bool:
+    """Startet das Tausch-Skript unsichtbar und losgelöst. Nur unter Windows
+    und nur, wenn neue Updater-Dateien bereitliegen."""
+    if os.name != "nt" or not any((ordner / (n + ".neu")).exists() for n in (SELBST_ORDNER, SELBST_EXE)):
+        return False
+    try:
+        skript = ordner / f"_updater-tausch{WEG}{os.getpid()}.cmd"
+        skript.write_text(selbst_tausch_skript(os.getpid()), encoding="ascii")
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "DETACHED_PROCESS", 0) \
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        subprocess.Popen(["cmd", "/c", str(skript)], creationflags=flags, close_fds=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception:
+        return False   # Rückfall: die App zieht beim Start nach
+
+
 # --- Netz ---------------------------------------------------------------------
 
 def _anfrage(url: str, methode: str = "GET") -> urllib.request.Request:
@@ -551,8 +623,10 @@ def main() -> None:
             print(f"https://github.com/{REPO}/releases/latest holen und den Ordner data hineinkopieren.")
             _ende(1)
 
+    selbst_tausch_starten(ordner)
     print()
-    print(f"Fertig – jetzt Version {neu}. Starten wie immer mit START.bat")
+    print(f"Fertig – jetzt Version {neu} (auch Aktualisieren.exe selbst, sobald dieses")
+    print("Fenster zu ist). Starten wie immer mit START.bat")
     print(f"oder {APP_EXE}.")
     _ende(0)
 

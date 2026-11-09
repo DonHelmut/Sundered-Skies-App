@@ -119,6 +119,14 @@ aus einem alten Stand holt man 2.0.5+ also einmal per Zip von Hand. Zusätzlich:
   ausweichen (dort sitzt das Limit); Größe liefert der Download.
 - 403/429-Limit sagt nicht mehr „Keine Verbindung“, sondern „GitHub-Limit, in
   einer Stunde nochmal oder Zip von releases/latest holen“.
+- **Updater tauscht sich jetzt selbst** (Kalle: „über Aktualisieren.exe soll
+  ALLES geupdatet werden“): nach dem Update startet er unsichtbar ein kleines
+  cmd-Skript, das wartet, bis sein Fenster zu ist, und dann `*.neu` einsetzt
+  (alt beiseite → neu rein → alt löschen; scheitert es, alt zurück).
+  `updater_nachziehen` beim App-Start bleibt Rückfall. Echter Test unter
+  Windows in CI (`test_updater_tauscht_sich_selbst_nach_dem_schliessen`).
+  Greift erst ab dem Updater dieser Version – alte Updater kommen weiter über
+  den App-Start.
 
 ## 2.0.5 (09.11.2026): Aktualisieren ohne GitHub-Abfrage-Limit
 
