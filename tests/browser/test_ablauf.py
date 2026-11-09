@@ -263,10 +263,16 @@ def test_notiz_bearbeiten_suchen_loeschen(tisch):
     h.page.locator("#notiz-edit").fill("Seil UND Haken kaufen")
     h.locator("[data-act=notiz-fertig]").first.click()
     h.warte_bis("() => App.state.meineNotizen.some(n => n.text === 'Seil UND Haken kaufen')")
-    # Löschen (mit Rückfrage oder Rückgängig)
+    # Löschen fragt erst nach: Abbrechen lässt die Notiz stehen ...
     h.locator("li.zeile", has_text="Seil UND").locator("[data-act=notiz-loeschen]").first.click()
-    if h.page.locator(".app-dialog-hg").count():
-        h.page.locator(".app-dialog-hg button.bad, .app-dialog-hg button.primary").last.click()
+    h.page.locator(".app-dialog-hg").wait_for()
+    assert "Seil UND Haken kaufen" in h.page.locator(".app-dialog-text").inner_text()
+    h.page.locator(".app-dialog-hg button.ghost").click()
+    h.wait_for_timeout(300)
+    assert h.js("App.state.meineNotizen.some(n => n.text === 'Seil UND Haken kaufen')")
+    # ... „Löschen" löscht.
+    h.locator("li.zeile", has_text="Seil UND").locator("[data-act=notiz-loeschen]").first.click()
+    h.page.locator(".app-dialog-hg button.bad").click()
     h.warte_bis("() => !App.state.meineNotizen.some(n => n.text.startsWith('Seil'))")
 
 

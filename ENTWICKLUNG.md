@@ -77,6 +77,19 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## 2.0.4 (09.11.2026): Notiz löschen fragt nach
+
+Kalle: „Notiz löschen braucht ne sind sie sicher frage." Bisher löschte 🗑
+sofort, nur mit ein paar Sekunden „↶ Rückgängig" – am Handy übersieht man
+das leicht, und eine Gruppennotiz ist dann für alle weg.
+
+- `notizLoeschen` (spieler.js) fragt jetzt mit `frage(…, "Löschen", true)`,
+  zeigt den Notiztext (gekürzt auf 80 Zeichen), bei 👥 Gruppennotizen den
+  Zusatz „verschwindet für alle". Gilt auch für „leer gespeichert = löschen".
+- Das „↶ Rückgängig" bleibt als zweites Netz.
+- Browser-Test `test_notiz_bearbeiten_suchen_loeschen` prüft Abbrechen
+  (Notiz bleibt) und Löschen.
+
 ## Nach 2.0.3 (08.11.2026): 🎛 Spielmodus + 📖 Anleitung für den SL
 
 Kalle: „kleine Hilfe für den SL, was alles möglich ist" und „Spielmodi – was
