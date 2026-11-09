@@ -90,7 +90,7 @@ das leicht, und eine Gruppennotiz ist dann für alle weg.
 - Browser-Test `test_notiz_bearbeiten_suchen_loeschen` prüft Abbrechen
   (Notiz bleibt) und Löschen.
 
-## Nach 2.0.3 (08.11.2026): 🎛 Spielmodus + 📖 Anleitung für den SL
+## 2.0.4 (09.11.2026): 🎛 Spielmodus + 📖 Anleitung für den SL
 
 Kalle: „kleine Hilfe für den SL, was alles möglich ist" und „Spielmodi – was
 wir alles verwenden möchten, mit Toggle (angreifen oder ohne: nur Karten
