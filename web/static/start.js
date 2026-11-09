@@ -69,7 +69,7 @@ function mountSkins() {
   // „QR-Code zeigen" für JEDES Gerät: wer schon mitspielt, hält sein Handy
   // hin und der Nächste scannt davon - statt dass alle den Laptop abfilmen.
   // #spieler-menue füllt render() (Ton, Rückseite, Bereiche, Verlassen).
-  box.innerHTML = `<div id="spieler-menue"></div><button type="button" class="qr-teilen-knopf" data-act="qr-gross">📱 QR-Code für Mitspieler zeigen</button>` +
+  box.innerHTML = `<div id="spieler-menue"></div><button type="button" class="qr-teilen-knopf" data-act="qr-gross">📱 QR-Code für Mitspieler zeigen</button><button type="button" class="qr-teilen-knopf nur-handy" data-act="als-app">📲 Als App auf den Startbildschirm</button>` +
     SKINS.map((s) => `<button class="skin-dot skin-${s}" data-skin="${s}" title="${SKIN_NAMES[s]}"></button>`).join("") +
     `<div class="reveal-pick">
        <div class="muted small" style="margin-bottom:4px">Karten aufdecken</div>
@@ -141,7 +141,18 @@ fetch("/api/info").then((r) => r.json()).then((info) => {
   App._info = info;
   merkeServerAdressen(info);
   if (App.state) render();
+  startHinweiseZeigen(info);
 }).catch(() => {});
+
+// Warnungen vom Start (Spielstand in OneDrive, schreibgeschützter Ordner …).
+// Standen bis 2.0.5 im schwarzen Fenster, das es nicht mehr gibt. Einmal pro
+// Fenster reicht - sonst kommt die Frage bei jedem Neuladen wieder.
+function startHinweiseZeigen(info) {
+  const liste = (info && info.startHinweise) || [];
+  if (!liste.length) return;
+  try { if (sessionStorage.getItem("startHinweise") === "1") return; sessionStorage.setItem("startHinweise", "1"); } catch { /* ignore */ }
+  hinweis(liste.join("\n\n"));
+}
 
 // Die Adressliste alle 2 Minuten auffrischen: wechselt der Laptop das WLAN,
 // kennen die Handys sonst nur die alte Adresse und finden ihn nie wieder.

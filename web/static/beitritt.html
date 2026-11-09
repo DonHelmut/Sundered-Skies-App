@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Handys verbinden – Sundered Skies</title>
+  <link rel="icon" type="image/svg+xml" href="/static/icon.svg" />
+  <!-- Eigene kleine Seite für „Handy-QR-Code zeigen" am Symbol neben der Uhr:
+       ersetzt den QR-Code, der bis 2.0.5 im schwarzen Fenster stand. Bewusst
+       ohne die App-Skripte - ein zweites SL-Fenster soll nicht mitspielen. -->
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #ecdcb8; color: #3b2a1a; font-family: system-ui, "Segoe UI", sans-serif; text-align: center; }
+    .karte { background: #f7ecd2; border: 1px solid #c9a46a; border-radius: 16px; padding: 24px 28px;
+      box-shadow: 0 8px 30px rgba(60, 40, 20, .25); max-width: 92vw; }
+    h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .04em; text-transform: uppercase; }
+    img.qr { width: min(60vh, 80vw); image-rendering: pixelated; display: block; margin: 12px auto; }
+    .url { font-size: 22px; font-weight: 700; word-break: break-all; }
+    .klein { font-size: 14px; opacity: .75; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="karte">
+    <h1>Handys verbinden</h1>
+    <div class="klein">Mit der Handy-Kamera scannen</div>
+    <img class="qr" src="/qr.png" alt="QR-Code" />
+    <div class="url" id="url"></div>
+    <div class="klein" id="weitere"></div>
+  </div>
+  <script>
+    fetch("/api/info", { cache: "no-store" }).then((r) => r.json()).then((i) => {
+      document.getElementById("url").textContent = i.url;
+      const rest = (i.urls || []).filter((u) => u !== i.url);
+      if (rest.length) document.getElementById("weitere").textContent = "Geht nicht? Auch: " + rest.join("  ·  ");
+    }).catch(() => {});
+  </script>
+</body>
+</html>

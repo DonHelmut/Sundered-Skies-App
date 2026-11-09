@@ -11,7 +11,8 @@ from PyInstaller.utils.hooks import collect_submodules, collect_all
 # Wörterbuch der Namenskorrektur (server/namen.py) liegt neben dem Code.
 datas = [('web', 'web'), ('server/woerter-de.txt.gz', 'server')]
 binaries = []
-hiddenimports = ['qrcode', 'ifaddr']
+# pystray waehlt sein Windows-Backend erst zur Laufzeit - PyInstaller sieht es sonst nicht.
+hiddenimports = ['qrcode', 'ifaddr', 'pystray._win32']
 hiddenimports += collect_submodules('PIL')
 # sherpa_onnx/av: Spracherkennung für die Spielabend-Aufnahme (server/sprache.py),
 # bringt onnxruntime und ffmpeg mit (~55 MB im Zip). Die Modelle sind NICHT
@@ -51,7 +52,9 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True,
+    # Kein schwarzes Fenster mehr (2.0.6): Symbol neben der Uhr, siehe server/fenster.py.
+    console=False,
+    icon='web/static/app.ico',
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

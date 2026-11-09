@@ -2,7 +2,9 @@
 
 - Ermittelt die LAN-IP, druckt QR-Code + Adresse im Terminal.
 - Registriert best-effort den Namen ``pnp.local`` per mDNS.
-- Öffnet die SL-Ansicht im Browser (localhost -> Loopback -> SL-Rolle).
+- Öffnet die SL-Ansicht als App-Fenster (localhost -> Loopback -> SL-Rolle).
+- In der .exe ohne Konsole: Symbol neben der Uhr statt schwarzem Fenster
+  (siehe fenster.py).
 - Startet den Uvicorn-Server mit dem App-Objekt (bundle-fest, kein Import-String).
 """
 
@@ -13,7 +15,6 @@ import socket
 import sys
 import threading
 import time
-import webbrowser
 
 import qrcode
 import uvicorn
@@ -23,6 +24,7 @@ from .app import app
 from . import app as app_modul
 from . import diag
 from . import winnet
+from . import fenster
 
 
 NETZ_INTERVALL = 20   # Sekunden zwischen zwei Kontrollen
@@ -197,12 +199,37 @@ def open_browser_later() -> None:
 
     def _open():
         time.sleep(1.2)
-        try:
-            webbrowser.open(f"http://localhost:{active_port()}/")
-        except Exception:
-            pass
+        diag.log("SL-Ansicht geoeffnet: " + fenster.app_fenster_oeffnen(f"http://localhost:{active_port()}/"))
 
     threading.Thread(target=_open, daemon=True).start()
+
+
+def infobereich_starten(server) -> "fenster.Infobereich | None":
+    """Symbol neben der Uhr (nur in der .exe ohne Konsole). Ohne Symbol gäbe
+    es dort keinen Weg, die App zu beenden - dann lieber laut ins Log."""
+    from .game import DATA_DIR
+
+    def beenden():
+        diag.log("Beendet ueber das Symbol im Infobereich.")
+        server.should_exit = True
+
+    symbol = fenster.Infobereich(f"http://localhost:{active_port()}/", DATA_DIR,
+                                 app_modul.WEB_DIR / "static" / "icon-64.png", beenden, APP_VERSION)
+    try:
+        if not symbol.starten():
+            diag.log("WARNUNG: Symbol im Infobereich nicht verfuegbar (pystray fehlt).")
+            return None
+    except Exception as fehler:
+        diag.log(f"WARNUNG: Symbol im Infobereich ging nicht: {fehler}")
+        return None
+
+    def _begruessen():
+        # Kurz warten: notify() vor dem Anzeigen des Symbols verpufft.
+        time.sleep(3)
+        symbol.hinweis("Läuft. Fenster zu? Die Handys spielen weiter – "
+                       "Symbol unten rechts: Fenster öffnen, QR-Code, Beenden.")
+    threading.Thread(target=_begruessen, daemon=True).start()
+    return symbol
 
 
 def _port_in_use(port: int) -> bool:
@@ -262,6 +289,14 @@ def _already_running(running_port: int) -> str:
     oder trotzdem eine zweite Kopie auf einem Ausweich-Port starten.
     Rueckgabe: "zweite" oder "oeffnen"."""
     url = f"http://localhost:{running_port}/"
+    if fenster.OHNE_KONSOLE:
+        # Ohne schwarzes Fenster gibt es nichts zu fragen: der Normalfall ist
+        # „Fenster wieder aufmachen" (Fenster zu, App lief im Infobereich weiter).
+        # Eine zweite Kopie geht nur noch über START.bat/Konsole - die braucht
+        # am Spieltisch praktisch nie jemand.
+        if not os.environ.get("SWI_NO_BROWSER"):
+            fenster.app_fenster_oeffnen(url)
+        return "oeffnen"
     print()
     print("=" * 52)
     print("  Sundered Skies laeuft bereits.")
@@ -285,10 +320,7 @@ def _already_running(running_port: int) -> str:
     if wahl.startswith("z"):
         return "zweite"
     if not os.environ.get("SWI_NO_BROWSER"):
-        try:
-            webbrowser.open(url)
-        except Exception:
-            pass
+        fenster.app_fenster_oeffnen(url)
     print()
     print(f"  Geoeffnet: {url}  - dieses Fenster kann zu.")
     try:
@@ -298,7 +330,24 @@ def _already_running(running_port: int) -> str:
     return "oeffnen"
 
 
+def _melden_und_warten(text: str, sekunden: float) -> None:
+    """Fehler beim Start zeigen: mit Konsole dort (wartet auf Enter), ohne
+    Konsole als Windows-Meldung - sonst verschwände die App kommentarlos."""
+    if fenster.OHNE_KONSOLE:
+        fenster.meldung(text, fehler=True)
+        return
+    print()
+    for zeile in text.splitlines():
+        print("  " + zeile)
+    print()
+    try:
+        input("  Zum Schliessen die Eingabetaste druecken... ")
+    except Exception:
+        time.sleep(sekunden)
+
+
 def main() -> None:
+    fenster.ausgaben_umleiten()
     # Windows-Konsole (cp1252) vertraegt Umlaute/Blockzeichen sonst nicht.
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -336,13 +385,7 @@ def main() -> None:
         alt = _pick_port()
         if alt is None:
             diag.log("ABBRUCH: alle Kandidaten-Ports belegt.")
-            print()
-            print("  Alle moeglichen Ports sind belegt. Bitte den Laptop neu starten.")
-            print()
-            try:
-                input("  Zum Schliessen die Eingabetaste druecken... ")
-            except Exception:
-                time.sleep(12)
+            _melden_und_warten("Alle moeglichen Ports sind belegt. Bitte den Laptop neu starten.", 12)
             return
         port = alt
         print()
@@ -374,6 +417,10 @@ def main() -> None:
         # Spielstand.
         diag.log(f"WARNUNG: Daten liegen in OneDrive ({DATA_DIR}) - Sync kann "
                  f"Speichern stoeren. Besser einen Ordner ausserhalb waehlen.")
+        app_modul.START_HINWEISE.append(
+            "⚠ Die App liegt in OneDrive. Der Ordner wird dann ständig synchronisiert – "
+            "das kann das Speichern stören und im schlimmsten Fall den Spielstand kosten. "
+            "Besser: den ganzen Ordner nach C:\\SunderedSkies\\ verschieben.")
         print("  ! Diese App liegt in OneDrive. Der Ordner wird dann staendig")
         print("    synchronisiert - das kann das Speichern stoeren und im")
         print("    schlimmsten Fall den Spielstand kosten.")
@@ -381,6 +428,10 @@ def main() -> None:
         print()
 
     if DATA_DIR_AUSGEWICHEN_VON:
+        app_modul.START_HINWEISE.append(
+            f"⚠ Der Ordner neben der App ist schreibgeschützt. Spielstand und Log liegen "
+            f"deshalb hier: {DATA_DIR}. Besser: den App-Ordner auf den Desktop legen "
+            f"(nicht in „Programme“ und nicht direkt aus dem Zip starten).")
         print("  ! Der Ordner neben der App ist schreibgeschuetzt. Spielstand und")
         print(f"    Log liegen deshalb hier:  {DATA_DIR}")
         print("    Besser: den App-Ordner auf den Desktop legen (nicht in")
@@ -396,26 +447,29 @@ def main() -> None:
     diag.log(f"Laptop wach halten: {winnet.wach_halten()}")
     netz_waechter_starten()
     zc = register_mdns(ip)
+    server = uvicorn.Server(uvicorn.Config(
+        app, host="0.0.0.0", port=active_port(), log_level="warning",
+        ws_ping_interval=10, ws_ping_timeout=10, timeout_keep_alive=10))
+    symbol = None
+    if fenster.OHNE_KONSOLE:
+        symbol = infobereich_starten(server)
     open_browser_later()
     try:
-        uvicorn.run(app, host="0.0.0.0", port=active_port(), log_level="warning",
-                    ws_ping_interval=10, ws_ping_timeout=10, timeout_keep_alive=10)
+        server.run()
     except OSError as exc:
         # Typisch: die App wurde zweimal angeklickt und beide starten gleichzeitig,
         # oder ein anderes Programm hat sich den Port in der Zwischenzeit geschnappt.
         diag.log(f"SERVER-START FEHLGESCHLAGEN auf Port {active_port()}: {exc}")
-        print()
-        print(f"  Der Port {active_port()} liess sich nicht belegen:")
-        print(f"    {exc}")
-        print()
-        print("  Meistens: die App laeuft schon (zweimal angeklickt?). Dann das")
-        print("  andere Fenster benutzen. Sonst den Laptop neu starten.")
-        print()
-        try:
-            input("  Zum Schliessen die Eingabetaste druecken... ")
-        except Exception:
-            time.sleep(20)
+        _melden_und_warten(
+            f"Der Port {active_port()} liess sich nicht belegen:\n    {exc}\n\n"
+            "Meistens: die App laeuft schon (zweimal angeklickt?). Dann das\n"
+            "andere Fenster benutzen. Sonst den Laptop neu starten.", 20)
     finally:
+        if symbol and symbol.icon:
+            try:
+                symbol.icon.stop()
+            except Exception:
+                pass
         if zc:
             try:
                 zc.close()

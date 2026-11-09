@@ -77,6 +77,38 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## 2.0.6 (09.11.2026): App wirkt wie ein Programm (kein Tab, kein schwarzes Fenster)
+
+Kalle: „mehr als festes Programm statt HTTP". Varianten A/B/C gezeigt
+(Projekt-Ordner `screenshots/programm-fenster/`), **B gewählt, C gemerkt**.
+
+- **SL-Fenster:** `server/fenster.py` öffnet Edge/Chrome im App-Modus
+  (`--app=URL`): eigenes Fenster ohne Adressleiste/Tabs, eigenes Symbol in der
+  Taskleiste. Standard-Browser zuerst (dort liegt die Mikrofon-Freigabe), sonst
+  Edge, sonst Chrome, sonst normaler Tab. Normales Browser-Profil, kein eigenes
+  → Kumpel-Laptops bleiben unverändert.
+- **Kein schwarzes Fenster:** .spec `console=False` + `icon=web/static/app.ico`.
+  Stattdessen Symbol neben der Uhr (pystray, neu in requirements.txt):
+  Fenster öffnen (Doppelklick), Handy-QR-Code (`/static/beitritt.html`),
+  Ordner mit Spielstand/Log, Beenden. Fenster zu = Handys spielen weiter.
+  Ohne Konsole sind stdout/stderr None → `fenster.ausgaben_umleiten()` VOR
+  uvicorn (sonst Absturz an `isatty`). Fehler beim Start → Windows-Meldung.
+  „Läuft bereits" fragt nicht mehr, sondern öffnet das Fenster wieder (zweite
+  Kopie nur noch per Konsole/`python -m server.run`).
+- **Start-Warnungen** (OneDrive, schreibgeschützter Ordner) standen nur in der
+  Konsole → jetzt `startHinweise` in `/api/info` (nur SL) und einmal als Dialog.
+- **Symbol** `web/static/icon.svg` (+ PNGs, `app.ico`, `apple-touch-icon.png`
+  ohne Transparenz, sonst schwarze Ecken am iPhone), `manifest.json`.
+- **Handy „Als App"** (`als-app.js`, Variante 2): einmaliger Streifen nach dem
+  Beitritt + Knopf im ⚙, Anleitung iPhone/Android. Name „Sundered Skies",
+  frei änderbar. iPhone öffnet dann ohne Safari-Leiste (eigener Speicher →
+  einmal Charakter wählen); Android nur Verknüpfung (Vollbild braucht HTTPS).
+  Das Symbol merkt sich die IP → feste IP im Router empfohlen.
+- **Am echten Windows prüfen:** Taskleisten-Symbol des App-Fensters,
+  Tray-Menü, Beenden, Mikrofon im App-Fenster.
+- **Gemerkt (C):** pywebview-Eigenfenster (✕ = App aus, +~10 MB; Mikrofon und
+  Downloads im WebView2 erst testen).
+
 ## 2.0.5 (09.11.2026): Aktualisieren ohne GitHub-Abfrage-Limit
 
 Kalle bekam beim Aktualisieren „HTTP Error 403: rate limit exceeded“. Die

@@ -2,6 +2,7 @@ fastapi>=0.110
 python-multipart>=0.0.9
 uvicorn[standard]>=0.27
 qrcode>=7.4
+pystray>=0.19   # Symbol neben der Uhr statt schwarzem Fenster (server/fenster.py)
 pillow>=10.0
 zeroconf>=0.131
 # Spracherkennung (Spielabend-Mitschrift, server/sprache.py) - alles ONNX auf

@@ -19,7 +19,10 @@ SO STARTEST DU
    loeschen, nicht verschieben. Die .exe allein funktioniert nicht.
 2. Doppelklick auf  START.bat  (oder direkt auf SunderedSkiesInitiative.exe).
    START.bat sagt Bescheid, falls am Ordner etwas fehlt.
-3. Es öffnet sich automatisch der Browser mit der Spielleiter-Ansicht.
+3. Es öffnet sich das Spielleiter-Fenster. Unten rechts neben der Uhr
+   erscheint das Symbol der App (evtl. hinter dem Pfeil ^ versteckt):
+   Fenster zu = die Handys spielen weiter. Wieder öffnen oder BEENDEN:
+   Rechtsklick auf das Symbol. Dort auch: QR-Code für die Handys.
 4. Spieler tippen mit dem Handy die angezeigte Adresse ein
    (z. B. http://192.168.178.22:8000  – Zahl kann bei dir anders sein),
    oder scannen den QR-Code. Nichts zu installieren.

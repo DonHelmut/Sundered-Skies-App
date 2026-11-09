@@ -42,6 +42,10 @@ LOCAL_IP = local_ip()
 
 # Vom IP-Waechter gesetzt: Adressen haben sich im laufenden Betrieb geaendert.
 ADRESSWECHSEL: dict = {"passiert": False, "ips": []}
+# Warnungen vom Start (OneDrive, schreibgeschützter Ordner …). Standen früher
+# nur im schwarzen Fenster - das gibt es seit 2.0.6 nicht mehr, also zeigt sie
+# die SL-Ansicht (run.py füllt die Liste).
+START_HINWEISE: list[str] = []
 
 
 def adresse_gewechselt(neue_ips: list[str]) -> None:
@@ -186,6 +190,8 @@ async def api_info(request: Request):
         "firewallRuleActive": winnet.rule_active(),
         "addressChanged": ADRESSWECHSEL["passiert"],
         "wlan": wlan,   # Netz, Band, Wi-Fi-Standard des Laptops (None = kein WLAN)
+        # Nur für den SL-Laptop - die Handys geht der Ordner des Laptops nichts an.
+        "startHinweise": START_HINWEISE if _is_loopback(request) else [],
     }, headers={
         # Handys pruefen bei Verbindungsverlust ALLE bekannten Adressen des
         # Servers durch (siehe adressFallback in app.js). Dieser Test laeuft

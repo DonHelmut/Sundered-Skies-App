@@ -339,6 +339,7 @@ document.addEventListener("click", (e) => {
     "einladung-kopieren": () => einladungKopieren(),
     "einladung-bild": () => einladungsBildKopieren(),
     "qr-gross": () => qrGrossZeigen(),
+    "als-app": () => alsAppAnleitung(),
     // ⚔ Kämpfe verwalten / Kampf vorbereiten (Kampf-Panel, nur ohne laufenden
     // Kampf): Bibliothek auf, Reiter „Kämpfe", hinscrollen.
     "kaempfe-zeigen": () => {
