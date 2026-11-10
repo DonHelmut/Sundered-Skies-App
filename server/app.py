@@ -114,7 +114,7 @@ async def _auto_sicherung() -> None:
             # lebenden Listen. Der Nebenfaden packte sonst, während ein Handy
             # gerade Notizen oder Bogen speichert - halbe Stände in der Zip
             # oder „dictionary changed size during iteration" (Prüfung 05.11.).
-            daten = copy.deepcopy(game.export_data())
+            daten = copy.deepcopy(_sicherung_daten())
             pfad = await asyncio.get_event_loop().run_in_executor(
                 None, sicherung.auto_sichern, daten, UPLOAD_DIR, SICHERUNG_DIR)
             if pfad:
@@ -214,6 +214,29 @@ async def qr_png(request: Request):
 _LOKAL = ("127.0.0.1", "::1", "localhost")
 
 
+def _sicherung_daten() -> dict:
+    """Alles für die Sicherung: was das Spiel dauerhaft hält, plus die
+    gemerkten Stimmen (liegen bei den Aufnahmen, sind aber klein und kosten
+    sonst nach einem Laptop-Umzug wieder einen Abend Anmelden)."""
+    daten = game.export_data()
+    profile = aufnahmen.stimmprofile()
+    if profile:
+        daten = {**daten, "stimmprofile": profile}
+    return daten
+
+
+def _sicherung_einspielen(data) -> dict:
+    if not isinstance(data, dict):
+        return {"ok": False, "fehler": "Unbekanntes Format."}
+    bericht = game.import_data(data)
+    n = aufnahmen.stimmprofile_einspielen(data.get("stimmprofile"))
+    if n:
+        bericht.setdefault("uebernommen", {})["Gemerkte Stimmen"] = n
+        bericht["ok"] = True
+        bericht["fehler"] = None
+    return bericht
+
+
 def _is_loopback(request_or_ws) -> bool:
     client = getattr(request_or_ws, "client", None)
     host = client.host if client else None
@@ -225,7 +248,20 @@ def _is_loopback(request_or_ws) -> bool:
     # WebSocket an localhost:8000 Sicherungen einspielen, Aufnahmen löschen
     # oder den Kampf steuern können (Prüfung 05.11.2026). Eigene Seiten
     # schicken localhost/127.0.0.1 oder gar keinen Origin.
-    origin = (getattr(request_or_ws, "headers", None) or {}).get("origin")
+    kopf = getattr(request_or_ws, "headers", None) or {}
+    # Auch der Host-Name muss der Laptop selbst sein. Sonst reicht ein Trick
+    # (DNS-Rebinding): eine fremde Seite lässt ihren eigenen Namen kurz darauf
+    # auf 127.0.0.1 zeigen - ihre Abrufe kommen dann „vom Laptop" und OHNE
+    # Origin (gleiche Herkunft). So ließen sich Sicherung und Aufnahmen lesen
+    # (Durchleuchtung 10.11.2026). Ohne Host-Kopf (alte Werkzeuge) wie bisher.
+    host = kopf.get("host")
+    if host:
+        try:
+            if urlsplit("//" + host).hostname not in _LOKAL:
+                return False
+        except ValueError:
+            return False
+    origin = kopf.get("origin")
     if origin:
         try:
             herkunft = urlsplit(origin).hostname
@@ -365,7 +401,7 @@ async def export_backup(request: Request):
     Laptop-Wechsel fehlten dann die Bilder)."""
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
-    body, bilder = sicherung.baue_zip(game.export_data(), UPLOAD_DIR)
+    body, bilder = sicherung.baue_zip(_sicherung_daten(), UPLOAD_DIR)
     diag.log(f"Sicherung exportiert: {len(body) / 1024:.0f} KB, {bilder} Bild(er)")
     datum = time.strftime("%Y-%m-%d")
     return Response(content=body, media_type="application/zip",
@@ -384,7 +420,7 @@ async def import_backup(request: Request, file: UploadFile):
         data, bilder = sicherung.lies_sicherung(raw, UPLOAD_DIR)
     except ValueError:
         return JSONResponse({"error": "bad_json"}, status_code=400)
-    bericht = game.import_data(data) if isinstance(data, dict) else {"ok": False, "fehler": "Unbekanntes Format."}
+    bericht = _sicherung_einspielen(data)
     if bericht.get("ok"):
         bericht.setdefault("uebernommen", {})["Bilder"] = bilder
     if bericht.get("ok"):
@@ -438,9 +474,9 @@ async def sicherung_zurueckholen(request: Request, name: str):
         return JSONResponse({"error": "kaputt"}, status_code=400)
     # Vorher-Stand sichern, aber ohne die Sicherung, die gerade zurückkommt,
     # aus der Liste zu schieben (darum einen Platz mehr behalten).
-    sicherung.auto_sichern(game.export_data(), UPLOAD_DIR, SICHERUNG_DIR, immer=True,
+    sicherung.auto_sichern(_sicherung_daten(), UPLOAD_DIR, SICHERUNG_DIR, immer=True,
                            behalten=sicherung.AUTO_BEHALTEN + 1)
-    bericht = game.import_data(data) if isinstance(data, dict) else {"ok": False, "fehler": "Unbekanntes Format."}
+    bericht = _sicherung_einspielen(data)
     if bericht.get("ok"):
         bericht.setdefault("uebernommen", {})["Bilder"] = bilder
         diag.log(f"AUTO-SICHERUNG zurueckgeholt: {name}")
@@ -1035,7 +1071,7 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             await hub.broadcast_state()
         elif atype == "set_image" and action.get("id") == own["id"]:
             # Spieler setzt NUR das Bild der eigenen Figur.
-            game.apply({"type": "set_image", "id": own["id"], "url": action.get("url")})
+            game.bild_vom_spieler(own["id"], action.get("url"))
             await hub.broadcast_state()
         elif atype == "set_figur_rueckseite":
             # Kartenrückseite NUR der eigenen Figur (Standard/Profil/eigenes Bild).

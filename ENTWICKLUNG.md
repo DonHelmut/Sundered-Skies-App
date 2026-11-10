@@ -77,6 +77,37 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.6 (10.11.2026): Durchleuchtung – 4 Bugs, Sicherung vollständig
+
+Kalle: „nochmal alles durchleuchten". Code gelesen (Server, Updater, Aufnahme,
+Verbindung), SL + 3 Handys im Browser durchgespielt. Liste mit Ideen im
+Projektordner `recherche/durchleuchtung-2026-11-10.md`. Gefunden und behoben
+(Tests: `tests/test_durchleuchtung.py`):
+
+- **↶ löschte einen am Handy angelegten Charakter** samt Bogen und Notizen
+  (auch auf der Platte): `_restore` holt die Charakterliste von VOR der letzten
+  SL-Aktion zurück, `charakter_anlegen` war aber kein Rückgängig-Schritt.
+  Ebenso nahm ↶ Talente/Glück und das Bild zurück, die ein Spieler selbst
+  gesetzt hatte. Jetzt trägt `Game._in_verlauf` alles, was Spieler an ihrem
+  Charakter pflegen, auch in die Rückgängig-Stände ein. Das Bild vom Handy
+  läuft über `bild_vom_spieler` (kein Rückgängig-Schritt mehr). Wer nach dem
+  zurückgeholten Stand beigetreten ist, behält seine Figur
+  (`_verbundene_behalten_figur`) statt wieder vor der Beitrittsseite zu stehen.
+- **Anfragen vom Handy ungeprüft:** Beschriftung beliebig lang (reiste in jedem
+  Update an alle), `detail` ohne Formprüfung – eine kaputte Anfrage ließ sich
+  beim SL nur ablehnen. Jetzt `Game._anfrage_sauber` (nur bekannte Arten,
+  kleines flaches Objekt, Beschriftung 120 Zeichen), höchstens 40 offene.
+- **Fremder Host-Name galt als SL:** `_is_loopback` prüfte nur Absender-IP und
+  Origin. Per DNS-Rebinding (fremde Seite zeigt mit ihrem Namen auf 127.0.0.1)
+  wären Sicherung und Aufnahmen lesbar gewesen. Jetzt muss auch der Host-Kopf
+  localhost/127.0.0.1 sein.
+- **Sicherung unvollständig:** Export enthielt nur 4 Einstellungen. Jetzt alle
+  (Spielmodus 🎛, Hausregeln, Ton, Kartenrückseite samt Bild) und die gemerkten
+  Stimmen (`stimmprofile`). Alte Sicherungen lassen die neuen Schalter in Ruhe.
+- **Aktualisieren beendete jede laufende Kopie** (`taskkill /IM`), auch aus
+  einem anderen Ordner. Jetzt gezielt per Pfad (PowerShell, `app_beenden`),
+  taskkill nur noch als Rückfall. Am echten Windows prüfen.
+
 ## 2.0.6 (09.11.2026): App wirkt wie ein Programm (kein Tab, kein schwarzes Fenster)
 
 Kalle: „mehr als festes Programm statt HTTP". Varianten A/B/C gezeigt

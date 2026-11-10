@@ -92,6 +92,38 @@ def app_laeuft(ordner: Path) -> bool:
     return False
 
 
+def beenden_befehl(ordner: Path) -> list[str]:
+    """PowerShell-Aufruf, der NUR die App aus diesem Ordner beendet. Vorher
+    ``taskkill /IM``: das traf jede laufende SunderedSkiesInitiative.exe - auch
+    eine zweite Kopie in einem anderen Ordner (Test-Ordner neben dem echten
+    Spiel), die mit dem Update nichts zu tun hat (Durchleuchtung 10.11.2026)."""
+    exe = str(ordner / APP_EXE).replace("'", "''")
+    name = APP_EXE[:-4]
+    return ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+            f"Get-Process -Name '{name}' -ErrorAction SilentlyContinue | "
+            f"Where-Object {{ $_.Path -eq '{exe}' }} | Stop-Process -Force"]
+
+
+def app_beenden(ordner: Path, ausfuehren=None, laeuft=None, warten=time.sleep) -> bool:
+    """App aus ``ordner`` beenden und warten, bis ihre Dateien frei sind.
+    Erst gezielt (nur diese Kopie); klappt das nicht (PowerShell gesperrt,
+    Firmen-Laptop), wie früher über den Programmnamen. Rückgabe: ob sie aus ist."""
+    ausfuehren = ausfuehren or (lambda befehl: subprocess.run(
+        befehl, capture_output=True, timeout=30,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)))
+    laeuft = laeuft or app_laeuft
+    for befehl in (beenden_befehl(ordner), ["taskkill", "/F", "/IM", APP_EXE]):
+        try:
+            ausfuehren(befehl)
+        except Exception:  # noqa: BLE001 - dann eben der nächste Weg
+            continue
+        for _ in range(20):
+            if not laeuft(ordner):
+                return True
+            warten(0.5)
+    return not laeuft(ordner)
+
+
 # --- Dateien tauschen, auch wenn Windows/OneDrive dazwischenfunkt -------------
 #
 # Vorgeschichte (1.5.35, Kalles App im OneDrive-Desktop): Der Updater hat erst
@@ -484,11 +516,7 @@ def main() -> None:
         if not antwort.startswith(("j", "y")):
             print("Abgebrochen – nichts geändert.")
             _ende(1)
-        subprocess.run(["taskkill", "/F", "/IM", APP_EXE], capture_output=True)
-        for _ in range(20):
-            time.sleep(0.5)
-            if not app_laeuft(ordner):
-                break
+        app_beenden(ordner)
 
     # ignore_cleanup_errors: ein Virenscanner, der noch im Download liest, darf
     # nach geglücktem Austausch keinen „Fehler" mehr erzeugen.

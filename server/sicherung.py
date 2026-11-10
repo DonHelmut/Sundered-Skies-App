@@ -46,6 +46,11 @@ def bilder_der_sicherung(data: dict) -> set[str]:
     for begegnung in data.get("encounters") or []:
         for m in (begegnung.get("members") or []) if isinstance(begegnung, dict) else []:
             merke(m)
+    # Die Kartenrückseite des Tisches (eigenes Bild des SL) steht bei den
+    # Einstellungen - ohne sie zeigte der neue Laptop auf ein Bild, das fehlt.
+    einst = data.get("settings")
+    if isinstance(einst, dict):
+        merke({"rueckseite": einst.get("rueckseiteBild")})
     return namen
 
 
