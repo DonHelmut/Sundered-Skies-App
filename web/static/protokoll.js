@@ -15,6 +15,7 @@ const Prot = {
   offen: false,         // Lesefenster (Spieler und SL-Vorschau)
   auf: new Set(),       // aufgeklappte Abende im Lesefenster
   entwurf: null,        // SL: { id|null, name, text } im Einfüge-Fenster
+  chronik: false,       // Lesefenster zeigt alle Abende am Stück (📖 Chronik)
 };
 
 function protokollListe() {
@@ -138,7 +139,57 @@ function protokollKnopfAuffrischen() {
   protKnopf.classList.toggle("on", Prot.offen);
 }
 
+// --- 📖 Chronik: alle Abende am Stück -------------------------------------------
+// Kalle 10.11.2026: die ganze Kampagne zum Durchlesen, neueste zuerst. Vorher
+// musste man jeden Abend einzeln aufklappen - wer zwei Wochen fehlte oder neu
+// dazukommt, las sich die Geschichte nie zusammen. Kapitelnummern zählen vom
+// ersten Abend an (das oberste Kapitel hat die höchste Nummer).
+// Der SL sieht auch nicht freigegebene (markiert) und kann drucken/als PDF
+// sichern; die Spieler bekommen ohnehin nur Freigegebenes vom Server.
+
+// Claude setzt oben „# Titel" - in der Chronik steht der Titel schon als
+// Kapitelüberschrift, doppelt sähe es aus wie ein Fehler.
+function chronikText(text, name) {
+  const zeilen = String(text || "").split("\n");
+  const i = zeilen.findIndex((z) => z.trim());
+  const m = i >= 0 ? /^#{1,4}\s+(.*)$/.exec(zeilen[i].trim()) : null;
+  const gleich = (a, b) => a.replace(/[*#]/g, "").trim().toLowerCase() === b.trim().toLowerCase();
+  if (m && gleich(m[1], name || "")) zeilen.splice(0, i + 1);
+  return zeilen.join("\n");
+}
+
+function protokollChronikHtml() {
+  const liste = protokollListe();
+  const n = liste.length;
+  let fehlt = 0;
+  const kapitel = liste.map((p, i) => {
+    const t = protokollText(p);
+    if (!t) fehlt++;
+    return `<section class="chr-kapitel" id="chr-${esc(p.id)}">
+      <div class="chr-kopf"><div class="chr-nr">Kapitel ${n - i}${p.datum ? ` · ${protokollDatum(p.datum)}` : ""}${
+        App.role === "gm" && !p.freigegeben ? ` · <span class="nicht-drucken">nur du</span>` : ""}</div>
+        <div class="chr-titel">${esc(p.name)}</div></div>
+      ${t ? `<div class="pt-text">${protokollHtml(chronikText(t.text, p.name))}</div>` : `<div class="muted small pt-text">Lädt …</div>`}
+    </section>`;
+  }).join("");
+  // Sprungmarken erst ab vier Abenden - darunter sieht man ohnehin alles.
+  const marken = n >= 4 ? `<div class="chr-marken nicht-drucken">${liste.map((p, i) =>
+    `<button type="button" class="ghost small" data-act="prot-sprung" data-id="${esc(p.id)}">${n - i} ${esc(p.name)}</button>`).join("")}</div>` : "";
+  return `<div class="protokoll-hg" data-act="prot-zu">
+    <div class="protokoll-fenster breit panel chronik" data-act="" data-scroll-merk="chronik">
+      <div class="pt-titelzeile"><strong>📖 Chronik</strong>
+        <span class="row tight nicht-drucken chr-knoepfe">
+          ${App.role === "gm" ? `<button class="ghost small" data-act="prot-drucken"${fehlt ? " disabled" : ""} title="Drucken oder als PDF sichern (im Druckfenster „Als PDF speichern“ wählen)">🖨 Drucken / PDF</button>` : ""}
+          <button class="ghost small" data-act="prot-einzeln" title="Zurück zur Liste der Abende">☰ Einzeln</button>
+          <button class="ghost small" data-act="prot-zu">Schließen</button></span></div>
+      <div class="muted small chr-zahl">${n} ${n === 1 ? "Abend" : "Abende"} · der neueste zuerst</div>
+      ${marken}
+      ${kapitel}
+    </div></div>`;
+}
+
 function protokollLeseHtml() {
+  if (Prot.chronik && protokollListe().length) return protokollChronikHtml();
   const liste = protokollListe().filter((p) => App.role === "player" || p.freigegeben || Prot.auf.has(p.id));
   const abende = liste.map((p) => {
     const auf = Prot.auf.has(p.id);
@@ -154,6 +205,8 @@ function protokollLeseHtml() {
     <div class="protokoll-fenster panel" data-act="" data-scroll-merk="protokoll">
       <div class="pt-titelzeile"><strong>📜 ${Prot.wasBisher ? "Was bisher geschah" : "Protokolle"}</strong>
         <button class="ghost small" data-act="prot-zu">Schließen</button></div>
+      ${protokollListe().length > 1 ? `<div class="row tight chr-einstieg"><button class="primary small" data-act="prot-chronik">📖 Alles am Stück lesen</button>
+        <span class="muted small">${protokollListe().length} Abende</span></div>` : ""}
       ${abende || `<div class="muted small">Noch nichts freigegeben.</div>`}
     </div></div>`;
 }
@@ -174,7 +227,10 @@ function renderProtokollPanel() {
         <button class="ghost small" data-act="prot-loeschen" data-id="${esc(p.id)}" title="Löschen">🗑</button>
       </div></div>`).join("");
   return section("protokolle", "📜 Protokolle", `
-    <button class="primary" data-act="prot-neu">＋ Protokoll einfügen</button>
+    <div class="row tight" style="flex-wrap:wrap; gap:6px">
+      <button class="primary" data-act="prot-neu">＋ Protokoll einfügen</button>
+      ${protokollListe().length ? `<button class="ghost" data-act="prot-chronik" title="Alle Abende am Stück lesen, drucken oder als PDF sichern">📖 Chronik</button>` : ""}
+    </div>
     ${zeilen ? `<div class="pt-liste">${zeilen}</div>` : ""}
     <div class="muted small hilfe" style="margin-top:6px; line-height:1.5">
       Was Claude aus dem „📝 Prompt“ geschrieben hat, hier einfügen. Die Spieler
@@ -208,6 +264,16 @@ function protokollFensterHtml() {
   return "";
 }
 
+// Drucken: nur die Chronik, schwarz auf weiß (style.css, body.chronik-druck).
+// Die Klasse statt eines reinen @media print: sonst druckte auch Strg+P im
+// laufenden Kampf plötzlich anders als bisher.
+function chronikDrucken() {
+  document.body.classList.add("chronik-druck");
+  const fertig = () => { document.body.classList.remove("chronik-druck"); window.removeEventListener("afterprint", fertig); };
+  window.addEventListener("afterprint", fertig);
+  window.print();
+}
+
 document.addEventListener("input", (e) => {
   if (!Prot.entwurf || !e.target) return;
   if (e.target.id === "prot-name") Prot.entwurf.name = e.target.value;
@@ -223,7 +289,15 @@ document.addEventListener("click", async (e) => {
   if (!t || !t.dataset.act.startsWith("prot-")) return;
   const act = t.dataset.act, id = t.dataset.id;
   e.preventDefault();
-  if (act === "prot-zu") { Prot.offen = false; Prot.wasBisher = false; render(); return; }
+  if (act === "prot-zu") { Prot.offen = false; Prot.wasBisher = false; Prot.chronik = false; render(); return; }
+  if (act === "prot-chronik") { Prot.chronik = true; Prot.offen = true; Prot.wasBisher = false; render(); return; }
+  if (act === "prot-einzeln") { Prot.chronik = false; render(); return; }
+  if (act === "prot-sprung") {
+    const ziel = document.getElementById(`chr-${id}`);
+    if (ziel) ziel.scrollIntoView({ block: "start", behavior: "smooth" });
+    return;
+  }
+  if (act === "prot-drucken") { chronikDrucken(); return; }
   if (act === "prot-auf") {
     if (Prot.auf.has(id)) Prot.auf.delete(id); else Prot.auf.add(id);
     render(); return;
@@ -253,7 +327,7 @@ document.addEventListener("click", async (e) => {
   } else if (act === "prot-frei") {
     gmAction({ type: "protokoll_freigeben", id, an: t.dataset.an === "1" });
   } else if (act === "prot-ansehen") {
-    Prot.auf = new Set([id]); Prot.offen = true; render();
+    Prot.auf = new Set([id]); Prot.chronik = false; Prot.offen = true; render();
   } else if (act === "prot-bearbeiten") {
     const p = protokollListe().find((x) => x.id === id);
     if (!p) return;

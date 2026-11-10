@@ -18,7 +18,7 @@ const BOGEN_REITER = [["kampf", "Kampf"], ["werte", "Werte"], ["talente", "Talen
 function leererBogen() {
   return { parade: "", robustheit: "", panzer: "", tempo: "", rennen: "",
     attribute: { ge: "", ve: "", wi: "", st: "", ko: "" },
-    fertigkeiten: [], waffen: [], talente: [], handicaps: [], ausruestung: [] };
+    fertigkeiten: [], waffen: [], talente: [], handicaps: [], ausruestung: [], foto: "" };
 }
 function bogenVon(c) {
   const b = c && c.bogen;
@@ -26,7 +26,8 @@ function bogenVon(c) {
 }
 function bogenIstLeer(b) {
   return !b.parade && !b.robustheit && !b.tempo && !b.waffen.length && !b.fertigkeiten.length
-    && !Object.values(b.attribute).some(Boolean) && !b.talente.length && !b.handicaps.length && !b.ausruestung.length;
+    && !Object.values(b.attribute).some(Boolean) && !b.talente.length && !b.handicaps.length && !b.ausruestung.length
+    && !b.foto;
 }
 const wuerfelWahl = (pfad, wert, breite) =>
   `<input class="wuerfel-feld" list="wuerfel-vorschlaege" data-bogen="${pfad}" value="${esc(wert || "")}" placeholder="6 oder 6+2" inputmode="text"${breite ? ` style="width:${breite}"` : ""}>`;
@@ -40,12 +41,20 @@ function renderBogen(mine) {
   const b = edit ? App.bogenEntwurf : bogenVon(mine);
   const leiste = bogenReiterLeiste(reiter, "bogen-reiter");
   let inhalt;
+  if (reiter === "foto" && !(bogenIstLeer(b) && !edit && !(mine.talents || []).length)) {
+    // Das Foto wird sofort gespeichert (kein Entwurf) - darum hier auch beim
+    // Bearbeiten kein „Speichern", nur zurück zu den anderen Reitern.
+    return section("bogen", "📜 Mein Charakter", `<div class="bogen">${leiste}${bogenFotoEigenHtml(b)}${edit
+      ? `<div class="row" style="margin-top:10px; gap:8px"><button class="primary" data-act="bogen-speichern">✓ Speichern</button>
+         <button class="ghost" data-act="bogen-abbrechen">Abbrechen</button></div>` : mitspielerBoegen(mine)}</div>`);
+  }
   // Ganz leerer Bogen: eine Zeile statt Reiter + Erklärtext + Regeltipp (Kalle,
   // 25.10.2026) - das nahm am Handy einen halben Bildschirm für „nichts da".
   if (!edit && bogenIstLeer(b) && !(mine.talents || []).length) {
-    return `<div class="panel bogen-leer"><button class="ghost" data-act="bogen-bearbeiten">📜 Charakterbogen ausfüllen ✎</button>${mitspielerBoegen(mine)}</div>`;
+    return `<div class="panel bogen-leer"><button class="ghost" data-act="bogen-bearbeiten">📜 Charakterbogen ausfüllen ✎</button>
+      ${bogenFotoWahl("📷 Oder: Foto vom Papierbogen", "ghost bogen-foto-leer")}${mitspielerBoegen(mine)}</div>`;
   }
-  if (!edit && bogenIstLeer(b) && reiter !== "talente") {
+  if (!edit && bogenIstLeer(b) && reiter !== "talente" && reiter !== "foto") {
     inhalt = `<div class="muted small" style="padding:6px 0">Noch leer. Tippe auf <b>✎ Bearbeiten</b> und trag deine Werte ein – dann hast du sie im Kampf immer griffbereit.</div>`;
     if (reiter === "kampf") inhalt += regelTipp(b);
     return section("bogen", "📜 Mein Charakter", `<div class="bogen">${leiste}${inhalt}<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div>${mitspielerBoegen(mine)}</div>`);
@@ -121,8 +130,10 @@ function mitspielerBoegen(mine) {
     `<button class="ghost small" data-act="bogen-ansicht" data-id="${c.id}">📜 ${esc(c.name)}</button>`).join("")}</div>`;
 }
 
-function bogenReiterLeiste(reiter, act) {
-  return `<div class="reiter">${BOGEN_REITER.map(([k, n]) =>
+// Der Reiter „📷 Foto" kommt beim eigenen Bogen immer dazu (dort lädt man es
+// hoch), bei fremden nur, wenn es ein Foto gibt.
+function bogenReiterLeiste(reiter, act, mitFoto = true) {
+  return `<div class="reiter">${BOGEN_REITER.concat(mitFoto ? [["foto", "📷 Foto"]] : []).map(([k, n]) =>
     `<button class="${k === reiter ? "an" : ""}" data-act="${act}" data-reiter="${k}">${n}</button>`).join("")}</div>`;
 }
 
@@ -130,6 +141,7 @@ function bogenReiterLeiste(reiter, act) {
 // Mitspieler, Kalle 05.10.2026: „sollen andere aber auch sehen können").
 // ``c`` ist Figur oder Roster-Charakter: von dort kommen die Initiative-Talente.
 function bogenLesenHtml(b, c, reiter) {
+  if (reiter === "foto") return bogenFotoBildHtml(b) || `<div class="muted small" style="padding:6px 0">Kein Foto.</div>`;
   if (reiter === "kampf") {
     return `<div class="zeile2"><span>Parade</span><b>${b.parade ? esc(b.parade) : (autoParade(b) !== null ? `${autoParade(b)} <span class="auto-wert">automatisch</span>` : "–")}</b></div>
          <div class="zeile2"><span>Robustheit</span><b>${b.robustheit ? esc(b.robustheit) : (autoRobustheit(b) !== null ? `${autoRobustheit(b)} <span class="auto-wert">automatisch</span>` : "–")}${b.panzer && !panzerSchonDrin(b) ? ` (${esc(b.panzer)})` : ""}</b></div>
@@ -163,6 +175,96 @@ function bogenLesenHtml(b, c, reiter) {
   }
   return b.ausruestung.map((z) => `<div class="zeile2"><span>${esc(z)}</span></div>`).join("") || `<div class="muted small">–</div>`;
 }
+
+// --- 📷 Foto vom Papierbogen ---------------------------------------------------
+// Kalle 10.11.2026 (Variante A: eigener Reiter im Bogen). Wer seinen Bogen auf
+// Papier führt, tippt ihn nicht ab - also blieb „Mein Charakter" leer und der
+// SL sah nichts. Ein Foto reicht zum Nachschauen; Werte eintragen geht
+// weiterhin (dann rechnet die App mit). Sichtbar wie der Bogen: für einen
+// selbst, den SL und die Mitspieler.
+// 2400 px statt der üblichen 1600: auf einem Bogen muss man Kleingedrucktes
+// noch lesen können, wenn man hineinzoomt.
+const BOGEN_FOTO_KANTE = 2400;
+
+function bogenFotoWahl(text, klasse) {
+  return `<label class="${klasse} knopf-label bogen-foto-knopf">${text}
+    <input type="file" accept="image/*" data-act="bfoto-wahl" style="display:none"></label>`;
+}
+function bogenFotoBildHtml(b) {
+  if (!b.foto) return "";
+  return `<button type="button" class="bogen-foto" data-act="bfoto-gross" data-url="${esc(b.foto)}" title="Groß ansehen">
+    <img src="${esc(b.foto)}" alt="Foto vom Charakterbogen" loading="lazy"></button>
+    <div class="muted small" style="margin-top:4px">Antippen = groß, dort nochmal antippen = hineinzoomen.</div>`;
+}
+function bogenFotoEigenHtml(b) {
+  if (App.bogenFotoLaedt) return `<div class="muted small" style="padding:10px 0">Foto wird hochgeladen …</div>`;
+  if (!b.foto) {
+    return `<div class="muted small" style="padding:6px 0 10px">Bogen auf Papier? Einmal fotografieren – dann hast du ihn hier, und der SL kann nachschauen. Am besten gerade von oben, bei gutem Licht.</div>
+      ${bogenFotoWahl("📷 Foto aufnehmen oder auswählen", "primary")}`;
+  }
+  return `${bogenFotoBildHtml(b)}
+    <div class="row tight" style="margin-top:8px; flex-wrap:wrap">
+      ${bogenFotoWahl("📷 Neues Foto", "ghost small")}
+      <button class="ghost small bad" data-act="bfoto-weg">🗑 Foto entfernen</button></div>`;
+}
+
+// Sofort speichern, ohne den Umweg über „Bearbeiten": der gespeicherte Bogen
+// plus Foto. Läuft gerade ein Entwurf, bekommt er das Foto auch - sonst nähme
+// „✓ Speichern" es gleich wieder weg.
+function bogenFotoSetzen(url) {
+  const mine = myCombatant();
+  if (!mine) return;
+  if (App.bogenEntwurf) App.bogenEntwurf.foto = url;
+  gmActionOrPlayer({ type: "sheet_update", id: mine.id, bogen: { ...bogenVon(mine), foto: url } });
+}
+async function bogenFotoHochladen(file) {
+  if (!file) return;
+  App.bogenFotoLaedt = true; App.bogenReiter = "foto"; render();
+  let fehler = "";
+  try {
+    const fd = new FormData();
+    fd.append("file", await bildFuersHochladen(file, BOGEN_FOTO_KANTE));
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (res.ok) bogenFotoSetzen((await res.json()).url);
+    else fehler = res.status === 413 ? "Das Foto ist zu groß (max. 8 MB)." : "Upload fehlgeschlagen.";
+  } catch { fehler = "Upload fehlgeschlagen."; }
+  App.bogenFotoLaedt = false; render();
+  if (fehler) hinweis(fehler);
+}
+
+// Groß ansehen: hängt wie die Dialoge an <body>, damit das Neuzeichnen (jedes
+// Update vom Server) es nicht mitten im Lesen wegwischt. Antippen wechselt
+// zwischen „ganze Seite" und „hineingezoomt, verschiebbar".
+function bogenFotoGross(url) {
+  const box = el(`<div class="foto-gross-hg" role="dialog" aria-modal="true">
+    <button type="button" class="ghost foto-gross-zu">Schließen</button>
+    <div class="foto-gross-rahmen"><img src="${esc(url)}" alt="Foto vom Charakterbogen"></div></div>`);
+  const zu = () => { box.remove(); document.removeEventListener("keydown", taste, true); };
+  function taste(e) { if (e.key === "Escape") { e.stopImmediatePropagation(); zu(); } }
+  box.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (e.target.tagName === "IMG") box.classList.toggle("zoom"); else zu();
+  });
+  document.addEventListener("keydown", taste, true);
+  document.body.appendChild(box);
+}
+
+document.addEventListener("change", (e) => {
+  const t = e.target;
+  if (!t || !t.dataset || t.dataset.act !== "bfoto-wahl") return;
+  const datei = t.files && t.files[0];
+  t.value = "";                     // dasselbe Foto nochmal wählen können
+  bogenFotoHochladen(datei);
+});
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest("[data-act^='bfoto-']");
+  if (!t || t.dataset.act === "bfoto-wahl") return;
+  e.preventDefault();
+  if (t.dataset.act === "bfoto-gross") bogenFotoGross(t.dataset.url);
+  else if (t.dataset.act === "bfoto-weg") {
+    if (await frage("Foto vom Bogen entfernen?", "Entfernen", true)) bogenFotoSetzen("");
+  }
+});
 
 // --- Fremde Bögen und Spielwerte ansehen (Blatt über allem) -----------------
 // App.bogenAnsicht = { id, quelle: "kampf" | "roster" }. Spieler-Figuren
@@ -228,9 +330,12 @@ function bogenAnsichtHtml() {
     inhalt = `${werte ? `<div class="zeile2"><span>Kampfwerte</span><b>${esc(werte)}</b></div>` : ""}
       <div class="spielwerte">${c.spielwerte ? spielwerteHtml(c.spielwerte) : `<div class="muted small">Keine Spielwerte eingetragen. In der Bibliothek beim Gegner-Typ unter „📜 Spielwerte" ergänzen.</div>`}</div>`;
   } else {
-    const reiter = App.bogenAnsichtReiter || "kampf";
     const b = bogenVon(c);
-    inhalt = bogenReiterLeiste(reiter, "bogen-ansicht-reiter")
+    // Hat jemand nur das Foto (Papierbogen, nichts abgetippt): gleich das zeigen.
+    const nurFoto = b.foto && bogenIstLeer({ ...b, foto: "" });
+    let reiter = App.bogenAnsichtReiter || (nurFoto ? "foto" : "kampf");
+    if (reiter === "foto" && !b.foto) reiter = "kampf";
+    inhalt = bogenReiterLeiste(reiter, "bogen-ansicht-reiter", !!b.foto)
       + (bogenIstLeer(b) && reiter !== "talente" ? `<div class="muted small" style="padding:6px 0">Noch nichts eingetragen.</div>` : bogenLesenHtml(b, c, reiter));
   }
   const wer = c.kind === "npc" ? (c.ally ? "Verbündeter" : "Gegner") : (c.playerName && c.playerName !== c.name ? `gespielt von ${esc(c.playerName)}` : "Charakter");

@@ -53,7 +53,7 @@ ZUM_SCHLUSS = re.compile(r"leave|reset|discard|clear-all|remove-combatant|roster
                          r"Verlassen|Abmelden|Alles löschen|Neuer Abend", re.I)
 # Nie drücken: lädt die Seite neu / öffnet Fremdes / schaltet Netzwerk.
 NIE = re.compile(r"firewall|netz-skript|neu-laden|neuladen|aktualisieren|updater|"
-                 r"tasten-hilfe-drucken|tv-oeffnen|href", re.I)
+                 r"tasten-hilfe-drucken|prot-drucken|upd-|tv-oeffnen|href", re.I)
 
 _BASIS_JS = r"""
 function kandidaten() {

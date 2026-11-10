@@ -2558,6 +2558,8 @@ body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px))
 .aufn-zeile { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
 .knopf-label.small { padding: 3px 8px; font-size: 0.85rem; }
+.aufn-platz { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); line-height: 1.5; }
+.aufn-platz.knapp { color: var(--bad, #a33); }
 /* Pegel: Breite per transform (komponiert), nicht per width - malt nicht neu. */
 .aufn-pegel { display: inline-block; width: 90px; height: 8px; border-radius: 4px; overflow: hidden;
   background: var(--line); vertical-align: middle; }
@@ -2826,3 +2828,48 @@ body.sl-ansicht .nur-handy { display: none; }
 .als-app-schritte { margin: 6px 0 0 18px; padding: 0; line-height: 1.55; text-align: left; }
 .als-app-taste { border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; }
 .als-app-fuss { text-align: left; margin: 8px 0 0; }
+
+/* Update-Hinweis (update.js) */
+.upd-text { text-align: left; line-height: 1.6; }
+.upd-text a { word-break: break-all; color: var(--accent); }
+
+/* 🌙 Abend beenden (aufnahme.js) */
+.abend-liste { display: grid; gap: 10px; text-align: left; }
+.abend-zeile { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.abend-zeile input { margin-top: 4px; flex: none; }
+
+/* 📖 Chronik (protokoll.js): alle Abende am Stück, druckbar */
+.chr-einstieg { margin: 0 0 10px; align-items: center; }
+.chr-zahl { margin: -4px 0 8px; }
+.chr-knoepfe { flex-wrap: nowrap; white-space: nowrap; flex: none; }
+.chr-marken { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.chr-kapitel { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 6px; scroll-margin-top: 8px; }
+.chr-nr { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.chr-titel { font-family: Georgia, "Times New Roman", serif; font-weight: 700; font-size: 1.25rem; color: var(--accent); margin: 2px 0 10px; }
+@media print {
+  body.chronik-druck { background: #fff !important; }
+  body.chronik-druck > *:not(#app), body.chronik-druck #app > *:not(.protokoll-hg) { display: none !important; }
+  body.chronik-druck .protokoll-hg { position: static; display: block; background: none; padding: 0; }
+  body.chronik-druck .protokoll-fenster { max-width: none; max-height: none; overflow: visible; box-shadow: none; border: 0;
+    background: #fff; color: #000; padding: 0; }
+  body.chronik-druck .nicht-drucken { display: none !important; }
+  body.chronik-druck .chr-titel, body.chronik-druck .pt-text .pt-h1, body.chronik-druck .pt-text .pt-h2 { color: #000; }
+  body.chronik-druck .chr-nr { color: #555; }
+  body.chronik-druck .chr-kopf { break-after: avoid; }
+  body.chronik-druck .pt-text p { orphans: 3; widows: 3; }
+}
+
+/* 📷 Foto vom Papierbogen (bogen.js) */
+.bogen-leer .bogen-foto-leer { display: block; width: 100%; margin-top: 6px; text-align: center; box-sizing: border-box; }
+.bogen-foto-knopf { display: inline-block; cursor: pointer; }
+.bogen-foto { display: block; width: 100%; padding: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+  background: none; cursor: zoom-in; }
+.bogen-foto img { display: block; width: 100%; max-height: 70vh; object-fit: contain; }
+.foto-gross-hg { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.92); display: flex; flex-direction: column;
+  padding: 8px; padding-top: max(8px, env(safe-area-inset-top)); gap: 8px; }
+.foto-gross-zu { align-self: flex-end; flex: none; }
+.foto-gross-rahmen { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  display: flex; }
+.foto-gross-rahmen img { margin: auto; max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+.foto-gross-hg.zoom .foto-gross-rahmen { display: block; }
+.foto-gross-hg.zoom .foto-gross-rahmen img { max-width: none; max-height: none; width: 250%; cursor: zoom-out; }

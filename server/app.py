@@ -26,11 +26,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .game import Game, UPLOAD_DIR, DATA_DIR, TALENTS
-from .paths import RESOURCE_DIR, HOSTNAME, APP_VERSION, local_ip, all_lan_ips, active_port
+from .paths import RESOURCE_DIR, BASE_DIR, HOSTNAME, APP_VERSION, local_ip, all_lan_ips, active_port
 from . import diag
 from . import winnet
 from . import sicherung
 from . import kampf_import
+from . import update
 from .aufnahme import Aufnahmen, MAX_TRANSKRIPT
 from .sprache import Sprache
 from .namen import namen_aus_spiel
@@ -198,6 +199,34 @@ async def api_info(request: Request):
         # ueber eine andere Herkunft - ohne diesen Kopf blockt der Browser ihn.
         "Access-Control-Allow-Origin": "*",
     })
+
+
+@app.get("/api/update")
+async def update_auskunft(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    return JSONResponse({**update.auskunft(BASE_DIR), "aufnahme": bool(aufnahmen.aktiv)})
+
+
+@app.post("/api/update/start")
+async def update_start(request: Request):
+    """Startet Aktualisieren.exe - sie beendet die App gleich darauf. Vorher
+    sichern: der Spielstand liegt zwar ohnehin auf der Platte, aber ein Update
+    ist genau der Moment, in dem man eine frische Sicherung haben will."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if aufnahmen.aktiv and (aufnahmen.pausiert or aufnahmen._letztes_stueck > time.time() * 1000 - 180000):
+        return JSONResponse({"error": "Erst die Aufnahme beenden – das Update startet die App neu."}, status_code=409)
+    if not update.verfuegbar():
+        return JSONResponse({"error": "Du hast schon die neueste Version."}, status_code=409)
+    try:
+        sicherung.auto_sichern(_sicherung_daten(), UPLOAD_DIR, SICHERUNG_DIR)
+    except Exception as fehler:  # noqa: BLE001 - Sicherung darf das Update nicht verhindern
+        diag.log(f"Sicherung vor dem Update ging nicht: {fehler}")
+    if not update.starten(BASE_DIR):
+        return JSONResponse({"error": "Aktualisieren.exe fehlt im App-Ordner."}, status_code=409)
+    diag.log(f"UPDATE gestartet: {APP_VERSION} -> {update.stand['neu']}")
+    return JSONResponse({"ok": True})
 
 
 @app.get("/qr.png")
@@ -458,6 +487,25 @@ async def sicherungen_liste(request: Request):
     return JSONResponse({"liste": sicherung.auto_liste(SICHERUNG_DIR)})
 
 
+@app.post("/api/sicherungen/jetzt")
+async def sicherung_jetzt(request: Request):
+    """Sofort sichern (🌙 Abend beenden) statt auf die stündliche zu warten -
+    der Stand am Ende des Abends ist der, den man später sucht. Hat sich seit
+    der letzten nichts geändert, gibt es keine zweite gleiche."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    daten = _sicherung_daten()
+    try:
+        pfad = await asyncio.get_event_loop().run_in_executor(
+            None, sicherung.auto_sichern, daten, UPLOAD_DIR, SICHERUNG_DIR)
+    except Exception as e:  # noqa: BLE001
+        diag.log(f"SICHERUNG (Abend beenden) fehlgeschlagen: {e!r}")
+        return JSONResponse({"error": "Sicherung ging nicht."}, status_code=500)
+    if pfad:
+        diag.log(f"SICHERUNG (Abend beenden): {pfad.name}")
+    return JSONResponse({"ok": True, "neu": bool(pfad)})
+
+
 @app.post("/api/sicherungen/zurueck/{name}")
 async def sicherung_zurueckholen(request: Request, name: str):
     """Eine automatische Sicherung einspielen. Vorher wird der JETZIGE Stand
@@ -567,11 +615,32 @@ def _leute_am_tisch() -> int:
 sprache.personen_quelle = _leute_am_tisch
 
 
+def _ordner_bytes(ordner: Path) -> int:
+    try:
+        return sum(f.stat().st_size for f in ordner.rglob("*") if f.is_file())
+    except OSError:
+        return 0
+
+
+def _speicherplatz() -> dict:
+    """Wie viel Platz Aufnahmen und Sprachmodelle belegen und wie viel noch
+    frei ist (Kalle 10.11.2026: nichts löschen, „aber anzeigen wie viel
+    Speicher es braucht"). Ein 4-h-Abend sind ~90 MB - über ein Jahr merkt man
+    das, und eine volle Platte beendet die Aufnahme mitten im Abend."""
+    import shutil
+    try:
+        frei = shutil.disk_usage(DATA_DIR if DATA_DIR.exists() else DATA_DIR.parent).free
+    except OSError:
+        frei = None
+    return {"aufnahmen": _ordner_bytes(aufnahmen.ordner), "modelle": _ordner_bytes(sprache.modelle),
+            "frei": frei}
+
+
 @app.get("/api/aufnahme")
 async def aufnahme_status(request: Request):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
-    return JSONResponse({**aufnahmen.status(), "sprache": sprache.status()})
+    return JSONResponse({**aufnahmen.status(), "sprache": sprache.status(), "platz": _speicherplatz()})
 
 
 @app.post("/api/aufnahme/start")

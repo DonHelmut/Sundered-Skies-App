@@ -39,6 +39,12 @@ def bilder_der_sicherung(data: dict) -> set[str]:
                 name = url.rsplit("/", 1)[-1]
                 if BILD_NAME.match(name):
                     namen.add(name)
+        # Foto vom Papierbogen steckt im Bogen, nicht an der Figur.
+        bogen = eintrag.get("bogen")
+        if isinstance(bogen, dict) and isinstance(bogen.get("foto"), str) and bogen["foto"].startswith("/uploads/"):
+            name = bogen["foto"].rsplit("/", 1)[-1]
+            if BILD_NAME.match(name):
+                namen.add(name)
 
     for feld in ("roster", "bestiary", "allies"):
         for e in data.get(feld) or []:

@@ -282,6 +282,10 @@ def _sl_ansicht_sauber(roh) -> dict:
             if k in SL_ANSICHT_SCHLUESSEL and isinstance(v, str)}
 
 
+# So heißen Uploads (app.py /api/upload) - nichts anderes darf als Foto gelten.
+BOGEN_FOTO = re.compile(r"^/uploads/[0-9a-f]{32}\.(png|jpe?g|gif|webp)$")
+
+
 def _bogen_sauber(roh: dict) -> dict:
     """Charakterbogen vom Handy prüfen und begrenzen - er kommt ungefiltert vom
     Spieler, also Längen und Anzahlen deckeln und nur bekannte Felder behalten."""
@@ -307,7 +311,7 @@ def _bogen_sauber(roh: dict) -> dict:
                            "fertigkeit": txt(w.get("fertigkeit"), 30),
                            "schaden": txt(w.get("schaden"), 20),
                            "info": txt(w.get("info"), 40)})
-    return {
+    bogen = {
         "parade": txt(roh.get("parade"), 6),
         "robustheit": txt(roh.get("robustheit"), 6),
         "panzer": txt(roh.get("panzer"), 6),
@@ -320,6 +324,13 @@ def _bogen_sauber(roh: dict) -> dict:
         "handicaps": zeilen(roh.get("handicaps")),
         "ausruestung": zeilen(roh.get("ausruestung"), 60, 40),
     }
+    # Foto vom Papierbogen (Kalle 10.11.2026): wer seinen Bogen auf Papier
+    # führt, will ihn nicht abtippen. Nur ein eigener Upload, und das Feld nur,
+    # wenn es eins gibt - alte Bögen und Sicherungen bleiben, wie sie waren.
+    foto = roh.get("foto")
+    if isinstance(foto, str) and BOGEN_FOTO.match(foto):
+        bogen["foto"] = foto
+    return bogen
 
 
 
@@ -2575,6 +2586,11 @@ class Game:
                     url = eintrag.get(feld)
                     if isinstance(url, str) and url.startswith("/uploads/"):
                         benutzt.add(url.rsplit("/", 1)[-1])
+                # Foto vom Papierbogen - sonst räumte „Alte Bilder aufräumen"
+                # es weg, weil es an keiner Figur als Bild hängt.
+                foto = (eintrag.get("bogen") or {}).get("foto") if isinstance(eintrag.get("bogen"), dict) else None
+                if isinstance(foto, str) and foto.startswith("/uploads/"):
+                    benutzt.add(foto.rsplit("/", 1)[-1])
         for begegnung in self.encounters:
             for g in begegnung.get("members") or []:
                 url = g.get("image")

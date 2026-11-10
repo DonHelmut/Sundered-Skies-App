@@ -142,17 +142,21 @@ const ANLEITUNG = [
   ] },
   { k: "aufnahme", titel: "🎙 Aufnahme & Protokoll", f: "aufnahme", schritte: [
     ["<b>● Aufnehmen</b> im Panel „Aufnahme & Protokoll“. Oben laufen dann Zeit, ⏸ Pause und 📌 Merken für wichtige Momente."],
-    ["<b>■ Beenden</b> – die genaue Mitschrift läuft danach von selbst."],
+    ["<b>■ Beenden</b> – die genaue Mitschrift läuft danach von selbst. <b>🌙 Abend beenden</b> macht alles auf einmal: Aufnahme beenden, Kampf abräumen, Sicherung anlegen."],
     ["<b>Protokoll:</b> Prompt kopieren, von Claude die Nacherzählung schreiben lassen, im Panel „Protokolle“ einfügen und freigeben – die Handys sehen sie unter „Was bisher geschah“."],
+    ["<b>📖 Chronik</b> (Panel „Protokolle“): alle Abende am Stück, der neueste zuerst – auch zum Drucken oder als PDF. Am Handy: 📜 → „Alles am Stück lesen“."],
   ], tipp: "Das Mikro mittig auf den Tisch – das bringt mehr als jede Einstellung." },
   { k: "handy", titel: "📱 Am Handy der Spieler", f: ["boegen", "notizen", "regeln"], schritte: [
     ["<b>📜 Charakterbogen</b>: einmal ausfüllen – im eigenen Zug stehen Parade, Robustheit, Waffen und Würfel-Tipps.", "boegen"],
+    ["<b>📷 Foto vom Papierbogen</b>: wer auf Papier spielt, fotografiert den Bogen im Reiter „📷 Foto“ – du siehst ihn über 📜 an der Figur.", "boegen"],
+    ["<b>☀ Bildschirm bleibt an</b>, solange gekämpft wird (abschaltbar im ⚙ am Handy)."],
     ["<b>📝 Notizen</b>: eigene (nur man selbst sieht sie) und 👥 Gruppen-Notizen für alle.", "notizen"],
     ["<b>📖 Regeln</b>: Spickzettel für den eigenen Zug.", "regeln"],
   ] },
   { k: "sichern", titel: "🛟 Sichern & Netzwerk", schritte: [
     ["<b>Automatisch:</b> die App sichert etwa stündlich (☰ Mehr → 🛟 Automatische Sicherungen)."],
     ["<b>Anderer Laptop:</b> ☰ Mehr → 💾 Sicherung exportieren, dort ⤵ importieren."],
+    ["<b>Neue Version:</b> oben erscheint „⬆ Version … da“ – ein Klick aktualisiert, die App startet von selbst wieder. Charaktere und Spielstand bleiben."],
     ["<b>Handy findet den Laptop nicht:</b> alle im selben WLAN, am Handy Flugmodus an und nur WLAN wieder an. ⓘ im Panel „Beitritt“ hilft weiter."],
   ] },
   { k: "tasten", titel: "⌨ Tasten", tasten: true },
