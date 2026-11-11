@@ -77,6 +77,45 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.7 (11.11.2026): Design-Runde – Kopfleiste, Reiter, Benny sofort
+
+Kalle: „weitere Verbesserungen am Design, Vereinfachungen?" Sechs Vorschläge
+mit Bildern (Projektordner `screenshots/design-2026-11/`), Kalle wählte 1B,
+2C, 3, 4, 5. Nicht gewählt und nicht neu vorschlagen: 6 Joker gibt jedem Held
+einen Benny (Setting-Regel „Joker's Wild").
+
+- **6 und 9 unterstrichen (1B)** – `rangStrich` in `cards.js`, beide Ecken,
+  auch die Badge-Ecke der Porträtkarten. Die untere Ecke steht auf dem Kopf,
+  dort las man 6 als 9.
+- **Feste Kopfleiste am Handy (2C)** – `handyKopfHtml` (spieler.js): Bild,
+  Name, Bennies, Runde fest oben. Die „Verbunden"-Pille ist im Normalfall weg,
+  der Punkt am Bild zeigt die Verbindung (`body[data-verbindung]`, gesetzt in
+  `setStatus`); bei Ärger kommt die Pille unter der Leiste hervor. Vorher
+  schien beim Scrollen der Inhalt hinter der Pille durch, und die volle
+  Statusleiste fing oben Tipps ab. „✓ Gesund" steht nicht mehr als
+  Dauerzeile da; Zustände (angeschlagen, Wunden …) als Zeile unter den Reitern,
+  nur wenn etwas ist. `body.mit-kopf` nur nach dem Beitritt.
+- **Reiter am Handy (5)** – ⚔ Kampf (Karte, Reihenfolge, Zonen), 📜 Bogen,
+  📝 Notizen, ✉ Post; was der SL im 🎛 ausschaltet, fehlt. Gemerkt in
+  `localStorage.handyReiter`. Reiter + Dran-Leiste kleben zusammen unter der
+  Kopfleiste (`.handy-oben`). Der Daumen-Knopf unten gilt auf jedem Reiter;
+  „Karte aufdecken" holt den Kampf-Reiter nach vorne. In der Kurzansicht
+  „Mein Zug" keine Reiter. Das ⚙ sortiert nur noch Reihenfolge/Zonen im
+  Kampf-Reiter. Keine „neu"-Zahl am ✉ (jede Nachricht kommt ohnehin als Banner).
+- **Benny sofort (3)** – `_do_request` kind `benny` zieht direkt ab (nur −1,
+  nur Wild Card mit Vorrat, nur mit 🎛 Bennies), SL sieht eine Einblendung
+  („… gibt einen Benny aus (noch 2)") statt ✓/✕. Geht auch bei abgeschalteten
+  Anfragen. Münzen oben antippen oder „Etwas anfragen → Benny" fragen einmal
+  nach. Die Hausregel „Benny an den SL-Pool" greift weiter.
+- **Ein Knopf „📜 Mein Charakter" (4)** – bei leerem Bogen statt „Bogen
+  ausfüllen" + „Foto vom Papierbogen"; das Foto ist der Reiter 📷 im Bogen.
+
+Nebenbei: `test_update_hinweis_einmal_als_dialog_dann_knopf` setzte einen
+Titel ohne Strich – seit dem Kleinfix in 2.0.7 (Titel auf den Teil hinter dem
+Strich kürzen) blieb er leer, Test rot. Titel im Test jetzt wie ein echter.
+Tests: `tests/test_durchleuchtung.py` (Benny), `tests/browser/test_design.py`
+(Kopfleiste, Reiter, 6/9); Browser-Tests nutzen `Seite.reiter(...)`.
+
 ## Nach 2.0.7 (11.11.2026): „Karte aufdecken" verschwindet sofort
 
 Beim Durchsehen fürs Design gefunden: Nach dem Tipp auf „🂠 Karte aufdecken"

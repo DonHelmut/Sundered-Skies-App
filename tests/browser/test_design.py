@@ -188,3 +188,42 @@ def test_aufdecken_knopf_verschwindet_sofort(tisch):
       return getComputedStyle(l).opacity !== '0' && getComputedStyle(l).pointerEvents !== 'none'; }""")
     assert not sichtbar, "„Karte aufdecken\" steht noch unter der offenen Karte"
     assert not tisch.alle_fehler()
+
+
+def test_handy_feste_kopfleiste_und_reiter(tisch):
+    """Kopfleiste mit Name/Bennies/Runde steht fest oben, darunter Reiter
+    (Kalle, 11.11.2026, 2C + 5). Der Reiter bleibt über Neuladen gemerkt."""
+    tisch.sl()
+    h = tisch.handy("Korgo", "klein")
+    tisch.gm({"type": "add_npc", "name": "Ork", "count": 2})
+    tisch.gm({"type": "new_round", "runde": 0})
+    h.warte_bis("() => !!document.querySelector('.handy-kopf .runden-zaehler')")
+    kopf = h.js("""() => { const k = document.querySelector('.handy-kopf');
+      return { pos: getComputedStyle(k).position, name: k.querySelector('.hk-name').textContent,
+               muenzen: k.querySelectorAll('.muenze').length,
+               pille: getComputedStyle(document.querySelector('.statusbar')).display }; }""")
+    assert kopf == {"pos": "fixed", "name": "Korgo", "muenzen": 3, "pille": "none"}
+    # Nichts verschwindet hinter der Leiste: der Inhalt beginnt darunter.
+    assert h.js("document.querySelector('.handy-oben').getBoundingClientRect().top >= 46 - 1")
+    h.kein_waagrechtes_scrollen("Kopfleiste schmal")
+    h.reiter("notizen")
+    assert h.page.locator("#notiz-neu").count() == 1 and h.page.locator("#bigcard").count() == 0
+    # „Karte aufdecken" (unten, auf jedem Reiter) holt den Kampf-Reiter nach vorne.
+    h.wait_for_timeout(750)          # Daumen-Leiste schluckt Tipps kurz nach Wechsel
+    h.locator("[data-act=daumen-aufdecken]").first.click()
+    h.warte_bis("() => !!document.querySelector('[data-reiter=kampf].an') && !!document.querySelector('#bigcard')")
+    h.warte_bis("() => myCombatant().revealed")
+    # Der gewählte Reiter bleibt über Neuladen.
+    h.reiter("notizen")
+    h.reload()
+    h.warte_bis("() => App.joined && !!document.querySelector('[data-reiter=notizen].an')")
+    assert not tisch.alle_fehler()
+
+
+def test_karten_6_und_9_unterstrichen(tisch):
+    """Die untere Ecke steht auf dem Kopf - 6 und 9 tragen einen Strich (1B)."""
+    sl = tisch.sl()
+    svg = sl.js("""() => ['6', '9', '8'].map(r => Cards.renderCardSVG({id: 'spades-' + r, suit: 'spades', rank: r}, null))""")
+    assert svg[0].count('text-decoration="underline"') == 2
+    assert svg[1].count('text-decoration="underline"') == 2
+    assert "underline" not in svg[2]

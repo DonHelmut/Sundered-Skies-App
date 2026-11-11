@@ -150,7 +150,10 @@ document.addEventListener("click", (e) => {
     // Münze in der Kopfzeile: erst fragen - ein Tipp aus Versehen beim
     // Scrollen sollte keinen Benny kosten.
     "benny-muenze": async () => {
-      if (await frage("Einen Benny ausgeben?\n\nDer Spielleiter bestätigt es.", "🪙 Ausgeben")) {
+      // Geht sofort, ohne ✓ des SL (Kalle, 11.11.2026) - er sieht eine Einblendung.
+      const m = myCombatant();
+      const n = (m && m.bennies) || 0;
+      if (await frage(`Einen Benny ausgeben?\n\nDu hast ${n}. Geht sofort – der Spielleiter sieht es.`, "🪙 Ausgeben")) {
         gmActionOrPlayer({ type: "request", kind: "benny", detail: { delta: -1 }, label: "🪙 Benny ausgeben" });
       }
     },
@@ -392,7 +395,15 @@ document.addEventListener("click", (e) => {
       if (App.angriffWahl && App.role !== "gm") { const m = myCombatant(); if (m) gmActionOrPlayer({ type: "timer_halt", id: m.id }); }
       render();
     },
+    "handy-reiter": () => {
+      App.handyReiter = target.dataset.reiter || "kampf";
+      try { localStorage.setItem("handyReiter", App.handyReiter); } catch { /* privates Fenster */ }
+      render();
+      window.scrollTo(0, 0);
+    },
     "daumen-aufdecken": () => {
+      // Die Karte liegt im Reiter ⚔ Kampf - von dort aus aufdecken.
+      if (App.handyReiter !== "kampf") { App.handyReiter = "kampf"; render(); }
       const karte = document.querySelector('#bigcard [data-act="reveal-card"]');
       if (!karte) return;
       // Erst nach oben, sonst dreht sich die Karte außer Sicht.

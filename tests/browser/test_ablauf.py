@@ -190,6 +190,7 @@ def test_gegner_ko_und_aufraeumen(tisch):
 def test_charakterbogen_am_handy_ausfuellen(tisch):
     sl = tisch.sl()
     h = tisch.handy("Tessa", "klein")
+    h.reiter("bogen")
     _knopf(h, "bogen-bearbeiten")
     h.warte_bis("() => !!App.bogenEntwurf")
     felder = h.page.locator(".bogen input, .bogen-form input, input[data-feld]")
@@ -211,6 +212,7 @@ def test_eigene_notizen_bleiben_privat_und_ueberleben_neuladen(tisch, server):
     sl = tisch.sl()
     tessa = tisch.handy("Tessa")
     korgo = tisch.handy("Korgo")
+    tessa.reiter("notizen")
     feld = tessa.locator("#notiz-neu")
     feld.fill("Der Wirt lügt")
     tessa.locator("[data-act=notiz-hinzu]").click()
@@ -232,6 +234,8 @@ def test_gruppen_notiz_sehen_alle_handys(tisch):
     tisch.sl()
     tessa = tisch.handy("Tessa")
     korgo = tisch.handy("Korgo", "klein")
+    tessa.reiter("notizen")
+    korgo.reiter("notizen")
     tessa.locator("[data-act=notiz-ziel]").first.click()
     tessa.locator("#notiz-neu").fill("Treffpunkt Leuchtturm")
     tessa.locator("[data-act=notiz-hinzu]").click()
@@ -246,6 +250,7 @@ def test_gruppen_notiz_sehen_alle_handys(tisch):
 def test_notiz_bearbeiten_suchen_loeschen(tisch):
     tisch.sl()
     h = tisch.handy("Tessa", "se")
+    h.reiter("notizen")
     # Die 🔎 gibt es ab 8 Notizen.
     for t in ["Seil kaufen", "Kapitän Varn misstrauen"] + [f"Notiz {i}" for i in range(6)]:
         h.locator("#notiz-neu").fill(t)
@@ -293,20 +298,22 @@ def test_sl_fluestert_nur_einem_handy(tisch):
     assert "Flüstern" in tessa.text()
 
 
-def test_bennies_per_nachricht_und_anfrage_benny_ausgeben(tisch):
+def test_bennies_per_nachricht_und_muenze_tippen_gibt_sofort_aus(tisch):
+    """Benny ausgeben: Münze oben antippen, „Ausgeben" - gilt sofort, der SL
+    muss nichts bestätigen und sieht nur eine Einblendung (Kalle, 11.11.2026)."""
     sl = tisch.sl()
     h = tisch.handy("Tessa")
-    tisch.gm({"type": "set_requests_enabled", "an": True})
     vorher = _meine(h)["bennies"]
     tisch.gm({"type": "message", "target": "all", "text": "", "bennies": 2})
     h.warte_bis("(v) => App.state.combatants.find(c => c.playerId === App.myPlayerId).bennies === v + 2",
                 vorher)
-    h.js("() => gmAction({type: 'request', kind: 'benny', detail: {delta: -1}, label: 'Benny'})")
-    sl.warte_bis("() => App.state.requests.length === 1")
-    sl.warte_bis("() => !!document.querySelector('[data-act=req-apply]')")
-    sl.page.locator("[data-act=req-apply]").first.evaluate("e => e.click()")
-    sl.warte_bis("() => App.state.requests.length === 0")
-    assert _figur(sl, "Tessa")["bennies"] == vorher + 1
+    h.warte_bis("() => !!document.querySelector('[data-act=benny-muenze]')")
+    h.page.locator("[data-act=benny-muenze]").first.evaluate("e => e.click()")
+    h.dialog_knopf("Ausgeben")
+    sl.warte_bis("(v) => App.state.combatants.find(c => c.name === 'Tessa').bennies === v + 1", vorher)
+    assert sl.state()["requests"] == []
+    sl.warte_bis("() => (document.getElementById('toast') || {}).textContent"
+                 " && document.getElementById('toast').textContent.includes('Benny')")
 
 
 # --- Protokoll -----------------------------------------------------------------

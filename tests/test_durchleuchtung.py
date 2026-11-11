@@ -80,10 +80,11 @@ def test_anfrage_vom_handy_wird_geprueft(fresh_game):
     an(kind="benny", detail={"delta": 10 ** 9}, label="x")
     an(kind="benny", detail={"delta": {"tief": 1}}, label="x")
     assert g.requests == []
-    an(kind="benny", detail={"delta": -1}, label="A" * 500000)
+    an(kind="status", detail={"woundsDelta": 1}, label="A" * 500000)
     assert len(g.requests) == 1 and len(g.requests[0]["label"]) <= 120
     g.apply({"type": "resolve_request", "id": g.requests[0]["id"], "apply": True})
-    assert g.requests == [] and c["bennies"] == 2
+    assert g.requests == [] and c["status"]["wounds"] == 1
+    assert c["bennies"] == 3                 # die kaputten Benny-Anfragen taten nichts
 
 
 def test_anfragen_sammeln_sich_nicht_endlos(fresh_game):
@@ -171,3 +172,32 @@ def test_gemerkte_stimmen_reisen_in_der_sicherung_mit(fresh_game, tmp_path, monk
     # Müll wird nicht zu einem Profil.
     assert neu.stimmprofile_einspielen({"x": {"v": "nein"}, "": {"v": [1.0] * 16}, "y": 3}) == 0
     assert "Korgo" in neu.stimmprofile()
+
+
+# --- Benny vom Handy gilt sofort (Kalle, 11.11.2026) ----------------------------
+
+def test_benny_vom_handy_gilt_sofort(fresh_game):
+    g = fresh_game
+    _, _, c = _beigetreten(g, "Tessa")
+    an = lambda **a: g.apply({"type": "request", "combatantId": c["id"], **a})
+    an(kind="benny", detail={"delta": -1}, label="🪙 Benny ausgeben")
+    assert c["bennies"] == 2 and g.requests == []
+    assert "Tessa gibt einen Benny aus (noch 2)" in g.effekt_meldungen[-1]["text"]
+    # Auch mit abgeschalteten Anfragen - die Bennies gehören dem Spieler.
+    g.apply({"type": "set_requests_enabled", "on": False})
+    an(kind="benny", detail={"delta": -1}, label="x")
+    assert c["bennies"] == 1
+    # Nur ausgeben, nie dazubekommen; bei 0 passiert nichts.
+    an(kind="benny", detail={"delta": 1}, label="x")
+    assert c["bennies"] == 1
+    an(kind="benny", detail={"delta": -1}, label="x")
+    an(kind="benny", detail={"delta": -1}, label="x")
+    assert c["bennies"] == 0 and len(g.effekt_meldungen) == 3
+
+
+def test_benny_vom_handy_ohne_benny_funktion_nicht(fresh_game):
+    g = fresh_game
+    _, _, c = _beigetreten(g, "Tessa")
+    g.apply({"type": "set_funktionen", "werte": {"bennies": False}})
+    g.apply({"type": "request", "combatantId": c["id"], "kind": "benny", "detail": {"delta": -1}})
+    assert c["bennies"] == 3

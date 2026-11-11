@@ -909,8 +909,8 @@ def test_requests_can_be_switched_off(fresh_game):
     cid = fresh_game.combatants[-1]["id"]
 
     assert fresh_game.snapshot()["requestsEnabled"] is True
-    fresh_game.apply({"type": "request", "combatantId": cid, "kind": "benny",
-                      "detail": {"delta": -1}, "label": "Benny"})
+    fresh_game.apply({"type": "request", "combatantId": cid, "kind": "status",
+                      "detail": {"shaken": True}, "label": "Angeschlagen"})
     assert len(fresh_game.requests) == 1
 
     fresh_game.apply({"type": "set_requests_enabled", "on": False})
@@ -919,13 +919,13 @@ def test_requests_can_be_switched_off(fresh_game):
     assert json.loads(gmod.SETTINGS_FILE.read_text(encoding="utf-8"))["requestsEnabled"] is False
 
     # Ein veralteter Client darf nichts durchdruecken
-    fresh_game.apply({"type": "request", "combatantId": cid, "kind": "benny",
-                      "detail": {"delta": -1}, "label": "Benny"})
+    fresh_game.apply({"type": "request", "combatantId": cid, "kind": "status",
+                      "detail": {"shaken": True}, "label": "Angeschlagen"})
     assert fresh_game.requests == []
 
     fresh_game.apply({"type": "set_requests_enabled", "on": True})
-    fresh_game.apply({"type": "request", "combatantId": cid, "kind": "benny",
-                      "detail": {"delta": -1}, "label": "Benny"})
+    fresh_game.apply({"type": "request", "combatantId": cid, "kind": "status",
+                      "detail": {"shaken": True}, "label": "Angeschlagen"})
     assert len(fresh_game.requests) == 1
 
 

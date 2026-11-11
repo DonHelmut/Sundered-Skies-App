@@ -39,8 +39,8 @@ def voller_tisch(tisch, handys=(("Tessa", "iphone"), ("Korgo", "klein"))):
         {id: 'n2', text: 'Seil kaufen', erledigt: false}]})""")
     hs[-1].js("""() => gmAction({type: 'gruppen_notiz', op: 'neu',
         eintrag: {id: 'g1', text: 'Treffpunkt: Leuchtturm'}})""")
-    hs[-1].js("""() => gmAction({type: 'request', kind: 'benny', detail: {delta: -1},
-        label: '🪙 Benny ausgeben'})""")
+    hs[-1].js("""() => gmAction({type: 'request', kind: 'status', detail: {woundsDelta: 1},
+        label: '🩸 Wunde +'})""")
     sl.warte_bis("() => App.state.requests.length > 0 && App.state.gruppenNotizen.length > 0")
     hs[0].warte_bis("() => (App.state.meineNotizen || []).length === 2")
     del eigen

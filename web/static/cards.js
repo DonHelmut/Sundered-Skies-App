@@ -209,10 +209,16 @@ function tierPlate(t, label, glow) {
   </g>`;
 }
 
+// 6 und 9 unterstrichen wie auf echten Karten: die untere Ecke steht auf dem
+// Kopf, dort las man eine 6 als 9 (Kalle, Variante 1B, 11.11.2026).
+function rangStrich(rank) {
+  return rank === "6" || rank === "9" ? ` text-decoration="underline"` : "";
+}
+
 function corner(rank, glyph, color, x, y, rotate) {
   const transform = rotate ? `rotate(180 ${x} ${y})` : "";
   return `<g transform="${transform}" fill="${color}">
-    <text x="${x}" y="${y}" font-size="34" font-weight="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif">${esc(rank)}</text>
+    <text x="${x}" y="${y}" font-size="34" font-weight="700" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"${rangStrich(rank)}>${esc(rank)}</text>
     <text x="${x}" y="${y + 29}" font-size="27" text-anchor="middle">${glyph}</text>
   </g>`;
 }
@@ -753,7 +759,7 @@ function cornerBadge(rank, glyph, color, x, y, rotate, t) {
   const transform = rotate ? `rotate(180 ${x} ${y})` : "";
   return `<g transform="${transform}">
     <rect x="${x - 19}" y="${y - 25}" width="38" height="64" rx="9" fill="#f6ecd2" stroke="${t.dk}" stroke-width="1.6" opacity="0.96"/>
-    <text x="${x}" y="${y}" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="central" fill="${color}" font-family="Georgia, 'Times New Roman', serif">${esc(rank)}</text>
+    <text x="${x}" y="${y}" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="central" fill="${color}" font-family="Georgia, 'Times New Roman', serif"${rangStrich(rank)}>${esc(rank)}</text>
     <text x="${x}" y="${y + 26}" font-size="23" text-anchor="middle" dominant-baseline="central" fill="${color}">${glyph}</text>
   </g>`;
 }

@@ -282,6 +282,8 @@ function setStatus(kind) {
   const [cls, txt] = map[kind] || ["", "…"];
   const s = $("status");
   if (s) { s.className = "pill " + cls; s.textContent = txt; }
+  // Für den Punkt in der festen Handy-Kopfleiste (spieler.js handyKopfHtml).
+  document.body.dataset.verbindung = kind;
 }
 
 // --- Aussetzer überbrücken ---------------------------------------------------
