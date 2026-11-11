@@ -681,8 +681,13 @@ function renderControlBody() {
   const verletzt = s.combatants.filter((c) => c.kind === "player"
     && ((c.status || {}).out || (c.status || {}).wounds || (c.status || {}).shaken));
   const gegnerSteht = s.combatants.some((c) => c.kind === "npc" && !c.ally && !c.benched && !(c.status || {}).out);
-  const heilRow = (kurz) => verletzt.length && !gegnerSteht
-    ? `<button class="ghost small good${kurz ? " symbol" : ""}" data-act="alle-heilen" title="Alle Spieler ganz heil (${verletzt.length} verletzt): wach, keine Wunden, nicht angeschlagen. Rückgängig mit ↶">🩹${kurz ? "" : " Alle heilen"}</button>`
+  // Außerhalb des Kampfes steht der Knopf IMMER da (Kalle, 11.11.2026) - ist
+  // niemand verletzt, nur ausgegraut: so kommt und geht nichts in der Zeile.
+  const ohneKampf = !s.combatants.some((c) => c.kind === "npc");
+  const heilRow = () => (ohneKampf && s.combatants.length) || (verletzt.length && !gegnerSteht)
+    ? `<button class="ghost small good" data-act="alle-heilen" ${verletzt.length ? "" : "disabled"} title="${verletzt.length
+      ? `Alle Spieler ganz heil (${verletzt.length} verletzt): wach, keine Wunden, nicht angeschlagen. Rückgängig mit ↶`
+      : "Gerade ist niemand verletzt"}">🩹 Alle heilen</button>`
     : "";
   // Alles in EINER Zeile: Austeilen (am Rundenende gross), dahinter kleine
   // Symbol-Knoepfe. Vorher zwei Zeilen mit breiten Text-Knoepfen - rund 80 px,
@@ -701,7 +706,7 @@ function renderControlBody() {
   const keinKampf = !s.combatants.some((c) => c.kind === "npc");
   // Seit 11.11.2026 IN der Knopfzeile statt als eigene Zeile darüber: die kam
   // und ging mit jedem Kampf und schob die Reihenfolge jedes Mal 50 px.
-  const verwalten = `<button class="ghost small" data-act="kaempfe-zeigen" title="Kämpfe vorab zusammenstellen, bearbeiten, kopieren (Bibliothek → Kämpfe)">⚔ ${kaempfe.length ? "Kämpfe" : "Kampf vorbereiten"}</button>`;
+  const verwalten = `<button class="ghost small${kaempfe.length ? " symbol" : ""}" data-act="kaempfe-zeigen" title="Kämpfe verwalten: vorab zusammenstellen, bearbeiten, kopieren (Bibliothek → Kämpfe)">⚔${kaempfe.length ? "" : " Kampf vorbereiten"}</button>`;
   const schnellstart = !keinKampf ? ""
     : kaempfe.length
       ? `<span class="schnellkampf" title="Vorbereiteter Kampf">
@@ -718,7 +723,7 @@ function renderControlBody() {
       ${schnellstart || phasePill}
       <span class="kampf-knoepfe-rest">
         <button class="ghost small symbol" data-act="undo" ${s.canUndo ? "" : "disabled"} title="Letzte Aktion rückgängig">↶</button>
-        ${cleanupRow}${heilRow(!!schnellstart)}
+        ${cleanupRow}${heilRow()}
         ${zeigeBeenden ? `<button class="ghost small" data-act="kampf-beenden" title="Gegner und Verbündete entfernen, Karten einsammeln – die Handys zeigen sofort „Gerade kein Kampf“. Wunden und Bennies bleiben.">🏁 Kampf beenden</button>` : ""}
       </span>
     </div>

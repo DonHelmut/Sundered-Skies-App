@@ -252,6 +252,17 @@ def test_kampf_beenden_handys_sofort_ruhig(tisch):
     sl.warte_bis("() => !document.querySelector('[data-act=kampf-beenden]')")
     assert not sl.page.locator("[data-act=alle-wieder-rein]").count()
     assert all(not c["benched"] for c in sl.state()["combatants"])
+    # Außerhalb des Kampfes steht „Alle heilen" fest in der Zeile (Kalle,
+    # 11.11.2026) und heilt, wenn jemand verletzt ist.
+    knopf = sl.page.locator(".kampf-knoepfe [data-act=alle-heilen]")
+    assert knopf.count() == 1 and knopf.is_disabled()
+    held = sl.state()["combatants"][0]
+    tisch.gm({"type": "apply_hit", "id": held["id"], "steigerungen": 1})
+    sl.warte_bis("() => !document.querySelector('.kampf-knoepfe [data-act=alle-heilen]').disabled")
+    sl.klick(".kampf-knoepfe [data-act=alle-heilen]")
+    sl.warte_bis("(id) => !App.state.combatants.find(c => c.id === id).status.wounds", held["id"])
+    assert sl.page.locator(".kampf-knoepfe [data-act=alle-heilen]").count() == 1
+    sl.kein_waagrechtes_scrollen("Knopfzeile ohne Kampf")
     # Die zwei Symbole ohne Text gibt es in der Zeile nicht mehr.
     assert not sl.page.locator(".kampf-knoepfe [data-act=reset], [data-act=clear-all]").count()
 

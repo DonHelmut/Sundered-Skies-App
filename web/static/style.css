@@ -2346,8 +2346,8 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
 .kb-anzahl b { min-width: 18px; text-align: center; }
 .kb-anon { font-size: 0.8rem; white-space: nowrap; min-width: 70px; }
 .kb-dazu { margin-top: 6px; width: 100%; }
-.schnellkampf { display: flex; align-items: center; gap: 6px; flex: none; }
-.schnellkampf select { width: auto; max-width: 190px; min-width: 0; flex: 0 1 auto; padding-top: 5px; padding-bottom: 5px; }
+.schnellkampf { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; }
+.schnellkampf select { width: auto; max-width: 180px; min-width: 0; flex: 0 1 auto; padding-top: 5px; padding-bottom: 5px; }
 /* Globale Formular-Stile (input 100 % breit, große Selects) hier zurücknehmen -
    sonst verschluckte das Häkchen den Charakternamen. */
 .kampf-bau .kb-name, .kampf-bau .kb-anon { display: inline-flex; align-items: center; gap: 6px; min-width: 0; cursor: pointer; }
@@ -2934,7 +2934,7 @@ body.mit-kopf #skinbar { top: 8px; }
    darunter, sobald ein Knopf dazukommt (🧹 … weg, 🩹 Alle heilen). */
 body.sl-ansicht .kampf-knoepfe { flex-wrap: nowrap; min-height: 40px; }
 body.sl-ansicht .kampf-knoepfe > button { white-space: nowrap; }
-body.sl-ansicht .kampf-knoepfe > button.primary { min-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+body.sl-ansicht .kampf-knoepfe > button.primary { min-width: 132px; flex: 1 0 132px; overflow: hidden; text-overflow: ellipsis; }
 body.sl-ansicht .kampf-knoepfe-rest { flex: none; }
 body.sl-ansicht .kampf-knoepfe-rest button { white-space: nowrap; }
 

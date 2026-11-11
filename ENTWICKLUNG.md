@@ -116,6 +116,10 @@ Nicht gewählt (nicht neu vorschlagen): 1B (Kampf-beenden-Dialog mit Haken),
   und das Zonen-Board wird niedriger, wenn eine Bahn eine Token-Zeile verliert.
   **Regel für Neues:** nichts einbauen, das bei einem Ereignis aufklappt und
   Inhalt wegschiebt – schwebend oder mit festem Platz bauen.
+- **🩹 Alle heilen außerhalb des Kampfes** (Kalle, gleicher Abend): steht ohne
+  Kampf immer in der Knopfzeile, ausgegraut wenn niemand verletzt ist (kommt
+  und geht also nicht). Im Kampf weiter nur, wenn kein Gegner mehr steht.
+  „⚔ Kämpfe verwalten" ist dafür in dieser Zeile nur noch das Symbol ⚔.
 - Tests: `test_kampf_beenden_tisch_wie_am_anfang` (Server),
   `test_kampf_beenden_handys_sofort_ruhig`,
   `test_sl_anfrage_und_kampfknoepfe_schieben_nichts`,
