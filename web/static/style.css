@@ -2346,8 +2346,8 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
 .kb-anzahl b { min-width: 18px; text-align: center; }
 .kb-anon { font-size: 0.8rem; white-space: nowrap; min-width: 70px; }
 .kb-dazu { margin-top: 6px; width: 100%; }
-.schnellkampf { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
-.schnellkampf select { width: auto; max-width: 240px; }
+.schnellkampf { display: flex; align-items: center; gap: 6px; flex: none; }
+.schnellkampf select { width: auto; max-width: 190px; min-width: 0; flex: 0 1 auto; padding-top: 5px; padding-bottom: 5px; }
 /* Globale Formular-Stile (input 100 % breit, große Selects) hier zurücknehmen -
    sonst verschluckte das Häkchen den Charakternamen. */
 .kampf-bau .kb-name, .kampf-bau .kb-anon { display: inline-flex; align-items: center; gap: 6px; min-width: 0; cursor: pointer; }
@@ -2914,3 +2914,49 @@ body.mit-kopf #skinbar { top: 8px; }
 }
 .zustand-zeile { margin: 0 0 8px; }
 .zustand-zeile .kopf-zustand { justify-content: center; }
+
+/* --- Anfragen schweben (Kalle, 11.11.2026) -----------------------------------
+   Oben mittig ÜBER der Seite: das frühere Panel oben links schob beim
+   Eintreffen alles darunter weg. So hoch, dass es nur die Mitte der Kopfleiste
+   und die Panel-Köpfe verdeckt - nicht „Neue Runde" und keine Figur. */
+.anfragen-schweb {
+  position: fixed; top: 4px; left: 50%; transform: translateX(-50%); z-index: 95;
+  width: min(440px, calc(100vw - 24px)); max-height: 46vh; overflow-y: auto;
+  padding: 8px 14px 4px; border-radius: 14px;
+  background: var(--panel); border: 1px solid var(--gold);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
+}
+.anfragen-schweb .as-titel { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--gold); }
+.anfragen-schweb .req-item:last-child { border-bottom: 0; }
+
+/* Kampf-Knopfzeile: feste Höhe, nichts bricht um - sonst rückt die Reihenfolge
+   darunter, sobald ein Knopf dazukommt (🧹 … weg, 🩹 Alle heilen). */
+body.sl-ansicht .kampf-knoepfe { flex-wrap: nowrap; min-height: 40px; }
+body.sl-ansicht .kampf-knoepfe > button { white-space: nowrap; }
+body.sl-ansicht .kampf-knoepfe > button.primary { min-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+body.sl-ansicht .kampf-knoepfe-rest { flex: none; }
+body.sl-ansicht .kampf-knoepfe-rest button { white-space: nowrap; }
+
+/* Handy-Reihenfolge: eine Zeile je Figur (Kalle, 11.11.2026, Vorschlag 2). */
+body:not(.sl-ansicht) .order .combatant .who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+body:not(.sl-ansicht) .order .combatant .badges { margin-top: 0; }
+body:not(.sl-ansicht) .order .combatant .badges:empty { display: none; }
+
+/* --- Beim SL rückt nichts (Kalle, 11.11.2026) --------------------------------
+   Feste Maße überall, wo bisher ein Knopf oder Abzeichen mehr die Höhe änderte:
+   - Überschrift der Reihenfolge: der Filter-Knopf „nur Offene" kam ab der
+     ersten erledigten Figur dazu und drückte alle Zeilen 9 px runter.
+   - Zeilen: Statist 49, Wild Card 51, mit Zustand 53 px - jetzt alle gleich.
+   - Leiste unten: „Zug bestätigen" ist schmaler als „Freigeben + Weiter",
+     dadurch sprangen 🎯 Treffer / Heilung bei jedem Zug seitlich. */
+body.sl-ansicht .order-heading { min-height: 26px; align-items: center; }
+body.sl-ansicht .order .combatant { min-height: 54px; box-sizing: border-box; }
+body.sl-ansicht .kampf-knoepfe { height: 42px; }
+body.sl-ansicht .aktionsleiste { height: 60px; }
+body.sl-ansicht .aktionsleiste .al-haupt { min-width: 262px; justify-content: flex-end; }
+body.sl-ansicht .kampf-knoepfe button { box-sizing: border-box; max-height: 40px; }
+body.sl-ansicht .aktionsleiste .al-haupt button { box-sizing: border-box; height: 46px; padding-top: 0; padding-bottom: 0; }
+/* Panel-Kopf: mit ⓘ-Knopf war er 1 px höher als ohne - der Knopf kommt und
+   geht (Kampf-Panel: nur vor dem Austeilen), und alles darunter zuckte. */
+body.sl-ansicht .grid2 details.section > .sec-head { min-height: 46px; box-sizing: border-box; }

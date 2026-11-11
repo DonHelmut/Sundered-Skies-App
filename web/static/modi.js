@@ -121,12 +121,13 @@ const ANLEITUNG = [
     ["<b>Rechtsklick</b> auf eine Figur (Liste oder Board): Treffer, Heilen, Zustände, Bennies direkt an der Maus."],
     ["<b>Angeschlagen:</b> zu Zugbeginn „✓ erholt“ (Probe geschafft) oder 🪙 in der Leiste."],
     ["<b>Wunden-Spalte</b> rechts in der Reihenfolge: 😵, Punkte für Wunden, ☠ raus. Statisten raus bei welcher Wunde: ⋯ → ⚙."],
-    ["<b>🧹</b> im Kampf-Panel räumt ausgeschaltete Gegner ab."],
+    ["<b>🧹 … weg</b> im Kampf-Panel räumt ausgeschaltete Gegner ab."],
+    ["<b>🏁 Kampf beenden</b> im Kampf-Panel: Gegner und Verbündete weg, Karten eingesammelt – die Handys zeigen sofort „Gerade kein Kampf“. Nur die Karten einsammeln: ☰ Mehr → ⟲."],
   ], tipp: "Schaden selbst rechnen lassen: ⋯ → ⚙ → „🎯 Schaden eintippen“ – die App vergleicht mit der Robustheit." },
   { k: "bennies", titel: "🪙 Bennies & Anfragen", f: ["bennies", "anfragen", "zustaende"], schritte: [
     ["<b>Panel „Bennies“:</b> Empfänger wählen → 🪙 +1 Benny. Dort auch der SL-Pool und „↻ Bennies auffrischen“ für den Abendbeginn.", "bennies"],
     ["<b>Benny ausgeben</b> tippen Spieler auf die Münzen oben am Handy – du bestätigst.", "bennies"],
-    ["<b>Anfragen</b> (Benny, Wunde, Zustand) erscheinen oben im Panel „Anfragen“ – ✓ übernimmt, ✕ lehnt ab.", "anfragen"],
+    ["<b>Anfragen</b> (Benny, Wunde, Zustand) schweben oben in der Mitte (nichts verrutscht) – ✓ übernimmt, ✕ lehnt ab.", "anfragen"],
     ["<b>Zusatz-Zustände</b> (Verwundbar, Abgelenkt, Am Boden, Betäubt) über ⋯ an der Figur oder per Rechtsklick.", "zustaende"],
   ] },
   { k: "nachrichten", titel: "✉ Nachrichten & Bilder", f: "nachrichten", schritte: [
@@ -142,7 +143,7 @@ const ANLEITUNG = [
   ] },
   { k: "aufnahme", titel: "🎙 Aufnahme & Protokoll", f: "aufnahme", schritte: [
     ["<b>● Aufnehmen</b> im Panel „Aufnahme & Protokoll“. Oben laufen dann Zeit, ⏸ Pause und 📌 Merken für wichtige Momente."],
-    ["<b>■ Beenden</b> – die genaue Mitschrift läuft danach von selbst. <b>🌙 Abend beenden</b> macht alles auf einmal: Aufnahme beenden, Kampf abräumen, Sicherung anlegen."],
+    ["<b>■ Beenden</b> – die genaue Mitschrift läuft danach von selbst. <b>🌙 Abend beenden</b> macht alles auf einmal: Aufnahme beenden, Kampf beenden, Sicherung anlegen."],
     ["<b>Protokoll:</b> Prompt kopieren, von Claude die Nacherzählung schreiben lassen, im Panel „Protokolle“ einfügen und freigeben – die Handys sehen sie unter „Was bisher geschah“."],
     ["<b>📖 Chronik</b> (Panel „Protokolle“): alle Abende am Stück, der neueste zuerst – auch zum Drucken oder als PDF. Am Handy: 📜 → „Alles am Stück lesen“."],
   ], tipp: "Das Mikro mittig auf den Tisch – das bringt mehr als jede Einstellung." },

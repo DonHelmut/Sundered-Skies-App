@@ -43,6 +43,7 @@ function renderGM() {
     ${renderAktionsleiste()}
     ${App.tastenHilfe ? tastenHilfeHtml() : ""}
     ${modusFensterHtml()}${anleitungHtml()}
+    ${renderRequestsPanel()}
     ${angriffPopupHtml()}
     <datalist id="effekt-vorschlaege">${EFFEKT_VORSCHLAEGE.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`;
 }
@@ -52,7 +53,9 @@ function renderGM() {
 // auch in die andere Spalte. Die Anordnung gilt pro Geraet (wie das Auf-/
 // Zuklappen). Schluessel = data-sec des Panels.
 const PANEL_BAU = {
-  requests: () => renderRequestsPanel(),
+  // Kein Panel mehr (schwebt, siehe renderRequestsPanel) - der Schlüssel
+  // bleibt, damit gemerkte Anordnungen von früher weiter passen.
+  requests: () => "",
   // 🎛 Ausgeschaltete Teile (funktionAn) bauen gar kein Panel - die
   // Anordnung bleibt trotzdem gemerkt, beim Einschalten steht es wieder da.
   zones: () => funktionAn("zonen") ? renderZonesPanel() : "",
@@ -617,6 +620,7 @@ function kopfMenueHtml() {
       <label class="ghost knopf-label" title="Zip-Sicherung (oder alte .json) einspielen">⤵ Sicherung importieren
         <input type="file" accept=".zip,application/zip,application/json,.json" data-act="pick-import" style="display:none"></label>
       <button class="ghost" data-act="sicherungen-zeigen" title="Die App sichert Charaktere, Notizen, Bibliotheken und Protokolle etwa stündlich selbst">🛟 Automatische Sicherungen</button>
+      <button class="ghost" data-act="reset" title="Alle Karten einsammeln und neu mischen, Runde 0 – Gegner bleiben stehen">⟲ Karten einsammeln (Runde 0)</button>
       <button class="ghost" data-act="bilder-aufraeumen" title="Löscht hochgeladene Bilder, die von keiner Figur mehr benutzt werden">🧹 Alte Bilder aufräumen</button>
       <button class="ghost" data-act="tasten-hilfe" title="Alle Tastenkürzel (Taste ?)">⌨ Tastenkürzel</button>
       ${versionLine()}
@@ -664,8 +668,12 @@ function renderControlBody() {
   const rundeDran = !s.round || !s.activeId;
   // Aufräum-Knopf nur zeigen, wenn es ausgeschaltete Gegner gibt (kein Dauer-Clutter).
   const defeated = s.combatants.filter((c) => c.kind === "npc" && !c.ally && (c.status || {}).out);
+  // Kleine Knöpfe IN der Knopfzeile statt eigener Zeilen darüber (Kalle,
+  // 11.11.2026: „beim SL soll nichts mehr geschoben werden"). Vorher erschien
+  // beim ersten gefallenen Gegner eine neue Zeile und drückte die ganze
+  // Reihenfolge 40 px nach unten - genau während man darin klickt.
   const cleanupRow = defeated.length
-    ? `<div class="row" style="margin-bottom:8px"><button class="ghost bad" data-act="clear-defeated" data-n="${defeated.length}" title="Sofort entfernen – spätestens bei der nächsten Runde verschwinden sie von selbst (keine Karte mehr)">🧹 ${defeated.length} ausgeschaltete${defeated.length === 1 ? "n Gegner" : " Gegner"} entfernen</button></div>`
+    ? `<button class="ghost small bad" data-act="clear-defeated" data-n="${defeated.length}" title="${defeated.length} ausgeschaltete${defeated.length === 1 ? "n Gegner" : " Gegner"} sofort entfernen – spätestens bei der nächsten Runde verschwinden sie von selbst (keine Karte mehr)">🧹 ${defeated.length} weg</button>`
     : "";
   // Kampfende: kein Gegner mehr auf den Beinen, aber Spieler sind verletzt ->
   // ein Knopf heilt alle (Kalle, 30.10.2026). Nur dann sichtbar, mitten im
@@ -673,13 +681,16 @@ function renderControlBody() {
   const verletzt = s.combatants.filter((c) => c.kind === "player"
     && ((c.status || {}).out || (c.status || {}).wounds || (c.status || {}).shaken));
   const gegnerSteht = s.combatants.some((c) => c.kind === "npc" && !c.ally && !c.benched && !(c.status || {}).out);
-  const heilRow = verletzt.length && !gegnerSteht
-    ? `<div class="row" style="margin-bottom:8px"><button class="ghost good" data-act="alle-heilen" title="Alle Spieler ganz heil: wach, keine Wunden, nicht angeschlagen. Rückgängig mit ↶">🩹 Alle Spieler heilen <span class="muted small">(${verletzt.length} verletzt)</span></button></div>`
+  const heilRow = (kurz) => verletzt.length && !gegnerSteht
+    ? `<button class="ghost small good${kurz ? " symbol" : ""}" data-act="alle-heilen" title="Alle Spieler ganz heil (${verletzt.length} verletzt): wach, keine Wunden, nicht angeschlagen. Rückgängig mit ↶">🩹${kurz ? "" : " Alle heilen"}</button>`
     : "";
   // Alles in EINER Zeile: Austeilen (am Rundenende gross), dahinter kleine
   // Symbol-Knoepfe. Vorher zwei Zeilen mit breiten Text-Knoepfen - rund 80 px,
   // die in der Reihenfolge darunter fehlten. Was sie tun, steht im Tooltip.
-  const zeigeAbraeumen = s.combatants.some((c) => c.kind === "npc" || !c.benched);
+  // 🏁 Kampf beenden (Kalle, 11.11.2026, 1A): ein Knopf mit Text statt der
+  // zwei Symbole ⟲ und 🧹, die keiner auseinanderhielt. Nur wenn es einen
+  // Kampf gibt (Gegner/Verbündete da oder Karten ausgeteilt).
+  const zeigeBeenden = !!s.round || s.combatants.some((c) => c.kind === "npc");
   // Vorbereitete Kämpfe genau dann anbieten, wenn keiner läuft (Sitzungsbeginn,
   // nach „Kampf abräumen") - im Kampf wäre die Auswahl nur Ballast.
   const kaempfe = s.encounters || [];
@@ -688,25 +699,27 @@ function renderControlBody() {
   // kein Kampf läuft. Im Kampf bleibt die Leiste frei, wer nichts vorbereitet,
   // sieht nur einen kleinen Knopf.
   const keinKampf = !s.combatants.some((c) => c.kind === "npc");
-  const verwalten = `<button class="ghost small" data-act="kaempfe-zeigen" title="Kämpfe vorab zusammenstellen, bearbeiten, kopieren (Bibliothek → Kämpfe)">⚔ ${kaempfe.length ? "Kämpfe verwalten" : "Kampf vorbereiten"}</button>`;
+  // Seit 11.11.2026 IN der Knopfzeile statt als eigene Zeile darüber: die kam
+  // und ging mit jedem Kampf und schob die Reihenfolge jedes Mal 50 px.
+  const verwalten = `<button class="ghost small" data-act="kaempfe-zeigen" title="Kämpfe vorab zusammenstellen, bearbeiten, kopieren (Bibliothek → Kämpfe)">⚔ ${kaempfe.length ? "Kämpfe" : "Kampf vorbereiten"}</button>`;
   const schnellstart = !keinKampf ? ""
     : kaempfe.length
-      ? `<div class="schnellkampf"><span class="muted small">Vorbereitet:</span>
+      ? `<span class="schnellkampf" title="Vorbereiteter Kampf">
         <select id="schnellkampf">${kaempfe.map((k) => `<option value="${k.id}">${esc(k.name)}</option>`).join("")}</select>
         <button class="small primary" data-act="schnellkampf-start" title="Kampf einsetzen, Charaktere an ihre Startzone und austeilen">▶ Starten</button>
-        ${verwalten}</div>`
-      : `<div class="schnellkampf">${verwalten}</div>`;
+        ${verwalten}</span>`
+      : `<span class="schnellkampf">${verwalten}</span>`;
   return `
-    ${cleanupRow}
-    ${heilRow}
-    ${schnellstart}
     <div class="kampf-knoepfe">
-      <button class="${rundeDran ? "primary" : "ghost small"}" data-act="new-round" ${rundeDran ? "" : 'title="Allen eine neue Karte austeilen"'}>🃏 ${s.round === 0 ? "Karten an ALLE austeilen" : rundeDran ? "Neue Runde – an ALLE austeilen" : "Neue Runde"}</button>
-      ${phasePill}
+      ${/* Kurze Beschriftung: der Knopf teilt sich die Zeile mit bis zu vier
+            weiteren (↶, 🧹 … weg, 🩹, 🏁) und darf nicht umbrechen - der lange
+            Text steht im Tooltip und in der Leiste unten. */ ""}
+      <button class="${rundeDran ? "primary" : "ghost small"}" data-act="new-round" title="Allen Teilnehmern (Spieler & Gegner) gleichzeitig eine neue Karte austeilen">🃏 ${s.round === 0 ? (schnellstart ? "Austeilen" : "Karten austeilen") : rundeDran ? "Neue Runde austeilen" : "Neue Runde"}</button>
+      ${schnellstart || phasePill}
       <span class="kampf-knoepfe-rest">
         <button class="ghost small symbol" data-act="undo" ${s.canUndo ? "" : "disabled"} title="Letzte Aktion rückgängig">↶</button>
-        <button class="ghost small symbol bad" data-act="reset" title="Alles zurücksetzen (Karten einsammeln, Runde 0)">⟲</button>
-        ${zeigeAbraeumen ? `<button class="ghost small symbol bad" data-act="clear-all" title="Kampf abräumen: Gegner und Verbündete entfernen, Spieler pausieren – die Zonen sind danach leer">🧹</button>` : ""}
+        ${cleanupRow}${heilRow(!!schnellstart)}
+        ${zeigeBeenden ? `<button class="ghost small" data-act="kampf-beenden" title="Gegner und Verbündete entfernen, Karten einsammeln – die Handys zeigen sofort „Gerade kein Kampf“. Wunden und Bennies bleiben.">🏁 Kampf beenden</button>` : ""}
       </span>
     </div>
     ${rundeDran ? `<div class="muted small hilfe">Teilt allen Teilnehmern (Spieler & Gegner) gleichzeitig eine neue Karte aus. Einzeln nachziehen geht mit 🔄 in der Liste.</div>` : ""}
@@ -725,9 +738,8 @@ function renderRundenHinweis() {
   if (!anyCards) {
     return `<div class="muted small hilfe" style="margin-top:10px">Oben austeilen – danach steuerst du den Kampf über die Leiste am unteren Rand.</div>`;
   }
-  if (!active && s.round > 0) {
-    return `<div class="pill good" style="margin-top:10px; display:inline-block">✓ Runde ${s.round} beendet – alle waren dran</div>`;
-  }
+  // „Runde beendet" steht in der Leiste unten - die zweite Pille hier schob
+  // am Rundenende die ganze Reihenfolge nach unten (Kalle, 11.11.2026).
   return "";
 }
 
@@ -1261,6 +1273,10 @@ function gruppenZeile(gruppe, nr, auf) {
   return kopf + mitglieder;
 }
 
+// Anfragen schweben unter der Kopfleiste (Kalle, 11.11.2026, Vorschlag 4):
+// vorher klappte dafür oben links ein eigenes Panel auf und schob Kampfzonen
+// und alles darunter weg - mitten im Klick lag dann etwas anderes unter der
+// Maus. Jetzt liegt die Karte ÜBER der Seite, nichts rückt.
 function renderRequestsPanel() {
   const s = App.state;
   if (!s.requests || !s.requests.length) return "";
@@ -1281,7 +1297,8 @@ function renderRequestsPanel() {
       ${actions}
     </div>`;
   }).join("");
-  return section("requests", `✋ Anfragen (${s.requests.length})`, rows);
+  return `<div class="anfragen-schweb" data-sec="requests">
+    <div class="as-titel">✋ ${s.requests.length === 1 ? "Anfrage" : `Anfragen (${s.requests.length})`}</div>${rows}</div>`;
 }
 
 function renderOrderPanel(isGM) {
@@ -1429,6 +1446,11 @@ function combatantRow(c, num, isGM, isOpen) {
   // Wunden stehen schon im Kopf über der Karte; die goldene Kante reicht zum Finden.
   const duTag = "";
   const schlank = !isGM && isOwn;
+  // Am Handy jede Zeile in EINER Zeile (Kalle, 11.11.2026, Vorschlag 2): Zone,
+  // „WC", „Verbündet" und die Bennies der anderen machten jede Figur zwei
+  // Zeilen hoch. Die Zone steht im Zonen-Kasten darunter, Verbündete sind grün,
+  // fremde Bennies braucht am Handy niemand. Wunden und Zustände bleiben.
+  const handy = !isGM;
   const naechsterTag = (isGM && !isActive && App._naechsterId === c.id)
     ? `<span class="tag naechster-tag" title="Kommt als Nächstes dran">↓ danach</span>` : "";
   const idxLabel = num != null ? num : `<span class="idx-hidden">?</span>`;
@@ -1450,19 +1472,17 @@ function combatantRow(c, num, isGM, isOpen) {
       <div class="badges">
         ${c.benched
           ? `<span class="tag" style="color:var(--muted);border-color:var(--muted)">⏸ Nicht im Kampf</span>`
-          : funktionAn("zonen") ? `<span class="tag zone-chip z${Zones.zoneOf(c)}">${esc(zoneLabel(Zones.zoneOf(c)))}</span>` : ""}
-        ${c.ally ? `<span class="tag" style="color:var(--good);border-color:var(--good)">🤝 Verbündet</span>` : ""}
+          : funktionAn("zonen") && !handy ? `<span class="tag zone-chip z${Zones.zoneOf(c)}">${esc(zoneLabel(Zones.zoneOf(c)))}</span>` : ""}
+        ${c.ally && !handy ? `<span class="tag" style="color:var(--good);border-color:var(--good)">🤝 Verbündet</span>` : ""}
         ${duTag}${naechsterTag}${jokerBadge}
-        ${c.isWildCard && !schlank ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card">WC</span>' : ""}
+        ${c.isWildCard && !handy ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card">WC</span>' : ""}
         ${showCard ? (isGM ? talentKurz(c.talents) : talentBadges(c.talents)) : ""}${showCard ? talentTrail(c) : ""} ${hints}
-        ${schlank ? "" : bennyBadge(c)}
+        ${handy ? "" : bennyBadge(c)}
       </div>
-      <div class="status-badges">${schlank ? "" : statusBadges(c, isGM)}${
-        (isGM && isActive && funktionAn("wunden") && (c.status || {}).shaken && !(c.status || {}).out)
-          ? ` <button class="st-btn on-shaken" data-act="recover" data-id="${c.id}" data-benny="0" title="Angeschlagen aufheben (Willenskraft- oder Konstitutions-Probe geschafft)">✓ erholt</button>` +
-            (c.isWildCard && funktionAn("bennies") && (c.bennies || 0) > 0
-              ? ` <button class="st-btn" data-act="recover" data-id="${c.id}" data-benny="1" title="Benny ausgeben & sofort erholt">🪙</button>` : "")
-          : ""}</div>
+      ${/* „✓ erholt"/🪙 stehen nur noch in der Leiste unten: in der Zeile
+            machten sie die aktive Figur eine Zeile höher, und alles darunter
+            rückte (Kalle, 11.11.2026: beim SL soll nichts mehr rücken). */ ""}
+      <div class="status-badges">${schlank ? "" : statusBadges(c, isGM)}</div>
     </div>
     ${gmActions}
     ${/* Zustände & Bennies nur, wenn per "⋯" geöffnet. Vorher stand der

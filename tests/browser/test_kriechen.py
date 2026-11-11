@@ -48,7 +48,7 @@ def test_sl_mit_wartendem_fortsetzen(tisch, server):
     sl.reload()
     sl.warte_bis("() => App.state && App.state.hasSavedSession")
     kriechen(sl, verboten=re.compile(
-        r"resume|discard|reset|Fortsetzen|Neu starten|firewall|clear-all|new-round|deal", re.I))
+        r"resume|discard|reset|Fortsetzen|Neu starten|firewall|clear-all|kampf-beenden|new-round|deal", re.I))
 
 
 @pytest.mark.parametrize("groesse", ["klein", "se", "iphone", "gross", "tablet"])

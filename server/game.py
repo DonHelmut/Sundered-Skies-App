@@ -2214,6 +2214,22 @@ class Game:
         self.groups = []
         self._do_reset(a)   # sammelt die Karten ein, Runde/Phase/Anfragen auf null
 
+    def _do_end_combat(self, a: dict) -> None:
+        """🏁 Kampf beenden (Kalle, 11.11.2026): Gegner und Verbündete weg, der
+        Tisch steht wieder da wie zu Beginn des Abends - Spieler NICHT pausiert,
+        zurück in ihrer Startzone, Runde 0. Nach „Kampf abräumen" (pausiert)
+        stand an jedem Handy „Du bist gerade nicht im Kampf" samt grauer Liste,
+        und der SL musste noch „Alle wieder rein" drücken, bis es ruhig aussah.
+        Wer vorher schon pausiert war (Spieler fehlt heute), bleibt es. Wunden
+        und Bennies bleiben."""
+        self.combatants = [c for c in self.combatants if c.get("kind") == "player"]
+        for c in self.combatants:
+            c["groupId"] = None
+            c["zone"] = DEFAULT_ZONE_PLAYER
+        self.groups = []
+        self._do_reset(a)   # sammelt die Karten ein, Runde/Phase/Anfragen auf null
+        self._resort()
+
     # Karten austeilen --------------------------------------------------------
 
     def _deal(self, new_round: bool) -> None:
