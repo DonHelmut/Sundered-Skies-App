@@ -2132,6 +2132,7 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
    Angreifen, Eingreifen). Kleine Neben-Knöpfe (Zug beenden, Abwarten, Benny)
    rechts daneben bzw. auf schmalen Handys darunter. */
 .daumen-leiste { gap: 8px; flex-wrap: nowrap; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.daumen-leiste.weg { opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
 .dl-haupt { flex: 1 1 auto; min-width: 0; display: flex; }
 .dl-haupt > * { flex: 1; margin: 0; }
 .dl-haupt button.big { padding: 15px 14px; font-size: 1.15rem; }

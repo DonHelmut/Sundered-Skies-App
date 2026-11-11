@@ -300,6 +300,11 @@ function revealBigCard(node) {
   const holder = node.closest(".card-holder");
   const hint = holder && holder.querySelector(".tap-hint");
   if (hint) hint.classList.add("gone");
+  // Der „Karte aufdecken"-Knopf unten sofort ausblenden: neu gezeichnet wird
+  // erst nach der Dreh-Animation (~3 s) - so lange stand er sonst unter der
+  // schon offenen Karte, als hätte der Tipp nicht geklappt.
+  const daumen = document.querySelector('.daumen-leiste [data-act="daumen-aufdecken"]');
+  if (daumen) daumen.closest(".daumen-leiste").classList.add("weg");
 
   const mine = myCombatant();
   const img = (mine && mine.image) || null;

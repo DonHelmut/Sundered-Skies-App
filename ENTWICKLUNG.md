@@ -77,6 +77,15 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.7 (11.11.2026): „Karte aufdecken" verschwindet sofort
+
+Beim Durchsehen fürs Design gefunden: Nach dem Tipp auf „🂠 Karte aufdecken"
+blieb der Knopf ~3 s stehen (Neuzeichnen ist während der Dreh-Animation
+gesperrt, `App.revealLockUntil`), darüber „Deck erst deine Karte auf", obwohl
+die Karte schon offen lag. `revealBigCard` blendet die Daumen-Leiste jetzt
+sofort aus (`.daumen-leiste.weg`, nur Deckkraft). Test:
+`test_aufdecken_knopf_verschwindet_sofort`.
+
 ## 2.0.7 (11.11.2026): Release mit Update-Hinweis, Ein-Klick-Update, Durchleuchtung
 
 Bündelt PR #50 (Aktualisieren.exe tauscht sich selbst aus, Limit-Meldung) und

@@ -172,3 +172,19 @@ def test_grosse_karte_passt_auf_den_bildschirm(tisch, groesse):
     assert box["x"] >= 0 and box["x"] + box["width"] <= breite + 1, box
     assert box["width"] >= min(200, breite * 0.55), f"Karte zu klein: {box}"
     h.kein_waagrechtes_scrollen("große Karte")
+
+
+def test_aufdecken_knopf_verschwindet_sofort(tisch):
+    """Nach dem Tipp auf „Karte aufdecken" verschwindet der Knopf gleich - nicht
+    erst nach der Dreh-Animation. Vorher stand er ~3 s unter der schon offenen
+    Karte (gesperrtes Neuzeichnen), als hätte der Tipp nicht geklappt."""
+    _sl, h = _kampf_am_handy(tisch)
+    tisch.gm({"type": "new_round", "runde": 0})
+    _aufdecken(h)
+    h.wait_for_timeout(300)
+    assert h.js("App.revealLockUntil > Date.now()"), "Animation sollte noch laufen"
+    sichtbar = h.js("""() => { const b = document.querySelector('[data-act=daumen-aufdecken]');
+      if (!b) return false; const l = b.closest('.daumen-leiste');
+      return getComputedStyle(l).opacity !== '0' && getComputedStyle(l).pointerEvents !== 'none'; }""")
+    assert not sichtbar, "„Karte aufdecken\" steht noch unter der offenen Karte"
+    assert not tisch.alle_fehler()
