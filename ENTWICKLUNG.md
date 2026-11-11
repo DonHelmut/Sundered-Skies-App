@@ -77,6 +77,12 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## 2.0.9 (11.11.2026): Patch mit dem Abschnitt darunter
+
+Nur Versionsnummer + Paket. Updater unverändert (Aktualisieren aus paket-208
+übernommen, nur Ordner-Spec gebaut). Rauchtest der .exe auf Port 8001 mit eigenem
+data-Ordner (Start mit umgeleitetem stdin „z“, weil Kalles App 8000 hält).
+
 ## Nach 2.0.8 (11.11.2026 abends): Kampf beenden, schlanke Handy-Liste, beim SL rückt nichts mehr
 
 Kalles Wahl aus der zweiten Vorschlagsrunde des Tages: **1A, 2, 4** – dazu die
