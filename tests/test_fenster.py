@@ -62,7 +62,7 @@ def test_starthinweise_nur_fuer_den_sl():
 
     def info(ip):
         anfrage = Request({"type": "http", "method": "GET", "path": "/api/info",
-                           "headers": [(b"host", b"x:8000")], "query_string": b"",
+                           "headers": [(b"host", b"localhost:8000")], "query_string": b"",
                            "client": (ip, 5555), "server": ("x", 8000), "scheme": "http"})
         return json.loads(asyncio.run(app_modul.api_info(anfrage)).body)
 

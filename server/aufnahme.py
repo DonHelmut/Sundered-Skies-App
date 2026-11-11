@@ -566,6 +566,29 @@ class Aufnahmen:
         except OSError:
             pass
 
+    def stimmprofile_einspielen(self, roh) -> int:
+        """Gemerkte Stimmen aus einer Sicherung übernehmen (ersetzt die
+        hiesigen, wie der Rest der Sicherung). Nur saubere Einträge:
+        Name -> Zahlenliste. Rückgabe: Anzahl."""
+        if not isinstance(roh, dict):
+            return 0
+        sauber = {}
+        for wer, p in list(roh.items())[:200]:
+            v = p.get("v") if isinstance(p, dict) else None
+            if not isinstance(wer, str) or not wer.strip() or not isinstance(v, list) or not 8 <= len(v) <= 4096:
+                continue
+            einheit = _einheit(v)
+            if not einheit:
+                continue
+            try:
+                n = max(1, min(PROFIL_GEWICHT_MAX, int(p.get("n") or 1)))
+            except (TypeError, ValueError):
+                n = 1
+            sauber[wer.strip()[:60]] = {"v": [round(x, 5) for x in einheit], "n": n, "stand": now_ms()}
+        if sauber:
+            self._profile_schreiben(sauber)
+        return len(sauber)
+
     def abdruecke_speichern(self, name: str, abdruecke: dict) -> None:
         if not name_gueltig(name) or not abdruecke:
             return

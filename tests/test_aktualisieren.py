@@ -221,6 +221,40 @@ def test_neueste_version_faellt_auf_api_zurueck(monkeypatch):
     assert akt.neueste_version() == ("2.0.6", "https://x/z.zip", 5)
 
 
+# --- Nur die eigene Kopie beenden (Durchleuchtung 10.11.2026) -----------------
+
+def test_beenden_trifft_nur_die_app_aus_diesem_ordner(tmp_path):
+    befehl = akt.beenden_befehl(tmp_path / "O'Neils Spiel")
+    assert befehl[0] == "powershell"
+    # Pfad der .exe steht drin (Hochkomma verdoppelt), kein taskkill nach Namen.
+    assert "O''Neils Spiel" in befehl[-1] and akt.APP_EXE in befehl[-1]
+    assert "$_.Path -eq" in befehl[-1]
+
+
+def test_beenden_faellt_auf_taskkill_zurueck_wenn_powershell_nicht_geht(tmp_path):
+    gelaufen, aus = [], {"an": True}
+
+    def ausfuehren(befehl):
+        gelaufen.append(befehl[0])
+        if befehl[0] == "powershell":
+            raise OSError("gesperrt")
+        aus["an"] = False
+
+    assert akt.app_beenden(tmp_path, ausfuehren, lambda o: aus["an"], warten=lambda s: None)
+    assert gelaufen == ["powershell", "taskkill"]
+
+
+def test_beenden_ohne_taskkill_wenn_gezielt_reicht(tmp_path):
+    gelaufen, aus = [], {"an": True}
+
+    def ausfuehren(befehl):
+        gelaufen.append(befehl[0])
+        aus["an"] = False
+
+    assert akt.app_beenden(tmp_path, ausfuehren, lambda o: aus["an"], warten=lambda s: None)
+    assert gelaufen == ["powershell"]
+
+
 def test_groessen_probe_scheitert_kein_api_rueckfall(monkeypatch):
     # Scheitert nur die Größen-Probe (nicht 404), nicht auf die API ausweichen –
     # dort sitzt das 60er-Limit. Größe kommt dann beim Download.

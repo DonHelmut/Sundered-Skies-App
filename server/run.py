@@ -25,6 +25,7 @@ from . import app as app_modul
 from . import diag
 from . import winnet
 from . import fenster
+from . import update
 
 
 NETZ_INTERVALL = 20   # Sekunden zwischen zwei Kontrollen
@@ -204,6 +205,27 @@ def open_browser_later() -> None:
     threading.Thread(target=_open, daemon=True).start()
 
 
+def beenden_warnung(aufnahmen, jetzt_ms: int | None = None) -> str:
+    """Text für die Nachfrage beim Beenden, "" wenn nichts dagegen spricht.
+    Nur die Aufnahme zählt: der Kampf ist gespeichert und nach dem Neustart
+    wieder da („Fortsetzen?"), der Ton nach dem Beenden kommt nicht wieder."""
+    a = getattr(aufnahmen, "aktiv", None)
+    if not a:
+        return ""
+    jetzt = int(time.time() * 1000) if jetzt_ms is None else jetzt_ms
+    # „aktiv" bleibt auch stehen, wenn das Fenster mitten in der Aufnahme
+    # geschlossen wurde - dann kommt seit Minuten kein Ton mehr an und es gibt
+    # nichts zu retten. In der Pause kommt auch nichts, die zählt aber.
+    letztes = int(getattr(aufnahmen, "_letztes_stueck", 0) or a.get("start") or 0)
+    if not getattr(aufnahmen, "pausiert", False) and jetzt - letztes > 3 * 60000:
+        return ""
+    minuten = max(0, (jetzt - int(a.get("start") or jetzt)) // 60000)
+    dauer = f"{minuten // 60}:{minuten % 60:02d} h" if minuten >= 60 else f"{minuten} min"
+    return (f"Die Aufnahme läuft noch (seit {dauer}).\n\n"
+            "Beenden stoppt sie. Der Ton bis hierher bleibt gespeichert.\n\n"
+            "Trotzdem beenden?")
+
+
 def infobereich_starten(server) -> "fenster.Infobereich | None":
     """Symbol neben der Uhr (nur in der .exe ohne Konsole). Ohne Symbol gäbe
     es dort keinen Weg, die App zu beenden - dann lieber laut ins Log."""
@@ -214,7 +236,8 @@ def infobereich_starten(server) -> "fenster.Infobereich | None":
         server.should_exit = True
 
     symbol = fenster.Infobereich(f"http://localhost:{active_port()}/", DATA_DIR,
-                                 app_modul.WEB_DIR / "static" / "icon-64.png", beenden, APP_VERSION)
+                                 app_modul.WEB_DIR / "static" / "icon-64.png", beenden, APP_VERSION,
+                                 warnung=lambda: beenden_warnung(app_modul.aufnahmen))
     try:
         if not symbol.starten():
             diag.log("WARNUNG: Symbol im Infobereich nicht verfuegbar (pystray fehlt).")
@@ -359,7 +382,11 @@ def main() -> None:
 
     # Neue Updater-Dateien (*.neu), die Aktualisieren.exe nicht ueber sich selbst
     # schreiben konnte, jetzt einsetzen - jetzt laeuft der Updater nicht.
-    if getattr(sys, "frozen", False):
+    # Nicht, wenn der Updater uns gerade selbst gestartet hat und sein
+    # Tausch-Skript das gleich erledigt (SWS_UPDATER_TAUSCHT, „--auto"): er
+    # laeuft dann noch ein paar Sekunden, und zwei wuerden dieselben Dateien
+    # umbenennen.
+    if getattr(sys, "frozen", False) and not os.environ.get("SWS_UPDATER_TAUSCHT"):
         try:
             import aktualisieren
             from .paths import BASE_DIR
@@ -454,6 +481,7 @@ def main() -> None:
     if fenster.OHNE_KONSOLE:
         symbol = infobereich_starten(server)
     open_browser_later()
+    update.pruefen_im_hintergrund()
     try:
         server.run()
     except OSError as exc:

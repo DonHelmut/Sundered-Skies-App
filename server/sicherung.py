@@ -39,6 +39,12 @@ def bilder_der_sicherung(data: dict) -> set[str]:
                 name = url.rsplit("/", 1)[-1]
                 if BILD_NAME.match(name):
                     namen.add(name)
+        # Foto vom Papierbogen steckt im Bogen, nicht an der Figur.
+        bogen = eintrag.get("bogen")
+        if isinstance(bogen, dict) and isinstance(bogen.get("foto"), str) and bogen["foto"].startswith("/uploads/"):
+            name = bogen["foto"].rsplit("/", 1)[-1]
+            if BILD_NAME.match(name):
+                namen.add(name)
 
     for feld in ("roster", "bestiary", "allies"):
         for e in data.get(feld) or []:
@@ -46,6 +52,11 @@ def bilder_der_sicherung(data: dict) -> set[str]:
     for begegnung in data.get("encounters") or []:
         for m in (begegnung.get("members") or []) if isinstance(begegnung, dict) else []:
             merke(m)
+    # Die Kartenrückseite des Tisches (eigenes Bild des SL) steht bei den
+    # Einstellungen - ohne sie zeigte der neue Laptop auf ein Bild, das fehlt.
+    einst = data.get("settings")
+    if isinstance(einst, dict):
+        merke({"rueckseite": einst.get("rueckseiteBild")})
     return namen
 
 

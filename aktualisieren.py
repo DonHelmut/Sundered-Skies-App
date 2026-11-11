@@ -92,6 +92,38 @@ def app_laeuft(ordner: Path) -> bool:
     return False
 
 
+def beenden_befehl(ordner: Path) -> list[str]:
+    """PowerShell-Aufruf, der NUR die App aus diesem Ordner beendet. Vorher
+    ``taskkill /IM``: das traf jede laufende SunderedSkiesInitiative.exe - auch
+    eine zweite Kopie in einem anderen Ordner (Test-Ordner neben dem echten
+    Spiel), die mit dem Update nichts zu tun hat (Durchleuchtung 10.11.2026)."""
+    exe = str(ordner / APP_EXE).replace("'", "''")
+    name = APP_EXE[:-4]
+    return ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+            f"Get-Process -Name '{name}' -ErrorAction SilentlyContinue | "
+            f"Where-Object {{ $_.Path -eq '{exe}' }} | Stop-Process -Force"]
+
+
+def app_beenden(ordner: Path, ausfuehren=None, laeuft=None, warten=time.sleep) -> bool:
+    """App aus ``ordner`` beenden und warten, bis ihre Dateien frei sind.
+    Erst gezielt (nur diese Kopie); klappt das nicht (PowerShell gesperrt,
+    Firmen-Laptop), wie früher über den Programmnamen. Rückgabe: ob sie aus ist."""
+    ausfuehren = ausfuehren or (lambda befehl: subprocess.run(
+        befehl, capture_output=True, timeout=30,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)))
+    laeuft = laeuft or app_laeuft
+    for befehl in (beenden_befehl(ordner), ["taskkill", "/F", "/IM", APP_EXE]):
+        try:
+            ausfuehren(befehl)
+        except Exception:  # noqa: BLE001 - dann eben der nächste Weg
+            continue
+        for _ in range(20):
+            if not laeuft(ordner):
+                return True
+            warten(0.5)
+    return not laeuft(ordner)
+
+
 # --- Dateien tauschen, auch wenn Windows/OneDrive dazwischenfunkt -------------
 #
 # Vorgeschichte (1.5.35, Kalles App im OneDrive-Desktop): Der Updater hat erst
@@ -533,6 +565,25 @@ def herunterladen(url: str, ziel: Path, groesse: int) -> None:
 
 # --- Ablauf -------------------------------------------------------------------
 
+def app_starten(ordner: Path, ausfuehren=None, tauscht_selbst: bool = False) -> bool:
+    """Die App nach dem Update wieder starten (nur bei ``--auto``). Ohne neues
+    Fenster (SWI_NO_BROWSER): das alte App-Fenster ist noch offen, verbindet
+    sich von selbst wieder und lädt die neue Version - sonst stünden zwei da."""
+    try:
+        (ausfuehren or subprocess.Popen)(
+            [str(ordner / APP_EXE)], cwd=str(ordner), close_fds=True,
+            # SWS_UPDATER_TAUSCHT: das Tausch-Skript setzt die neuen
+            # Updater-Dateien ein, sobald dieses Fenster zu ist. Die App
+            # startet aber schon vorher - zöge sie gleichzeitig nach
+            # (updater_nachziehen), griffen beide nach denselben Dateien.
+            env={**os.environ, "SWI_NO_BROWSER": "1", **({"SWS_UPDATER_TAUSCHT": "1"} if tauscht_selbst else {})},
+            creationflags=getattr(subprocess, "DETACHED_PROCESS", 0)
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+        return True
+    except Exception:  # noqa: BLE001 - dann startet der SL eben von Hand
+        return False
+
+
 def _ende(code: int) -> None:
     print()
     if not os.environ.get("SWS_OHNE_PAUSE"):          # (Tests)
@@ -550,6 +601,10 @@ def main() -> None:
     except Exception:
         pass
     ordner = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path.cwd()
+    # --auto: aus der App heraus gestartet („⬆ Jetzt aktualisieren"). Der SL hat
+    # dort schon Ja gesagt - also nicht nochmal fragen, und am Ende die App
+    # wieder starten: er sitzt vor dem App-Fenster, nicht vor dem Ordner.
+    auto = "--auto" in sys.argv[1:]
     print("============================================")
     print("  Sundered Skies – Initiative: Aktualisieren")
     print("============================================")
@@ -576,15 +631,12 @@ def main() -> None:
         print("Die App läuft noch. Sie muss zum Aktualisieren kurz beendet werden.")
         # Nur den ersten Buchstaben werten - unsichtbare Zeichen (BOM aus
         # umgeleiteter Eingabe, Leerzeichen) dürfen kein „Nein" erzeugen.
-        antwort = re.sub(r"[^a-z]", "", input("Jetzt beenden? (j/n) ").lower())
-        if not antwort.startswith(("j", "y")):
-            print("Abgebrochen – nichts geändert.")
-            _ende(1)
-        subprocess.run(["taskkill", "/F", "/IM", APP_EXE], capture_output=True)
-        for _ in range(20):
-            time.sleep(0.5)
-            if not app_laeuft(ordner):
-                break
+        if not auto:
+            antwort = re.sub(r"[^a-z]", "", input("Jetzt beenden? (j/n) ").lower())
+            if not antwort.startswith(("j", "y")):
+                print("Abgebrochen – nichts geändert.")
+                _ende(1)
+        app_beenden(ordner)
 
     # ignore_cleanup_errors: ein Virenscanner, der noch im Download liest, darf
     # nach geglücktem Austausch keinen „Fehler" mehr erzeugen.
@@ -607,6 +659,8 @@ def main() -> None:
             print(f"FEHLER: {fehler}")
             if fehler.alt_heil:
                 print(f"Nichts kaputt – Version {lokal or 'bisher'} startet wie gewohnt.")
+                if auto:
+                    app_starten(ordner)
             print()
             print("Meist sperrt OneDrive (synchronisiert gerade) oder ein Virenscanner die")
             print("Dateien. Ein paar Minuten warten oder OneDrive kurz anhalten (Wolke unten")
@@ -619,12 +673,20 @@ def main() -> None:
             print()
             print(f"FEHLER: {fehler}")
             print(f"Nichts geändert – Version {lokal or 'bisher'} startet wie gewohnt.")
+            if auto:
+                app_starten(ordner)
             print("Falls die App jetzt nicht startet: neueste SunderedSkies-App.zip von")
             print(f"https://github.com/{REPO}/releases/latest holen und den Ordner data hineinkopieren.")
             _ende(1)
 
-    selbst_tausch_starten(ordner)
+    tauscht_selbst = selbst_tausch_starten(ordner)
     print()
+    if auto and app_starten(ordner, tauscht_selbst=tauscht_selbst):
+        # Kein „Enter drücken": das Fenster soll von selbst verschwinden, die
+        # App ist ja wieder da. Kurz stehen lassen, damit man „Fertig" sieht.
+        print(f"Fertig – jetzt Version {neu}. Die App startet wieder …")
+        time.sleep(4)
+        sys.exit(0)
     print(f"Fertig – jetzt Version {neu} (auch Aktualisieren.exe selbst, sobald dieses")
     print("Fenster zu ist). Starten wie immer mit START.bat")
     print(f"oder {APP_EXE}.")

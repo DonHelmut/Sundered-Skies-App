@@ -28,6 +28,7 @@ function renderGM() {
       <div class="row tight">
         ${aufnahmeKopfHtml()}
         ${modusKopfHtml()}
+        ${updateKopfHtml()}
         ${anordnungIstStandard(spalte) ? "" : `<button class="ghost" data-act="anordnung-zuruecksetzen" title="Panels wieder in die ursprüngliche Reihenfolge bringen">↺ Anordnung zurücksetzen</button>`}
         ${kopfMenueHtml()}
         <button class="ghost" data-act="fokus" title="Alles ausser Kampf, Zonen und Reihenfolge zuklappen">

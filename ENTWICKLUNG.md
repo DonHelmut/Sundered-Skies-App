@@ -77,6 +77,85 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.6 (10.11.2026): Gewählte Ideen aus der Durchleuchtung
+
+Kalle wählte nach Bildern (Mockups in der echten Optik): I1-C, I2, I3, I4
+(neueste zuerst), I9-A, V2 **ohne** Löschen („Ton nicht löschen, aber anzeigen
+wie viel Speicher es braucht"), V3. Nicht gewählt und nicht neu vorschlagen:
+I5 Erschöpfung, I6 Machtpunkte, I7 Glutwahn, I8 Spieler führt Verbündeten.
+
+- **Update-Hinweis (I1)** – `server/update.py`, `web/static/update.js`. Die App
+  fragt beim Start einmal im Hintergrund nach der neuesten Version (über
+  `aktualisieren.neueste_version`, ohne Internet passiert nichts). SL sieht
+  einmal je Version einen Dialog, danach den Knopf „⬆ Version X da" in der
+  Kopfleiste. Nie mitten im Kampf oder in der Aufnahme von selbst. „Jetzt
+  aktualisieren" sichert, startet `Aktualisieren.exe --auto`; die beendet die
+  App, tauscht und startet sie wieder (`app_starten`, ohne zweites Fenster –
+  das alte lädt sich über `veraltetNeuLaden` neu). Während einer Aufnahme
+  gesperrt. Ohne Aktualisieren.exe (Entwickler-Start) nur der Link.
+  Zum Ansehen ohne Release: `SWI_NEUESTE_VERSION=9.9.9` vor dem Start setzen.
+  **Am echten Windows noch nicht gelaufen** (Start der .exe, Neustart der App).
+  Der Updater einer älteren Installation kennt `--auto` nicht: er fragt dann
+  wie bisher „Jetzt beenden? (j/n)" und startet die App nicht selbst. Ab der
+  Version mit diesem Stand zieht die App den neuen Updater beim Start nach.
+- **Handy bleibt wach (I2)** – `web/static/wach.js`, `wach.mp4`. Solange
+  gekämpft wird (Runde > 0). Ohne https gibt es am Handy kein
+  `navigator.wakeLock`; dann läuft ein stilles 32×32-Video (4 KB, mit stiller
+  Tonspur – ohne die zählt es am iPhone nicht). Start beim ersten Tipp.
+  Schalter im ⚙ („☀ Bildschirm anlassen …"), Standard an.
+  **An echten Handys (iPhone + Android) noch prüfen.**
+- **🌙 Abend beenden (I3)** – `abendBeenden` in `aufnahme.js`. Knopf im
+  Aufnahme-Panel, solange aufgenommen wird: Aufnahme beenden, Kampf abräumen
+  (`clear_all`), Sicherung (`POST /api/sicherungen/jetzt`), je mit Haken. Die
+  genaue Mitschrift startet nach dem Ende der Aufnahme ohnehin von selbst.
+- **📖 Chronik (I4)** – `protokoll.js`. Alle Abende am Stück, neueste zuerst,
+  Kapitelnummern ab dem ersten Abend. Handy: „Alles am Stück lesen" im 📜.
+  SL: „📖 Chronik" im Protokoll-Panel, sieht auch Unfreigegebenes, „🖨 Drucken /
+  PDF" (`body.chronik-druck` + `@media print`, sonst druckte Strg+P überall
+  anders). Der Titel aus „# Titel" im Text wird nicht doppelt gezeigt.
+- **📷 Foto vom Papierbogen (I9)** – eigener Reiter im Bogen (`bogen.js`),
+  Feld `bogen.foto` (nur eigene Uploads, `BOGEN_FOTO`). Wird sofort
+  gespeichert, 2400 px Kante. Sichtbar wie der Bogen (selbst, SL, Mitspieler).
+  Zählt beim Bilder-Aufräumen und in der Sicherung mit.
+- **Speicherplatz (V2)** – eine Zeile unter den Aufnahmen: Aufnahmen,
+  Sprachmodelle, frei auf der Platte; Warnung unter 2 GB. Kein Löschen.
+- **Beenden-Nachfrage (V3)** – Rechtsklick → Beenden fragt (Windows-Fenster,
+  „Nein" vorbelegt), wenn eine Aufnahme wirklich läuft oder pausiert ist
+  (`run.beenden_warnung`). Bei laufendem Kampf nicht: der ist gespeichert.
+
+Tests: `tests/test_ideen.py`, `tests/browser/test_ideen_browser.py`.
+
+## Nach 2.0.6 (10.11.2026): Durchleuchtung – 4 Bugs, Sicherung vollständig
+
+Kalle: „nochmal alles durchleuchten". Code gelesen (Server, Updater, Aufnahme,
+Verbindung), SL + 3 Handys im Browser durchgespielt. Liste mit Ideen im
+Projektordner `recherche/durchleuchtung-2026-11-10.md`. Gefunden und behoben
+(Tests: `tests/test_durchleuchtung.py`):
+
+- **↶ löschte einen am Handy angelegten Charakter** samt Bogen und Notizen
+  (auch auf der Platte): `_restore` holt die Charakterliste von VOR der letzten
+  SL-Aktion zurück, `charakter_anlegen` war aber kein Rückgängig-Schritt.
+  Ebenso nahm ↶ Talente/Glück und das Bild zurück, die ein Spieler selbst
+  gesetzt hatte. Jetzt trägt `Game._in_verlauf` alles, was Spieler an ihrem
+  Charakter pflegen, auch in die Rückgängig-Stände ein. Das Bild vom Handy
+  läuft über `bild_vom_spieler` (kein Rückgängig-Schritt mehr). Wer nach dem
+  zurückgeholten Stand beigetreten ist, behält seine Figur
+  (`_verbundene_behalten_figur`) statt wieder vor der Beitrittsseite zu stehen.
+- **Anfragen vom Handy ungeprüft:** Beschriftung beliebig lang (reiste in jedem
+  Update an alle), `detail` ohne Formprüfung – eine kaputte Anfrage ließ sich
+  beim SL nur ablehnen. Jetzt `Game._anfrage_sauber` (nur bekannte Arten,
+  kleines flaches Objekt, Beschriftung 120 Zeichen), höchstens 40 offene.
+- **Fremder Host-Name galt als SL:** `_is_loopback` prüfte nur Absender-IP und
+  Origin. Per DNS-Rebinding (fremde Seite zeigt mit ihrem Namen auf 127.0.0.1)
+  wären Sicherung und Aufnahmen lesbar gewesen. Jetzt muss auch der Host-Kopf
+  localhost/127.0.0.1 sein.
+- **Sicherung unvollständig:** Export enthielt nur 4 Einstellungen. Jetzt alle
+  (Spielmodus 🎛, Hausregeln, Ton, Kartenrückseite samt Bild) und die gemerkten
+  Stimmen (`stimmprofile`). Alte Sicherungen lassen die neuen Schalter in Ruhe.
+- **Aktualisieren beendete jede laufende Kopie** (`taskkill /IM`), auch aus
+  einem anderen Ordner. Jetzt gezielt per Pfad (PowerShell, `app_beenden`),
+  taskkill nur noch als Rückfall. Am echten Windows prüfen.
+
 ## 2.0.6 (09.11.2026): App wirkt wie ein Programm (kein Tab, kein schwarzes Fenster)
 
 Kalle: „mehr als festes Programm statt HTTP". Varianten A/B/C gezeigt

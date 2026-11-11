@@ -30,5 +30,12 @@ def _is_loopback(request_or_ws) -> bool:
 
 A._is_loopback = _is_loopback
 
+# Update-Hinweis: nie GitHub fragen. Nur wenn der Test SWI_NEUESTE_VERSION
+# setzt, „gibt es" eine neue Version.
+import os  # noqa: E402
+
+os.environ.setdefault("SWI_NEUESTE_VERSION", "")
+A.update.pruefen_im_hintergrund()
+
 if __name__ == "__main__":
     uvicorn.run(A.app, host="127.0.0.1", port=int(sys.argv[1]), log_level="warning")

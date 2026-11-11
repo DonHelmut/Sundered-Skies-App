@@ -66,6 +66,9 @@ SETTINGS_FILE = DATA_DIR / "settings.json"   # dauerhafte SL-Voreinstellungen
 UPLOAD_DIR = DATA_DIR / "uploads"
 
 MAX_MESSAGES = 50
+MAX_ANFRAGEN = 40       # offene Spieler-Anfragen beim SL
+# Was ein Handy anfragen darf (siehe Game._anfrage_sauber).
+ANFRAGE_ARTEN = ("benny", "status", "recover", "attack")
 MAX_NOTIZEN = 8000      # Zeichen eigene Notizen je Charakter (alle Einträge zusammen)
 MAX_NOTIZ_EINTRAEGE = 200
 MAX_NOTIZ_LAENGE = 1000  # Zeichen je Eintrag
@@ -279,6 +282,10 @@ def _sl_ansicht_sauber(roh) -> dict:
             if k in SL_ANSICHT_SCHLUESSEL and isinstance(v, str)}
 
 
+# So heißen Uploads (app.py /api/upload) - nichts anderes darf als Foto gelten.
+BOGEN_FOTO = re.compile(r"^/uploads/[0-9a-f]{32}\.(png|jpe?g|gif|webp)$")
+
+
 def _bogen_sauber(roh: dict) -> dict:
     """Charakterbogen vom Handy prüfen und begrenzen - er kommt ungefiltert vom
     Spieler, also Längen und Anzahlen deckeln und nur bekannte Felder behalten."""
@@ -304,7 +311,7 @@ def _bogen_sauber(roh: dict) -> dict:
                            "fertigkeit": txt(w.get("fertigkeit"), 30),
                            "schaden": txt(w.get("schaden"), 20),
                            "info": txt(w.get("info"), 40)})
-    return {
+    bogen = {
         "parade": txt(roh.get("parade"), 6),
         "robustheit": txt(roh.get("robustheit"), 6),
         "panzer": txt(roh.get("panzer"), 6),
@@ -317,6 +324,13 @@ def _bogen_sauber(roh: dict) -> dict:
         "handicaps": zeilen(roh.get("handicaps")),
         "ausruestung": zeilen(roh.get("ausruestung"), 60, 40),
     }
+    # Foto vom Papierbogen (Kalle 10.11.2026): wer seinen Bogen auf Papier
+    # führt, will ihn nicht abtippen. Nur ein eigener Upload, und das Feld nur,
+    # wenn es eins gibt - alte Bögen und Sicherungen bleiben, wie sie waren.
+    foto = roh.get("foto")
+    if isinstance(foto, str) and BOGEN_FOTO.match(foto):
+        bogen["foto"] = foto
+    return bogen
 
 
 
@@ -551,6 +565,52 @@ class Game:
         bekannt = {p["id"] for p in self.players}
         self.players += [copy.deepcopy(p) for pid, p in jetzt.items()
                          if pid not in bekannt and p.get("connected")]
+        self._verbundene_behalten_figur()
+
+    def _verbundene_behalten_figur(self) -> None:
+        """Nach ↶: wer JETZT mit einem Charakter verbunden ist, behält seine
+        Figur. Trat ein Handy erst nach dem zurückgeholten Stand bei, fehlte
+        seine Figur danach - mitten im Kampf stand der Spieler wieder vor der
+        Beitrittsseite (Durchleuchtung 10.11.2026). Beitreten ist kein Spielzug
+        des SL. Die Figur kommt ohne Karte zurück, wie bei einem Nachzügler."""
+        for p in self.players:
+            if not p.get("connected") or any(c.get("playerId") == p["id"] for c in self.combatants):
+                continue
+            cid = p.get("characterId")
+            char = next((r for r in self.roster if isinstance(r, dict) and r.get("id") == cid), None)
+            if not char:
+                continue
+            figur = next((c for c in self.combatants if c.get("characterId") == cid), None)
+            if figur is None:
+                self.add_combatant_from_character(char, p["id"], player_name=p.get("name", ""))
+                continue
+            alt = next((x for x in self.players if x["id"] == figur.get("playerId")), None)
+            if not (alt and alt.get("connected")):
+                figur["playerId"] = p["id"]
+                figur["playerName"] = p.get("name", "")
+
+    def _in_verlauf(self, char: dict, felder: Optional[dict] = None) -> None:
+        """Was ein SPIELER an seinem Charakter pflegt, auch in alle
+        Rückgängig-Stände eintragen - sonst nimmt das ↶ des SL es wieder weg,
+        obwohl es nie sein Spielzug war. So geschehen (Durchleuchtung
+        10.11.2026): Spieler legt sich am Handy einen Charakter an, füllt den
+        Bogen, der SL drückt ↶ über eine Aktion von davor - Charakter samt
+        Bogen und Notizen aus der Liste gelöscht, auch auf der Platte.
+        Ohne ``felder``: der Charakter selbst (neu angelegt) fehlt dort noch.
+        Mit ``felder`` (Talente, Glück, Bild): am Charakter und an seiner Figur."""
+        for snap in self._history:
+            roster = snap.get("roster")
+            if not isinstance(roster, list):
+                continue
+            alt = next((r for r in roster if isinstance(r, dict) and r.get("id") == char.get("id")), None)
+            if alt is None:
+                roster.append(copy.deepcopy(char))
+            elif felder:
+                alt.update(copy.deepcopy(felder))
+            if felder:
+                for c in snap.get("combatants") or []:
+                    if c.get("characterId") == char.get("id"):
+                        c.update(copy.deepcopy(felder))
 
     def _push_history(self) -> None:
         self._history.append(self._capture())
@@ -606,10 +666,24 @@ class Game:
             "allies": self.allies, "encounters": self.encounters,
             "protokolle": self.protokolle,
             "gruppenNotizen": self.gruppen_notizen,
+            # ALLE Einstellungen des Tisches. Bis 2.0.6 nur die ersten vier:
+            # nach einem Laptop-Umzug waren Spielmodus (🎛), Hausregeln und
+            # Kartenrückseite wieder auf Anfang (Durchleuchtung 10.11.2026).
+            # Nicht dabei: die Ansicht des SL-Laptops (gehört zum Gerät).
             "settings": {"bennyStart": self.benny_start,
                          "autoIncap": self.auto_incap,
                          "statistenKo": self.statisten_ko,
-                         "timerSeconds": self.timer_seconds},
+                         "timerSeconds": self.timer_seconds,
+                         "bennyToGm": self.benny_to_gm,
+                         "conditionsEnabled": self.conditions_enabled,
+                         "requestsEnabled": self.requests_enabled,
+                         "autoRelease": self.auto_release,
+                         "soundEnabled": self.sound_enabled,
+                         "schadenRechnen": self.schaden_rechnen,
+                         "gruppenKarte": self.gruppen_karte,
+                         "spielerAngriff": self.spieler_angriff,
+                         "funktionen": dict(self.funktionen),
+                         "rueckseiteBild": self.rueckseite_bild},
         }
 
     @staticmethod
@@ -676,6 +750,22 @@ class Game:
                 self.statisten_ko = max(1, min(3, int(s.get("statistenKo", self.statisten_ko))))
             except (TypeError, ValueError):
                 pass
+            # Nur was in der Sicherung steht - alte Sicherungen (bis 2.0.6)
+            # kennen diese Schalter nicht und lassen sie, wie sie sind.
+            for schluessel, feld in (("bennyToGm", "benny_to_gm"), ("conditionsEnabled", "conditions_enabled"),
+                                     ("requestsEnabled", "requests_enabled"), ("autoRelease", "auto_release"),
+                                     ("soundEnabled", "sound_enabled"), ("schadenRechnen", "schaden_rechnen"),
+                                     ("gruppenKarte", "gruppen_karte"), ("spielerAngriff", "spieler_angriff")):
+                if isinstance(s.get(schluessel), bool):
+                    setattr(self, feld, s[schluessel])
+            if isinstance(s.get("funktionen"), dict):
+                for k in FUNKTIONEN:
+                    if isinstance(s["funktionen"].get(k), bool):
+                        self.funktionen[k] = s["funktionen"][k]
+                bericht["uebernommen"]["Einstellungen"] = 1
+            if "rueckseiteBild" in s:
+                rs = s["rueckseiteBild"]
+                self.rueckseite_bild = rs if _rueckseite_gueltig(rs) else None
             self.save_settings()
             touched = True
 
@@ -1869,6 +1959,23 @@ class Game:
                     self.save_roster()
                     break
 
+    def bild_vom_spieler(self, cid: Optional[str], url) -> None:
+        """Ein Spieler setzt das Bild SEINER Figur. Wie Bogen und Talente kein
+        Spielzug: kein Rückgängig-Schritt (das ↶ des SL drehte sonst zuerst
+        das Bild eines Spielers zurück statt seiner eigenen letzten Aktion),
+        und frühere Stände bekommen es mit (siehe _in_verlauf)."""
+        c = self._combatant(cid)
+        if not c:
+            return
+        vorher = c.get("image")
+        self._do_set_image({"id": cid, "url": url})
+        if c.get("image") == vorher:
+            return
+        char = next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
+        if char is not None:
+            self._in_verlauf(char, {"image": c.get("image")})
+        self.save_session()
+
     def _do_bench(self, a: dict) -> None:
         """Nimmt eine Figur aus dem Kampf (pausiert – erhält keine Karten) oder
         wieder rein. ``on`` = True -> pausiert. Bleibt in der Liste."""
@@ -2304,6 +2411,7 @@ class Game:
         char = next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
         if char is not None:
             char.update(werte)
+            self._in_verlauf(char, werte)
             self.save_roster()
         self.save_session()
 
@@ -2478,6 +2586,11 @@ class Game:
                     url = eintrag.get(feld)
                     if isinstance(url, str) and url.startswith("/uploads/"):
                         benutzt.add(url.rsplit("/", 1)[-1])
+                # Foto vom Papierbogen - sonst räumte „Alte Bilder aufräumen"
+                # es weg, weil es an keiner Figur als Bild hängt.
+                foto = (eintrag.get("bogen") or {}).get("foto") if isinstance(eintrag.get("bogen"), dict) else None
+                if isinstance(foto, str) and foto.startswith("/uploads/"):
+                    benutzt.add(foto.rsplit("/", 1)[-1])
         for begegnung in self.encounters:
             for g in begegnung.get("members") or []:
                 url = g.get("image")
@@ -2688,10 +2801,48 @@ class Game:
 
     # Spieler-Anfragen (Spieler ändern nichts selbst, sondern fragen an) -------
 
+    @staticmethod
+    def _anfrage_sauber(a: dict) -> Optional[dict]:
+        """Anfrage vom Handy prüfen - sie kommt ungefiltert vom Spieler und
+        reist danach in JEDEM Update an alle Geräte. Vorher ging jede Länge
+        durch (500 000 Zeichen Beschriftung im Test), und ein ``detail``, das
+        kein Objekt war, ließ sich beim SL nur noch ablehnen, nie annehmen
+        (Durchleuchtung 10.11.2026). None = keine gültige Anfrage."""
+        kind = a.get("kind")
+        if kind not in ANFRAGE_ARTEN:
+            return None
+        roh = a.get("detail")
+        if roh is None:
+            roh = {}
+        if not isinstance(roh, dict) or len(roh) > 12:
+            return None
+        detail = {}
+        for k, v in roh.items():
+            if not isinstance(k, str) or len(k) > 30:
+                return None
+            if isinstance(v, str):
+                v = v[:200]
+            elif isinstance(v, (int, float)) and not isinstance(v, bool):
+                # Zahlen (Benny ±, Wunden ±) nur in Tisch-Größe.
+                if v != v or abs(v) > 99:
+                    return None
+            elif not (v is None or isinstance(v, bool)):
+                return None
+            detail[k] = v
+        label = a.get("label")
+        label = " ".join(label.split())[:120] if isinstance(label, str) else ""
+        return {**a, "kind": kind, "detail": detail, "label": label}
+
     def _do_request(self, a: dict) -> None:
         cid = a.get("combatantId")
         c = self._combatant(cid)
         if not c:
+            return
+        a = self._anfrage_sauber(a)
+        if a is None:
+            return
+        # Nicht endlos sammeln (ein Handy, das in Schleife anfragt).
+        if len(self.requests) >= MAX_ANFRAGEN:
             return
         kind = a.get("kind")
         detail = a.get("detail") or {}
@@ -2743,6 +2894,9 @@ class Game:
         req = next((r for r in self.requests if r["id"] == a.get("id")), None)
         if not req:
             return
+        # Alte Sitzung mit kaputter Anfrage: nie am Annehmen hängen bleiben.
+        if not isinstance(req.get("detail"), dict):
+            req["detail"] = {}
         if a.get("apply"):
             cid = req["combatantId"]
             if req["kind"] == "benny":
@@ -2755,7 +2909,11 @@ class Game:
                     c = self._combatant(cid)
                     cur = (c.get("status") or {}).get("wounds", 0) if c else 0
                     lim = max_wounds(c, self.statisten_ko) if c else 3
-                    d = {"wounds": max(0, min(lim + 1, cur + d.pop("woundsDelta")))}
+                    try:
+                        delta = int(d.pop("woundsDelta"))
+                    except (TypeError, ValueError):
+                        delta = 0
+                    d = {"wounds": max(0, min(lim + 1, cur + delta))}
                 self._do_set_status({"id": cid, **d})
         self.requests = [r for r in self.requests if r["id"] != a.get("id")]
 
@@ -2950,6 +3108,7 @@ class Game:
         char = {"id": _new_id("char"), "name": name, "isWildCard": True,
                 "talents": [], "gluck": False, "grosses_gluck": False, "image": None}
         self.roster.append(char)
+        self._in_verlauf(char)
         self.save_roster()
         return char
 

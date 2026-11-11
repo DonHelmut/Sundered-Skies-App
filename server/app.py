@@ -26,11 +26,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .game import Game, UPLOAD_DIR, DATA_DIR, TALENTS
-from .paths import RESOURCE_DIR, HOSTNAME, APP_VERSION, local_ip, all_lan_ips, active_port
+from .paths import RESOURCE_DIR, BASE_DIR, HOSTNAME, APP_VERSION, local_ip, all_lan_ips, active_port
 from . import diag
 from . import winnet
 from . import sicherung
 from . import kampf_import
+from . import update
 from .aufnahme import Aufnahmen, MAX_TRANSKRIPT
 from .sprache import Sprache
 from .namen import namen_aus_spiel
@@ -114,7 +115,7 @@ async def _auto_sicherung() -> None:
             # lebenden Listen. Der Nebenfaden packte sonst, während ein Handy
             # gerade Notizen oder Bogen speichert - halbe Stände in der Zip
             # oder „dictionary changed size during iteration" (Prüfung 05.11.).
-            daten = copy.deepcopy(game.export_data())
+            daten = copy.deepcopy(_sicherung_daten())
             pfad = await asyncio.get_event_loop().run_in_executor(
                 None, sicherung.auto_sichern, daten, UPLOAD_DIR, SICHERUNG_DIR)
             if pfad:
@@ -200,6 +201,34 @@ async def api_info(request: Request):
     })
 
 
+@app.get("/api/update")
+async def update_auskunft(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    return JSONResponse({**update.auskunft(BASE_DIR), "aufnahme": bool(aufnahmen.aktiv)})
+
+
+@app.post("/api/update/start")
+async def update_start(request: Request):
+    """Startet Aktualisieren.exe - sie beendet die App gleich darauf. Vorher
+    sichern: der Spielstand liegt zwar ohnehin auf der Platte, aber ein Update
+    ist genau der Moment, in dem man eine frische Sicherung haben will."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if aufnahmen.aktiv and (aufnahmen.pausiert or aufnahmen._letztes_stueck > time.time() * 1000 - 180000):
+        return JSONResponse({"error": "Erst die Aufnahme beenden – das Update startet die App neu."}, status_code=409)
+    if not update.verfuegbar():
+        return JSONResponse({"error": "Du hast schon die neueste Version."}, status_code=409)
+    try:
+        sicherung.auto_sichern(_sicherung_daten(), UPLOAD_DIR, SICHERUNG_DIR)
+    except Exception as fehler:  # noqa: BLE001 - Sicherung darf das Update nicht verhindern
+        diag.log(f"Sicherung vor dem Update ging nicht: {fehler}")
+    if not update.starten(BASE_DIR):
+        return JSONResponse({"error": "Aktualisieren.exe fehlt im App-Ordner."}, status_code=409)
+    diag.log(f"UPDATE gestartet: {APP_VERSION} -> {update.stand['neu']}")
+    return JSONResponse({"ok": True})
+
+
 @app.get("/qr.png")
 async def qr_png(request: Request):
     """QR-Code zur Beitritts-URL – bei jedem Aufruf frisch aus der AKTUELLEN
@@ -214,6 +243,29 @@ async def qr_png(request: Request):
 _LOKAL = ("127.0.0.1", "::1", "localhost")
 
 
+def _sicherung_daten() -> dict:
+    """Alles für die Sicherung: was das Spiel dauerhaft hält, plus die
+    gemerkten Stimmen (liegen bei den Aufnahmen, sind aber klein und kosten
+    sonst nach einem Laptop-Umzug wieder einen Abend Anmelden)."""
+    daten = game.export_data()
+    profile = aufnahmen.stimmprofile()
+    if profile:
+        daten = {**daten, "stimmprofile": profile}
+    return daten
+
+
+def _sicherung_einspielen(data) -> dict:
+    if not isinstance(data, dict):
+        return {"ok": False, "fehler": "Unbekanntes Format."}
+    bericht = game.import_data(data)
+    n = aufnahmen.stimmprofile_einspielen(data.get("stimmprofile"))
+    if n:
+        bericht.setdefault("uebernommen", {})["Gemerkte Stimmen"] = n
+        bericht["ok"] = True
+        bericht["fehler"] = None
+    return bericht
+
+
 def _is_loopback(request_or_ws) -> bool:
     client = getattr(request_or_ws, "client", None)
     host = client.host if client else None
@@ -225,7 +277,20 @@ def _is_loopback(request_or_ws) -> bool:
     # WebSocket an localhost:8000 Sicherungen einspielen, Aufnahmen löschen
     # oder den Kampf steuern können (Prüfung 05.11.2026). Eigene Seiten
     # schicken localhost/127.0.0.1 oder gar keinen Origin.
-    origin = (getattr(request_or_ws, "headers", None) or {}).get("origin")
+    kopf = getattr(request_or_ws, "headers", None) or {}
+    # Auch der Host-Name muss der Laptop selbst sein. Sonst reicht ein Trick
+    # (DNS-Rebinding): eine fremde Seite lässt ihren eigenen Namen kurz darauf
+    # auf 127.0.0.1 zeigen - ihre Abrufe kommen dann „vom Laptop" und OHNE
+    # Origin (gleiche Herkunft). So ließen sich Sicherung und Aufnahmen lesen
+    # (Durchleuchtung 10.11.2026). Ohne Host-Kopf (alte Werkzeuge) wie bisher.
+    host = kopf.get("host")
+    if host:
+        try:
+            if urlsplit("//" + host).hostname not in _LOKAL:
+                return False
+        except ValueError:
+            return False
+    origin = kopf.get("origin")
     if origin:
         try:
             herkunft = urlsplit(origin).hostname
@@ -365,7 +430,7 @@ async def export_backup(request: Request):
     Laptop-Wechsel fehlten dann die Bilder)."""
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
-    body, bilder = sicherung.baue_zip(game.export_data(), UPLOAD_DIR)
+    body, bilder = sicherung.baue_zip(_sicherung_daten(), UPLOAD_DIR)
     diag.log(f"Sicherung exportiert: {len(body) / 1024:.0f} KB, {bilder} Bild(er)")
     datum = time.strftime("%Y-%m-%d")
     return Response(content=body, media_type="application/zip",
@@ -384,7 +449,7 @@ async def import_backup(request: Request, file: UploadFile):
         data, bilder = sicherung.lies_sicherung(raw, UPLOAD_DIR)
     except ValueError:
         return JSONResponse({"error": "bad_json"}, status_code=400)
-    bericht = game.import_data(data) if isinstance(data, dict) else {"ok": False, "fehler": "Unbekanntes Format."}
+    bericht = _sicherung_einspielen(data)
     if bericht.get("ok"):
         bericht.setdefault("uebernommen", {})["Bilder"] = bilder
     if bericht.get("ok"):
@@ -422,6 +487,25 @@ async def sicherungen_liste(request: Request):
     return JSONResponse({"liste": sicherung.auto_liste(SICHERUNG_DIR)})
 
 
+@app.post("/api/sicherungen/jetzt")
+async def sicherung_jetzt(request: Request):
+    """Sofort sichern (🌙 Abend beenden) statt auf die stündliche zu warten -
+    der Stand am Ende des Abends ist der, den man später sucht. Hat sich seit
+    der letzten nichts geändert, gibt es keine zweite gleiche."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    daten = _sicherung_daten()
+    try:
+        pfad = await asyncio.get_event_loop().run_in_executor(
+            None, sicherung.auto_sichern, daten, UPLOAD_DIR, SICHERUNG_DIR)
+    except Exception as e:  # noqa: BLE001
+        diag.log(f"SICHERUNG (Abend beenden) fehlgeschlagen: {e!r}")
+        return JSONResponse({"error": "Sicherung ging nicht."}, status_code=500)
+    if pfad:
+        diag.log(f"SICHERUNG (Abend beenden): {pfad.name}")
+    return JSONResponse({"ok": True, "neu": bool(pfad)})
+
+
 @app.post("/api/sicherungen/zurueck/{name}")
 async def sicherung_zurueckholen(request: Request, name: str):
     """Eine automatische Sicherung einspielen. Vorher wird der JETZIGE Stand
@@ -438,9 +522,9 @@ async def sicherung_zurueckholen(request: Request, name: str):
         return JSONResponse({"error": "kaputt"}, status_code=400)
     # Vorher-Stand sichern, aber ohne die Sicherung, die gerade zurückkommt,
     # aus der Liste zu schieben (darum einen Platz mehr behalten).
-    sicherung.auto_sichern(game.export_data(), UPLOAD_DIR, SICHERUNG_DIR, immer=True,
+    sicherung.auto_sichern(_sicherung_daten(), UPLOAD_DIR, SICHERUNG_DIR, immer=True,
                            behalten=sicherung.AUTO_BEHALTEN + 1)
-    bericht = game.import_data(data) if isinstance(data, dict) else {"ok": False, "fehler": "Unbekanntes Format."}
+    bericht = _sicherung_einspielen(data)
     if bericht.get("ok"):
         bericht.setdefault("uebernommen", {})["Bilder"] = bilder
         diag.log(f"AUTO-SICHERUNG zurueckgeholt: {name}")
@@ -531,11 +615,32 @@ def _leute_am_tisch() -> int:
 sprache.personen_quelle = _leute_am_tisch
 
 
+def _ordner_bytes(ordner: Path) -> int:
+    try:
+        return sum(f.stat().st_size for f in ordner.rglob("*") if f.is_file())
+    except OSError:
+        return 0
+
+
+def _speicherplatz() -> dict:
+    """Wie viel Platz Aufnahmen und Sprachmodelle belegen und wie viel noch
+    frei ist (Kalle 10.11.2026: nichts löschen, „aber anzeigen wie viel
+    Speicher es braucht"). Ein 4-h-Abend sind ~90 MB - über ein Jahr merkt man
+    das, und eine volle Platte beendet die Aufnahme mitten im Abend."""
+    import shutil
+    try:
+        frei = shutil.disk_usage(DATA_DIR if DATA_DIR.exists() else DATA_DIR.parent).free
+    except OSError:
+        frei = None
+    return {"aufnahmen": _ordner_bytes(aufnahmen.ordner), "modelle": _ordner_bytes(sprache.modelle),
+            "frei": frei}
+
+
 @app.get("/api/aufnahme")
 async def aufnahme_status(request: Request):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
-    return JSONResponse({**aufnahmen.status(), "sprache": sprache.status()})
+    return JSONResponse({**aufnahmen.status(), "sprache": sprache.status(), "platz": _speicherplatz()})
 
 
 @app.post("/api/aufnahme/start")
@@ -1035,7 +1140,7 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             await hub.broadcast_state()
         elif atype == "set_image" and action.get("id") == own["id"]:
             # Spieler setzt NUR das Bild der eigenen Figur.
-            game.apply({"type": "set_image", "id": own["id"], "url": action.get("url")})
+            game.bild_vom_spieler(own["id"], action.get("url"))
             await hub.broadcast_state()
         elif atype == "set_figur_rueckseite":
             # Kartenrückseite NUR der eigenen Figur (Standard/Profil/eigenes Bild).

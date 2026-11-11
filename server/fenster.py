@@ -124,6 +124,19 @@ def meldung(text: str, titel: str = "Sundered Skies Initiative", fehler: bool = 
         pass
 
 
+def nachfragen(text: str, titel: str = "Sundered Skies Initiative") -> bool:
+    """Ja/Nein-Fenster von Windows; True = Ja. Vorbelegt ist „Nein": wer nur
+    Enter drückt, beendet nichts. Geht das Fenster nicht (kein Windows), gilt
+    Ja - sonst ließe sich die App dort gar nicht mehr beenden."""
+    try:
+        import ctypes
+        # 0x4 Ja/Nein, 0x30 Warnsymbol, 0x100 zweiter Knopf vorbelegt,
+        # 0x40000 immer im Vordergrund (sonst liegt es hinter dem App-Fenster).
+        return ctypes.windll.user32.MessageBoxW(None, text, titel, 0x4 | 0x30 | 0x100 | 0x40000) == 6
+    except Exception:
+        return True
+
+
 # --- Symbol neben der Uhr ---------------------------------------------------------
 
 class Infobereich:
@@ -131,9 +144,15 @@ class Infobereich:
     wird aufgerufen, wenn jemand „Beenden" wählt."""
 
     def __init__(self, url: str, daten_ordner: Path, icon_pfad: Path,
-                 beenden: Callable[[], None], version: str = ""):
+                 beenden: Callable[[], None], version: str = "",
+                 warnung: Callable[[], str] | None = None,
+                 fragen: Callable[[str], bool] = nachfragen):
         self.url, self.daten, self.icon_pfad = url, daten_ordner, icon_pfad
         self._beenden, self.version = beenden, version
+        # warnung() liefert einen Text, wenn Beenden gerade etwas kostet
+        # (Aufnahme läuft) - dann wird erst gefragt. Vorher war ein
+        # verrutschter Klick im Menü das Ende der Aufnahme.
+        self._warnung, self._fragen = warnung, fragen
         self.icon = None
 
     def starten(self) -> bool:
@@ -174,6 +193,12 @@ class Infobereich:
             pass
 
     def _ende(self) -> None:
+        try:
+            text = self._warnung() if self._warnung else ""
+        except Exception:
+            text = ""
+        if text and not self._fragen(text):
+            return
         try:
             if self.icon:
                 self.icon.stop()

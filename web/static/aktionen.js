@@ -12,12 +12,12 @@
 // kleine Dateien bleiben, wie sie sind; geht etwas schief, das Original.
 const BILD_MAX_KANTE = 1600;
 
-async function bildFuersHochladen(file) {
+async function bildFuersHochladen(file, kante = BILD_MAX_KANTE) {
   try {
     if (!file || !/^image\//.test(file.type) || file.type === "image/gif") return file;
     if (file.size < 400 * 1024) return file;
     const bild = await createImageBitmap(file);
-    const faktor = Math.min(1, BILD_MAX_KANTE / Math.max(bild.width, bild.height));
+    const faktor = Math.min(1, kante / Math.max(bild.width, bild.height));
     const w = Math.round(bild.width * faktor), h = Math.round(bild.height * faktor);
     const leinwand = document.createElement("canvas");
     leinwand.width = w; leinwand.height = h;

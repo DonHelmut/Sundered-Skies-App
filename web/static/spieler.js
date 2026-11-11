@@ -855,6 +855,10 @@ function spielerMenueHtml(mine) {
       <input type="checkbox" data-act="toggle-zug-kurz" ${kurzAnsichtAn() ? "checked" : ""} style="width:auto">
       <span class="small">🎯 Kurzansicht, wenn ich dran bin (nur meine Werte und Knöpfe)</span>
     </label>
+    <label class="row tight sm-ton">
+      <input type="checkbox" data-act="toggle-wach" ${wachGewollt() ? "checked" : ""} style="width:auto">
+      <span class="small">☀ Bildschirm anlassen, solange gekämpft wird</span>
+    </label>
     ${rueckseiteWahlHtml(mine)}
     <div class="sm-titel">Reihenfolge der Bereiche</div>
     <div class="hb-liste">${zeilen}</div>

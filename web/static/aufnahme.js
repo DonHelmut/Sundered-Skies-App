@@ -117,6 +117,7 @@ function renderAufnahmePanel() {
       <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
         <button class="primary" data-act="aufn-weiter">▶ Weiter aufnehmen</button>
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
+        ${ABEND_ENDE_KNOPF}
       </div>
       <div class="muted small hilfe" style="margin-top:6px">In der Pause wird nichts aufgenommen. „Weiter“ hängt an dieselbe Aufnahme an – es bleibt eine Mitschrift.</div>`;
   } else if (Aufn.rec) {
@@ -132,6 +133,7 @@ function renderAufnahmePanel() {
         <button class="ghost" data-act="aufn-marke">📌 Moment merken</button>
         <button class="ghost" data-act="aufn-pause" title="Aufnahme anhalten – danach geht es in derselben Aufnahme weiter">⏸ Pause</button>
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
+        ${ABEND_ENDE_KNOPF}
       </div>
       <div class="muted small hilfe" style="margin-top:6px">Tab offen lassen, Laptop nicht zuklappen.</div>`;
   } else {
@@ -156,11 +158,33 @@ function renderAufnahmePanel() {
     ${oben}
     ${aufnMitschriftHtml(sp)}
     ${zeilen ? `<div class="aufn-liste">${zeilen}</div>` : ""}
+    ${aufnPlatzHtml(st)}
     <div class="muted small hilfe" style="margin-top:6px; line-height:1.5">
       Nach „■ Aufnahme beenden“ schreibt die App von selbst genau mit (zwei
       Erkenner, dauert etwa so lang wie die Aufnahme – Laptop an lassen, über
       Nacht geht) → „📝 Prompt“ → in Claude einfügen.
     </div>`);
+}
+
+// Speicherplatz (Kalle 10.11.2026: Ton NICHT löschen, „aber anzeigen wie viel
+// Speicher es braucht"). Nur eine ruhige Zeile; laut wird sie erst, wenn die
+// Platte fast voll ist - dann bräche die Aufnahme mitten im Abend ab.
+const AUFN_PLATZ_KNAPP = 2 * 1024 * 1024 * 1024;
+function aufnPlatzGross(bytes) {
+  return bytes >= 1073741824 ? `${(bytes / 1073741824).toFixed(bytes < 10737418240 ? 1 : 0).replace(".", ",")} GB` : aufnGroesse(bytes);
+}
+function aufnPlatzHtml(st) {
+  // Nur /api/aufnahme liefert die Zahlen (Ordner durchzählen kostet) - die
+  // Antworten auf Stop/Stimme nicht. Darum den letzten Stand behalten.
+  if (st.platz) Aufn.platz = st.platz;
+  const p = Aufn.platz;
+  if (!p || (!p.aufnahmen && !p.modelle)) return "";
+  const teile = [`Aufnahmen <b>${aufnPlatzGross(p.aufnahmen)}</b>`];
+  if (p.modelle) teile.push(`Sprachmodelle ${aufnPlatzGross(p.modelle)}`);
+  if (p.frei != null) teile.push(`frei auf der Platte <b>${aufnPlatzGross(p.frei)}</b>`);
+  const knapp = p.frei != null && p.frei < AUFN_PLATZ_KNAPP;
+  return `<div class="aufn-platz small ${knapp ? "knapp" : "muted"}">💾 ${teile.join(" · ")}${knapp
+    ? `<br>⚠ Die Platte ist fast voll – eine Aufnahme könnte mitten im Abend abbrechen. Vorher Platz schaffen.` : ""}</div>`;
 }
 
 function aufnZeileHtml(x, sp) {
@@ -259,6 +283,39 @@ async function abendStarten() {
   if (freigeben) gmAction({ type: "protokoll_freigeben", id: letztes.id, an: true });
   await aufnahmeStarten();
   toast("🌅 Viel Spaß heute Abend!");
+}
+
+// „🌙 Abend beenden" (Kalle 10.11.2026): das Gegenstück zu „Abend starten".
+// Vorher waren es am Ende des Abends drei Handgriffe an drei Stellen - und der
+// vergessene war meist die Aufnahme, die dann bis zum Zuklappen weiterlief.
+// Die genaue Mitschrift braucht keinen Haken: sie startet nach dem Ende der
+// Aufnahme von selbst (server/sprache.py nach_aufnahme).
+const ABEND_ENDE_KNOPF = `<button class="primary" data-act="aufn-abend-ende" title="Aufnahme beenden, Kampf abräumen, Sicherung anlegen – alles auf einmal">🌙 Abend beenden</button>`;
+async function abendBeenden() {
+  const s = App.state || {};
+  const sp = (Aufn.status || {}).sprache || {};
+  const kampf = !!s.round || (s.combatants || []).some((c) => c.kind === "npc");
+  const haken = (name, text, klein) => `<label class="abend-zeile"><input type="checkbox" data-abend="${name}" checked style="width:auto">
+      <span>${text}${klein ? ` <span class="muted small">${klein}</span>` : ""}</span></label>`;
+  const wahl = await dialog({ text: "🌙 Abend beenden?",
+    inhalt: `<div class="abend-liste">
+      ${Aufn.rec ? haken("aufnahme", "■ Aufnahme beenden", `(${aufnDauer(aufnLaenge())}${sp.bereit ? " – die genaue Mitschrift schreibt die App danach von selbst, Laptop an lassen" : ""})`) : ""}
+      ${kampf ? haken("kampf", "🧹 Kampf abräumen", "(Gegner weg, Spieler bleiben verbunden, Wunden bleiben)") : ""}
+      ${haken("sicherung", "🛟 Sicherung anlegen", "")}</div>`,
+    lesen: (box) => Object.fromEntries([...box.querySelectorAll("[data-abend]")].map((i) => [i.dataset.abend, i.checked])),
+    knoepfe: [{ text: "Abbrechen", wert: null, abbruch: true },
+      { text: "🌙 Abend beenden", art: "primary", standard: true }] });
+  if (!wahl) return;
+  if (wahl.aufnahme) await aufnahmeBeenden(true);
+  if (wahl.kampf) gmAction({ type: "clear_all" });
+  let gesichert = false;
+  if (wahl.sicherung) {
+    // Kurz warten: das Abräumen soll schon in der Sicherung stehen.
+    if (wahl.kampf) await new Promise((r) => setTimeout(r, 400));
+    try { gesichert = !!(await (await fetch("/api/sicherungen/jetzt", { method: "POST" })).json()).ok; } catch { /* unten */ }
+    if (!gesichert) { hinweis("Die Sicherung ging nicht – bitte über ☰ Mehr → „💾 Sicherung exportieren“ von Hand sichern."); return; }
+  }
+  toast(wahl.aufnahme && sp.bereit ? "🌙 Abend beendet – Mitschrift läuft, Laptop an lassen" : "🌙 Abend beendet. Gute Nacht!");
 }
 
 async function aufnahmeStarten() {
@@ -713,6 +770,7 @@ document.addEventListener("click", async (e) => {
   const act = t.dataset.act;
   if (act === "aufn-start") { e.preventDefault(); aufnahmeStarten(); }
   else if (act === "aufn-abend") { e.preventDefault(); abendStarten(); }
+  else if (act === "aufn-abend-ende") { e.preventDefault(); abendBeenden(); }
   else if (act === "aufn-stop") {
     e.preventDefault();
     if (await frage("Aufnahme beenden?", "Beenden")) aufnahmeBeenden();
