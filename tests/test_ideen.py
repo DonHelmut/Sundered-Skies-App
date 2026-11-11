@@ -111,6 +111,10 @@ def test_app_starten_ohne_zweites_fenster(tmp_path):
     befehl, kw = rufe[0]
     assert befehl == [str(tmp_path / akt.APP_EXE)]
     assert kw["env"]["SWI_NO_BROWSER"] == "1"      # das alte Fenster lädt sich selbst neu
+    assert "SWS_UPDATER_TAUSCHT" not in kw["env"]
+    # Tauscht der Updater sich gleich selbst, soll die App nicht auch nachziehen.
+    akt.app_starten(tmp_path, lambda befehl, **kw: rufe.append((befehl, kw)), tauscht_selbst=True)
+    assert rufe[1][1]["env"]["SWS_UPDATER_TAUSCHT"] == "1"
 
     def kaputt(*a, **k):
         raise OSError("weg")

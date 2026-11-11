@@ -382,7 +382,11 @@ def main() -> None:
 
     # Neue Updater-Dateien (*.neu), die Aktualisieren.exe nicht ueber sich selbst
     # schreiben konnte, jetzt einsetzen - jetzt laeuft der Updater nicht.
-    if getattr(sys, "frozen", False):
+    # Nicht, wenn der Updater uns gerade selbst gestartet hat und sein
+    # Tausch-Skript das gleich erledigt (SWS_UPDATER_TAUSCHT, „--auto"): er
+    # laeuft dann noch ein paar Sekunden, und zwei wuerden dieselben Dateien
+    # umbenennen.
+    if getattr(sys, "frozen", False) and not os.environ.get("SWS_UPDATER_TAUSCHT"):
         try:
             import aktualisieren
             from .paths import BASE_DIR

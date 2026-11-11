@@ -79,6 +79,7 @@ def test_fortschrittsbalken():
 # Versuch – und danach war _aktualisieren leer. Gesperrt wird hier simuliert,
 # indem rename für bestimmte Namen scheitert.
 
+import os
 import pathlib
 
 import pytest
@@ -252,3 +253,64 @@ def test_beenden_ohne_taskkill_wenn_gezielt_reicht(tmp_path):
 
     assert akt.app_beenden(tmp_path, ausfuehren, lambda o: aus["an"], warten=lambda s: None)
     assert gelaufen == ["powershell"]
+
+
+def test_groessen_probe_scheitert_kein_api_rueckfall(monkeypatch):
+    # Scheitert nur die Größen-Probe (nicht 404), nicht auf die API ausweichen –
+    # dort sitzt das 60er-Limit. Größe kommt dann beim Download.
+    def urlopen(anfrage, timeout=None):
+        url = anfrage.full_url
+        assert "api.github.com" not in url
+        if url.endswith("/releases/latest"):
+            return _Antwort(f"https://github.com/{akt.REPO}/releases/tag/v2.0.7")
+        raise akt.urllib.error.HTTPError(url, 500, "Server Error", {}, None)
+    monkeypatch.setattr(akt.urllib.request, "urlopen", urlopen)
+    neu, url, groesse = akt.neueste_version()
+    assert (neu, groesse) == ("2.0.7", 0)
+
+
+def test_limit_meldung_sagt_nicht_keine_verbindung():
+    limit = akt.urllib.error.HTTPError("u", 403, "rate limit exceeded", {}, None)
+    text = "\n".join(akt.fehler_meldung(limit))
+    assert "Keine Verbindung" not in text and "Limit" in text and "releases/latest" in text
+    assert "Keine Verbindung" in akt.fehler_meldung(OSError("weg"))[0]
+    assert akt.ist_limit(akt.urllib.error.HTTPError("u", 429, "Too Many", {}, None))
+    assert not akt.ist_limit(akt.urllib.error.HTTPError("u", 403, "Forbidden", {}, None))
+
+
+def test_tausch_skript_ohne_pfad_und_nur_ascii():
+    text = akt.selbst_tausch_skript(4242)
+    text.encode("ascii")
+    assert '"PID eq 4242"' in text and "%~dp0" in text
+    assert akt.SELBST_ORDNER in text and akt.SELBST_EXE in text and akt.WEG in text
+
+
+def test_tausch_startet_nur_mit_neuen_dateien(tmp_path):
+    assert akt.selbst_tausch_starten(tmp_path) is False
+
+
+@pytest.mark.skipif(os.name != "nt", reason="cmd gibt es nur unter Windows")
+def test_updater_tauscht_sich_selbst_nach_dem_schliessen(tmp_path):
+    # Kalle: „über Aktualisieren.exe soll ALLES geupdatet werden" – auch der
+    # Updater selbst, nicht erst beim nächsten App-Start.
+    import subprocess, sys, time
+    (tmp_path / "Aktualisieren.exe").write_text("alt")
+    (tmp_path / "Aktualisieren.exe.neu").write_text("neu")
+    (tmp_path / "_aktualisieren").mkdir()
+    (tmp_path / "_aktualisieren" / "x.dll").write_text("alt")
+    (tmp_path / "_aktualisieren.neu").mkdir()
+    (tmp_path / "_aktualisieren.neu" / "x.dll").write_text("neu")
+    # Stellvertreter für den laufenden Updater: lebt kurz, dann zu.
+    updater = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(3)"])
+    skript = tmp_path / "tausch.weg-test.cmd"
+    skript.write_text(akt.selbst_tausch_skript(updater.pid), encoding="ascii")
+    lauf = subprocess.Popen(["cmd", "/c", str(skript)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(1.5)
+    assert (tmp_path / "Aktualisieren.exe").read_text() == "alt"   # wartet noch
+    updater.wait()
+    lauf.wait(timeout=60)
+    assert (tmp_path / "Aktualisieren.exe").read_text() == "neu"
+    assert (tmp_path / "_aktualisieren" / "x.dll").read_text() == "neu"
+    assert not (tmp_path / "Aktualisieren.exe.neu").exists()
+    assert not (tmp_path / "_aktualisieren.neu").exists()
+    assert not [p for p in tmp_path.iterdir() if akt.WEG in p.name]   # aufgeräumt, Skript weg
