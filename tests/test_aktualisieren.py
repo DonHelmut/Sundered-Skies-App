@@ -221,38 +221,106 @@ def test_neueste_version_faellt_auf_api_zurueck(monkeypatch):
     assert akt.neueste_version() == ("2.0.6", "https://x/z.zip", 5)
 
 
-# --- Nur die eigene Kopie beenden (Durchleuchtung 10.11.2026) -----------------
+# --- Nur die eigene Kopie beenden (Durchleuchtung 10.11., Release-Test 2.0.9) --
+#
+# Unter Linux läuft kein echtes Windows: ``aufloesen`` stellt nach, was
+# realpath/GetLongPathNameW dort tun (Kurz- -> Langname, Junction -> Ziel).
+# Ob die Windows-API das am echten Rechner so liefert, prüft nur der Test am PC.
 
-def test_beenden_trifft_nur_die_app_aus_diesem_ordner(tmp_path):
-    befehl = akt.beenden_befehl(tmp_path / "O'Neils Spiel")
-    assert befehl[0] == "powershell"
-    # Pfad der .exe steht drin (Hochkomma verdoppelt), kein taskkill nach Namen.
-    assert "O''Neils Spiel" in befehl[-1] and akt.APP_EXE in befehl[-1]
-    assert "$_.Path -eq" in befehl[-1]
+LANG = "C:\\Users\\Kallenberg\\OneDrive\\Desktop\\SunderedSkies-App"
+TEST = "C:\\Users\\Kallenberg\\Desktop\\Testkopie"
+EXE = akt.APP_EXE
 
 
-def test_beenden_faellt_auf_taskkill_zurueck_wenn_powershell_nicht_geht(tmp_path):
-    gelaufen, aus = [], {"an": True}
+def _windows(pfad):
+    # Kurzname wie beim Release-Test 2.0.9 + eine Junction
+    return (pfad.replace("KALLEN~1", "Kallenberg").replace("kallen~1", "Kallenberg")
+                .replace("C:\\Spiel-Link", LANG))
+
+
+def test_schluessel_kurzpfad_gleich_langpfad():
+    kurz = "C:\\Users\\KALLEN~1\\Desktop\\Testkopie\\" + EXE
+    assert akt.pfad_schluessel(kurz, _windows) == akt.pfad_schluessel(TEST + "\\" + EXE, _windows)
+
+
+@pytest.mark.parametrize("variante", [
+    "c:\\users\\kallenberg\\desktop\\testkopie",       # Groß/Klein
+    "C:/Users/Kallenberg/Desktop/Testkopie",           # Schrägstriche
+    "C:\\Users\\Kallenberg\\Desktop\\Testkopie\\",     # Trenner am Ende
+    "C:\\Users\\Kallenberg\\\\Desktop\\Testkopie",     # doppelter Trenner
+    "\\\\?\\C:\\Users\\Kallenberg\\Desktop\\Testkopie",  # Präfix lange Pfade
+    "C:\\Users\\KALLEN~1\\Desktop\\Testkopie",         # Kurzname
+])
+def test_schluessel_varianten_gleich(variante):
+    assert akt.pfad_schluessel(variante, _windows) == akt.pfad_schluessel(TEST, _windows)
+
+
+def test_junction_auf_selben_ordner_ist_eigene():
+    assert akt.ist_eigene_app("C:\\Spiel-Link\\" + EXE, LANG, _windows)
+
+
+def test_release_test_209_fremde_app_bleibt():
+    # Genau der Fall vom 11.11.: Updater in der Testkopie (Kurzpfad), Kalles
+    # echte App läuft im OneDrive-Ordner. Nur die Testkopie darf getroffen werden.
+    prozesse = [
+        (111, LANG + "\\" + EXE),                                       # echte App, Port 8000
+        (222, "C:\\Users\\KALLEN~1\\Desktop\\Testkopie\\" + EXE),        # Testkopie
+        (333, "C:\\Windows\\explorer.exe"),
+        (444, ""),                                                      # Pfad nicht lesbar
+    ]
+    assert akt.eigene_pids(prozesse, TEST, _windows) == [222]
+    assert akt.eigene_pids(prozesse, "C:\\Users\\KALLEN~1\\Desktop\\Testkopie", _windows) == [222]
+    assert akt.eigene_pids(prozesse, LANG, _windows) == [111]
+
+
+def test_gleicher_name_anderer_ordner_ist_fremd():
+    assert not akt.ist_eigene_app(TEST + "2\\" + EXE, TEST, _windows)
+    assert not akt.ist_eigene_app(TEST + "\\Unterordner\\" + EXE, TEST, _windows)
+
+
+def test_powershell_liste_wird_gelesen():
+    text = "111|C:\\a\\" + EXE + "\r\n\r\n222|\r\nkaputt\r\n333|C:\\b\\" + EXE + "\r\n"
+    assert akt.liste_aus_powershell(text) == [(111, "C:\\a\\" + EXE), (333, "C:\\b\\" + EXE)]
+
+
+def _beenden(prozesse, ordner, an=True):
+    gelaufen, zustand = [], {"an": an}
 
     def ausfuehren(befehl):
-        gelaufen.append(befehl[0])
-        if befehl[0] == "powershell":
-            raise OSError("gesperrt")
-        aus["an"] = False
+        gelaufen.append(befehl)
+        zustand["an"] = False
 
-    assert akt.app_beenden(tmp_path, ausfuehren, lambda o: aus["an"], warten=lambda s: None)
-    assert gelaufen == ["powershell", "taskkill"]
+    aus = akt.app_beenden(ordner, ausfuehren, lambda o: zustand["an"], warten=lambda s: None,
+                          auflisten=lambda: prozesse, aufloesen=_windows)
+    return aus, gelaufen
 
 
-def test_beenden_ohne_taskkill_wenn_gezielt_reicht(tmp_path):
-    gelaufen, aus = [], {"an": True}
+def test_beenden_nur_per_pid_der_eigenen_kopie():
+    aus, gelaufen = _beenden([(111, LANG + "\\" + EXE),
+                              (222, "C:\\Users\\KALLEN~1\\Desktop\\Testkopie\\" + EXE)], TEST)
+    assert aus
+    assert gelaufen == [["taskkill", "/F", "/T", "/PID", "222"]]
 
-    def ausfuehren(befehl):
-        gelaufen.append(befehl[0])
-        aus["an"] = False
 
-    assert akt.app_beenden(tmp_path, ausfuehren, lambda o: aus["an"], warten=lambda s: None)
-    assert gelaufen == ["powershell"]
+def test_beenden_ohne_treffer_kein_rueckfall_nach_namen():
+    # Eigene Kopie nicht gefunden: früher taskkill /IM (traf alle). Jetzt
+    # passiert gar nichts, der Updater bittet den SL ums Schließen.
+    aus, gelaufen = _beenden([(111, LANG + "\\" + EXE)], TEST)
+    assert not aus
+    assert gelaufen == []
+    assert not any("/IM" in b for b in gelaufen)
+
+
+def test_quelltext_hat_kein_taskkill_nach_namen():
+    import inspect
+    assert '"/IM"' not in inspect.getsource(akt)
+
+
+def test_prozesse_auflisten_ohne_windows_leer(monkeypatch):
+    # Unter Linux scheitern ctypes und PowerShell - dann leere Liste, kein Absturz.
+    monkeypatch.setattr(akt, "_prozesse_powershell", lambda: (_ for _ in ()).throw(OSError()))
+    if os.name != "nt":
+        assert akt.prozesse_auflisten() == []
 
 
 def test_groessen_probe_scheitert_kein_api_rueckfall(monkeypatch):
