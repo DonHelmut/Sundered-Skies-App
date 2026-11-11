@@ -8,6 +8,7 @@ Gemessen wird, was im Browser messbar ist, unabhängig von der Grafikkarte:
   langsamer) gibt es kein langes Stocken.
 """
 import pytest
+from hilfe import voller_tisch
 
 ERLAUBT = {"transform", "opacity", "offset", "easing", "composite", "computedOffset",
            "visibility"}
@@ -227,3 +228,69 @@ def test_karten_6_und_9_unterstrichen(tisch):
     assert svg[0].count('text-decoration="underline"') == 2
     assert svg[1].count('text-decoration="underline"') == 2
     assert "underline" not in svg[2]
+
+
+# --- Runde 11.11.2026 abends: Kampf beenden, schlanke Handy-Liste, Anfragen
+# schweben, beim SL rückt nichts mehr ---------------------------------------
+
+def _oben(seite, selektor):
+    return seite.js("(q) => Math.round(document.querySelector(q).getBoundingClientRect().top)", selektor)
+
+
+def test_kampf_beenden_handys_sofort_ruhig(tisch):
+    sl, hs = voller_tisch(tisch)
+    h = hs[0]
+    h.js("() => document.querySelectorAll('[data-act=dismiss-msg]').forEach(b => b.click())")
+    assert "Gerade kein Kampf" not in h.text()
+    sl.klick("[data-act=kampf-beenden]")
+    sl.dialog_knopf("Kampf beenden")
+    sl.warte_bis("() => App.state.round === 0 && !App.state.combatants.some(c => c.kind === 'npc')")
+    h.warte_bis("() => document.body.innerText.includes('Gerade kein Kampf')")
+    text = h.text()
+    assert "nicht im Kampf" not in text and "Nicht im Kampf" not in text
+    # SL: keine „Nicht im Kampf"-Liste, Knopf weg, Spieler stehen bereit.
+    sl.warte_bis("() => !document.querySelector('[data-act=kampf-beenden]')")
+    assert not sl.page.locator("[data-act=alle-wieder-rein]").count()
+    assert all(not c["benched"] for c in sl.state()["combatants"])
+    # Außerhalb des Kampfes steht „Alle heilen" fest in der Zeile (Kalle,
+    # 11.11.2026) und heilt, wenn jemand verletzt ist.
+    knopf = sl.page.locator(".kampf-knoepfe [data-act=alle-heilen]")
+    assert knopf.count() == 1 and knopf.is_disabled()
+    held = sl.state()["combatants"][0]
+    tisch.gm({"type": "apply_hit", "id": held["id"], "steigerungen": 1})
+    sl.warte_bis("() => !document.querySelector('.kampf-knoepfe [data-act=alle-heilen]').disabled")
+    sl.klick(".kampf-knoepfe [data-act=alle-heilen]")
+    sl.warte_bis("(id) => !App.state.combatants.find(c => c.id === id).status.wounds", held["id"])
+    assert sl.page.locator(".kampf-knoepfe [data-act=alle-heilen]").count() == 1
+    sl.kein_waagrechtes_scrollen("Knopfzeile ohne Kampf")
+    # Die zwei Symbole ohne Text gibt es in der Zeile nicht mehr.
+    assert not sl.page.locator(".kampf-knoepfe [data-act=reset], [data-act=clear-all]").count()
+
+
+def test_sl_anfrage_und_kampfknoepfe_schieben_nichts(tisch):
+    sl, hs = voller_tisch(tisch)          # eine Anfrage (Wunde +) liegt schon an
+    sl.warte_bis("() => !!document.querySelector('.anfragen-schweb')")
+    zonen, liste = _oben(sl, "[data-sec=zones]"), _oben(sl, ".order-heading, .combatant")
+    assert sl.js("() => getComputedStyle(document.querySelector('.anfragen-schweb')).position") == "fixed"
+    sl.klick(".anfragen-schweb [data-act=req-dismiss]")
+    sl.warte_bis("() => !document.querySelector('.anfragen-schweb')")
+    assert _oben(sl, "[data-sec=zones]") == zonen, "Kampfzonen sind beim Wegklicken der Anfrage verrutscht"
+    # Gegner fällt: „🧹 … weg" erscheint IN der Knopfzeile, die Reihenfolge bleibt stehen.
+    pirat = next(c for c in sl.state()["combatants"] if c["name"] == "Pirat 1")
+    tisch.gm({"type": "set_status", "id": pirat["id"], "out": True})
+    sl.warte_bis("() => !!document.querySelector('[data-act=clear-defeated]')")
+    assert _oben(sl, ".order-heading, .combatant") == liste, "Reihenfolge ist verrutscht"
+    assert _oben(sl, "[data-sec=zones]") == zonen
+
+
+def test_handy_reihenfolge_eine_zeile(tisch):
+    sl, hs = voller_tisch(tisch)
+    h = hs[0]
+    h.js("() => document.querySelectorAll('[data-act=dismiss-msg]').forEach(b => b.click())")
+    _aufdecken(h)
+    h.warte_bis("() => document.querySelectorAll('.order .combatant').length > 3", frist=8000)
+    assert not h.page.locator(".order .combatant .zone-chip").count()
+    assert "WC" not in h.js("() => [...document.querySelectorAll('.order .combatant .badges')].map(e => e.innerText).join(' ')")
+    hoehen = h.js("() => [...document.querySelectorAll('.order .combatant')].map(e => Math.round(e.getBoundingClientRect().height))")
+    assert max(hoehen) <= 62, f"Zeilen zu hoch (zweizeilig?): {hoehen}"
+    h.kein_waagrechtes_scrollen("Reihenfolge")

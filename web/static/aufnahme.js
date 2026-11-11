@@ -290,7 +290,7 @@ async function abendStarten() {
 // vergessene war meist die Aufnahme, die dann bis zum Zuklappen weiterlief.
 // Die genaue Mitschrift braucht keinen Haken: sie startet nach dem Ende der
 // Aufnahme von selbst (server/sprache.py nach_aufnahme).
-const ABEND_ENDE_KNOPF = `<button class="primary" data-act="aufn-abend-ende" title="Aufnahme beenden, Kampf abräumen, Sicherung anlegen – alles auf einmal">🌙 Abend beenden</button>`;
+const ABEND_ENDE_KNOPF = `<button class="primary" data-act="aufn-abend-ende" title="Aufnahme beenden, Kampf beenden, Sicherung anlegen – alles auf einmal">🌙 Abend beenden</button>`;
 async function abendBeenden() {
   const s = App.state || {};
   const sp = (Aufn.status || {}).sprache || {};
@@ -300,14 +300,14 @@ async function abendBeenden() {
   const wahl = await dialog({ text: "🌙 Abend beenden?",
     inhalt: `<div class="abend-liste">
       ${Aufn.rec ? haken("aufnahme", "■ Aufnahme beenden", `(${aufnDauer(aufnLaenge())}${sp.bereit ? " – die genaue Mitschrift schreibt die App danach von selbst, Laptop an lassen" : ""})`) : ""}
-      ${kampf ? haken("kampf", "🧹 Kampf abräumen", "(Gegner weg, Spieler bleiben verbunden, Wunden bleiben)") : ""}
+      ${kampf ? haken("kampf", "🏁 Kampf beenden", "(Gegner weg, Spieler bleiben verbunden, Wunden bleiben)") : ""}
       ${haken("sicherung", "🛟 Sicherung anlegen", "")}</div>`,
     lesen: (box) => Object.fromEntries([...box.querySelectorAll("[data-abend]")].map((i) => [i.dataset.abend, i.checked])),
     knoepfe: [{ text: "Abbrechen", wert: null, abbruch: true },
       { text: "🌙 Abend beenden", art: "primary", standard: true }] });
   if (!wahl) return;
   if (wahl.aufnahme) await aufnahmeBeenden(true);
-  if (wahl.kampf) gmAction({ type: "clear_all" });
+  if (wahl.kampf) gmAction({ type: "end_combat" });
   let gesichert = false;
   if (wahl.sicherung) {
     // Kurz warten: das Abräumen soll schon in der Sicherung stehen.

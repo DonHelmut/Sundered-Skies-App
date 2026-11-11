@@ -77,6 +77,54 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.8 (11.11.2026 abends): Kampf beenden, schlanke Handy-Liste, beim SL rückt nichts mehr
+
+Kalles Wahl aus der zweiten Vorschlagsrunde des Tages: **1A, 2, 4** – dazu die
+Ansage: „allgemein, vor allem beim SL, soll nichts mehr geschoben werden".
+Nicht gewählt (nicht neu vorschlagen): 1B (Kampf-beenden-Dialog mit Haken),
+3 (leere Zonen-Bahnen am Handy als dünne Streifen).
+
+- **🏁 Kampf beenden (1A).** Ein Knopf mit Text im Kampf-Panel statt der zwei
+  Symbole ⟲ und 🧹. Neue Server-Aktion `end_combat`: Gegner und Verbündete weg,
+  Karten eingesammelt, Runde 0 – Spieler bleiben **im Spiel** (nicht pausiert),
+  zurück in der Startzone. Dadurch zeigen die Handys sofort „Gerade kein Kampf".
+  Das alte `clear_all` (pausiert alle) gibt es als Aktion weiter, hat aber
+  keinen Knopf mehr; „🌙 Abend beenden" nutzt jetzt auch `end_combat`.
+  ⟲ (nur Karten einsammeln, Gegner bleiben) steht unter ☰ Mehr.
+- **Handy-Reihenfolge (2).** Eine Zeile je Figur: Zonen-, WC-, „Verbündet"- und
+  Benny-Abzeichen der anderen sind am Handy weg (`combatantRow`, `handy`).
+  Joker, Talente, Wunden und Zustände bleiben.
+- **Anfragen schweben (4).** `renderRequestsPanel` baut kein Panel mehr,
+  sondern eine Karte oben in der Mitte (`.anfragen-schweb`, `position: fixed`).
+  Der Panel-Schlüssel `requests` bleibt leer bestehen, damit gemerkte
+  Anordnungen weiter passen.
+- **Beim SL rückt nichts mehr.** Mit einem Skript nachgemessen (Position aller
+  Zeilen vor/nach jedem Ereignis). Was vorher schob und jetzt fest ist:
+  - „🧹 N entfernen" und „🩹 Alle heilen" waren eigene Zeilen über den Knöpfen →
+    jetzt kleine Knöpfe IN der Knopfzeile (feste Höhe, kein Umbruch).
+  - Die Zeile „Vorbereitet: … ▶ Starten" kam und ging mit jedem Kampf → steht
+    jetzt in derselben Knopfzeile. Darum sind die Beschriftungen kürzer
+    („Austeilen", „Neue Runde austeilen", „⚔ Kämpfe").
+  - Pille „✓ Runde beendet" unter den Knöpfen → weg, steht in der Leiste unten.
+  - Filter „nur Offene" machte die Überschrift 9 px höher → feste Höhe.
+  - Zeilen der Reihenfolge waren 49/51/53 px je nach Abzeichen → alle 54 px.
+  - „✓ erholt"/🪙 in der Zeile der aktiven Figur → nur noch in der Leiste unten.
+  - Leiste unten: „Zug bestätigen" ist schmaler als „Freigeben + Weiter",
+    🎯 Treffer/Heilung sprangen seitlich → feste Breite/Höhe.
+  - Panel-Kopf mit/ohne ⓘ 1 px Unterschied → feste Höhe.
+  Bleibt (liegt in der Sache): die Reihenfolge sortiert sich beim Austeilen neu,
+  und das Zonen-Board wird niedriger, wenn eine Bahn eine Token-Zeile verliert.
+  **Regel für Neues:** nichts einbauen, das bei einem Ereignis aufklappt und
+  Inhalt wegschiebt – schwebend oder mit festem Platz bauen.
+- **🩹 Alle heilen außerhalb des Kampfes** (Kalle, gleicher Abend): steht ohne
+  Kampf immer in der Knopfzeile, ausgegraut wenn niemand verletzt ist (kommt
+  und geht also nicht). Im Kampf weiter nur, wenn kein Gegner mehr steht.
+  „⚔ Kämpfe verwalten" ist dafür in dieser Zeile nur noch das Symbol ⚔.
+- Tests: `test_kampf_beenden_tisch_wie_am_anfang` (Server),
+  `test_kampf_beenden_handys_sofort_ruhig`,
+  `test_sl_anfrage_und_kampfknoepfe_schieben_nichts`,
+  `test_handy_reihenfolge_eine_zeile` (Browser).
+
 ## 2.0.8 (11.11.2026): Patch mit der Design-Runde
 
 Bündelt PR #52 (die zwei Abschnitte unten). Dazu ein Updater-Fix aus dem

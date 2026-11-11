@@ -422,6 +422,40 @@ def test_neue_runde_entfernt_ausgeschaltete_gegner(fresh_game):
     assert len(fresh_game.deck) + len(fresh_game.discard) + ausgeteilt == 54
 
 
+def test_kampf_beenden_tisch_wie_am_anfang(fresh_game):
+    """🏁 Kampf beenden: Gegner/Verbündete weg, Spieler bleiben im Spiel (nicht
+    pausiert) - so zeigen die Handys sofort „Gerade kein Kampf"."""
+    enemy = _add_npc(fresh_game, "Feind")
+    fresh_game.apply({"type": "group_create", "name": "Bande", "ids": [enemy["id"]]})
+    fresh_game.apply({"type": "ally_upsert", "name": "Freund"})
+    fresh_game.apply({"type": "add_ally_from_library", "id": fresh_game.allies[-1]["id"]})
+    for name in ("Held", "Fehlt"):
+        fresh_game.apply({"type": "roster_upsert", "name": name, "isWildCard": True})
+        fresh_game.apply({"type": "add_from_roster", "id": fresh_game.roster[-1]["id"]})
+    held, fehlt = [c for c in fresh_game.combatants if c["kind"] == "player"]
+    fresh_game.apply({"type": "bench", "id": fehlt["id"]})
+    fresh_game.apply({"type": "new_round"})
+    fresh_game.apply({"type": "set_zone", "id": held["id"], "zone": 0})
+    fresh_game.apply({"type": "apply_hit", "id": held["id"], "steigerungen": 1})
+    wunden = fresh_game._combatant(held["id"])["status"]["wounds"]
+
+    fresh_game.apply({"type": "end_combat"})
+
+    assert sorted(c["name"] for c in fresh_game.combatants) == ["Fehlt", "Held"]
+    held, fehlt = fresh_game._combatant(held["id"]), fresh_game._combatant(fehlt["id"])
+    assert held["benched"] is False and held["card"] is None
+    assert held["zone"] == 1                                   # zurück in der Startzone
+    assert held["status"]["wounds"] == wunden                  # Wunden bleiben
+    assert fehlt["benched"] is True                            # wer fehlte, fehlt weiter
+    assert fresh_game.groups == [] and fresh_game.requests == []
+    assert fresh_game.round == 0 and fresh_game.active_id is None
+    assert len(fresh_game.deck) == 54 and fresh_game.discard == []
+
+    fresh_game.apply({"type": "undo"})                         # Fehlklick: Kampf ist wieder da
+    assert any(c["name"] == "Feind" for c in fresh_game.combatants)
+    assert fresh_game.round == 1
+
+
 def test_clear_all_removes_npcs_and_benches_players(fresh_game):
     enemy = _add_npc(fresh_game, "Feind")
     fresh_game.apply({"type": "group_create", "name": "Bande", "ids": [enemy["id"]]})

@@ -53,7 +53,7 @@ def test_kampfrunde_von_austeilen_bis_neue_runde(tisch):
     korgo = tisch.handy("Korgo", "klein")
     tisch.gm({"type": "add_npc", "name": "Ork"})
 
-    sl.locator("button", has_text="Karten an ALLE austeilen").click()
+    sl.locator("button[data-act=new-round]").first.click()
     sl.warte_bis("() => App.state.round === 1 && App.state.combatants.every(c => c.card)")
     # Handy: Karte liegt verdeckt, Daumen-Knopf deckt sie auf - alle sehen das.
     for h in (tessa, korgo):

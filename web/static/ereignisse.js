@@ -27,10 +27,10 @@ document.addEventListener("click", (e) => {
     // SL – Kampf
     "new-round": () => gmAction({ type: "new_round", runde: S.round }),
     "alle-wieder-rein": () => gmAction({ type: "unbench_all" }),
-    "clear-all": async () => {
-      if (await frage("Kampf abräumen?\n\nAlle Gegner und Verbündeten werden entfernt, die Spieler pausiert (sie bleiben verbunden und behalten ihren Charakter). Die Zonen sind danach leer.\n\nRückgängig geht mit ↶.", "Abräumen", true)) gmAction({ type: "clear_all" });
+    "kampf-beenden": async () => {
+      if (await frage("🏁 Kampf beenden?\n\nGegner und Verbündete verschwinden, die Karten werden eingesammelt. Die Handys zeigen sofort „Gerade kein Kampf“. Wunden und Bennies bleiben.\n\nRückgängig geht mit ↶.", "🏁 Kampf beenden")) gmAction({ type: "end_combat" });
     },
-    "reset": async () => { if (await frage("Initiative komplett zurücksetzen?", "Zurücksetzen", true)) gmAction({ type: "reset" }); },
+    "reset": async () => { if (await frage("Alle Karten einsammeln und neu mischen?\n\nRunde zurück auf 0, Gegner bleiben stehen. Rückgängig geht mit ↶.", "Karten einsammeln", true)) gmAction({ type: "reset" }); },
     "release": () => gmAction({ type: "release" }),
     "confirm-turn": () => gmActionOrPlayer({ type: "confirm_turn", fuer: S.activeId }),
     "skip-turn": () => gmAction({ type: "confirm_turn", fuer: S.activeId }),   // ohne Timer zum nächsten
