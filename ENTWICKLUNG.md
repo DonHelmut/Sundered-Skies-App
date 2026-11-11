@@ -77,6 +77,13 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## 2.0.8 (11.11.2026): Patch mit der Design-Runde
+
+Bündelt PR #52 (die zwei Abschnitte unten). Dazu ein Updater-Fix aus dem
+2.0.7-Rauchtest, der nur lokal lag: `selbst_tausch_starten` startet das
+Tausch-Skript ohne `DETACHED_PROCESS` (nur `CREATE_NO_WINDOW`), sonst öffnete
+jedes tasklist/find im Skript ein eigenes sichtbares Fenster und es hing.
+
 ## Nach 2.0.7 (11.11.2026): Design-Runde – Kopfleiste, Reiter, Benny sofort
 
 Kalle: „weitere Verbesserungen am Design, Vereinfachungen?" Sechs Vorschläge

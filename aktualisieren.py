@@ -437,8 +437,14 @@ def selbst_tausch_starten(ordner: Path) -> bool:
     try:
         skript = ordner / f"_updater-tausch{WEG}{os.getpid()}.cmd"
         skript.write_text(selbst_tausch_skript(os.getpid()), encoding="ascii")
-        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "DETACHED_PROCESS", 0) \
-            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        # NUR CREATE_NO_WINDOW, kein DETACHED_PROCESS: zusammen gewinnt
+        # DETACHED, cmd hat dann gar keine Konsole, und jedes tasklist/find/
+        # ping im Skript macht sich ein EIGENES sichtbares Fenster auf - bei
+        # Kalle stand nach dem Update ein leeres Fenster „find "6796"" herum,
+        # das Skript hing (Rauchtest 2.0.7). Mit CREATE_NO_WINDOW bekommt cmd
+        # eine unsichtbare Konsole, die die Kinder erben. Losgelöst vom
+        # Updater ist es trotzdem (eigene Prozessgruppe, kein Warten).
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         subprocess.Popen(["cmd", "/c", str(skript)], creationflags=flags, close_fds=True,
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
