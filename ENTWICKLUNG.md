@@ -77,6 +77,16 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## 2.0.7 (11.11.2026): Release mit Update-Hinweis, Ein-Klick-Update, Durchleuchtung
+
+Bündelt PR #50 (Aktualisieren.exe tauscht sich selbst aus, Limit-Meldung) und
+PR #51 (die zwei Abschnitte unten). Rauchtest am Windows-PC: Testkopie mit
+SWI_NEUESTE_VERSION=9.9.9 und START-HIER auf 2.0.5 → „⬆ Jetzt aktualisieren"
+beendete die App, holte 2.0.6 von GitHub, tauschte (auch den Updater selbst)
+und startete die App nach ~20 s wieder. Kleinfix dabei: SWI_NEUESTE_TITEL wird
+wie ein echter Release-Titel auf den Teil hinter dem Strich gekürzt.
+Erstes Update aus 2.0.6 läuft noch von Hand (2.0.6 kennt den Knopf nicht).
+
 ## Nach 2.0.6 (10.11.2026): Gewählte Ideen aus der Durchleuchtung
 
 Kalle wählte nach Bildern (Mockups in der echten Optik): I1-C, I2, I3, I4

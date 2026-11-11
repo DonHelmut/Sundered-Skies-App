@@ -74,7 +74,9 @@ def pruefen_im_hintergrund() -> None:
     # Release - dann wird GitHub gar nicht gefragt.
     fest = os.environ.get("SWI_NEUESTE_VERSION")
     if fest is not None:
-        stand.update({"neu": fest or None, "titel": os.environ.get("SWI_NEUESTE_TITEL", "")})
+        # Titel wie beim echten Release kürzen - sonst stand im Dialog
+        # „Neu: Sundered Skies Initiative 9.9.9 – …" statt nur dem Neuen.
+        stand.update({"neu": fest or None, "titel": was_neu(os.environ.get("SWI_NEUESTE_TITEL", ""))})
         return
     threading.Thread(target=pruefen, daemon=True).start()
 
