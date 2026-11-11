@@ -77,6 +77,32 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.9 (11.11.2026): Updater beendet nur noch die eigene App
+
+- **Bug beim Release-Test 2.0.9:** Ein-Klick-Update in einer Testkopie hat auch
+  Kalles echte App (Port 8000, anderer Ordner) beendet. Ursache bestätigt in
+  `aktualisieren.py`: PowerShell verglich `$_.Path -eq '<Ordner>\…exe'` als Text.
+  Die Testkopie lief unter einem Kurzpfad (`KALLEN~1`), der Updater kennt seinen
+  Ordner als Langpfad → kein Treffer → Rückfall `taskkill /IM` traf **alle**
+  `SunderedSkiesInitiative.exe`.
+- **Jetzt:** Prozessliste mit Programmpfad über die Windows-API (`ctypes`,
+  `K32EnumProcesses` + `QueryFullProcessImageNameW`; PowerShell nur noch als
+  Rückfall fürs Auflisten). Pfade werden vor dem Vergleich aufgelöst
+  (`GetLongPathNameW` + `realpath`: Kurz→Langname, Junctions/Symlinks) und
+  normalisiert (Groß/Klein, `/` vs. `\`, doppelte/abschließende Trenner,
+  `\\?\`-Präfix) – `pfad_schluessel`, `ist_eigene_app`, `eigene_pids` sind
+  reine Funktionen. Beendet wird nur per PID (`taskkill /F /T /PID`).
+- **Kein Rückfall nach Namen mehr.** Findet der Updater die eigene Kopie nicht,
+  bittet er im Fenster: „App-Fenster schließen, dann Enter" (bis 5×), sonst
+  Abbruch ohne Änderung. Lieber eine Frage mehr als eine fremde App weg.
+- **Wirkt erst ab dem übernächsten Update:** das Update auf die nächste Version
+  führt noch der installierte (alte) Updater aus. Bis dahin beim Testen keine
+  zweite Kopie parallel laufen lassen.
+- Tests: `tests/test_aktualisieren.py` (Kurzpfad, Varianten, Junction, genau
+  der Fall vom 11.11.). Nur am Windows-PC prüfbar: ob `QueryFullProcessImageNameW`
+  /`realpath` dort die Pfade wirklich so liefern → Release-Test mit Testkopie
+  unter Kurzpfad neben laufender echter App.
+
 ## 2.0.9 (11.11.2026): Patch mit dem Abschnitt darunter
 
 Nur Versionsnummer + Paket. Updater unverändert (Aktualisieren aus paket-208
