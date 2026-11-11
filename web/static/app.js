@@ -42,6 +42,8 @@ const App = {
   editCombatantId: null,
   prevJokerFlash: null,
   lastSeenMsgTs: Number(localStorage.getItem("lastSeenMsgTs") || 0),
+  // Handy-Reiter (spieler.js): welcher gerade offen ist.
+  handyReiter: (() => { try { return localStorage.getItem("handyReiter") || "kampf"; } catch { return "kampf"; } })(),
   clockOffset: 0,   // Serverzeit − lokale Zeit (gleicht Uhren-Versatz aus)
   tokenPopupId: null,  // Kampfzonen: aktuell geöffnetes Token-Infofenster
   pendingMove: null,   // Kampfzonen: angetippte Ziel-Bahn, wartet auf Bestätigung

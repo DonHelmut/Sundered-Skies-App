@@ -169,7 +169,8 @@ function playerQuickControls(c) {
 
   // Benny (nur Wild Cards mit Vorrat).
   if (funktionAn("bennies") && c.isWildCard && (c.bennies || 0) > 0) {
-    rows.push(reqBtn("🪙 Benny ausgeben", "benny", { delta: -1 }));
+    // Gleicher Weg wie die Münzen oben: Rückfrage, dann sofort (kein ✓ des SL).
+    rows.push(`<button class="st-btn" data-act="benny-muenze">🪙 Benny ausgeben</button>`);
   }
   if (funktionAn("wunden")) {
     // Angeschlagen setzen/aufheben.
@@ -228,13 +229,12 @@ function kopfZustand(c) {
 
 // Bennies als kleine Münzen in der Kopfzeile (Kalle, 22.10.2026, Variante
 // 4B). Vorher stand der Vorrat am Handy nur als „🪙 3" irgendwo in der
-// Reihenfolge. Antippen = Benny ausgeben (Rückfrage, dann Anfrage an den SL
-// wie bisher über „Etwas anfragen"). Ohne Anfragen nur Anzeige.
+// Reihenfolge. Antippen = Benny ausgeben (Rückfrage, dann sofort - seit
+// 11.11.2026 ohne ✓ des SL, darum auch bei abgeschalteten Anfragen).
 function muenzenKopf(c) {
   if (!c.isWildCard || !funktionAn("bennies")) return "";
   const n = c.bennies || 0;
-  const tippbar = !(App.state && App.state.requestsEnabled === false);
-  const muenze = tippbar
+  const muenze = App.role !== "gm"
     ? `<button type="button" class="muenze" data-act="benny-muenze" title="Benny ausgeben">✦</button>`
     : `<span class="muenze" title="Bennies">✦</span>`;
   // Mehr als vier passen neben „Runde" nicht - dann eine Münze mit Zahl.
@@ -300,6 +300,11 @@ function revealBigCard(node) {
   const holder = node.closest(".card-holder");
   const hint = holder && holder.querySelector(".tap-hint");
   if (hint) hint.classList.add("gone");
+  // Der „Karte aufdecken"-Knopf unten sofort ausblenden: neu gezeichnet wird
+  // erst nach der Dreh-Animation (~3 s) - so lange stand er sonst unter der
+  // schon offenen Karte, als hätte der Tipp nicht geklappt.
+  const daumen = document.querySelector('.daumen-leiste [data-act="daumen-aufdecken"]');
+  if (daumen) daumen.closest(".daumen-leiste").classList.add("weg");
 
   const mine = myCombatant();
   const img = (mine && mine.image) || null;

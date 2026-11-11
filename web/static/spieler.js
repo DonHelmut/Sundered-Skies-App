@@ -127,8 +127,8 @@ function renderPlayer() {
        </div>`
     : "";
 
-  const playerTag = mine.playerName && mine.playerName !== mine.name
-    ? `<div class="muted small">Spieler: ${esc(mine.playerName)}</div>` : "";
+  // Feste Kopfleiste an (CSS: Abstand oben, Pille nur bei Verbindungsärger).
+  document.body.classList.add("mit-kopf");
 
   // Pausiert („Aus dem Kampf") – keine Karte, klarer Hinweis statt Kartenbereich.
   // Dran und Karte offen: Kurzansicht „Mein Zug" (regeln.js) statt großer Karte.
@@ -192,37 +192,46 @@ function renderPlayer() {
   // blätterte, merkte nicht, dass er dran ist. Fest, ohne Animation.
   const dranRahmen = isMyTurn ? `<div class="dran-rahmen"></div>` : "";
 
+  // Reiter statt einer langen Seite (Kalle, 11.11.2026, Vorschlag 5): ⚔ Kampf
+  // (Karte, Reihenfolge, Zonen), 📜 Bogen, 📝 Notizen, ✉ Post. Vorher stand
+  // alles untereinander, Notizen und Nachrichten erst nach Karte + Zonen ganz
+  // unten. In der Kurzansicht „Mein Zug" keine Reiter - da zählt nur der Zug.
+  const teile = {
+    order: orderPanel,
+    zones: mine.benched ? "" : renderZonesPanel(),
+    bogen: renderBogen(mine),
+    msgs: `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs || `<div class="muted small">Noch keine Nachrichten.</div>`}</div>`,
+    notizen: notizenPanelHtml(),
+  };
+  const reiterDa = kurz ? [] : handyReiterListe();
+  const reiter = reiterDa.includes(App.handyReiter) ? App.handyReiter : "kampf";
+  // Keine Zahl „neu" am ✉: jede Nachricht kommt ohnehin als Banner, das man
+  // wegtippen muss - eine Zahl danach wäre nur Lärm.
+  const reiterLeiste = reiterDa.length > 1 ? `<div class="handy-reiter">${reiterDa.map((k) =>
+    `<button type="button" class="${k === reiter ? "an" : ""}" data-act="handy-reiter" data-reiter="${k}">${HANDY_REITER[k]}</button>`).join("")}</div>` : "";
+  const kampfTeile = kurz ? ["zones"].filter(bereichAn)
+    // Ohne Kampf sagen Reihenfolge und Zonen nichts.
+    : ruhe ? []
+    : handyBereiche().filter((k) => k === "order" || k === "zones").filter(bereichAn);
+  // Ohne Reiter (nur Kampf übrig, z. B. alles andere im 🎛 aus) bleibt die
+  // Seite wie sie ist.
+  const inhalt = reiter === "kampf" ? kampfTeile.map((k) => teile[k]).join("") : teile[reiter];
+  // Zustand steht nicht mehr unter dem Namen (der ist jetzt in der festen
+  // Kopfleiste) - nur noch, wenn etwas ist: kein „✓ Gesund" als Dauerzeile.
+  const zustand = kopfZustand(mine);
+  const zustandZeile = /kz-ok/.test(zustand) || !/class="kz/.test(zustand) ? "" : `<div class="zustand-zeile">${zustand}</div>`;
+
   const wuerfelListe = `<datalist id="wuerfel-vorschlaege">${WUERFEL.map((w) => `<option value="${w}">`).join("")}</datalist>`;
 
   return `
     ${wuerfelListe}
     ${msgBanner}
     ${dranRahmen}
-    ${dranLeiste}
-    <div class="row spread spieler-kopf" style="margin-bottom:6px">
-      <div class="row tight" style="align-items:center">
-        <label class="avatar big" title="Eigenes Bild wählen/ändern" style="cursor:pointer">
-          ${mine.image ? `<img src="${esc(mine.image)}" alt="">` : esc(zoneInitials(mine.name))}
-          <input type="file" accept="image/*" data-act="pick-char-image" data-id="${mine.id}" style="display:none">
-        </label>
-        <div><h1 style="margin:0; font-size:1.25rem">${esc(mine.name)}</h1>${playerTag}<div class="kopf-unterzeile">${kopfZustand(mine)}${muenzenKopf(mine)}</div></div>
-      </div>
-      <div class="row tight" style="align-items:center">
-        ${rundenZaehler(s)}
-      </div>
-    </div>
-    ${cardPanel}
-    ${(kurz ? ["zones"].filter(bereichAn)
-      // Ohne Kampf: Notizen gleich unter die Werte, Reihenfolge und Zonen
-      // sagen dann nichts.
-      : ruhe ? ["notizen", ...handyBereiche().filter((k) => !["order", "zones", "notizen"].includes(k))]
-      : handyBereiche()).filter(bereichAn).map((k) => ({
-      order: orderPanel,
-      zones: mine.benched ? "" : renderZonesPanel(),
-      bogen: renderBogen(mine),
-      msgs: msgs ? `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs}</div>` : "",
-      notizen: notizenPanelHtml(),
-    })[k]).join("")}
+    ${handyKopfHtml(s, mine)}
+    ${reiterLeiste || dranLeiste ? `<div class="handy-oben">${reiterLeiste}${dranLeiste}</div>` : ""}
+    ${zustandZeile}
+    ${reiter === "kampf" ? cardPanel : ""}
+    ${inhalt}
     ${daumen}
   `;
 }
@@ -825,6 +834,30 @@ function handyBereiche() {
   ["order", "zones", "bogen", "msgs", "notizen"].forEach((k) => { if (!liste.includes(k)) liste.push(k); });
   return liste;
 }
+// Die Reiter in fester Reihenfolge; was der SL im 🎛 ausgeschaltet hat, fehlt.
+const HANDY_REITER = { kampf: "⚔ Kampf", bogen: "📜 Bogen", notizen: "📝 Notizen", msgs: "✉ Post" };
+function handyReiterListe() {
+  return Object.keys(HANDY_REITER).filter((k) => k === "kampf" || bereichAn(k));
+}
+
+// Feste Kopfleiste (Kalle, 11.11.2026, Variante 2C): Bild, Name, Bennies und
+// Runde stehen beim Scrollen immer oben. Vorher schwebte nur die „Verbunden"-
+// Pille über dem Inhalt, und darunter schien beim Scrollen alles durch. Die
+// Verbindung zeigt jetzt der Punkt am Bild; die Pille kommt nur bei Ärger
+// (Verbinde neu …) unter der Leiste hervor.
+function handyKopfHtml(s, mine) {
+  return `<div class="handy-kopf">
+    <label class="avatar hk-bild" title="Eigenes Bild wählen/ändern">
+      ${mine.image ? `<img src="${esc(mine.image)}" alt="">` : esc(zoneInitials(mine.name))}
+      <input type="file" accept="image/*" data-act="pick-char-image" data-id="${mine.id}" style="display:none">
+      <span class="hk-punkt"></span>
+    </label>
+    <span class="hk-name">${esc(mine.name)}</span>
+    ${muenzenKopf(mine)}
+    <span class="hk-rechts">${rundenZaehler(s)}</span>
+  </div>`;
+}
+
 function handyBereichSchieben(k, dir) {
   const liste = handyBereiche();
   const i = liste.indexOf(k);
@@ -840,7 +873,9 @@ function handyBereichSchieben(k, dir) {
 // braucht. Stand vorher unten auf der Seite (Ton, Rückseite) bzw. als
 // „Verlassen" direkt neben „Runde", wo man leicht draufkam.
 function spielerMenueHtml(mine) {
-  const liste = handyBereiche().filter(bereichAn);
+  // Seit den Reitern (11.11.2026) gibt es nur noch im ⚔ Kampf etwas zu
+  // sortieren: Reihenfolge und Zonen.
+  const liste = handyBereiche().filter((k) => k === "order" || k === "zones").filter(bereichAn);
   const zeilen = liste.map((k, i) => `<div class="hb-zeile"><span>${HANDY_BEREICHE[k]}</span>
       <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="-1"${i === 0 ? " disabled" : ""} title="Nach oben">▲</button>
       <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="1"${i === liste.length - 1 ? " disabled" : ""} title="Nach unten">▼</button></div>`).join("");
@@ -860,8 +895,8 @@ function spielerMenueHtml(mine) {
       <span class="small">☀ Bildschirm anlassen, solange gekämpft wird</span>
     </label>
     ${rueckseiteWahlHtml(mine)}
-    <div class="sm-titel">Reihenfolge der Bereiche</div>
-    <div class="hb-liste">${zeilen}</div>
+    ${liste.length > 1 ? `<div class="sm-titel">Reihenfolge im ⚔ Kampf</div>
+    <div class="hb-liste">${zeilen}</div>` : ""}
     <button type="button" class="ghost small sm-verlassen" data-act="leave">🚪 Spiel verlassen</button>`;
 }
 
@@ -943,6 +978,7 @@ function joinAvatar(r) {
 }
 
 function renderJoin() {
+  document.body.classList.remove("mit-kopf");
   const s = App.state;
   const E = App.joinEntwurf;
   const fehler = App.joinFehler

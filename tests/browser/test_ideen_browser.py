@@ -15,7 +15,7 @@ PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4
 def test_update_hinweis_einmal_als_dialog_dann_knopf(browser, tmp_path, monkeypatch):
     # Eigener Server: nur hier „gibt es" eine neue Version (nie GitHub fragen).
     monkeypatch.setenv("SWI_NEUESTE_VERSION", "99.0.0")
-    monkeypatch.setenv("SWI_NEUESTE_TITEL", "Handy bleibt wach")
+    monkeypatch.setenv("SWI_NEUESTE_TITEL", "Sundered Skies Initiative 99.0.0 – Handy bleibt wach")
     srv = C.Server(tmp_path / "data").start()
     tisch = C.Tisch(browser, srv)
     try:
@@ -154,10 +154,17 @@ def test_foto_vom_papierbogen(tisch, tmp_path):
     h = tisch.handy("Mira")
     bild = tmp_path / "bogen.png"
     bild.write_bytes(PNG)
-    # Leerer Bogen: zweiter Knopf „Foto vom Papierbogen".
-    h.warte_bis("() => document.querySelector('.bogen-leer [data-act=bfoto-wahl]')")
-    h.page.set_input_files(".bogen-leer [data-act=bfoto-wahl]", str(bild))
+    # Leerer Bogen: EIN Knopf „Mein Charakter" (seit 11.11.2026), darin der
+    # Reiter „📷 Foto".
+    h.reiter("bogen")
+    h.warte_bis("() => document.querySelector('.bogen-leer [data-act=bogen-bearbeiten]')")
+    assert h.page.locator(".bogen-leer button, .bogen-leer label").count() == 1
+    h.klick(".bogen-leer [data-act=bogen-bearbeiten]")
+    h.klick(".bogen .reiter [data-reiter=foto]")
+    h.warte_bis("() => document.querySelector('.bogen [data-act=bfoto-wahl]')")
+    h.page.set_input_files(".bogen [data-act=bfoto-wahl]", str(bild))
     h.warte_bis("() => (myCombatant().bogen || {}).foto")
+    h.klick("[data-act=bogen-abbrechen]")     # Foto ist schon gespeichert
     foto = h.js("() => myCombatant().bogen.foto")
     assert foto.startswith("/uploads/")
     h.warte_bis("() => { const i = document.querySelector('.bogen-foto img'); return i && i.complete && i.naturalWidth > 0; }")

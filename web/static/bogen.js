@@ -48,11 +48,13 @@ function renderBogen(mine) {
       ? `<div class="row" style="margin-top:10px; gap:8px"><button class="primary" data-act="bogen-speichern">✓ Speichern</button>
          <button class="ghost" data-act="bogen-abbrechen">Abbrechen</button></div>` : mitspielerBoegen(mine)}</div>`);
   }
-  // Ganz leerer Bogen: eine Zeile statt Reiter + Erklärtext + Regeltipp (Kalle,
+  // Ganz leerer Bogen: EIN Knopf statt Reiter + Erklärtext + Regeltipp (Kalle,
   // 25.10.2026) - das nahm am Handy einen halben Bildschirm für „nichts da".
+  // Seit 11.11.2026 auch ohne zweiten Knopf „Foto vom Papierbogen": das Foto
+  // ist ein Reiter im Bogen, der Knopf öffnet ihn.
   if (!edit && bogenIstLeer(b) && !(mine.talents || []).length) {
-    return `<div class="panel bogen-leer"><button class="ghost" data-act="bogen-bearbeiten">📜 Charakterbogen ausfüllen ✎</button>
-      ${bogenFotoWahl("📷 Oder: Foto vom Papierbogen", "ghost bogen-foto-leer")}${mitspielerBoegen(mine)}</div>`;
+    return `<div class="panel bogen-leer"><button class="ghost" data-act="bogen-bearbeiten">📜 Mein Charakter ✎</button>
+      ${mitspielerBoegen(mine)}</div>`;
   }
   if (!edit && bogenIstLeer(b) && reiter !== "talente" && reiter !== "foto") {
     inhalt = `<div class="muted small" style="padding:6px 0">Noch leer. Tippe auf <b>✎ Bearbeiten</b> und trag deine Werte ein – dann hast du sie im Kampf immer griffbereit.</div>`;

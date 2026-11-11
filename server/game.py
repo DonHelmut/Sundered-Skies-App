@@ -2850,6 +2850,27 @@ class Game:
         # Drei Schalter, getrennt: Angreifen hat einen eigenen (Stefan will ihn
         # ausprobieren, ohne das ganze Anfragen-System einzuschalten); Erholen
         # ist keine Anfrage mehr und geht immer; der Rest nur mit Anfragen an.
+        # Benny ausgeben gilt ebenfalls SOFORT (Kalle, 11.11.2026): die eigenen
+        # Bennies gehören dem Spieler, der SL musste bisher jedes Mal ✓ drücken,
+        # während der Spieler mit dem Würfeln wartete. Er sieht nur eine
+        # Einblendung. Geht auch, wenn die übrigen Anfragen abgeschaltet sind.
+        if kind == "benny":
+            try:
+                delta = int(detail.get("delta", -1))
+            except (TypeError, ValueError):
+                return
+            if delta != -1 or not self.funktion("bennies") or not c.get("isWildCard"):
+                return
+            if int(c.get("bennies", 0) or 0) <= 0:
+                return
+            self._do_benny_adjust({"id": cid, "delta": -1})
+            rest = int(c.get("bennies", 0) or 0)
+            self.effekt_meldungen.append({
+                "id": _new_id("em"), "icon": "🪙",
+                "text": f"{c.get('name', '?')} gibt einen Benny aus (noch {rest})",
+            })
+            self.effekt_meldungen = self.effekt_meldungen[-10:]
+            return
         if kind == "attack":
             if not self.spieler_angriff or not self.funktion("angriff"):
                 return

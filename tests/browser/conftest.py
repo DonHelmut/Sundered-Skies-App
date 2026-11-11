@@ -159,6 +159,12 @@ class Seite:
     def text(self) -> str:
         return self.page.inner_text("body")
 
+    def reiter(self, name: str):
+        """Handy: Reiter oben wechseln (kampf, bogen, notizen, msgs). Seit
+        11.11.2026 steht nicht mehr alles auf einer langen Seite."""
+        self.page.locator(f"[data-act=handy-reiter][data-reiter={name}]").first.click()
+        self.warte_bis("(n) => !!document.querySelector(`[data-act=handy-reiter][data-reiter=${n}].an`)", name)
+
     def klick(self, selektor: str):
         self.page.locator(selektor).first.click()
 

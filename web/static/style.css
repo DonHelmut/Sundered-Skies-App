@@ -2132,6 +2132,7 @@ body.sl-ansicht .grid2 .panel-body .panel { padding: 10px 12px; border-radius: 8
    Angreifen, Eingreifen). Kleine Neben-Knöpfe (Zug beenden, Abwarten, Benny)
    rechts daneben bzw. auf schmalen Handys darunter. */
 .daumen-leiste { gap: 8px; flex-wrap: nowrap; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.daumen-leiste.weg { opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
 .dl-haupt { flex: 1 1 auto; min-width: 0; display: flex; }
 .dl-haupt > * { flex: 1; margin: 0; }
 .dl-haupt button.big { padding: 15px 14px; font-size: 1.15rem; }
@@ -2860,7 +2861,6 @@ body.sl-ansicht .nur-handy { display: none; }
 }
 
 /* 📷 Foto vom Papierbogen (bogen.js) */
-.bogen-leer .bogen-foto-leer { display: block; width: 100%; margin-top: 6px; text-align: center; box-sizing: border-box; }
 .bogen-foto-knopf { display: inline-block; cursor: pointer; }
 .bogen-foto { display: block; width: 100%; padding: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
   background: none; cursor: zoom-in; }
@@ -2873,3 +2873,44 @@ body.sl-ansicht .nur-handy { display: none; }
 .foto-gross-rahmen img { margin: auto; max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
 .foto-gross-hg.zoom .foto-gross-rahmen { display: block; }
 .foto-gross-hg.zoom .foto-gross-rahmen img { max-width: none; max-height: none; width: 250%; cursor: zoom-out; }
+
+/* --- Feste Kopfleiste + Reiter am Handy (Kalle, 11.11.2026, 2C + 5) ---------
+   Leiste mit Bild, Name, Bennies, Runde. Rechts bleibt Platz für 📜 und ⚙
+   (#skinbar liegt darüber). Der Schatten ist fest, nichts davon animiert. */
+.handy-kopf { position: fixed; top: 0; left: 0; right: 0; z-index: 61; height: 46px; box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px; padding: 0 84px 0 10px;
+  background: var(--panel); border-bottom: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0,0,0,0.14); }
+.handy-kopf .hk-bild { width: 32px; height: 32px; flex: 0 0 32px; position: relative; overflow: visible; cursor: pointer; }
+.handy-kopf .hk-bild img { border-radius: 50%; }
+.hk-punkt { position: absolute; right: -2px; bottom: -2px; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--muted); border: 2px solid var(--panel); }
+body[data-verbindung="online"] .hk-punkt { background: #4caf50; }
+body[data-verbindung="reconnect"] .hk-punkt { background: var(--warn); }
+body[data-verbindung="offline"] .hk-punkt { background: var(--bad); }
+.hk-name { font-family: Georgia, "Times New Roman", serif; font-weight: 800; font-size: 1.08rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.handy-kopf .muenzen { flex: 0 0 auto; }
+.hk-rechts { margin-left: auto; flex: 0 0 auto; }
+.handy-kopf .runden-zaehler { padding: 2px 8px; font-size: 0.82rem; }
+body.mit-kopf .wrap { padding-top: 54px; }
+/* Pille nur bei Ärger, dann unter der Leiste statt darauf. */
+body.mit-kopf .statusbar { top: 48px; pointer-events: none; }
+body.mit-kopf[data-verbindung="online"] .statusbar { display: none; }
+body.mit-kopf #skinbar { top: 8px; }
+.handy-oben { position: sticky; top: 46px; z-index: 30; margin: 0 -2px 8px; }
+.handy-oben .dran-leiste { position: static; margin: 0; }
+.handy-reiter { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-top: 0;
+  border-radius: 0 0 12px 12px; background: var(--panel); }
+.handy-oben .handy-reiter + .dran-leiste { border-radius: 10px; margin-top: 6px; border-top: 1px solid var(--line); }
+.handy-oben .handy-reiter + .dran-leiste.ich { border-color: var(--gold); }
+.handy-reiter button { flex: 1 1 0; min-width: 0; padding: 8px 2px; border: 0; border-radius: 9px; background: transparent;
+  color: var(--muted); font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
+.handy-reiter button.an { background: var(--accent2); color: #fff; }
+@media (max-width: 360px) {
+  .handy-kopf { gap: 6px; padding-left: 8px; }
+  .handy-kopf .muenze { width: 18px; height: 18px; }
+  .handy-kopf .runden-zaehler { padding: 2px 6px; font-size: 0.75rem; }
+  .handy-reiter button { font-size: 0.78rem; padding: 8px 1px; }
+}
+.zustand-zeile { margin: 0 0 8px; }
+.zustand-zeile .kopf-zustand { justify-content: center; }
