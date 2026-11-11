@@ -342,6 +342,78 @@ def updater_nachziehen(ordner: Path) -> bool:
     return getauscht
 
 
+def selbst_tausch_skript(pid: int) -> str:
+    """cmd-Skript, das wartet, bis dieser Updater (``pid``) zu ist, und dann
+    die ``*.neu``-Dateien des Updaters einsetzt. Kalle (09.11.2026): „Soll
+    über Aktualisieren.exe ALLES geupdatet werden" – vorher kam der neue
+    Updater erst beim nächsten App-Start an (``updater_nachziehen``), und wer
+    danach gleich wieder Aktualisieren.exe startete, hatte noch den alten
+    (bei 2.0.5: der mit dem API-Limit). ``updater_nachziehen`` bleibt als
+    Rückfall, falls das Skript nicht drankommt (z.B. Sperre über Minuten).
+    Alter Stand wird nur beiseite gelegt (``.weg-``, räumt die App weg) und
+    zurückgeholt, wenn das Einsetzen scheitert – nie ein kaputter Updater."""
+    zeilen = [
+        "@echo off",
+        "setlocal",
+        # Skript liegt im App-Ordner: kein Pfad im Skript (Umlaute im Pfad
+        # vertragen sich nicht mit der Codepage von cmd).
+        'cd /d "%~dp0"',
+        "set /a n=0",
+        # Warten, bis der Updater zu ist (Fenster mit „Enter drücken" offen).
+        ":warten",
+        f'tasklist /FI "PID eq {pid}" /NH 2>nul | find "{pid}" >nul',
+        "if errorlevel 1 goto los",
+        "set /a n+=1",
+        "if %n% GEQ 1800 goto ende",
+        "ping -n 2 127.0.0.1 >nul",
+        "goto warten",
+        ":los",
+        "set /a n=0",
+        ":tauschen",
+        "set fertig=1",
+        f'call :eins "{SELBST_ORDNER}" d',
+        f'call :eins "{SELBST_EXE}" f',
+        'if "%fertig%"=="1" goto ende',
+        "set /a n+=1",
+        "if %n% GEQ 30 goto ende",
+        "ping -n 3 127.0.0.1 >nul",
+        "goto tauschen",
+        # :eins <name> <d|f> – einen Eintrag tauschen
+        ":eins",
+        'if not exist "%~1.neu" exit /b',
+        f'set "weg=%~1{WEG}tausch"',
+        'if exist "%weg%" call :weg %2',
+        'if exist "%~1" move /y "%~1" "%weg%" >nul 2>&1 || (set fertig=0& exit /b)',
+        'move /y "%~1.neu" "%~1" >nul 2>&1 || (move /y "%weg%" "%~1" >nul 2>&1& set fertig=0& exit /b)',
+        "call :weg %2",
+        "exit /b",
+        ":weg",
+        'if "%~1"=="d" (rmdir /s /q "%weg%" 2>nul) else (del /f /q "%weg%" 2>nul)',
+        "exit /b",
+        ":ende",
+        # Skript löscht sich selbst (klassischer cmd-Trick).
+        '(goto) 2>nul & del "%~f0"',
+    ]
+    return "\r\n".join(zeilen) + "\r\n"
+
+
+def selbst_tausch_starten(ordner: Path) -> bool:
+    """Startet das Tausch-Skript unsichtbar und losgelöst. Nur unter Windows
+    und nur, wenn neue Updater-Dateien bereitliegen."""
+    if os.name != "nt" or not any((ordner / (n + ".neu")).exists() for n in (SELBST_ORDNER, SELBST_EXE)):
+        return False
+    try:
+        skript = ordner / f"_updater-tausch{WEG}{os.getpid()}.cmd"
+        skript.write_text(selbst_tausch_skript(os.getpid()), encoding="ascii")
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "DETACHED_PROCESS", 0) \
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        subprocess.Popen(["cmd", "/c", str(skript)], creationflags=flags, close_fds=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception:
+        return False   # Rückfall: die App zieht beim Start nach
+
+
 # --- Netz ---------------------------------------------------------------------
 
 def _anfrage(url: str, methode: str = "GET") -> urllib.request.Request:
@@ -365,13 +437,18 @@ def _neueste_ueber_link() -> tuple[str, str, int]:
     if not tag:
         raise RuntimeError("Kein Release gefunden.")
     url = f"https://github.com/{REPO}/releases/download/{tag}/{ZIP_NAME}"
+    # Größe nur nachschauen, nicht davon abhängen: scheitert diese Probe aus
+    # anderem Grund als „Zip fehlt", ginge es sonst auf die API zurück – genau
+    # dorthin, wo das Limit sitzt. Die Größe liefert der Download notfalls selbst.
+    groesse = 0
     try:
         with urllib.request.urlopen(_anfrage(url, "HEAD"), timeout=20) as r:
             groesse = int(r.headers.get("Content-Length") or 0)
     except urllib.error.HTTPError as fehler:
         if fehler.code == 404:
             raise RuntimeError(f"Im neuesten Release fehlt {ZIP_NAME}.") from fehler
-        raise
+    except Exception:
+        pass
     return tag.lstrip("v"), url, groesse
 
 
@@ -394,6 +471,25 @@ def neueste_version() -> tuple[str, str, int]:
             return _neueste_ueber_api()
         except Exception:
             raise fehler_link
+
+
+def ist_limit(fehler: Exception) -> bool:
+    """GitHub bremst (403 „rate limit exceeded" / 429) – das Netz ist da."""
+    return isinstance(fehler, urllib.error.HTTPError) and (
+        fehler.code == 429 or (fehler.code == 403 and "limit" in str(fehler).lower()))
+
+
+def fehler_meldung(fehler: Exception) -> list[str]:
+    """Zeilen für den Fall, dass die neueste Version nicht zu holen war. Ein
+    Limit ist kein Verbindungsproblem – früher stand dann trotzdem „Ist der
+    Laptop im Internet?" da (Kalle 09.11.2026) und schickte auf die falsche Spur."""
+    if ist_limit(fehler):
+        return ["GitHub lässt gerade keine weiteren Abfragen zu (Limit, kein Netzproblem).",
+                "In einer Stunde nochmal versuchen – oder die neue Version selbst holen:",
+                f"https://github.com/{REPO}/releases/latest",
+                "Zip entpacken und den Ordner data hineinkopieren.",
+                f"({fehler})"]
+    return ["Keine Verbindung zu GitHub. Ist der Laptop im Internet?", f"({fehler})"]
 
 
 def fortschritt_balken(geladen: int, groesse: int, breite: int = 30, zeichen: str = "█░") -> str:
@@ -465,9 +561,9 @@ def main() -> None:
     lokal = version_aus_starthier(ordner)
     try:
         neu, url, groesse = neueste_version()
-    except Exception as fehler:  # kein Netz, GitHub down, Proxy …
-        print("Keine Verbindung zu GitHub. Ist der Laptop im Internet?")
-        print(f"({fehler})")
+    except Exception as fehler:  # kein Netz, GitHub down, Proxy, Limit …
+        for zeile in fehler_meldung(fehler):
+            print(zeile)
         _ende(1)
     print(f"Installiert: {lokal or 'unbekannt'}")
     print(f"Neueste:     {neu}")
@@ -527,8 +623,10 @@ def main() -> None:
             print(f"https://github.com/{REPO}/releases/latest holen und den Ordner data hineinkopieren.")
             _ende(1)
 
+    selbst_tausch_starten(ordner)
     print()
-    print(f"Fertig – jetzt Version {neu}. Starten wie immer mit START.bat")
+    print(f"Fertig – jetzt Version {neu} (auch Aktualisieren.exe selbst, sobald dieses")
+    print("Fenster zu ist). Starten wie immer mit START.bat")
     print(f"oder {APP_EXE}.")
     _ende(0)
 
