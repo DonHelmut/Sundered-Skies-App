@@ -296,6 +296,8 @@ document.addEventListener("click", (e) => {
     "bogen-bearbeiten": () => {
       const m = myCombatant();
       App.bogenEntwurf = bogenVon(m);
+      // „📷 Foto vom Papierbogen" im leeren Bogen öffnet gleich den Foto-Reiter.
+      if (target.getAttribute("data-reiter")) App.bogenReiter = target.getAttribute("data-reiter");
       App.talentEntwurf = { talents: [...(m.talents || [])], gluck: !!m.gluck, grosses_gluck: !!m.grosses_gluck };
       render();
     },

@@ -433,7 +433,18 @@ function toast(text) {
     el.className = "toast";
     document.body.appendChild(el);
   }
-  el.textContent = text;
+  // Symbol + Farbe je Art (Kalle, 14.11.2026, Studio-Runde 2 Vorschlag 2) statt
+  // nacktem Text: ✓/■ Erfolg (grün), ● Aufnahme (rot), ⚠/„geht nicht" Warnung,
+  // sonst Hinweis. Ein Emoji/Zeichen vorn wird zum Symbol der Kachel.
+  const t = String(text || "").trim();
+  const vorn = [["●", "circle-dot", "rec"], ["■", "circle-check", "ok"], ["✓", "circle-check", "ok"], ["⚠", "triangle-alert", "warn"]]
+    .find(([z]) => t.startsWith(z));
+  const emo = !vorn && typeof SYMBOL_ZU === "object" && Object.keys(SYMBOL_ZU).find((e) => t.startsWith(e));
+  const rest = (vorn ? t.slice(vorn[0].length) : emo ? t.slice(emo.length) : t).replace(/^\uFE0F?\s*/, "");
+  const art = vorn ? vorn[2] : /nicht|fehl|kein|erst /i.test(rest) ? "warn" : /gespeichert|kopiert|gesetzt|gesendet|fertig|bereit/i.test(rest) ? "ok" : "info";
+  const sym = vorn ? vorn[1] : emo ? SYMBOL_ZU[emo] : { ok: "circle-check", warn: "triangle-alert" }[art] || "info";
+  el.className = `toast toast-${art}${el.classList.contains("sichtbar") ? " sichtbar" : ""}`;
+  el.innerHTML = `<span class="toast-sym">${symbolSvg(sym)}</span><span class="toast-text">${esc(rest)}</span>`;
   // Über der festen Leiste unten erscheinen - sonst lag die Meldung genau
   // auf „danach: …" und den Knöpfen (Höhe schwankt: Handy bricht um).
   const leiste = document.querySelector(".aktionsleiste");

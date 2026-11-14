@@ -323,3 +323,23 @@ def test_studio_optik_schrift_symbole_startflaeche(tisch):
     h.reiter("notizen")
     h.warte_bis("() => [...document.querySelectorAll('.notiz-reiter')].some(b => b.textContent.includes('📜'))")
     h.kein_waagrechtes_scrollen("Notizen")
+
+
+def test_studio_runde2_dialog_meldung_ladebild_leerer_bogen(tisch):
+    """Studio-Runde 2 (14.11.2026): Dialog mit Titel/Symbol, Meldung mit
+    Symbol, Ladebild verschwindet beim ersten Stand, leerer Bogen mit 2 Wegen."""
+    sl = tisch.sl()
+    assert sl.page.locator(".ladebild").count() == 0          # erster Stand ersetzt es
+    sl.js("() => { frage('Charakter löschen?\\n\\nWeg ist weg.', 'Löschen', true); }")
+    sl.warte_bis("() => !!document.querySelector('.app-dialog-titel')")
+    assert sl.page.inner_text(".app-dialog-titel") == "Charakter löschen?"
+    assert sl.page.inner_text(".app-dialog-text") == "Weg ist weg."
+    assert sl.page.locator(".app-dialog-sym.gefahr svg").count() == 1
+    sl.page.keyboard.press("Escape")
+    sl.js("() => toast('● Aufnahme läuft')")
+    sl.warte_bis("() => document.querySelector('#toast.toast-rec .toast-sym svg')")
+    assert sl.page.inner_text("#toast .toast-text") == "Aufnahme läuft"
+    h = tisch.handy("Rurik")
+    h.js("() => document.querySelector('[data-act=handy-reiter][data-reiter=bogen]').click()")
+    h.warte_bis("() => document.querySelectorAll('.bogen-leer [data-act=bogen-bearbeiten]').length === 2")
+    h.kein_waagrechtes_scrollen("leerer Bogen")

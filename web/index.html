@@ -18,7 +18,16 @@
 </head>
 <body>
   <div class="statusbar"><span id="status" class="pill">Verbinde…</span></div>
-  <div id="app" class="wrap"></div>
+  <!-- Ladebild (Studio-Runde 2, 14.11.2026): steht da, bis der erste Spielstand
+       kommt – vorher war die Seite leer und oben stand schon „Verbunden".
+       Das erste Zeichnen ersetzt den Inhalt von #app, dann ist es weg. -->
+  <div id="app" class="wrap"><div class="ladebild" aria-label="Lädt">
+    <img src="/static/icon.svg" alt="" class="ladebild-logo">
+    <div class="wortmarke ladebild-marke">Sundered Skies</div>
+    <div class="zier"><span>Initiative</span></div>
+    <div class="ladebild-balken"><i></i></div>
+    <div class="ladebild-text">Verbinde mit dem Spieltisch …</div>
+  </div></div>
 
   <script src="/static/cards.js?v=2.0.9"></script>
   <script src="/static/zones.js?v=2.0.9"></script>

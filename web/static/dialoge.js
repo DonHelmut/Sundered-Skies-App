@@ -15,12 +15,38 @@
 let _dialogZu = null;
 // inhalt/lesen: eigenes Formular (schon escaptes HTML) unter dem Text; jeder
 // Knopf außer Abbrechen liefert dann lesen(box) statt seines Werts.
-function dialog({ text, knoepfe, eingabe = null, inhalt = "", lesen = null }) {
+// Studio-Runde 2 (Kalle, 14.11.2026): Titel und Erklärung getrennt, links eine
+// Symbol-Kachel – vorher stand alles als ein Absatz in derselben Schrift. Der
+// Titel ist der erste Absatz (bis zur Leerzeile) bzw. die erste Zeile; ein
+// Emoji am Anfang wird zum Symbol. art: "gefahr" (rot), "frage", "hinweis".
+const DIALOG_SYMBOL = { gefahr: "triangle-alert", frage: "circle-help", hinweis: "info" };
+function dialogKopf(text, art) {
+  let teile = String(text || "").split(/\n\s*\n/);
+  let titel = teile.shift().trim();
+  let rest = teile.join("\n\n").trim();
+  if (titel.includes("\n")) {                     // „Titel\nErklärung"
+    const i = titel.indexOf("\n");
+    rest = (titel.slice(i + 1) + (rest ? "\n\n" + rest : "")).trim();
+    titel = titel.slice(0, i).trim();
+  }
+  // Lange Ein-Absatz-Fragen („Sicherung einspielen? Ersetzt …") am ersten „? " teilen.
+  const fz = titel.indexOf("? ");
+  if (titel.length > 60 && fz > 0) { rest = (titel.slice(fz + 2) + (rest ? "\n\n" + rest : "")).trim(); titel = titel.slice(0, fz + 1); }
+  let sym = DIALOG_SYMBOL[art] || "";
+  const emo = typeof SYMBOL_ZU === "object" && Object.keys(SYMBOL_ZU).find((e) => titel.startsWith(e));
+  if (emo) { if (art !== "gefahr") sym = SYMBOL_ZU[emo]; titel = titel.slice(emo.length).replace(/^\uFE0F?\s*/, ""); }
+  const symHtml = sym && typeof symbolSvg === "function"
+    ? `<div class="app-dialog-sym${art === "gefahr" ? " gefahr" : ""}">${symbolSvg(sym)}</div>` : "";
+  return `<div class="app-dialog-kopf">${symHtml}<div class="app-dialog-kopftext">
+      <div class="app-dialog-titel">${esc(titel)}</div>
+      ${rest ? `<div class="app-dialog-text">${esc(rest).replace(/\n/g, "<br>")}</div>` : ""}</div></div>`;
+}
+function dialog({ text, knoepfe, eingabe = null, inhalt = "", lesen = null, art = "" }) {
   return new Promise((fertig) => {
     if (_dialogZu) _dialogZu(null);                // höchstens einer offen
     const box = el(`<div class="app-dialog-hg" role="dialog" aria-modal="true">
       <div class="app-dialog panel">
-        <div class="app-dialog-text">${esc(text).replace(/\n/g, "<br>")}</div>
+        ${dialogKopf(text, art)}
         ${eingabe ? `<input class="app-dialog-eingabe" maxlength="60" value="${esc(eingabe.vorgabe || "")}">` : ""}
         ${inhalt ? `<div class="app-dialog-inhalt">${inhalt}</div>` : ""}
         <div class="app-dialog-knoepfe">${knoepfe.map((k, i) =>
@@ -66,10 +92,10 @@ function dialog({ text, knoepfe, eingabe = null, inhalt = "", lesen = null }) {
   });
 }
 // Ja/Nein -> true/false. gefahr: roter Knopf (Löschen, Entfernen …).
-const frage = (text, ja = "OK", gefahr = false) => dialog({ text, knoepfe: [
+const frage = (text, ja = "OK", gefahr = false) => dialog({ text, art: gefahr ? "gefahr" : "frage", knoepfe: [
   { text: "Abbrechen", wert: false, abbruch: true },
   { text: ja, wert: true, art: gefahr ? "bad" : "primary", standard: true }] });
-const hinweis = (text) => dialog({ text, knoepfe: [{ text: "OK", wert: true, art: "primary", standard: true, abbruch: true }] });
+const hinweis = (text) => dialog({ text, art: "hinweis", knoepfe: [{ text: "OK", wert: true, art: "primary", standard: true, abbruch: true }] });
 // Texteingabe -> getrimmter Text oder null (Abbrechen/leer).
 const eingabe = (text, vorgabe = "", ja = "OK") => dialog({ text, eingabe: { vorgabe }, knoepfe: [
   { text: "Abbrechen", wert: null, abbruch: true },
