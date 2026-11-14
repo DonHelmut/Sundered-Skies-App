@@ -77,6 +77,50 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.9 (14.11.2026): Studio-Optik – Schrift, Symbole, Beitritt, Startfläche
+
+Kalle: „Soll hochwertig wirken und professionell, wie von einem Entwickler-Studio."
+Gewählt aus 7 Vorschlägen: 1A + 2 + 3A + 4 + 5 + 6 + 7 (Bilder:
+`screenshots/studio-2026-11-14/`, gebaut unter `…/gebaut/`). Nicht gewählt:
+1B (Fraunces statt Cinzel), 3B (Beitritt schlicht mit App-Symbol).
+
+- **1A Schrift** mitgeliefert in `web/static/schrift/` (Inter 400–700 für Text,
+  Cinzel 600/700 für Überschriften, Panel-Köpfe, Wortmarke; OFL, `LIZENZ.txt`).
+  Offline – am Spieltisch gibt es kein Internet. CSS-Variablen `--schrift`,
+  `--schrift-titel`; Klasse `.wortmarke`.
+- **2 Linien-Symbole** statt Emoji: `web/static/symbole.js` (Lucide, ISC) VOR
+  `app.js`. `symboleEinsetzen(html)` tauscht ein Emoji direkt hinter einem
+  öffnenden Tag gegen ein SVG – läuft in `domAbgleichen` und `el()`, also für
+  alles, was gezeichnet wird. Emoji mitten im Text, in Attributen, in
+  `<textarea>` bleiben. Ausnahme Notiz-Themen (`notiz-chip/-reiter`,
+  `data-emoji`): dort wählen Spieler ihr Emoji selbst. Neues Emoji in einem
+  Knopf → in `SYMBOL_ZU` eintragen, sonst bleibt es bunt.
+- **3A Beitritt am Handy**: Kartenkunst (`rueckseite.svg`) als Bühne mit fester
+  Höhe + Wortmarke, Formular als Karte, Verbindungstipp eine Zeile.
+- **4 Startfläche** (`startflaecheHtml` in sl.js) bei leerem Tisch: Einladen
+  (QR groß) / Kampf vorbereiten / Abend starten.
+- **5 ☰ Mehr** in Gruppen Spiel/Daten/Hilfe, Zeilen `.km-zeile` ohne Rahmen.
+- **6 SL-Kopfleiste**: Logo + Wortmarke + „Spielleiter", Punkt „N Handys
+  verbunden" (`handysKopfHtml`, feste Mindestbreite) statt Pille; die Pille
+  zeigt beim SL nur noch Getrennt/Verbinde-neu. Knöpfe als Gruppe.
+- **7 Panels** beim SL hell, runde Ecken, weicher Schatten (`--flaeche`,
+  `--schatten-farbe`; dunkle Skins behalten ihre Panel-Farbe). Maße gleich.
+
+Neuer Test `test_studio_optik_schrift_symbole_startflaeche`.
+
+## Nach 2.0.9 (14.11.2026): Zwei kleine Optik-Bugs beim SL
+
+Gefunden bei der Vorschlagsrunde „Studio-Optik" (Bilder im Projektordner unter
+`screenshots/studio-2026-11-14/`, noch nichts davon gebaut):
+
+- **„Verbunden"-Pille stand mitten auf der schwebenden Anfrage.** Die Pille
+  liegt außerhalb von `#app`, `.wrap` bildet eine eigene Stapel-Ebene – der
+  höhere z-index der Anfrage half deshalb nicht. Jetzt: Pille ausgeblendet,
+  solange eine Anfrage schwebt UND die Verbindung steht (getrennt bleibt sie
+  sichtbar). Test in `test_sl_anfrage_und_kampfknoepfe_schieben_nichts`.
+- **☰ Mehr: „Sicherung importieren" größer als die anderen Einträge** (ist ein
+  `<label>` für das Datei-Feld, kein Knopf) – jetzt gleiche Schrift/Polsterung.
+
 ## 2.0.9 (11.11.2026): Patch mit dem Abschnitt darunter
 
 Nur Versionsnummer + Paket. Updater unverändert (Aktualisieren aus paket-208

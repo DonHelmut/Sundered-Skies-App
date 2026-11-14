@@ -24,15 +24,18 @@ function renderGM() {
 
   return `
     <div class="row spread sl-kopf" style="align-items:center; margin-bottom:10px">
-      <h1 style="margin:0">Spielleiter · Sundered Skies Initiative</h1>
+      <h1 class="kopf-marke"><img src="/static/icon.svg" alt="" class="kopf-logo"><span class="wortmarke">Sundered Skies</span><span class="kopf-rolle">Spielleiter</span></h1>
       <div class="row tight">
+        ${handysKopfHtml()}
         ${aufnahmeKopfHtml()}
         ${modusKopfHtml()}
         ${updateKopfHtml()}
         ${anordnungIstStandard(spalte) ? "" : `<button class="ghost" data-act="anordnung-zuruecksetzen" title="Panels wieder in die ursprüngliche Reihenfolge bringen">↺ Anordnung zurücksetzen</button>`}
+        <span class="kopf-gruppe">
         ${kopfMenueHtml()}
         <button class="ghost" data-act="fokus" title="Alles ausser Kampf, Zonen und Reihenfolge zuklappen">
           ${App.fokus ? "▤ Alles zeigen" : "▣ Fokus auf den Kampf"}</button>
+        </span>
       </div>
     </div>
     ${resume}
@@ -150,6 +153,17 @@ function wlanHtml(w) {
     ? ` title="Nur 2,4 GHz – gibt es hier ein 5-GHz-Netz? Dann Laptop UND Handys dorthin, alle ins selbe WLAN."`
     : "";
   return `<div class="pill ${nur24 ? "warn" : ""}" style="margin-top:8px"${tipp}>📶 Laptop-WLAN: <b>${esc(w.ssid)}</b>${teile.length ? " · " + teile.join(" · ") : ""}</div>`;
+}
+
+// Kopfleiste (Studio-Runde 6): statt der grünen „Verbunden"-Pille mitten in
+// der Leiste ein ruhiger Punkt mit dem, was der SL wirklich wissen will – wie
+// viele Handys da sind. Getrennt/Verbinde-neu zeigt weiter die Pille (CSS).
+// Feste Breite (min-width), damit „1 Handy"/„12 Handys" die Knöpfe nicht rückt.
+function handysKopfHtml() {
+  const players = (App.state && App.state.players) || [];
+  const da = players.filter((p) => p.connected).length;
+  const text = players.length ? `${da} ${da === 1 ? "Handy" : "Handys"} verbunden` : "Noch kein Handy";
+  return `<span class="kopf-handys${da ? " an" : ""}" title="${esc(players.map((p) => `${p.connected ? "●" : "○"} ${p.name}`).join("\n") || "Spieler treten per QR-Code bei")}"><i></i>${text}</span>`;
 }
 
 function connectedPlayersHtml() {
@@ -610,20 +624,28 @@ function verbindungsHilfeHtml() {
 // Selten gebrauchte Werkzeuge (TV, Sicherung, Bilder aufräumen) im Menü der
 // Kopfleiste statt im Beitritts-Panel - dort standen sie jeden Abend im Weg.
 function kopfMenueHtml() {
+  // Gegliedert wie ein Programm-Menü (Kalle, 14.11.2026, Studio-Runde 5):
+  // vorher zehn gleich aussehende Kasten-Knöpfe untereinander, man musste
+  // jeden lesen. Jetzt drei Gruppen, Zeilen ohne Rahmen, Kürzel rechts.
   return `<details class="kopf-menue" data-merk="kopfmenue"${App.offeneUnter.has("kopfmenue") ? " open" : ""}>
     <summary title="Werkzeuge: TV-Modus, Sicherung, Bilder aufräumen">☰ Mehr</summary>
     <div class="kopf-menue-inhalt">
-      <button class="ghost" data-act="anleitung-oeffnen" title="Was alles geht und wo es steckt">📖 Anleitung für den SL</button>
-      <button class="ghost" data-act="modus-oeffnen" title="Teile der App an- und ausschalten (z. B. nur Reihenfolge, ohne Treffer)">🎛 Was nutzen wir heute?</button>
-      <a href="/tv" target="_blank" rel="noopener"><button class="ghost">📺 TV-/Beamer-Modus öffnen</button></a>
-      <a href="/api/export"><button class="ghost" title="Charaktere + Bibliotheken + Begegnungen, mit allen Bildern (Zip)">💾 Sicherung exportieren</button></a>
-      <label class="ghost knopf-label" title="Zip-Sicherung (oder alte .json) einspielen">⤵ Sicherung importieren
+      <div class="km-gruppe">Spiel</div>
+      <button class="km-zeile" data-act="modus-oeffnen" title="Teile der App an- und ausschalten (z. B. nur Reihenfolge, ohne Treffer)">🎛 Was nutzen wir heute?</button>
+      <a href="/tv" target="_blank" rel="noopener"><button class="km-zeile">📺 TV-/Beamer-Modus öffnen</button></a>
+      <button class="km-zeile" data-act="reset" title="Alle Karten einsammeln und neu mischen, Runde 0 – Gegner bleiben stehen">⟲ Karten einsammeln (Runde 0)</button>
+      <div class="km-trenner"></div>
+      <div class="km-gruppe">Daten</div>
+      <a href="/api/export"><button class="km-zeile" title="Charaktere + Bibliotheken + Begegnungen, mit allen Bildern (Zip)">💾 Sicherung exportieren</button></a>
+      <label class="km-zeile" title="Zip-Sicherung (oder alte .json) einspielen">⤵ Sicherung importieren
         <input type="file" accept=".zip,application/zip,application/json,.json" data-act="pick-import" style="display:none"></label>
-      <button class="ghost" data-act="sicherungen-zeigen" title="Die App sichert Charaktere, Notizen, Bibliotheken und Protokolle etwa stündlich selbst">🛟 Automatische Sicherungen</button>
-      <button class="ghost" data-act="reset" title="Alle Karten einsammeln und neu mischen, Runde 0 – Gegner bleiben stehen">⟲ Karten einsammeln (Runde 0)</button>
-      <button class="ghost" data-act="bilder-aufraeumen" title="Löscht hochgeladene Bilder, die von keiner Figur mehr benutzt werden">🧹 Alte Bilder aufräumen</button>
-      <button class="ghost" data-act="tasten-hilfe" title="Alle Tastenkürzel (Taste ?)">⌨ Tastenkürzel</button>
-      ${versionLine()}
+      <button class="km-zeile" data-act="sicherungen-zeigen" title="Die App sichert Charaktere, Notizen, Bibliotheken und Protokolle etwa stündlich selbst">🛟 Automatische Sicherungen</button>
+      <button class="km-zeile" data-act="bilder-aufraeumen" title="Löscht hochgeladene Bilder, die von keiner Figur mehr benutzt werden">🧹 Alte Bilder aufräumen</button>
+      <div class="km-trenner"></div>
+      <div class="km-gruppe">Hilfe</div>
+      <button class="km-zeile" data-act="anleitung-oeffnen" title="Was alles geht und wo es steckt">📖 Anleitung für den SL</button>
+      <button class="km-zeile" data-act="tasten-hilfe" title="Alle Tastenkürzel (Taste ?)">⌨ Tastenkürzel<kbd>?</kbd></button>
+      <div class="km-fuss">${versionLine()}</div>
     </div>
   </details>`;
 }
@@ -1306,13 +1328,43 @@ function renderRequestsPanel() {
     <div class="as-titel">✋ ${s.requests.length === 1 ? "Anfrage" : `Anfragen (${s.requests.length})`}</div>${rows}</div>`;
 }
 
+// Startfläche bei leerem Tisch (Kalle, 14.11.2026, Studio-Runde Vorschlag 4):
+// vorher stand hier nur ein grauer Satz, der Rest der Seite war leer – der
+// erste Eindruck jedes Abends. Jetzt die drei Schritte, die vor dem ersten
+// Austeilen anstehen, je mit einem Knopf. Verschwindet, sobald jemand am Tisch
+// ist (dann steht hier die Reihenfolge) – schiebt also mitten im Spiel nichts.
+function startflaecheHtml() {
+  const s = App.state;
+  const spieler = s.players || [];
+  const da = spieler.filter((p) => p.connected).length;
+  const punkte = Array.from({ length: Math.max(5, spieler.length) }, (_, i) =>
+    `<i class="${i < da ? "an" : ""}"></i>`).join("");
+  const zeile = (sym, titel, text, knopf, extra = "") => `<div class="sf-zeile">
+      <div class="sf-sym">${symbolSvg(sym)}</div>
+      <div class="sf-text"><div class="sf-titel">${titel}</div><div class="sf-unter">${text}</div>${extra}</div>
+      ${knopf}</div>`;
+  const zeilen = [
+    zeile("qr-code", "Spieler einladen", "QR-Code zeigen – Handys treten ohne Installation bei.",
+      `<button class="ghost sf-knopf" data-act="qr-gross">QR-Code zeigen ${symbolSvg("chevron-right")}</button>`,
+      `<div class="sf-handys">${punkte}<span>${da ? `${da} ${da === 1 ? "Handy" : "Handys"} da` : "noch niemand da"}</span></div>`),
+    zeile("swords", "Kampf vorbereiten", "Gegner aus der Bibliothek oder als Text einfügen.",
+      `<button class="ghost sf-knopf" data-act="kaempfe-zeigen">Kampf anlegen ${symbolSvg("chevron-right")}</button>`),
+    funktionAn("aufnahme") ? zeile("mic", "Abend starten", "Aufnahme an – das Protokoll entsteht am Ende von selbst.",
+      `<button class="ghost sf-knopf" data-act="aufn-abend">Abend starten ${symbolSvg("chevron-right")}</button>`) : "",
+  ].join("");
+  return `<div class="startflaeche">
+    <div class="sf-kopf"><div class="wortmarke sf-gruss">Willkommen am Tisch</div>
+      <div class="muted small">Ein paar Schritte, dann geht's los.</div></div>
+    ${zeilen}</div>`;
+}
+
 function renderOrderPanel(isGM) {
   const s = App.state;
   if (s.combatants.length === 0) {
     // SL: Kampf-Steuerung trotzdem zeigen (Austeilen etc.), Initiative noch leer.
     if (isGM) {
       return section("combat", `Kampf & Initiative · Runde ${s.round}`,
-        `${renderControlBody()}<hr class="combat-sep"><div class="muted">Noch keine Teilnehmer. Spieler treten per QR-Code bei (links unter „Beitritt für Spieler"), Gegner und Verbündete kommen links aus den Bibliotheken.</div>`);
+        `${renderControlBody()}<hr class="combat-sep">${startflaecheHtml()}`);
     }
     return section("order", "Reihenfolge", `<div class="muted">Noch keine Teilnehmer. Spieler treten per QR-Code bei.</div>`);
   }

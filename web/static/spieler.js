@@ -1023,7 +1023,7 @@ function renderJoin() {
     // Klar sagen, dass hier ein Charakter ENTSTEHT - „Beitreten" allein las
     // sich beim ersten Start, als fehle die Charakterwahl (Stefan).
     inhalt = `
-      <div class="join-titel">➕ Neuen Charakter erstellen</div>
+      <div class="join-titel">Neuen Charakter erstellen</div>
       ${s.roster.length ? "" : `<div class="muted small" style="margin-bottom:8px">Noch keine Charaktere da – leg deinen an. Werte trägst du danach im Charakterbogen ein.</div>`}
       <label class="field"><span>Name des Charakters</span>
         <input id="joinneu" value="${esc(E.neuName)}" placeholder="z. B. Tessa" maxlength="40" autocomplete="off" enterkeyhint="go"></label>
@@ -1031,15 +1031,24 @@ function renderJoin() {
       <button class="primary big" data-act="join-neu" style="width:100%">Charakter erstellen &amp; beitreten</button>
       ${s.roster.length ? `<div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="liste">← zur Liste</button></div>` : ""}`;
   }
+  // Erster Eindruck (Kalle, 14.11.2026, Studio-Runde 3A): Kartenkunst als
+  // Bühne + Wortmarke statt einer Georgia-Überschrift über einem Formular.
+  // Die Bühne ist ein fester Block (feste Höhe) – nichts rückt, wenn das Bild
+  // lädt; es liegt als Hintergrund drin.
   return `
-    <h1 class="center">Sundered Skies · Beitreten</h1>
+    <div class="join-buehne" aria-hidden="true">
+      <div class="join-buehne-bild"></div>
+      <div class="join-marke"><div class="wortmarke">Sundered Skies</div>
+        <div class="zier"><span>Initiative</span></div></div>
+    </div>
+    <h1 class="sr-only">Sundered Skies Initiative – Beitreten</h1>
     <div class="panel join-form">
       ${fehler}
       ${inhalt}
     </div>
     ${handyTipp()}
-    <div class="center muted small">Nichts zu installieren – läuft direkt im Browser.</div>
-    <div class="center muted small" style="margin-top:4px; opacity:0.75">Inoffizielles Fanprojekt für Savage Worlds: Sundered Skies.</div>
+    <div class="join-fuss">Nichts zu installieren – läuft direkt im Browser.<br>
+      Inoffizielles Fanprojekt für Savage Worlds: Sundered Skies.</div>
   `;
 }
 
@@ -1050,11 +1059,9 @@ function handyTipp() {
   let touch = false;
   try { touch = window.matchMedia("(pointer: coarse)").matches; } catch { /* egal */ }
   if (!touch) return "";
-  return `<div class="panel verbindungs-tipp">
-      <div class="verbindungs-tipp-titel">📶 Tipp für ein stabiles Spiel</div>
-      <div><b>Flugmodus an</b> und danach nur <b>WLAN</b> wieder einschalten – oder
-      mobile Daten aus.</div>
-      <div class="muted small">Sonst springt das Handy bei Internet-Aussetzern im WLAN
-      still auf Mobilfunk und verliert den Spieltisch.</div>
+  // Eine Zeile statt eigenem Kasten (Studio-Runde 3A); die Begründung steht
+  // im title und in der SL-Anleitung.
+  return `<div class="verbindungs-tipp" title="Sonst springt das Handy bei Internet-Aussetzern im WLAN still auf Mobilfunk und verliert den Spieltisch.">
+      <span>📶</span><span><b>Flugmodus an, dann nur WLAN</b> – oder mobile Daten aus. So bleibt die Verbindung stabil.</span>
     </div>`;
 }
