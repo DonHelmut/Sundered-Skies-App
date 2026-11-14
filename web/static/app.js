@@ -5,7 +5,8 @@
 // damit man schneller findet und zwei PCs seltener in derselben Datei kollidieren:
 //   app.js → verbindung.js → dialoge.js → tisch.js → render.js → sl.js →
 //   bogen.js → spieler.js → ereignisse.js → aktionen.js → protokoll.js → regeln.js → start.js
-//   (dazu modi.js, als-app.js, update.js = Update-Hinweis, wach.js = Handy bleibt wach)
+//   (dazu modi.js, als-app.js, update.js = Update-Hinweis, wach.js = Handy bleibt wach,
+//   symbole.js = Linien-Symbole statt Emoji, steht VOR app.js)
 // Klassische <script>-Dateien mit gemeinsamem globalem Bereich (kein Build).
 // Reihenfolge in index.html zählt: Code, der beim LADEN läuft, darf nur auf
 // Dinge aus früheren Dateien zugreifen; Aufrufe in Funktionen/Handlern sind egal.
@@ -108,7 +109,7 @@ function versionLine() {
     `<div class="muted small" style="margin-top:2px">Inoffizielles Fanprojekt – nicht verbunden mit Pinnacle (Savage Worlds) oder Triple Ace Games (Sundered Skies).</div>` +
     (stale ? `<div class="pill bad" style="margin-top:4px">⚠ Alte Seite im Cache (v${esc(ASSET_VERSION)} statt v${esc(server)}). Einmal Strg+F5 drücken.</div>` : "");
 }
-const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+const el = (html) => { const t = document.createElement("template"); t.innerHTML = symboleEinsetzen(html.trim()); return t.content.firstChild; };
 // Adressbereich = die ersten drei Zahlen einer IPv4 („192.168.178.").
 // Handys müssen darin liegen wie der Laptop - sonst sind sie in einem anderen
 // Netz (Gast-WLAN der Fritzbox ist z. B. 192.168.179.x, Mobilfunk ganz anders)

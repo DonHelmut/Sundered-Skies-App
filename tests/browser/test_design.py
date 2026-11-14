@@ -276,7 +276,9 @@ def test_sl_anfrage_und_kampfknoepfe_schieben_nichts(tisch):
     assert sl.js("() => getComputedStyle(document.querySelector('.anfragen-schweb')).position") == "fixed"
     sl.klick(".anfragen-schweb [data-act=req-dismiss]")
     sl.warte_bis("() => !document.querySelector('.anfragen-schweb')")
-    assert sl.js("() => getComputedStyle(document.querySelector('.statusbar')).visibility") == "visible"
+    # Beim SL steht seit der Studio-Runde ohnehin der Handy-Punkt statt der Pille.
+    assert sl.js("() => getComputedStyle(document.querySelector('.statusbar')).visibility") == "hidden"
+    assert "2 Handys verbunden" in sl.js("() => document.querySelector('.kopf-handys').textContent")
     assert _oben(sl, "[data-sec=zones]") == zonen, "Kampfzonen sind beim Wegklicken der Anfrage verrutscht"
     # Gegner fällt: „🧹 … weg" erscheint IN der Knopfzeile, die Reihenfolge bleibt stehen.
     pirat = next(c for c in sl.state()["combatants"] if c["name"] == "Pirat 1")
@@ -297,3 +299,27 @@ def test_handy_reihenfolge_eine_zeile(tisch):
     hoehen = h.js("() => [...document.querySelectorAll('.order .combatant')].map(e => Math.round(e.getBoundingClientRect().height))")
     assert max(hoehen) <= 62, f"Zeilen zu hoch (zweizeilig?): {hoehen}"
     h.kein_waagrechtes_scrollen("Reihenfolge")
+
+
+def test_studio_optik_schrift_symbole_startflaeche(tisch):
+    """Studio-Runde 14.11.2026: eigene Schrift geladen, Linien-Symbole statt
+    Emoji (Notiz-Themen bleiben roh), Startfläche bei leerem Tisch, ☰-Menü in
+    Gruppen, Handy-Punkt statt Pille."""
+    sl = tisch.sl()
+    sl.warte_bis("() => document.fonts.check('16px Inter') && document.fonts.check('16px Cinzel')")
+    assert sl.page.locator(".startflaeche .sf-zeile").count() == 3
+    assert "Noch kein Handy" in sl.js("() => document.querySelector('.kopf-handys').textContent")
+    sl.klick(".kopf-menue > summary")
+    gruppen = sl.js("() => [...document.querySelectorAll('.km-gruppe')].map(e => e.textContent)")
+    assert gruppen == ["Spiel", "Daten", "Hilfe"]
+    h = tisch.handy("Tessa")
+    sl.warte_bis("() => !document.querySelector('.startflaeche')")
+    # Reiter: Symbol statt Emoji
+    tabs = h.js("() => [...document.querySelectorAll('.handy-reiter button')].map(b => [!!b.querySelector('svg.ic'), b.textContent.trim()])")
+    assert tabs and all(svg for svg, _ in tabs), tabs
+    assert not any("⚔" in t or "📜" in t for _, t in tabs)
+    # Notiz-Themen-Chips behalten das selbst gewählte Emoji.
+    h.js("""() => gmAction({type: 'notizen_setzen', eintraege: [{id: 'n1', text: 'Schuld', thema: '📜 Aufträge'}]})""")
+    h.reiter("notizen")
+    h.warte_bis("() => [...document.querySelectorAll('.notiz-reiter')].some(b => b.textContent.includes('📜'))")
+    h.kein_waagrechtes_scrollen("Notizen")

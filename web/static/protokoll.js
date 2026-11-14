@@ -90,7 +90,7 @@ function protokollNeuster() {
 const protKnopf = document.createElement("button");
 protKnopf.id = "protokoll-knopf";
 protKnopf.type = "button";
-protKnopf.textContent = "📜";
+protKnopf.innerHTML = symbolSvg("scroll-text");   // Linien-Symbol wie überall (symbole.js)
 protKnopf.title = "Protokolle der Spielabende";
 protKnopf.hidden = true;
 protKnopf.addEventListener("click", (e) => {

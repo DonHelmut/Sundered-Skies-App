@@ -2968,3 +2968,151 @@ body.sl-ansicht .aktionsleiste .al-haupt button { box-sizing: border-box; height
 /* Panel-Kopf: mit ⓘ-Knopf war er 1 px höher als ohne - der Knopf kommt und
    geht (Kampf-Panel: nur vor dem Austeilen), und alles darunter zuckte. */
 body.sl-ansicht .grid2 details.section > .sec-head { min-height: 46px; box-sizing: border-box; }
+
+/* =============================================================================
+   Studio-Optik (Kalle, 14.11.2026: „hochwertig, professionell, wie von einem
+   Entwickler-Studio" – gewählt 1A + 2 + 3A + 4–7, Bilder im Projektordner
+   screenshots/studio-2026-11-14/). Steht bewusst AM ENDE: überschreibt die
+   älteren Regeln, ohne sie einzeln anzufassen.
+   ========================================================================== */
+
+/* 1A Eigene Schrift, mitgeliefert (kein Internet am Spieltisch): Inter für
+   Text, Cinzel-Kapitälchen für Überschriften und die Wortmarke. Vorher
+   system-ui + Georgia – sah auf jedem Gerät anders aus. „swap": bis die Datei
+   da ist (lokal: Millisekunden) steht die Systemschrift, nie leerer Text. */
+@font-face { font-family: "Inter"; src: url(/static/schrift/inter-latin-400-normal.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Inter"; src: url(/static/schrift/inter-latin-500-normal.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Inter"; src: url(/static/schrift/inter-latin-600-normal.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Inter"; src: url(/static/schrift/inter-latin-700-normal.woff2) format("woff2"); font-weight: 700 900; font-display: swap; }
+@font-face { font-family: "Cinzel"; src: url(/static/schrift/cinzel-latin-600-normal.woff2) format("woff2"); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "Cinzel"; src: url(/static/schrift/cinzel-latin-700-normal.woff2) format("woff2"); font-weight: 700 900; font-display: swap; }
+
+:root {
+  --schrift: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --schrift-titel: "Cinzel", Georgia, "Times New Roman", serif;
+  /* Flächen/Schatten: dunkle Skins behalten ihre Panel-Farbe, das helle
+     Pergament bekommt hellere Karten mit warmem statt grauem Schatten. */
+  --flaeche: var(--panel);
+  --schatten-farbe: rgba(0, 0, 0, 0.45);
+}
+body.theme-pergament {
+  --flaeche: color-mix(in srgb, var(--panel) 86%, white 14%);
+  --schatten-farbe: rgba(60, 34, 10, 0.42);
+}
+body, button, input, select, textarea { font-family: var(--schrift); }
+/* Ziffern gleich breit: Runden, Wunden, Karten-Zähler springen nicht. */
+body { font-feature-settings: "tnum" 1, "cv11" 1; }
+h1, h2, h3, .wortmarke { font-family: var(--schrift-titel); }
+.wortmarke { font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Panel-Köpfe in Kapitälchen (SL und Handy) */
+details.section > .sec-head .sec-title,
+body.sl-ansicht .grid2 details.section > .sec-head .sec-title {
+  font-family: var(--schrift-titel); font-weight: 700; letter-spacing: 0.1em; color: var(--accent); }
+body.sl-ansicht .grid2 details.section > .sec-head .sec-title { font-size: 0.84rem; }
+.hk-name { font-family: var(--schrift-titel); letter-spacing: 0.06em; }
+
+/* 2 Linien-Symbole (symbole.js) statt Emoji */
+.ic { width: 1.05em; height: 1.05em; vertical-align: -0.16em; flex: none; }
+.sec-title .ic, .zb-emoji .ic { color: var(--accent2); }
+.zb-emoji { display: inline-flex; align-items: center; justify-content: center; }
+
+/* 6 SL-Kopfleiste: Logo + Wortmarke links, Handy-Punkt, Knöpfe als Gruppe */
+body.sl-ansicht .sl-kopf {
+  background: var(--flaeche); border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 18px -12px var(--schatten-farbe); }
+body.sl-ansicht .sl-kopf h1.kopf-marke {
+  display: flex; align-items: center; gap: 10px; font-family: var(--schrift-titel);
+  font-size: 1rem; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+.kopf-logo { width: 26px; height: 26px; border-radius: 7px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); flex: none; }
+.kopf-rolle { font: 600 0.68rem var(--schrift); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  padding-left: 10px; border-left: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.kopf-handys { display: inline-flex; align-items: center; gap: 7px; min-width: 10.5em; justify-content: flex-end;
+  font-size: 0.8rem; color: var(--muted); margin-right: 6px; white-space: nowrap; }
+.kopf-handys i { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--line) 70%, transparent); }
+.kopf-handys.an i { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 22%, transparent); }
+.kopf-gruppe { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--line) 55%, transparent); background: color-mix(in srgb, var(--panel) 70%, transparent); }
+body.sl-ansicht .sl-kopf .kopf-gruppe > button, body.sl-ansicht .sl-kopf .kopf-gruppe .kopf-menue > summary {
+  border-color: transparent; background: transparent; font-weight: 500; }
+body.sl-ansicht .sl-kopf .kopf-gruppe > button:hover, body.sl-ansicht .sl-kopf .kopf-gruppe .kopf-menue > summary:hover,
+body.sl-ansicht .sl-kopf .kopf-gruppe .kopf-menue[open] > summary {
+  background: color-mix(in srgb, var(--accent2) 12%, transparent); border-color: transparent; }
+/* Die Pille sagt beim SL nur noch etwas, wenn die Verbindung WEG ist – sonst
+   steht der Handy-Punkt da. */
+body.sl-ansicht[data-verbindung="online"] .statusbar { visibility: hidden; }
+
+/* 5 ☰ Mehr: Menü mit Gruppen statt Kasten-Knöpfen */
+body.sl-ansicht .sl-kopf .kopf-menue-inhalt {
+  min-width: 290px; padding: 6px; border-radius: 14px; background: var(--flaeche);
+  border: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+  box-shadow: 0 24px 48px -16px var(--schatten-farbe), 0 2px 8px rgba(0, 0, 0, 0.1); }
+.km-gruppe { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); padding: 8px 10px 4px; }
+.kopf-menue-inhalt a { display: block; text-decoration: none; }
+body.sl-ansicht .sl-kopf .km-zeile {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; padding: 8px 10px; margin: 0;
+  border: 0; border-radius: 8px; background: transparent; color: var(--text); font-size: 0.88rem; font-weight: 400; cursor: pointer; }
+body.sl-ansicht .sl-kopf .km-zeile:hover { background: color-mix(in srgb, var(--accent2) 12%, transparent); }
+.km-zeile .ic { color: var(--accent2); }
+.km-zeile kbd { margin-left: auto; font: 600 0.7rem var(--schrift); padding: 1px 6px; border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); color: var(--muted); }
+.km-trenner { height: 1px; margin: 6px 8px; background: color-mix(in srgb, var(--line) 40%, transparent); }
+.km-fuss { padding: 2px 10px 4px; font-size: 0.72rem; opacity: 0.85; }
+.km-fuss .small { font-size: 0.72rem; }
+
+/* 7 Ruhigere Panels beim SL: helle Karten, runde Ecken, weicher Schatten statt
+   farbigem Band am Kopf. Maße (Höhen, Abstände) bleiben – nichts rückt. */
+body.sl-ansicht .grid2 .panel {
+  border-radius: 14px; background: var(--flaeche);
+  border: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
+  box-shadow: 0 10px 24px -18px var(--schatten-farbe); }
+body.sl-ansicht .grid2 details.section > .sec-head {
+  background: transparent; box-shadow: none; border-bottom: 1px solid color-mix(in srgb, var(--line) 30%, transparent); }
+body.sl-ansicht .aktionsleiste {
+  background: var(--flaeche); border-top: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+  box-shadow: 0 -10px 24px -14px var(--schatten-farbe); }
+
+/* 4 Startfläche bei leerem Tisch */
+.startflaeche { display: grid; gap: 10px; padding: 2px 0 6px; }
+.sf-kopf { margin: 4px 0 4px; }
+.sf-gruss { font-size: 1.05rem; margin-bottom: 2px; }
+.sf-zeile { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px;
+  background: color-mix(in srgb, var(--flaeche) 70%, white 8%); border: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
+  box-shadow: 0 6px 18px -14px var(--schatten-farbe); }
+.sf-sym { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: none;
+  font-size: 1.15rem; color: var(--accent2); background: color-mix(in srgb, var(--accent2) 14%, transparent); }
+.sf-text { flex: 1; min-width: 0; }
+.sf-titel { font-weight: 650; margin-bottom: 2px; }
+.sf-unter { font-size: 0.85rem; color: var(--muted); line-height: 1.4; }
+.sf-knopf { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 600; color: var(--accent2); }
+.sf-handys { display: flex; gap: 6px; margin-top: 8px; align-items: center; font-size: 0.78rem; color: var(--muted); }
+.sf-handys i { width: 9px; height: 9px; border-radius: 50%; background: color-mix(in srgb, var(--line) 60%, transparent); }
+.sf-handys i.an { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+.sf-handys span { margin-left: 4px; }
+
+/* 3A Beitritt am Handy: Kartenkunst als Bühne, Wortmarke, ruhiges Formular */
+.join-buehne { position: relative; height: 300px; margin: -44px -16px 0; overflow: hidden; }
+.join-buehne-bild { position: absolute; inset: -110px -12% 0; background: url(/static/rueckseite.svg) center top / cover no-repeat; }
+.join-buehne::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 42%, var(--bg) 97%); }
+.join-marke { position: absolute; left: 0; right: 0; bottom: 22px; z-index: 1; text-align: center; }
+.join-marke .wortmarke { font-size: 1.8rem; color: #2c1a0a; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4); }
+.zier { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 6px;
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.32em; text-transform: uppercase; color: #6b4a2a; }
+.zier::before, .zier::after { content: ""; height: 1px; width: 56px; background: linear-gradient(90deg, transparent, currentColor); }
+.zier::after { transform: scaleX(-1); }
+.join-form { border-radius: 20px; background: var(--flaeche); border: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+  box-shadow: 0 20px 40px -18px var(--schatten-farbe), 0 2px 6px rgba(0, 0, 0, 0.06); padding: 20px 18px; }
+.join-form .join-titel { font-weight: 650; font-size: 1.08rem; }
+.join-form input { height: 50px; border-radius: 12px; font-size: 1.02rem; }
+.join-form button.big { border-radius: 14px; min-height: 52px; }
+.verbindungs-tipp { display: flex; gap: 10px; align-items: center; margin: 14px 0 0; padding: 12px 14px; border-radius: 12px;
+  font-size: 0.84rem; line-height: 1.45; color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 50%, transparent); border: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
+.verbindungs-tipp b { color: var(--text); font-weight: 600; }
+.join-fuss { text-align: center; font-size: 0.72rem; color: var(--muted); opacity: 0.85; margin-top: 18px; line-height: 1.6; }
+.sf-knopf { font-size: 0.88rem; padding: 8px 14px; }
+/* Beitritt: die „Verbunden"-Pille stand mitten in der Kartenkunst. Solange die
+   Verbindung steht, sagt sie nichts – Getrennt bleibt sichtbar. */
+body[data-verbindung="online"]:has(.join-buehne) .statusbar { visibility: hidden; }

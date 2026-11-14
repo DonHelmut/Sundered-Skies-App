@@ -18,7 +18,9 @@
 // statt dass alle Zeilen darunter umgeschrieben werden.
 function domAbgleichen(root, html) {
   const t = document.createElement("template");
-  t.innerHTML = html;
+  // Emoji → Linien-Symbol (symbole.js). Abfrage, weil Tests render.js auch
+  // allein laden.
+  t.innerHTML = typeof symboleEinsetzen === "function" ? symboleEinsetzen(html) : html;
   kinderAbgleichen(root, t.content);
 }
 function domKennung(n) {
