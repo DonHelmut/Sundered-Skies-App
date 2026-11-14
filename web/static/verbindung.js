@@ -202,7 +202,17 @@ function zeigeOfflineHinweis() {
   const lange = seit > 25 || mobil;
   const bereich = adressBereich(location.hostname);
   const gemerkt = App.warteschlange.length;
-  const html = `
+  // Kurz weg (Kalle, 14.11.2026, Studio-Runde 2 Vorschlag 4): nur eine ruhige
+  // Leiste unten, das Spiel bleibt sichtbar – vorher Vollbild-Dialog PLUS
+  // „Getrennt"-Pille oben. Dauert es länger, wird daraus das Blatt mit den
+  // Prüfpunkten (schwebt ebenfalls, schiebt nichts).
+  const html = !lange ? `
+    <div class="offline-box kurz" role="status">
+      <div class="offline-sym"><div class="offline-ring"></div></div>
+      <div class="offline-kurztext"><b>Verbindung kurz weg</b>
+        <span>Nicht neu laden – kommt von selbst zurück.${gemerkt ? ` ✓ ${gemerkt} Eingabe${gemerkt === 1 ? "" : "n"} gemerkt.` : ""}</span></div>
+      <button class="ghost" data-act="jetzt-verbinden">↻ Jetzt</button>
+    </div>` : `
     <div class="offline-box">
       <div class="offline-ring"></div>
       <div class="offline-titel">${mobil ? "Handy ist auf Mobilfunk" : "Verbindung kurz weg"}</div>
@@ -219,7 +229,7 @@ function zeigeOfflineHinweis() {
     </div>`;
   // Nur bei echter Änderung neu setzen - sonst springt der Ring bei jedem
   // Verbindungsversuch (alle 1,5 s) zurück auf Anfang.
-  if (el._html !== html) { el.innerHTML = html; el._html = html; }
+  if (el._html !== html) { el.innerHTML = symboleEinsetzen(html); el._html = html; }
 }
 
 function versteckeOfflineHinweis() {

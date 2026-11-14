@@ -77,6 +77,32 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.10 (14.11.2026): Studio-Runde 2 – Dialoge, Meldungen, Ladebild, Verbindung
+
+Kalle wählte „Alles" (Bilder: `screenshots/studio-runde2-2026-11-14/`, gebaut
+unter `…/gebaut/`):
+
+- **Dialoge** (`dialoge.js` `dialogKopf`): erster Absatz/erste Zeile = Titel,
+  Rest = Erklärung (`.app-dialog-text`), Symbol-Kachel links (Emoji vorn im
+  Text → Symbol; `art`: gefahr/frage/hinweis). Lange Ein-Absatz-Fragen werden
+  am ersten „? " geteilt. Für neue Rückfragen: „Titel?\n\nErklärung".
+- **Meldungen** (`toast` in sl.js): Symbol + Farbe je Art (●=Aufnahme rot,
+  ✓/■=grün, „nicht/kein/fehl"=Warnung, sonst Hinweis). SL unten rechts.
+- **Ladebild** in `index.html` innerhalb von `#app` – das erste Zeichnen
+  ersetzt es. Pille oben solange aus.
+- **Verbindung kurz weg**: Leiste unten (Spiel bleibt sichtbar), ab 25 s / auf
+  Mobilfunk wie bisher das Blatt mit Prüfpunkten, jetzt unten. Keine zweite
+  „Getrennt"-Pille mehr.
+- **Leerer Bogen**: Symbol, ein Satz, „Werte eintragen" + „📷 Foto vom
+  Papierbogen" (öffnet direkt den Foto-Reiter, `data-reiter` an
+  `bogen-bearbeiten`).
+- **Übergänge**: Dialog/Menü/Panel/Anfrage blenden 140–200 ms ein, nur
+  opacity/transform; `prefers-reduced-motion` schaltet sie ab.
+- Nebenbei: roter Knopf auf Pergament hatte dunklen Text auf Dunkelrot → hell.
+
+Test: `test_studio_runde2_dialog_meldung_ladebild_leerer_bogen`; Foto-Test
+angepasst (leerer Bogen hat jetzt 2 Knöpfe).
+
 ## Nach 2.0.9 (14.11.2026): Studio-Optik – Schrift, Symbole, Beitritt, Startfläche
 
 Kalle: „Soll hochwertig wirken und professionell, wie von einem Entwickler-Studio."

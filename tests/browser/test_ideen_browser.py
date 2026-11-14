@@ -154,13 +154,12 @@ def test_foto_vom_papierbogen(tisch, tmp_path):
     h = tisch.handy("Mira")
     bild = tmp_path / "bogen.png"
     bild.write_bytes(PNG)
-    # Leerer Bogen: EIN Knopf „Mein Charakter" (seit 11.11.2026), darin der
-    # Reiter „📷 Foto".
+    # Leerer Bogen (seit 14.11.2026): Leerzustand mit zwei Wegen – „Werte
+    # eintragen" und „📷 Foto vom Papierbogen", der gleich den Foto-Reiter öffnet.
     h.reiter("bogen")
     h.warte_bis("() => document.querySelector('.bogen-leer [data-act=bogen-bearbeiten]')")
-    assert h.page.locator(".bogen-leer button, .bogen-leer label").count() == 1
-    h.klick(".bogen-leer [data-act=bogen-bearbeiten]")
-    h.klick(".bogen .reiter [data-reiter=foto]")
+    assert h.page.locator(".bogen-leer button, .bogen-leer label").count() == 2
+    h.klick(".bogen-leer [data-act=bogen-bearbeiten][data-reiter=foto]")
     h.warte_bis("() => document.querySelector('.bogen [data-act=bfoto-wahl]')")
     h.page.set_input_files(".bogen [data-act=bfoto-wahl]", str(bild))
     h.warte_bis("() => (myCombatant().bogen || {}).foto")
