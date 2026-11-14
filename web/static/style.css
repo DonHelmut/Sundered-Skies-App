@@ -1743,6 +1743,9 @@ body.sl-ansicht .sl-kopf {
 body.sl-ansicht .sl-kopf h1 { font-family: system-ui, "Segoe UI", sans-serif; font-size: 0.9rem;
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
 body.sl-ansicht .sl-kopf button { padding: 5px 10px; font-size: 0.85rem; }
+/* „Sicherung importieren" ist ein <label> (Datei-Feld), kein Knopf – es stand im
+   ☰-Menü sonst größer und dicker gepolstert als alle anderen Einträge. */
+body.sl-ansicht .sl-kopf .knopf-label { padding: 5px 10px; font-size: 0.85rem; border-radius: 6px; }
 body.sl-ansicht .statusbar { top: 1px; pointer-events: none; }
 body.sl-ansicht .statusbar .pill { pointer-events: auto; }
 body.sl-ansicht #skinbar { top: 5px; }
@@ -2929,6 +2932,11 @@ body.mit-kopf #skinbar { top: 8px; }
 .anfragen-schweb .as-titel { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--gold); }
 .anfragen-schweb .req-item:last-child { border-bottom: 0; }
+/* Die „Verbunden"-Pille liegt außerhalb von #app (eigene Ebene über .wrap) und
+   stand deshalb MITTEN auf der schwebenden Anfrage – trotz höherem z-index,
+   weil .wrap eine eigene Stapel-Ebene bildet. Solange alles läuft, sagt die
+   Pille nichts Neues: dann ausblenden. Getrennt/Verbinde-neu bleibt sichtbar. */
+body.sl-ansicht[data-verbindung="online"]:has(.anfragen-schweb) .statusbar { visibility: hidden; }
 
 /* Kampf-Knopfzeile: feste Höhe, nichts bricht um - sonst rückt die Reihenfolge
    darunter, sobald ein Knopf dazukommt (🧹 … weg, 🩹 Alle heilen). */

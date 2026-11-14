@@ -77,6 +77,19 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.9 (14.11.2026): Zwei kleine Optik-Bugs beim SL
+
+Gefunden bei der Vorschlagsrunde „Studio-Optik" (Bilder im Projektordner unter
+`screenshots/studio-2026-11-14/`, noch nichts davon gebaut):
+
+- **„Verbunden"-Pille stand mitten auf der schwebenden Anfrage.** Die Pille
+  liegt außerhalb von `#app`, `.wrap` bildet eine eigene Stapel-Ebene – der
+  höhere z-index der Anfrage half deshalb nicht. Jetzt: Pille ausgeblendet,
+  solange eine Anfrage schwebt UND die Verbindung steht (getrennt bleibt sie
+  sichtbar). Test in `test_sl_anfrage_und_kampfknoepfe_schieben_nichts`.
+- **☰ Mehr: „Sicherung importieren" größer als die anderen Einträge** (ist ein
+  `<label>` für das Datei-Feld, kein Knopf) – jetzt gleiche Schrift/Polsterung.
+
 ## 2.0.9 (11.11.2026): Patch mit dem Abschnitt darunter
 
 Nur Versionsnummer + Paket. Updater unverändert (Aktualisieren aus paket-208

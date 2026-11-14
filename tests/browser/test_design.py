@@ -270,10 +270,13 @@ def test_kampf_beenden_handys_sofort_ruhig(tisch):
 def test_sl_anfrage_und_kampfknoepfe_schieben_nichts(tisch):
     sl, hs = voller_tisch(tisch)          # eine Anfrage (Wunde +) liegt schon an
     sl.warte_bis("() => !!document.querySelector('.anfragen-schweb')")
+    # Die „Verbunden"-Pille stand mitten auf der schwebenden Anfrage (14.11.2026).
+    assert sl.js("() => getComputedStyle(document.querySelector('.statusbar')).visibility") == "hidden"
     zonen, liste = _oben(sl, "[data-sec=zones]"), _oben(sl, ".order-heading, .combatant")
     assert sl.js("() => getComputedStyle(document.querySelector('.anfragen-schweb')).position") == "fixed"
     sl.klick(".anfragen-schweb [data-act=req-dismiss]")
     sl.warte_bis("() => !document.querySelector('.anfragen-schweb')")
+    assert sl.js("() => getComputedStyle(document.querySelector('.statusbar')).visibility") == "visible"
     assert _oben(sl, "[data-sec=zones]") == zonen, "Kampfzonen sind beim Wegklicken der Anfrage verrutscht"
     # Gegner fällt: „🧹 … weg" erscheint IN der Knopfzeile, die Reihenfolge bleibt stehen.
     pirat = next(c for c in sl.state()["combatants"] if c["name"] == "Pirat 1")
