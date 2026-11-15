@@ -323,3 +323,78 @@ def test_studio_optik_schrift_symbole_startflaeche(tisch):
     h.reiter("notizen")
     h.warte_bis("() => [...document.querySelectorAll('.notiz-reiter')].some(b => b.textContent.includes('📜'))")
     h.kein_waagrechtes_scrollen("Notizen")
+
+
+def test_studio_runde2_dialog_meldung_ladebild_leerer_bogen(tisch):
+    """Studio-Runde 2 (14.11.2026): Dialog mit Titel/Symbol, Meldung mit
+    Symbol, Ladebild verschwindet beim ersten Stand, leerer Bogen mit 2 Wegen."""
+    sl = tisch.sl()
+    assert sl.page.locator(".ladebild").count() == 0          # erster Stand ersetzt es
+    sl.js("() => { frage('Charakter löschen?\\n\\nWeg ist weg.', 'Löschen', true); }")
+    sl.warte_bis("() => !!document.querySelector('.app-dialog-titel')")
+    assert sl.page.inner_text(".app-dialog-titel") == "Charakter löschen?"
+    assert sl.page.inner_text(".app-dialog-text") == "Weg ist weg."
+    assert sl.page.locator(".app-dialog-sym.gefahr svg").count() == 1
+    sl.page.keyboard.press("Escape")
+    sl.js("() => toast('● Aufnahme läuft')")
+    sl.warte_bis("() => document.querySelector('#toast.toast-rec .toast-sym svg')")
+    assert sl.page.inner_text("#toast .toast-text") == "Aufnahme läuft"
+    h = tisch.handy("Rurik")
+    h.js("() => document.querySelector('[data-act=handy-reiter][data-reiter=bogen]').click()")
+    h.warte_bis("() => document.querySelectorAll('.bogen-leer [data-act=bogen-bearbeiten]').length === 2")
+    h.kein_waagrechtes_scrollen("leerer Bogen")
+
+
+def test_handy_springt_nicht_bei_aufdecken_dran_und_zustand(tisch):
+    """Messung 15.11.2026: Aufdecken, Angeschlagen, eine laufende Anfrage und
+    der Wechsel der Dran-Leiste schoben die Seite jeweils um 20-120 px. Jetzt
+    liegen Hinweis, Uhr und Zustand schwebend auf festem Platz, die Leiste hat
+    eine Höhe. (Ist man selbst dran, wechselt die Ansicht bewusst auf „Mein Zug".)"""
+    sl, h = _kampf_am_handy(tisch)
+    tisch.gm({"type": "new_round", "runde": 0})
+    h.locator("#bigcard").wait_for()
+    h.wait_for_timeout(800)
+    me = h.js("App.state.combatants.find(c => c.playerId === App.myPlayerId).id")
+    oben = lambda sel: round(h.js(f"document.querySelector('{sel}').getBoundingClientRect().top + scrollY"))  # noqa: E731
+    leiste = lambda: round(h.js("document.querySelector('.dran-leiste').getBoundingClientRect().height"))  # noqa: E731
+    vorher, hoehe = oben(".req-knopf-huelle"), leiste()
+    _aufdecken(h)
+    h.wait_for_timeout(3500)
+    assert oben(".req-knopf-huelle") == vorher, "Aufdecken schiebt die Seite"
+    tisch.gm({"type": "apply_hit", "id": me})
+    h.warte_bis("() => !!document.querySelector('.zustand-schweb .kz-shaken')")
+    assert oben(".req-knopf-huelle") == vorher, "Angeschlagen schiebt die Seite"
+    h.js("() => gmAction({type:'request', kind:'status', detail:{woundsDelta:1}, label:'🩸 Wunde +'})")
+    h.warte_bis("() => !!document.querySelector('.req-offen')")
+    reihe = oben(".order")
+    tisch.gm({"type": "resolve_request", "id": sl.state()["requests"][0]["id"]})
+    h.warte_bis("() => !document.querySelector('.req-offen')")
+    assert oben(".order") == reihe, "Laufende Anfrage schiebt die Reihenfolge"
+    tisch.gm({"type": "set_active", "id": me})
+    tisch.gm({"type": "release"})
+    h.warte_bis("() => !!document.querySelector('.dran-leiste.ich')")
+    assert leiste() == hoehe, "Dran-Leiste ändert ihre Höhe"
+
+
+def test_studio_runde3_momente(tisch):
+    """Studio-Runde 3 (15.11.2026): Runden-Band auf SL + Handy, Dein-Zug-Moment
+    und Treffer-Moment am Handy - schwebend, fangen keine Tipps ab, gehen von
+    selbst wieder weg."""
+    sl, h = _kampf_am_handy(tisch)
+    tisch.gm({"type": "new_round", "runde": 0})
+    h.warte_bis("() => !!document.querySelector('.runden-band')")
+    sl.warte_bis("() => !!document.querySelector('.runden-band')")
+    assert "RUNDE" in h.page.inner_text(".runden-band")
+    h.locator("#bigcard").wait_for()
+    _aufdecken(h)
+    h.wait_for_timeout(3500)
+    me = h.js("App.state.combatants.find(c => c.playerId === App.myPlayerId).id")
+    tisch.gm({"type": "set_active", "id": me})
+    tisch.gm({"type": "release"})
+    h.warte_bis("() => !!document.querySelector('.zug-moment .zm-karte svg')")
+    assert h.js("getComputedStyle(document.querySelector('.zug-moment')).pointerEvents") == "none"
+    h.warte_bis("() => !document.querySelector('.zug-moment')", frist=4000)
+    tisch.gm({"type": "apply_hit", "id": me, "wounds": 1})
+    h.warte_bis("() => !!document.querySelector('.treffer-moment .tm-gross')")
+    assert "WUNDE" in h.page.inner_text(".treffer-moment .tm-gross") or "ANGESCHLAGEN" in h.page.inner_text(".treffer-moment .tm-gross")
+    h.warte_bis("() => !document.querySelector('.treffer-moment')", frist=5000)

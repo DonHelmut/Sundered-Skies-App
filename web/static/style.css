@@ -2368,7 +2368,7 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
 .kampf-ablage.drueber { border-color: var(--accent); background: var(--panel2); color: var(--text); }
 .kb-import-tipp { margin: -2px 0 8px; }
 .app-dialog.ki-dialog { width: min(620px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; box-sizing: border-box; }
-.ki-dialog .app-dialog-text { font-weight: 700; margin-bottom: 6px; }
+.ki-dialog .app-dialog-titel { margin-bottom: 6px; }
 .ki-hilfe { line-height: 1.5; margin-bottom: 8px; }
 .ki-text { width: 100%; height: 200px; box-sizing: border-box; resize: vertical;
   font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; line-height: 1.35; }
@@ -3116,3 +3116,208 @@ body.sl-ansicht .aktionsleiste {
 /* Beitritt: die „Verbunden"-Pille stand mitten in der Kartenkunst. Solange die
    Verbindung steht, sagt sie nichts – Getrennt bleibt sichtbar. */
 body[data-verbindung="online"]:has(.join-buehne) .statusbar { visibility: hidden; }
+
+/* =============================================================================
+   Studio-Runde 2 (Kalle, 14.11.2026, „Alles"): Dialoge, Meldungen, Ladebild,
+   Verbindungs-Leiste, leerer Bogen, weiche Übergänge.
+   Bewegung NUR über opacity/transform (komponiert, ruckelt am Handy nicht),
+   und wer „Bewegung reduzieren" eingestellt hat, bekommt keine.
+   ========================================================================== */
+
+/* 1 Dialoge: Titel + Erklärung getrennt, Symbol-Kachel links */
+.app-dialog-hg { background: rgba(30, 18, 6, 0.42); animation: weichRein 160ms ease-out; }
+body:not(.theme-pergament) .app-dialog-hg { background: rgba(0, 0, 0, 0.55); }
+.app-dialog { width: min(440px, 100%); padding: 22px 22px 18px; border-radius: 18px; background: var(--flaeche);
+  border: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+  box-shadow: 0 30px 60px -20px var(--schatten-farbe), 0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: dialogRein 180ms cubic-bezier(.2, .8, .2, 1); }
+.app-dialog-kopf { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 18px; }
+.app-dialog-sym { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none;
+  font-size: 1.2rem; color: var(--accent2); background: color-mix(in srgb, var(--accent2) 13%, transparent); }
+.app-dialog-sym.gefahr { color: var(--bad); background: color-mix(in srgb, var(--bad) 13%, transparent); }
+.app-dialog-kopftext { flex: 1; min-width: 0; padding-top: 2px; }
+.app-dialog-titel { font-weight: 650; font-size: 1.06rem; line-height: 1.35; color: var(--text); }
+.app-dialog-kopf .app-dialog-text { margin: 4px 0 0; font-size: 0.9rem; line-height: 1.5; color: var(--muted); }
+.app-dialog-knoepfe button { min-height: 40px; padding: 0 16px; border-radius: 10px; font-weight: 600; }
+.app-dialog-knoepfe button.bad { box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--bad) 70%, transparent); }
+@keyframes weichRein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialogRein { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+/* 2 Meldungen mit Symbol + Farbe je Art; SL unten rechts, Handy unten mittig */
+.toast { display: flex; align-items: center; gap: 10px; padding: 9px 14px 9px 9px; border-radius: 12px;
+  background: var(--flaeche); border: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+  box-shadow: 0 14px 30px -14px var(--schatten-farbe); font-weight: 500; font-size: 0.9rem; }
+.toast-sym { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none;
+  color: var(--accent2); background: color-mix(in srgb, var(--accent2) 13%, transparent); }
+.toast-ok .toast-sym { color: var(--good); background: color-mix(in srgb, var(--good) 15%, transparent); }
+.toast-rec .toast-sym { color: var(--bad); background: color-mix(in srgb, var(--bad) 13%, transparent); }
+.toast-warn .toast-sym { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+body.sl-ansicht .toast { left: auto; right: 20px; transform: translateY(12px); }
+body.sl-ansicht .toast.sichtbar { transform: none; }
+
+/* 3 Ladebild bis zum ersten Spielstand */
+.ladebild { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 14px; text-align: center;
+  background: radial-gradient(120% 60% at 50% 30%, color-mix(in srgb, var(--accent) 18%, var(--bg)) 0%, var(--bg) 65%); }
+.ladebild-logo { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 18px 36px -14px rgba(40, 20, 0, 0.6); margin-bottom: 6px; }
+.ladebild-marke { font-size: 1.35rem; }
+.ladebild .zier { margin-top: -6px; color: var(--muted); }
+.ladebild-balken { width: 140px; height: 3px; border-radius: 3px; overflow: hidden; margin-top: 10px;
+  background: color-mix(in srgb, var(--line) 45%, transparent); }
+.ladebild-balken i { display: block; width: 40%; height: 100%; border-radius: 3px; background: var(--accent2);
+  animation: ladeLauf 1.2s ease-in-out infinite; }
+@keyframes ladeLauf { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+.ladebild-text { font-size: 0.82rem; color: var(--muted); }
+body:has(.ladebild) .statusbar { visibility: hidden; }
+
+/* 4 Verbindung kurz weg: Leiste unten statt Vollbild; „lange" = Blatt unten */
+.offline-hinweis { align-items: flex-end; padding: 12px; background: rgba(30, 18, 6, 0.16); }
+body:not(.theme-pergament) .offline-hinweis { background: rgba(0, 0, 0, 0.35); }
+.offline-box { max-width: 480px; border-radius: 18px; background: var(--flaeche);
+  border: 1px solid color-mix(in srgb, var(--line) 50%, transparent); box-shadow: 0 -6px 30px -10px var(--schatten-farbe);
+  animation: dialogRein 200ms cubic-bezier(.2, .8, .2, 1); }
+.offline-box.kurz { display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 16px; text-align: left; }
+.offline-sym { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: none;
+  background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.offline-sym .offline-ring { width: 20px; height: 20px; border-width: 2.5px; margin: 0;
+  border-color: color-mix(in srgb, var(--warn) 30%, transparent); border-top-color: var(--warn); }
+.offline-kurztext { flex: 1; min-width: 0; }
+.offline-kurztext b { display: block; font-weight: 650; font-size: 0.95rem; }
+.offline-kurztext span { font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+.offline-box.kurz button { width: auto; flex: none; white-space: nowrap; min-height: 38px; border-radius: 10px; font-weight: 600;
+  color: var(--accent2); border-color: color-mix(in srgb, var(--accent2) 40%, transparent); }
+/* Keine zweite „Getrennt"-Pille oben, solange die Leiste da ist. */
+body:has(#offline-hinweis) .statusbar { visibility: hidden; }
+
+/* 5 Leerer Bogen */
+.bogen-leer { padding: 26px 18px 18px; text-align: center; }
+.bogen-leer > button { width: auto; }
+.leer-sym { width: 60px; height: 60px; margin: 0 auto 12px; border-radius: 18px; display: grid; place-items: center;
+  font-size: 1.6rem; color: var(--accent2); background: color-mix(in srgb, var(--accent2) 12%, transparent); }
+.leer-titel { font-family: var(--schrift-titel); font-weight: 700; font-size: 1.02rem; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 6px; }
+.leer-text { font-size: 0.88rem; color: var(--muted); line-height: 1.5; margin: 0 auto 16px; max-width: 30em; }
+.leer-knoepfe { display: grid; gap: 8px; }
+.leer-knoepfe button { width: 100%; min-height: 48px; border-radius: 12px; font-weight: 600; }
+
+/* 6 Weiche Übergänge: Menüs und Panels blenden kurz ein */
+.kopf-menue[open] > .kopf-menue-inhalt { animation: dialogRein 140ms ease-out; }
+details.section[open] > .panel-body { animation: weichRein 160ms ease-out; }
+.anfragen-schweb { animation: weichRein 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .app-dialog-hg, .app-dialog, .offline-box, .kopf-menue-inhalt, details.section > .panel-body, .anfragen-schweb,
+  .ladebild-balken i { animation: none !important; }
+}
+/* Roter Knopf auf hellem Pergament: dunkler Text auf Dunkelrot war kaum lesbar
+   („Einspielen", „Löschen") – heller Text, kräftigeres Rot. */
+body.theme-pergament button.bad:not(.ghost) { color: #fff6ec; background: var(--bad); border-color: transparent; }
+
+/* --- Nichts springt am Handy (Messung 15.11.2026) ---------------------------
+   Leiste „wer ist dran" mit EINER Höhe für alle Zustände: vorher hatte
+   „Gleich bist du dran" (1rem) und „Du bist dran!" (1.2rem + mehr Rand) je eine
+   andere Höhe, und jeder Wechsel schob Karte und Liste darunter. */
+.dran-leiste, .dran-leiste.ich, .dran-leiste.gleich { box-sizing: border-box; height: 40px; padding: 0 10px;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  white-space: nowrap; overflow: hidden; }
+.dran-leiste.ich { font-size: 1.12rem; }
+.dran-leiste .dl-wer { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* Gesperrte Reihenfolge: dieselbe Zeile wie „Du bist 3. von 8" - gleiche Höhe. */
+.mein-platz.order-locked { padding: 6px 8px; border-style: dashed; font-weight: 600; color: var(--muted); }
+/* Zustand schwebt rechts unter der Leiste (an ihr festgemacht, scrollt mit ihr). */
+.handy-oben { position: sticky; }
+.zustand-schweb { position: absolute; right: 4px; top: calc(100% + 4px); pointer-events: none; }
+.zustand-schweb .kopf-zustand { justify-content: flex-end; gap: 4px; }
+.zustand-schweb .kz { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 0.82rem; font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,.28); }
+/* Talent-Hinweise (Joker: +2 …) liegen unten auf der Karte statt darunter:
+   sie kamen erst nach dem Aufdecken dazu und schoben alles darunter weg. */
+.karten-buehne { position: relative; }
+.karten-hinweise { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: min(240px, 96%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; z-index: 2; }
+.karten-hinweise .pill { margin: 0 !important; background: var(--panel); box-shadow: 0 2px 10px rgba(0,0,0,.35);
+  white-space: normal; text-align: center; }
+/* Laufende Anfrage als Plakette an der Knopf-Ecke statt eigener Zeile. */
+.req-knopf-huelle { position: relative; margin-top: 10px; }
+.req-offen { position: absolute; right: 8px; top: -9px; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 2px 8px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; pointer-events: none;
+  color: var(--warn); background: var(--panel); border: 1px solid var(--warn); }
+/* Zug-Uhr liegt oben rechts auf der Karte: als Ring unter der Karte kam sie
+   erst, wenn man dran war, und schob 120 px Seite nach unten. */
+.karten-uhr { position: absolute; top: -2px; right: 0; z-index: 3; pointer-events: none; }
+.karten-uhr .ring-wrap { width: 76px; height: 76px; margin: 0; border-radius: 50%;
+  background: var(--panel); box-shadow: 0 3px 12px rgba(0,0,0,.35); }
+.karten-uhr .ring { width: 76px; height: 76px; }
+.karten-uhr .ring-text { font-size: 1.05rem; }
+.karten-uhr .timer-halt { padding: 4px 9px; border-radius: 999px; border-style: solid; font-size: 0.76rem;
+  background: var(--panel); box-shadow: 0 3px 12px rgba(0,0,0,.35); max-width: 150px; }
+/* „Antippen zum Aufdecken" liegt unten AUF der Rückseite statt darunter: die
+   Zeile verschwand nach dem Aufdecken und alles darunter rückte 29 px hoch. */
+#bigcard .card-holder .tap-hint { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); margin: 0; z-index: 2;
+  padding: 4px 12px; border-radius: 999px; white-space: nowrap; pointer-events: none;
+  background: rgba(10, 14, 24, 0.72); color: var(--gold); }
+/* Eine Höhe für „Du bist 3. von 8" und die gesperrte Zeile. */
+.mein-platz { box-sizing: border-box; height: 34px; display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding-top: 0; padding-bottom: 0; white-space: nowrap; overflow: hidden; }
+.mein-platz .ic { flex: 0 0 auto; }
+.order-alle-offen { opacity: 0.45; }
+/* „ROBUSTHEIT" lief am kleinen Handy über den Kachelrand (Rundgang 15.11.). */
+.zk-kachel { min-width: 0; }
+.zk-kachel span { max-width: 100%; font-size: clamp(0.58rem, 2.7vw, 0.7rem); letter-spacing: 0.01em; overflow-wrap: anywhere; }
+
+/* --- Studio-Runde 3 (15.11.2026): Momente + fühlbare Knöpfe ------------------
+   Alles schwebt (position: fixed), fängt keine Tipps ab und bewegt nur
+   opacity/transform - nichts rückt, nichts ruckelt. */
+.zug-moment { position: fixed; inset: 0; z-index: 9500; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(ellipse at 50% 45%, rgba(60, 40, 8, 0.55), rgba(8, 6, 2, 0.86) 70%);
+  animation: zmHg 1.5s ease both; }
+.zug-moment::before { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 42%, rgba(255, 205, 90, 0.35), transparent 45%); }
+.zm-karte { position: relative; width: 150px; transform: rotate(-4deg);
+  filter: drop-shadow(0 0 26px rgba(255, 200, 80, 0.75)) drop-shadow(0 12px 22px rgba(0, 0, 0, 0.6));
+  animation: zmKarte 1.5s cubic-bezier(.2, .8, .2, 1) both; }
+.zm-karte svg { display: block; width: 100%; height: auto; }
+.zm-titel { position: relative; font-family: var(--schrift-titel); font-weight: 700; font-size: 2.35rem; letter-spacing: 0.08em;
+  background: linear-gradient(180deg, #fff3c4, #f0b93a 55%, #b9761a); -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: zmText 1.5s ease both; }
+.zm-zier { position: relative; width: 200px; height: 1px; background: linear-gradient(90deg, transparent, #f0c45a, transparent); }
+.zm-unter { position: relative; color: #f6e7c2; font-weight: 600; letter-spacing: 0.04em; opacity: 0.9; }
+.zm-balken { position: absolute; bottom: 56px; left: 50%; width: 120px; height: 3px; margin-left: -60px; border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.zm-balken i { display: block; width: 100%; height: 100%; background: #f0c45a; transform-origin: left; animation: zmBalken 1.3s linear both; }
+@keyframes zmHg { 0% { opacity: 0; } 12%, 78% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes zmKarte { 0% { transform: translateY(24px) rotate(-10deg) scale(0.85); } 30%, 100% { transform: rotate(-4deg); } }
+@keyframes zmText { 0% { transform: translateY(10px); } 30%, 100% { transform: none; } }
+@keyframes zmBalken { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.runden-band { position: fixed; left: 0; right: 0; top: 22vh; z-index: 9400; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; gap: 18px; padding: 14px 0;
+  background: linear-gradient(90deg, transparent, rgba(24, 16, 6, 0.86) 18%, rgba(24, 16, 6, 0.86) 82%, transparent);
+  animation: rundenBand 1.6s cubic-bezier(.2, .8, .2, 1) both; }
+.runden-band b { white-space: nowrap; font-family: var(--schrift-titel); font-size: clamp(1.5rem, 7vw, 2rem); letter-spacing: 0.14em;
+  background: linear-gradient(180deg, #fff3c4, #e9b448); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.rb-z { width: min(90px, 14vw); flex: none; height: 1px; background: linear-gradient(90deg, transparent, #e9b448); }
+.rb-z.rb-r { transform: scaleX(-1); }
+@keyframes rundenBand { 0% { opacity: 0; transform: translateX(-40px); } 15%, 75% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateX(40px); } }
+
+.treffer-moment { position: fixed; left: 50%; top: 40%; z-index: 9400; pointer-events: none; text-align: center;
+  width: max-content; min-width: min(260px, 80vw); max-width: 92vw; padding: 16px 22px; border-radius: 18px; background: rgba(20, 6, 6, 0.86); color: #ffe9e4;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); animation: trefferMoment 2.6s cubic-bezier(.2, .8, .2, 1) both; }
+.tm-wer { font-size: 0.85rem; font-weight: 700; opacity: 0.8; }
+.tm-gross { font-family: var(--schrift-titel); font-weight: 700; font-size: clamp(1.4rem, 7.5vw, 2.2rem); white-space: nowrap; line-height: 1.15; color: #ff6b5b; letter-spacing: 0.05em; }
+.tm-pips { display: flex; gap: 8px; justify-content: center; margin: 8px 0 4px; }
+.tm-pips i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #ff6b5b; }
+.tm-pips i.voll { background: #ff6b5b; }
+.tm-unter { font-size: 0.82rem; opacity: 0.8; }
+@keyframes trefferMoment { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); } 10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  82% { opacity: 1; transform: translate(-50%, -50%); } 100% { opacity: 0; transform: translate(-50%, -54%); } }
+
+/* Knöpfe fühlbar: geben beim Drücken kurz nach (nur transform), klarer
+   Fokus-Ring für die Tastatur am SL-Laptop. Ausgenommen alles, was selbst
+   per transform liegt oder gleitet (Spielsteine, Münzen, Karten). */
+button:where(:not(.zone-token):not(.muenze):not(:disabled)):active { transform: scale(0.97); }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .zug-moment, .zm-karte, .zm-titel, .runden-band, .treffer-moment { animation-duration: 0.01s; animation-delay: 0s; }
+  .zug-moment, .runden-band, .treffer-moment { display: none; }
+}

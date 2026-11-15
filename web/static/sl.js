@@ -433,7 +433,18 @@ function toast(text) {
     el.className = "toast";
     document.body.appendChild(el);
   }
-  el.textContent = text;
+  // Symbol + Farbe je Art (Kalle, 14.11.2026, Studio-Runde 2 Vorschlag 2) statt
+  // nacktem Text: ✓/■ Erfolg (grün), ● Aufnahme (rot), ⚠/„geht nicht" Warnung,
+  // sonst Hinweis. Ein Emoji/Zeichen vorn wird zum Symbol der Kachel.
+  const t = String(text || "").trim();
+  const vorn = [["●", "circle-dot", "rec"], ["■", "circle-check", "ok"], ["✓", "circle-check", "ok"], ["⚠", "triangle-alert", "warn"]]
+    .find(([z]) => t.startsWith(z));
+  const emo = !vorn && typeof SYMBOL_ZU === "object" && Object.keys(SYMBOL_ZU).find((e) => t.startsWith(e));
+  const rest = (vorn ? t.slice(vorn[0].length) : emo ? t.slice(emo.length) : t).replace(/^\uFE0F?\s*/, "");
+  const art = vorn ? vorn[2] : /nicht|fehl|kein|erst /i.test(rest) ? "warn" : /gespeichert|kopiert|gesetzt|gesendet|fertig|bereit/i.test(rest) ? "ok" : "info";
+  const sym = vorn ? vorn[1] : emo ? SYMBOL_ZU[emo] : { ok: "circle-check", warn: "triangle-alert" }[art] || "info";
+  el.className = `toast toast-${art}${el.classList.contains("sichtbar") ? " sichtbar" : ""}`;
+  el.innerHTML = `<span class="toast-sym">${symbolSvg(sym)}</span><span class="toast-text">${esc(rest)}</span>`;
   // Über der festen Leiste unten erscheinen - sonst lag die Meldung genau
   // auf „danach: …" und den Knöpfen (Höhe schwankt: Handy bricht um).
   const leiste = document.querySelector(".aktionsleiste");
@@ -1358,7 +1369,7 @@ function startflaecheHtml() {
     ${zeilen}</div>`;
 }
 
-function renderOrderPanel(isGM) {
+function renderOrderPanel(isGM, gesperrt = false) {
   const s = App.state;
   if (s.combatants.length === 0) {
     // SL: Kampf-Steuerung trotzdem zeigen (Austeilen etc.), Initiative noch leer.
@@ -1416,8 +1427,12 @@ function renderOrderPanel(isGM) {
   }
   // Spieler: Position nur für tischweit AUFGEDECKTE Karten. Verdeckte kommen ohne
   // Nummer in neutraler Reihenfolge nach unten -> verraten die Reihenfolge nicht.
-  const openC = active.filter((c) => c.revealed);
-  const hiddenC = active.filter((c) => !c.revealed)
+  // Gesperrt (eigene Karte noch zu): alle als „verdeckt" in neutraler Folge
+  // zeigen statt eines kleinen Hinweis-Kastens. Vorher wuchs die Liste beim
+  // eigenen Aufdecken von einem Zweizeiler auf volle Länge und schob die
+  // Kampfzonen darunter um eine halbe Bildschirmhöhe weg (Messung 15.11.2026).
+  const openC = gesperrt ? [] : active.filter((c) => c.revealed);
+  const hiddenC = active.filter((c) => gesperrt || !c.revealed)
     .slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   // Bei 20+ Figuren war die Liste am Handy zwei Bildschirme lang, und der
   // Spieler scrollte an allem vorbei. Darum standardmaessig nur der Ausschnitt
@@ -1432,7 +1447,9 @@ function renderOrderPanel(isGM) {
   // kommt, ohne die ganze Liste durchzuzaehlen.
   const meinPlatz = openC.findIndex((c) => c.id === mineId);
   const vorMir = meinPlatz >= 0 ? openC.slice(0, meinPlatz).filter((c) => !c.done && !(c.status || {}).out).length : 0;
-  const positionsZeile = meinPlatz >= 0
+  const positionsZeile = gesperrt
+    ? `<div class="mein-platz order-locked">🂠 Erst deine Karte aufdecken</div>`
+    : meinPlatz >= 0
     ? `<div class="mein-platz">Du bist <b>${meinPlatz + 1}.</b> von ${openC.length + hiddenC.length}${
         s.activeId === mineId ? " – <b>du bist dran!</b>"
           : vorMir ? ` · noch <b>${vorMir}</b> vor dir` : " · du kommst als Nächstes"}</div>`
@@ -1448,10 +1465,13 @@ function renderOrderPanel(isGM) {
     // Vor dem ersten Austeilen hat niemand eine Karte - dann nicht zum
     // Antippen auffordern (Test 02.11.2026: stand schon in Runde 0 da).
     const keineKarten = !active.some((c) => c.card);
-    body += `<div class="order-divider">${openC.length ? "Noch verdeckt"
+    body += `<div class="order-divider">${openC.length || gesperrt ? "Noch verdeckt"
       : keineKarten ? "Noch keine Karten – der Spielleiter teilt gleich aus" : "Noch niemand aufgedeckt – tippt eure Karte an!"}</div>`;
     body += zeigenH.map((c) => combatantRow(c, null, false, false)).join("");
   }
+  // Sind alle offen, bleibt die Trennzeile als stiller Abschluss stehen: sonst
+  // fiel sie beim letzten Aufdecken weg und die Zonen darunter rückten hoch.
+  else if (openC.length) body += `<div class="order-divider order-alle-offen">Alle Karten liegen offen</div>`;
   const restlich = versteckt + verdecktGekuerzt;
   if (kurz && restlich) {
     body += `<button class="ghost small order-mehr" data-act="alle-zeigen">▾ Alle ${openC.length + hiddenC.length} zeigen (${restlich} weitere)</button>`;

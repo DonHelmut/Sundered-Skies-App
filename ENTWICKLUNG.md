@@ -77,6 +77,80 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.10 (15.11.2026): Studio-Runde 3 – Momente + fühlbare Knöpfe
+
+Kalle wählte „Alles (1–4)" (Bilder: `screenshots/studio-runde3-2026-11-15/`):
+
+1. **Dein-Zug-Moment** (`app.js` `zugMoment`, aus `checkTurnNotify`): 1,5 s
+   eigene Karte + „DU BIST DRAN" + Runde/Name, dann „Mein Zug". Vibration gab
+   es schon (abschaltbar).
+2. **Runden-Banner** (`app.js` `rundenBanner`, aus `verbindung.js` bei jedem
+   Stand): „RUNDE N" schwebt 1,6 s quer über SL + Handys, wenn die Runde steigt.
+3. **Treffer-Moment** (`tisch.js` `trefferMoment`): bei `art: getroffen` statt der
+   kleinen Meldung groß „−1 WUNDE"/„ANGESCHLAGEN"/„AUSGESCHALTET" + Wunden-Punkte
+   + wer, roter Rand, kurze Vibration. Heilung bleibt Meldung.
+4. **Knöpfe fühlbar**: `:active` scale(0.97), `:focus-visible` Goldring.
+
+Alle Momente `position: fixed`, `pointer-events: none` (blockieren keinen
+Knopf), Keyframes nur opacity/transform; bei reduzierter Bewegung aus.
+Test: `test_studio_runde3_momente`.
+
+## Nach 2.0.10 (15.11.2026): Nichts springt am Handy, schnellerer Abgleich
+
+Messung (Playwright, SL + 3 Handys, CPU 4× gedrosselt, `layout-shift`,
+`longtask`, Bild-Lücken) über einen typischen Zug. Gefundene Sprünge am Handy
+beseitigt (Bugs, ohne Rückfrage):
+
+- **Dran-Leiste** eine Höhe (40 px) für „X ist dran" / „Gleich bist du dran" /
+  „Du bist dran!"; bleibt im Kampf auch ohne Text stehen.
+- **Zustand** (Angeschlagen, Wunden) schwebt rechts unter der Leiste
+  (`.zustand-schweb`) statt als eigene Zeile über der Karte. Ohne Leiste (Ruhe)
+  weiter als Zeile.
+- **„Antippen zum Aufdecken"**, **Talent-Hinweise** (Joker: +2 …) und **Zug-Uhr**
+  liegen auf der Karte (`.karten-buehne`) statt darunter.
+- **Laufende Anfrage** als Plakette an der Ecke des Anfrage-Knopfs (`.req-offen`)
+  statt eigener Zeile.
+- **Reihenfolge gesperrt** (eigene Karte zu): alle Zeilen als „verdeckt" mit
+  Zeile „Erst deine Karte aufdecken" statt kleinem Kasten - gleiche Höhe wie
+  danach. Sind alle offen, bleibt die Trennzeile („Alle Karten liegen offen").
+- `.mein-platz` feste Höhe.
+- **Abgleich** (`render.js`): gleiche Teilbäume (`isEqualNode`, ohne
+  Formularfelder) werden übersprungen → am gedrosselten Handy ~halb so viel
+  Rechenzeit pro Server-Update (40-55 → 20-25 ms).
+
+- Kleinkram aus dem Rundgang: ✎ wird überall zum Linien-Stift (`symbole.js`),
+  „ROBUSTHEIT" in den Werte-Kacheln läuft am kleinen Handy nicht mehr über.
+
+Bewusst geblieben: Wechsel auf „Mein Zug", Reiterwechsel, Kampf beenden
+(Ansicht wechselt), Zonen-Panel wächst, wenn Figuren umziehen.
+Test: `test_handy_springt_nicht_bei_aufdecken_dran_und_zustand`.
+
+## Nach 2.0.10 (14.11.2026): Studio-Runde 2 – Dialoge, Meldungen, Ladebild, Verbindung
+
+Kalle wählte „Alles" (Bilder: `screenshots/studio-runde2-2026-11-14/`, gebaut
+unter `…/gebaut/`):
+
+- **Dialoge** (`dialoge.js` `dialogKopf`): erster Absatz/erste Zeile = Titel,
+  Rest = Erklärung (`.app-dialog-text`), Symbol-Kachel links (Emoji vorn im
+  Text → Symbol; `art`: gefahr/frage/hinweis). Lange Ein-Absatz-Fragen werden
+  am ersten „? " geteilt. Für neue Rückfragen: „Titel?\n\nErklärung".
+- **Meldungen** (`toast` in sl.js): Symbol + Farbe je Art (●=Aufnahme rot,
+  ✓/■=grün, „nicht/kein/fehl"=Warnung, sonst Hinweis). SL unten rechts.
+- **Ladebild** in `index.html` innerhalb von `#app` – das erste Zeichnen
+  ersetzt es. Pille oben solange aus.
+- **Verbindung kurz weg**: Leiste unten (Spiel bleibt sichtbar), ab 25 s / auf
+  Mobilfunk wie bisher das Blatt mit Prüfpunkten, jetzt unten. Keine zweite
+  „Getrennt"-Pille mehr.
+- **Leerer Bogen**: Symbol, ein Satz, „Werte eintragen" + „📷 Foto vom
+  Papierbogen" (öffnet direkt den Foto-Reiter, `data-reiter` an
+  `bogen-bearbeiten`).
+- **Übergänge**: Dialog/Menü/Panel/Anfrage blenden 140–200 ms ein, nur
+  opacity/transform; `prefers-reduced-motion` schaltet sie ab.
+- Nebenbei: roter Knopf auf Pergament hatte dunklen Text auf Dunkelrot → hell.
+
+Test: `test_studio_runde2_dialog_meldung_ladebild_leerer_bogen`; Foto-Test
+angepasst (leerer Bogen hat jetzt 2 Knöpfe).
+
 ## Nach 2.0.9 (14.11.2026): Studio-Optik – Schrift, Symbole, Beitritt, Startfläche
 
 Kalle: „Soll hochwertig wirken und professionell, wie von einem Entwickler-Studio."
