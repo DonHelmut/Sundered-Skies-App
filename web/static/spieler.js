@@ -929,7 +929,11 @@ function daumenKnopf(o) {
   } else if (o.canRecover) {
     // Zwei gleichwertige Wege (Probe oder Benny): gleich große Knöpfe. Als
     // kleiner Neben-Knopf war „Benny ausgeben" winzig und „Erholt" dreizeilig.
-    haupt = o.recoverFreeBtn; neben = o.recoverBennyBtn; gleich = !!neben;
+    // Dritter Weg „Nicht geschafft" (Bedienbarkeit 15.11.2026, Vorschlag 6):
+    // vorher gab es keinen Knopf dafür - wer die Probe verpatzte, wusste nicht,
+    // was er tippen soll. Angeschlagen bleibt, der Zug ist vorbei.
+    const nicht = `<button class="ghost big" data-act="confirm-turn" title="Probe verpatzt: bleibt angeschlagen, Zug ist vorbei">✗ Nicht geschafft</button>`;
+    haupt = `<span class="dl-drei">${o.recoverFreeBtn}${nicht}${o.recoverBennyBtn || ""}</span>`;
     frage = `😵 Willenskraft oder Konstitution geschafft?`;
   } else if (isMyTurn && meinAngriff) {
     // Kein „Zug beenden" daneben: sonst endet der Zug, bevor der SL entschieden hat.

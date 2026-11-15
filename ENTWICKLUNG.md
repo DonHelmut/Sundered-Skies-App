@@ -92,8 +92,29 @@ Kalle: „Bedienbarkeit ist das oberste Gut." Ganzen Abend durchgespielt (SL
   „👤 NSC". `notizThemaWaehlen` nimmt bei gleichem Namen (Groß/klein egal) das
   vorhandene.
 
-Test: `test_handy_kopf_name_ganz_und_thema_ohne_doppel`. Vorschläge (Bilder
-heute/neu) in screenshots/bedienbarkeit-2026-11-15/, Kalles Wahl offen.
+Test: `test_handy_kopf_name_ganz_und_thema_ohne_doppel`.
+
+Dann Kalles „Mach alles" (Vorschläge 1–7, bei 1 Variante B), Test
+`test_bedienbarkeit_runde_2026_11_15`, Bilder screenshots/bedienbarkeit-2026-11-15/gebaut/:
+
+1. **Gegnerzug: Treffer in der Zeile** (B). Die Karte „X greift an – wen?" ist
+   weg (verdeckte bei 1366×768 die Zeilen 4–9). Vier Stärke-Knöpfe schweben
+   rechts in der Zeile jedes Ziels über Zustand + ⋯ (`gegnerzugZiel`,
+   `gegnerzugZeileHtml`, sl.js) – Zeile bleibt gleich hoch. Angriffswerte und
+   „✗ Daneben" in der Leiste (`gegnerzugLeisteHtml`). Bei „nur Offene" fehlen
+   fertige Spieler in der Liste – dann über 🎯 Treffer.
+2. **Startfläche bleibt bis zum ersten Austeilen** des Abends, erledigte
+   Schritte mit ✓ (`startflaecheNochZeigen`).
+3. **Anfrage beim SL:** „✓ Übernehmen" (grün) / „Ablehnen" statt ✓/✕ 30×21 px.
+4. **⋯ an der Zeile** (und die Zustands-Zelle) öffnet das schwebende
+   Rechtsklick-Menü – mit Bennies und jetzt auch Effekten. Das aufklappende
+   Feld unter der Zeile (schob alles) wird nicht mehr geöffnet.
+5. **Handy-Anfragen** als 2er-Raster mit 46 px hohen Knöpfen.
+6. **Handy angeschlagen:** dritter Knopf „✗ Nicht geschafft" = Zug vorbei.
+7. **Kampf-Baukasten:** „oder neu: Name, Anzahl, Parade, Robustheit, ＋ Dazu"
+   (Enter geht auch) – legt den Typ in der Bibliothek an (gleicher Name =
+   vorhandener) und setzt ihn in den Entwurf. Getipptes im Baukasten steht
+   sofort im Entwurf (übersteht Server-Updates).
 
 ## Nach 2.0.10 (15.11.2026): Studio-Runde 3 – Momente + fühlbare Knöpfe
 

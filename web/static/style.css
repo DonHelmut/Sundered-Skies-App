@@ -3331,3 +3331,36 @@ button:where(:not(.zone-token):not(.muenze):not(:disabled)):active { transform: 
   .zug-moment, .zm-karte, .zm-titel, .runden-band, .treffer-moment { animation-duration: 0.01s; animation-delay: 0s; }
   .zug-moment, .runden-band, .treffer-moment { display: none; }
 }
+
+/* --- Bedienbarkeit 15.11.2026 ------------------------------------------------ */
+/* Anfrage beim SL: beschriftete, ausreichend große Knöpfe statt ✓/✕ mit 30×21 px. */
+.anfragen-schweb .req-item { gap: 8px; align-items: center; }
+.anfragen-schweb .req-ja, .anfragen-schweb .req-nein { padding: 7px 12px; font-weight: 700; white-space: nowrap; min-height: 34px; }
+/* ⋯-Menü: Effekte stehen jetzt auch im schwebenden Menü. */
+.kontext-menue .km-effekt .effekt-steuerung { margin-top: 0; }
+/* Handy-Anfragen: großes 2er-Raster statt ~24 px hoher Chips (Vorschlag 5). */
+.req-box .req-raster { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.req-box .req-raster > button { min-height: 46px; font-size: 1rem; border-radius: 10px; padding: 8px 6px; margin: 0; white-space: normal; line-height: 1.15; }
+/* Angeschlagen am Handy: drei gleich große Knöpfe (Geschafft / Nicht / Benny). */
+.dl-haupt .dl-drei { display: flex; gap: 6px; }
+.dl-haupt .dl-drei > button.big { flex: 1 1 0; min-width: 0; margin: 0; padding: 12px 4px; font-size: 0.98rem; line-height: 1.15; white-space: normal; }
+/* Kampf-Baukasten: Gegner direkt neu anlegen (Vorschlag 7). */
+.kb-neu-gegner { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+.kb-neu-gegner #kbn-name { flex: 1 1 140px; min-width: 120px; }
+.kb-neu-gegner #kbn-anzahl { width: 48px; text-align: center; }
+.kb-neu-gegner #kbn-parade { width: 76px; }
+.kb-neu-gegner #kbn-robustheit { width: 100px; }
+/* Startfläche: erledigte Schritte mit ✓, ruhiger (Vorschlag 2). */
+.sf-zeile.fertig .sf-sym { color: var(--good); background: color-mix(in srgb, var(--good) 16%, transparent); }
+.sf-zeile.fertig .sf-titel { color: var(--muted); }
+.sf-zeile.fertig .sf-knopf { color: var(--muted); font-weight: 500; }
+/* Gegnerzug: Treffer-Knöpfe schweben rechts in der Zeile des Ziels (1B).
+   Fester Platz über Zustand + ⋯ - die Zeile wird nicht höher, nichts rückt. */
+.combatant.gz-ziel { position: relative; }
+.gz-inline { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 2;
+  display: flex; gap: 4px; align-items: center; padding: 3px 4px; border-radius: 9px;
+  background: var(--panel2); box-shadow: -10px 0 10px -4px var(--panel2); }
+.gz-inline .tz-stufe { min-width: 44px; padding: 5px 8px; font-size: 0.9rem; }
+.gz-inline-weit { font-size: 0.7rem; color: var(--muted); margin-right: 2px; white-space: nowrap; }
+.gz-leiste { font-size: 0.85rem; color: var(--bad); margin-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 340px; display: inline-block; vertical-align: middle; }
+.gz-leiste-werte { color: var(--muted); font-weight: 500; }

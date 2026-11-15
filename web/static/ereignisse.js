@@ -120,6 +120,7 @@ document.addEventListener("click", (e) => {
     "kb-bearbeiten": () => { App.kampfEntwurf = kampfEntwurfAus((S.encounters || []).find((x) => x.id === id)); render(); },
     "kb-abbrechen": () => { App.kampfEntwurf = null; render(); },
     "kb-speichern": () => kampfSpeichern(),
+    "kb-neu-gegner": () => kampfNeuerGegner(),
     "kb-anzahl": () => {
       const z = App.kampfEntwurf && App.kampfEntwurf.zeilen[Number(target.dataset.i)];
       if (!z) return;
@@ -206,8 +207,15 @@ document.addEventListener("click", (e) => {
     "bogen-ansicht-reiter": () => { App.bogenAnsichtReiter = target.getAttribute("data-reiter"); render(); },
     "zur-aktiven-zeile": () => zurAktivenZeile(true),
     "zustand-umschalten": () => {
-      // Gemerkt in App.rowStatusOpen, damit ein Broadcast-Render es nicht zuklappt.
-      if (App.rowStatusOpen.has(id)) App.rowStatusOpen.delete(id); else App.rowStatusOpen.add(id);
+      // ⋯ und Zustands-Zelle öffnen dasselbe schwebende Menü wie der Rechtsklick
+      // (Bedienbarkeits-Runde 15.11.2026, Vorschlag 4). Vorher klappte unter der
+      // Zeile ein Feld auf und schob alle Zeilen darunter weg - und Bennies gab
+      // es nur im versteckten Rechtsklick. Zweiter Klick auf denselben Knopf:
+      // zu (der Klick-Fänger davor hat es schon geschlossen - das merken wir).
+      const zu = App._kmZu;
+      if (zu && zu.id === id && Date.now() - zu.t < 400) return;
+      const r = target.getBoundingClientRect();
+      App.kontextMenue = { id, x: Math.round(r.right - 340), y: Math.round(r.bottom + 4) };
       render();
     },
     "leiste-einstellungen": () => { App.leisteEinstellungen = !App.leisteEinstellungen; App.trefferWahl = false; render(); },

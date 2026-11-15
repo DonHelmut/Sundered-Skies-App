@@ -197,7 +197,7 @@ function playerQuickControls(c) {
     ${toggle}
     <div class="req-box">
       <div class="center muted small">Der Spielleiter bestätigt deine Anfrage.</div>
-      <div class="status-ctrl" style="justify-content:center; flex-wrap:wrap; margin-top:8px">${rows.join("")}</div>
+      <div class="status-ctrl req-raster">${rows.join("")}</div>
     </div>
     ${pendingRequestLine(c)}
   </div>`;

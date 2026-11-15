@@ -843,7 +843,7 @@ function renderAktionsleiste() {
   // (😵 ☠ 🔄 ⚙) wird selten gebraucht und liegt hinter ⋯.
   return `<div class="aktionsleiste">
     ${App.leisteEinstellungen ? leisteEinstellungenHtml() : ""}
-    ${!mitAngriff ? "" : App.trefferWahl ? trefferWahlHtml(active) : gegnerzugJetzt(s, active) ? gegnerzugHtml(active) : ""}
+    ${!mitAngriff ? "" : App.trefferWahl ? trefferWahlHtml(active) : ""}
     <div class="al-wer">
       ${rundenZaehler(s)}
       <span class="al-platz">${platz}</span>
@@ -855,6 +855,7 @@ function renderAktionsleiste() {
         : `<span class="al-naechster">danach: <b>Rundenende</b></span>`}
     </div>
     <div class="al-knoepfe">
+      ${mitAngriff && !App.trefferWahl && gegnerzugJetzt(s, active) ? gegnerzugLeisteHtml(active) : ""}
       ${erholen}
       ${mitAngriff ? `<button class="st-btn treffer-knopf${App.trefferWahl === "treffer" ? " on" : ""}" data-act="treffer-wahl" title="${esc(active.name)} trifft jemanden: Ziel und Stärke wählen (Taste Z)">🎯<span class="tk-text"> Treffer</span></button>
       <button class="st-btn treffer-knopf${App.trefferWahl === "heil" ? " on" : ""}" data-act="heil-wahl" title="Jemand wird geheilt: Ziel wählen">🩹<span class="tk-text"> Heilung</span></button>` : ""}
@@ -946,37 +947,6 @@ function angriffsZeilen(text) {
   const zeilen = String(text || "").split(/\n|;/).map((z) => z.trim()).filter(Boolean);
   return zeilen.filter((z) => /angriff|kämpf|kaempf|schie(ß|ss)|werfen|schaden|waffe|biss|klaue|säbel|schwert|axt|pistole|gewehr|bogen|St\+|\dW\d/i.test(z)).slice(0, 4);
 }
-function gegnerzugHtml(active) {
-  const s = App.state;
-  const lebt = (c) => !c.benched && !(c.status || {}).out;
-  const ziele = s.combatants.filter((c) => lebt(c) && !(c.kind === "npc" && !c.ally))
-    .map((c) => ({ c, a: angriffsArt(active, c) }))
-    // Erreichbare zuerst, dann nach Nähe.
-    .sort((x, y) => (x.a.art === "weg") - (y.a.art === "weg") || Zones.zoneOf(x.c) - Zones.zoneOf(y.c)
-      || String(x.c.name).localeCompare(String(y.c.name), "de"));
-  const zeilen = angriffsZeilen(active.spielwerte);
-  const zeile = ({ c, a }) => {
-    const st = c.status || {};
-    const werte = kampfwerteText(c);
-    const erst = st.shaken ? "1 🩸" : "😵";
-    const knoepfe = [0, 1, 2, 3].map((n) => `<button type="button" class="tz-stufe${n ? "" : " erfolg"}" data-act="gegnerzug-treffer" data-id="${c.id}" data-n="${n}"
-        title="${n ? `+${n} Steigerung: angeschlagen + ${n} ${n === 1 ? "Wunde" : "Wunden"}` : (st.shaken ? "Erfolg: war schon angeschlagen → 1 Wunde" : "Erfolg: angeschlagen")}">${n ? `+${n} 🩸` : erst}</button>`).join("");
-    return `<div class="treffer-zeile gz-zeile${a.art === "weg" ? " gz-weg" : ""}">
-      <span class="tz-name">${esc(c.name)}${st.shaken ? " 😵" : ""}${st.wounds ? ` <span class="treffer-wunden">${st.wounds}🩸</span>` : ""}
-        <span class="gz-art gz-${a.art}" title="${esc(a.titel)}">${a.text}</span>${werte ? ` <span class="treffer-werte">${werte}</span>` : ""}</span>
-      ${knoepfe}</div>`;
-  };
-  return `<div class="al-treffer gegnerzug">
-    <div class="row spread" style="align-items:center; margin-bottom:6px; gap:8px">
-      <strong>⚔ ${esc(active.name)} greift an – wen?</strong>
-      <span class="row tight">
-        <button class="ghost small" data-act="gegnerzug-zu" title="Kein Treffer – Karte für diesen Zug schließen">✗ Daneben / nichts</button>
-      </span>
-    </div>
-    ${zeilen.length ? `<div class="gz-werte">${zeilen.map((z) => `<div>${esc(z)}</div>`).join("")}</div>` : ""}
-    ${ziele.map(zeile).join("") || `<div class="muted small">Niemand auf der Spielerseite im Kampf.</div>`}
-  </div>`;
-}
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-act]");
   if (!t || App.role !== "gm") return;
@@ -992,6 +962,36 @@ document.addEventListener("click", (e) => {
     trefferAuf(t.dataset.id, false, parseInt(t.dataset.n, 10) || 0);
   }
 });
+
+// --- Gegnerzug in der Zeile (Vorschlag 1B, Kalle 15.11.2026) ---------------
+// Die Karte „X greift an – wen?" lag über der Reihenfolge und verdeckte bei
+// 1366×768 die Zeilen 4–9 - bei JEDEM Gegnerzug. Jetzt liegen die vier
+// Stärke-Knöpfe schwebend rechts in der Zeile jedes möglichen Ziels (fester
+// Platz über Zustand und ⋯, die Zeile ändert ihre Höhe nicht), Angriffswerte
+// und „Daneben" stehen in der Leiste unten. Gibt den Angreifer zurück, wenn
+// ``c`` gerade ein Ziel ist.
+function gegnerzugZiel(c) {
+  const s = App.state;
+  if (!funktionAn("angriff") || App.trefferWahl || App.kontextMenue && App.kontextMenue.id === c.id) return null;
+  const a = s.combatants.find((x) => x.id === s.activeId);
+  if (!gegnerzugJetzt(s, a)) return null;
+  if (c.benched || (c.status || {}).out || (c.kind === "npc" && !c.ally)) return null;
+  return a;
+}
+function gegnerzugZeileHtml(angreifer, c) {
+  const st = c.status || {};
+  const art = angriffsArt(angreifer, c);
+  const erst = st.shaken ? "1 🩸" : "😵";
+  const knoepfe = [0, 1, 2, 3].map((n) => `<button type="button" class="tz-stufe${n ? "" : " erfolg"}" data-act="gegnerzug-treffer" data-id="${c.id}" data-n="${n}"
+      title="${esc(angreifer.name)} trifft ${esc(c.name)}: ${n ? `+${n} Steigerung – angeschlagen + ${n} ${n === 1 ? "Wunde" : "Wunden"}` : (st.shaken ? "Erfolg – war schon angeschlagen → 1 Wunde" : "Erfolg – angeschlagen")}">${n ? `+${n}` : erst}</button>`).join("");
+  return `<div class="gz-inline${art.art === "weg" ? " gz-weg" : ""}" title="${esc(art.titel || "")}">
+    ${art.art === "weg" ? `<span class="gz-inline-weit">zu weit</span>` : ""}${knoepfe}</div>`;
+}
+function gegnerzugLeisteHtml(angreifer) {
+  const zeilen = angriffsZeilen(angreifer.spielwerte);
+  return `<span class="gz-leiste" title="${esc(zeilen.join("\n") || "Treffer direkt in der Zeile des Ziels setzen")}">⚔ <b>Treffer in der Zeile</b>${zeilen.length ? ` · <span class="gz-leiste-werte">${esc(zeilen[0])}</span>` : ""}</span>
+    <button class="ghost small" data-act="gegnerzug-zu" title="Kein Treffer – Treffer-Knöpfe für diesen Zug ausblenden">✗ Daneben</button>`;
+}
 
 // Heilung aus der Liste: ein Schritt nach apply_heal (wach / −1 Wunde / 😵 weg).
 function heilAuf(id, offenLassen) {
@@ -1324,8 +1324,10 @@ function renderRequestsPanel() {
       // Angriff ist reine Meldung: würfeln am Tisch, Ergebnis über das Ziel-Token setzen.
       ? `${(r.detail || {}).targetId ? `<button class="st-btn" data-act="angriff-oeffnen" data-id="${r.id}" title="Angriffs-Fenster öffnen: Daneben, Kein Schaden, Erfolg oder Steigerungen">⚔ Entscheiden</button>` : ""}
          <button class="st-btn on" data-act="req-dismiss" data-id="${r.id}" title="Daneben / erledigt">Erledigt ✓</button>`
-      : `<button class="st-btn on" data-act="req-apply" data-id="${r.id}" title="Anwenden">✓</button>
-         <button class="st-btn" data-act="req-dismiss" data-id="${r.id}" title="Ablehnen">✕</button>`;
+      // Beschriftet und groß genug (Bedienbarkeit 15.11.2026, Vorschlag 3):
+      // vorher ein roter ✓ mit 30×21 px - rot las sich wie „ablehnen".
+      : `<button class="good req-ja" data-act="req-apply" data-id="${r.id}" title="Anfrage übernehmen – wird sofort angewendet">✓ Übernehmen</button>
+         <button class="ghost req-nein" data-act="req-dismiss" data-id="${r.id}" title="Anfrage ablehnen">Ablehnen</button>`;
     return `
     <div class="req-item">
       <div class="grow">
@@ -1344,24 +1346,40 @@ function renderRequestsPanel() {
 // erste Eindruck jedes Abends. Jetzt die drei Schritte, die vor dem ersten
 // Austeilen anstehen, je mit einem Knopf. Verschwindet, sobald jemand am Tisch
 // ist (dann steht hier die Reihenfolge) – schiebt also mitten im Spiel nichts.
+// Nur bis zum ersten Austeilen des Abends - nach „Kampf beenden" mitten im
+// Abend wäre „Willkommen am Tisch" fehl am Platz.
+function startflaecheNochZeigen(s) {
+  if (s.round || s.combatants.some((c) => c.card)) App._schonAusgeteilt = true;
+  return !App._schonAusgeteilt;
+}
 function startflaecheHtml() {
   const s = App.state;
   const spieler = s.players || [];
   const da = spieler.filter((p) => p.connected).length;
   const punkte = Array.from({ length: Math.max(5, spieler.length) }, (_, i) =>
     `<i class="${i < da ? "an" : ""}"></i>`).join("");
-  const zeile = (sym, titel, text, knopf, extra = "") => `<div class="sf-zeile">
-      <div class="sf-sym">${symbolSvg(sym)}</div>
+  // Bleibt bis zum ersten Austeilen stehen (Bedienbarkeit 15.11.2026, Vorschlag
+  // 2) - vorher verschwand sie mit dem ersten Handy, gerade wenn „Kampf
+  // vorbereiten" und „Abend starten" noch anstanden. Erledigtes bekommt ein ✓.
+  const kaempfe = s.encounters || [];
+  const gegner = s.combatants.filter((c) => c.kind === "npc" && !c.ally).length;
+  const kampfFertig = gegner > 0 || kaempfe.length > 0;
+  const nimmtAuf = typeof Aufn !== "undefined" && !!Aufn.rec;
+  const zeile = (sym, titel, text, knopf, extra = "", fertig = false) => `<div class="sf-zeile${fertig ? " fertig" : ""}">
+      <div class="sf-sym">${symbolSvg(fertig ? "circle-check" : sym)}</div>
       <div class="sf-text"><div class="sf-titel">${titel}</div><div class="sf-unter">${text}</div>${extra}</div>
       ${knopf}</div>`;
   const zeilen = [
-    zeile("qr-code", "Spieler einladen", "QR-Code zeigen – Handys treten ohne Installation bei.",
+    zeile("qr-code", "Spieler einladen", da ? `${da} ${da === 1 ? "Handy ist" : "Handys sind"} da – weitere per QR-Code.` : "QR-Code zeigen – Handys treten ohne Installation bei.",
       `<button class="ghost sf-knopf" data-act="qr-gross">QR-Code zeigen ${symbolSvg("chevron-right")}</button>`,
-      `<div class="sf-handys">${punkte}<span>${da ? `${da} ${da === 1 ? "Handy" : "Handys"} da` : "noch niemand da"}</span></div>`),
-    zeile("swords", "Kampf vorbereiten", "Gegner aus der Bibliothek oder als Text einfügen.",
-      `<button class="ghost sf-knopf" data-act="kaempfe-zeigen">Kampf anlegen ${symbolSvg("chevron-right")}</button>`),
-    funktionAn("aufnahme") ? zeile("mic", "Abend starten", "Aufnahme an – das Protokoll entsteht am Ende von selbst.",
-      `<button class="ghost sf-knopf" data-act="aufn-abend">Abend starten ${symbolSvg("chevron-right")}</button>`) : "",
+      `<div class="sf-handys">${punkte}<span>${da ? `${da} ${da === 1 ? "Handy" : "Handys"} da` : "noch niemand da"}</span></div>`, da > 0),
+    zeile("swords", "Kampf vorbereiten",
+      gegner ? `${gegner} Gegner am Tisch – oben austeilen.`
+        : kaempfe.length ? `${kaempfe.length === 1 ? `„${esc(kaempfe[0].name)}“ ist` : `${kaempfe.length} Kämpfe sind`} bereit – oben ▶ Starten.`
+        : "Gegner aus der Bibliothek oder als Text einfügen.",
+      `<button class="ghost sf-knopf" data-act="kaempfe-zeigen">${kampfFertig ? "Kämpfe" : "Kampf anlegen"} ${symbolSvg("chevron-right")}</button>`, "", kampfFertig),
+    funktionAn("aufnahme") ? zeile("mic", "Abend starten", nimmtAuf ? "Aufnahme läuft – das Protokoll entsteht am Ende von selbst." : "Aufnahme an – das Protokoll entsteht am Ende von selbst.",
+      nimmtAuf ? "" : `<button class="ghost sf-knopf" data-act="aufn-abend">Abend starten ${symbolSvg("chevron-right")}</button>`, "", nimmtAuf) : "",
   ].join("");
   return `<div class="startflaeche">
     <div class="sf-kopf"><div class="wortmarke sf-gruss">Willkommen am Tisch</div>
@@ -1423,7 +1441,8 @@ function renderOrderPanel(isGM, gesperrt = false) {
     return section("combat", `Kampf & Initiative · Runde ${s.round}`,
       `${renderControlBody()}<hr class="combat-sep">
        <div class="order-heading row spread"><span>Initiative-Reihenfolge</span>${filter}</div>
-       <div class="order"><div class="order-raster" style="--zeilen:${Math.max(1, Math.ceil(zeilenZahl / 2))}">${rows}</div>${benchRows}</div>`);
+       <div class="order"><div class="order-raster" style="--zeilen:${Math.max(1, Math.ceil(zeilenZahl / 2))}">${rows}</div>${benchRows}</div>
+       ${startflaecheNochZeigen(s) ? `<hr class="combat-sep">${startflaecheHtml()}` : ""}`);
   }
   // Spieler: Position nur für tischweit AUFGEDECKTE Karten. Verdeckte kommen ohne
   // Nummer in neutraler Reihenfolge nach unten -> verraten die Reihenfolge nicht.
@@ -1490,7 +1509,10 @@ function combatantRow(c, num, isGM, isOpen) {
   const showCard = isGM || isOpen;                 // Karte offen sichtbar?
   // Karten-abgeleitete Infos (Joker/hält/Hinweise) NUR zeigen, wenn aufgedeckt.
   const hasJoker = showCard && c.card && c.card.suit === "joker";
-  const cls = ["combatant",
+  // Gegnerzug (Bedienbarkeit 15.11.2026, Vorschlag 1B): Treffer direkt in der
+  // Zeile des Ziels statt einer Karte, die die halbe Reihenfolge verdeckte.
+  const gzAngreifer = isGM && gegnerzugZiel(c);
+  const cls = ["combatant", gzAngreifer ? "gz-ziel" : "",
     c.kind === "npc" ? (c.ally ? "ally" : "enemy") : "", isActive ? "active" : "",
     c.done ? "done" : "", (showCard && c.held) ? "held" : "", hasJoker ? "joker-holder" : "",
     (isGM && !isActive && App._naechsterId === c.id) ? "naechster" : "",
@@ -1508,7 +1530,7 @@ function combatantRow(c, num, isGM, isOpen) {
   // bunte Knöpfe mal 25 Figuren. Treffer laufen jetzt über „🎯 Treffer" unten
   // bzw. Taste T; Treffer und Heilung stehen zusätzlich im ⋯-Feld.
   const gmActions = isGM ? `${zustandZelle(c)}<div class="actions">
-      <button class="ghost small${App.rowStatusOpen.has(c.id) ? " on" : ""}" data-act="zustand-umschalten" data-id="${c.id}" title="Mehr: Treffer, Heilung, Zustände, Bennies, aktiv setzen, verdecken, pausieren, entfernen">⋯</button>
+      <button class="ghost small${App.kontextMenue && App.kontextMenue.id === c.id ? " on" : ""}" data-act="zustand-umschalten" data-id="${c.id}" title="Mehr: Treffer, Heilung, Zustände, Bennies, aktiv setzen, verdecken, pausieren, entfernen">⋯</button>
     </div>` : "";
   // Die seltenen Knöpfe - jetzt im "⋯"-Feld statt dauerhaft in der Zeile.
   const selteneKnoepfe = isGM ? `<div class="row tight" style="margin-bottom:8px; gap:6px">
@@ -1562,6 +1584,7 @@ function combatantRow(c, num, isGM, isOpen) {
       <div class="status-badges">${schlank ? "" : statusBadges(c, isGM)}</div>
     </div>
     ${gmActions}
+    ${gzAngreifer ? gegnerzugZeileHtml(gzAngreifer, c) : ""}
     ${/* Zustände & Bennies nur, wenn per "⋯" geöffnet. Vorher stand der
           zugeklappte "Zustand"-Knopf in einer eigenen Zeile unter JEDER Figur
           und machte jede Zeile 32 px höher. */ ""}
@@ -1616,7 +1639,9 @@ function kontextMenueHtml() {
     <div class="km-kopf"><b class="${c.kind === "npc" && !c.ally ? "km-feind" : ""}">${esc(c.name)}</b>${
       werte ? `<span class="km-werte">${esc(werte)}</span>` : ""}${
       st.wounds && mitWunden ? `<span class="km-werte">🩸 ${st.wounds}</span>` : ""}</div>
-    ${treffer}${zustand}${zustaende}${bennies}${zug}${verwalten}
+    ${treffer}${zustand}${zustaende}${bennies}${zug}
+    <div class="km-zeile km-effekt">${effektSteuerung(c)}</div>
+    ${verwalten}
   </div>`;
 }
 // Am Bildschirmrand nach innen schieben (Rechtsklick ganz unten/rechts).
@@ -1631,6 +1656,7 @@ function kontextMenueEinpassen() {
 }
 function kontextMenueZu() {
   if (!App.kontextMenue) return false;
+  App._kmZu = { id: App.kontextMenue.id, t: Date.now() };
   App.kontextMenue = null; render();
   return true;
 }
@@ -1883,13 +1909,26 @@ function kampfBaukastenHtml() {
       <select data-act="kb-zone" data-i="${i}">${zoneOptions(z.zone)}</select>
       ${z.proto.ally ? `<span class="kb-anon"></span>` : `<label class="kb-anon" title="Spieler sehen statt des Namens nur Unlesbares"><input type="checkbox" data-act="kb-anon" data-i="${i}" ${z.anon ? "checked" : ""}> verdeckt</label>`}
       <button type="button" class="ghost small bad" data-act="kb-weg" data-i="${i}" title="Zeile entfernen">✕</button>
-    </div>`).join("") || `<div class="muted small">Noch keine Gegner – unten aus der Bibliothek hinzufügen.</div>`;
+    </div>`).join("") || `<div class="muted small">Noch keine Gegner – aus der Bibliothek wählen oder gleich hier neu anlegen.</div>`;
   const opt = (liste, praefix) => (liste || []).map((v) => `<option value="${praefix}:${v.id}">${esc(v.name)}</option>`).join("");
   const dazu = `<select data-act="kb-dazu" class="kb-dazu">
       <option value="">+ Gegner / Verbündete aus der Bibliothek …</option>
       ${(s.bestiary || []).length ? `<optgroup label="Gegner">${opt(s.bestiary, "b")}</optgroup>` : ""}
       ${(s.allies || []).length ? `<optgroup label="Verbündete">${opt(s.allies, "a")}</optgroup>` : ""}
     </select>`;
+  // Gegner gleich hier neu anlegen (Bedienbarkeit 15.11.2026, Vorschlag 7):
+  // bei leerer Bibliothek war die Auswahl oben eine Sackgasse - erst Reiter
+  // „Gegner", Typ anlegen, zurück zu „Kämpfe" (~11 Klicks). Landet zugleich in
+  // der Bibliothek. Getipptes steht in E.neu (übersteht jedes Neuzeichnen).
+  const N = E.neu || {};
+  const neuGegner = `<div class="kb-neu-gegner">
+      <span class="muted small">oder neu:</span>
+      <input id="kbn-name" data-kbn="name" value="${esc(N.name || "")}" placeholder="Name, z. B. Pirat" maxlength="40" autocomplete="off">
+      <input id="kbn-anzahl" data-kbn="anzahl" value="${esc(N.anzahl || "1")}" inputmode="numeric" maxlength="2" title="Anzahl" aria-label="Anzahl">
+      <input id="kbn-parade" data-kbn="parade" value="${esc(N.parade || "")}" placeholder="Parade" inputmode="numeric" maxlength="3" autocomplete="off">
+      <input id="kbn-robustheit" data-kbn="robustheit" value="${esc(N.robustheit || "")}" placeholder="Robustheit" maxlength="8" autocomplete="off">
+      <button type="button" class="primary small" data-act="kb-neu-gegner">＋ Dazu</button>
+    </div>`;
   // Wer den Kampf schon unterwegs (KI) geschrieben hat, soll ihn nicht
   // abtippen: beim neuen Kampf direkt der Weg zum Einfügen.
   const importTipp = E.id ? "" : `<div class="muted small kb-import-tipp">Schon fertig in Gemini &amp; Co.? <button type="button" class="linkknopf" data-act="kampf-import">📋 Aus Text einfügen</button></div>`;
@@ -1902,6 +1941,7 @@ function kampfBaukastenHtml() {
     <div class="kb-abschnitt">⚔ Gegner &amp; Verbündete</div>
     ${npcZeilen}
     ${dazu}
+    ${neuGegner}
     <label class="field" style="margin-top:10px"><span>Notiz (nur SL)</span>
       <input id="kb-notiz" value="${esc(E.note)}" placeholder="z. B. Boss erst in Runde 2 aufdecken" maxlength="300" autocomplete="off"></label>
     <div class="row" style="justify-content:flex-end; gap:6px; margin-top:8px">
@@ -1909,6 +1949,53 @@ function kampfBaukastenHtml() {
       <button type="button" class="primary" data-act="kb-speichern">💾 Speichern</button>
     </div>
   </div>`;
+}
+
+// Getipptes im Baukasten sofort in den Entwurf: ein Server-Update zeichnet
+// neu und setzte Felder ohne Fokus sonst auf den alten Stand zurück.
+document.addEventListener("input", (e) => {
+  const E = App.kampfEntwurf, t = e.target;
+  if (!E || !t || !t.id) return;
+  if (t.id === "kb-name") E.name = t.value;
+  else if (t.id === "kb-notiz") E.note = t.value;
+  else if (t.dataset && t.dataset.kbn) (E.neu = E.neu || {})[t.dataset.kbn] = t.value;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target && e.target.dataset && e.target.dataset.kbn) { e.preventDefault(); kampfNeuerGegner(); }
+});
+// „＋ Dazu": Gegner-Typ in die Bibliothek (gleicher Name = vorhandener Typ)
+// und mit Anzahl in den Entwurf.
+function kampfNeuerGegner() {
+  const E = App.kampfEntwurf;
+  if (!E) return;
+  const N = E.neu || {};
+  const name = (N.name || "").replace(/\s+/g, " ").trim();
+  if (!name) { const f = $("kbn-name"); if (f) f.focus(); toast("Erst einen Namen eintragen"); return; }
+  const anzahl = Math.max(1, Math.min(30, parseInt(N.anzahl, 10) || 1));
+  const bib = App.state.bestiary || [];
+  let v = bib.find((b) => (b.name || "").trim().toLowerCase() === name.toLowerCase());
+  const werte = { parade: (N.parade || "").trim(), robustheit: (N.robustheit || "").trim(), panzer: "", spielwerte: "" };
+  if (!v || werte.parade || werte.robustheit) {
+    const id = v ? v.id : `npc-${Math.random().toString(16).slice(2, 10)}`;
+    v = { ...(v || {}), id, name: v ? v.name : name, isWildCard: v ? !!v.isWildCard : false, talents: v ? v.talents || [] : [],
+      ...(v ? { panzer: v.panzer, spielwerte: v.spielwerte || "" } : {}), parade: werte.parade || (v && v.parade) || "",
+      robustheit: werte.robustheit || (v && v.robustheit) || "" };
+    gmAction({ type: "bestiary_upsert", id: v.id, name: v.name, isWildCard: v.isWildCard, talents: v.talents,
+      gluck: !!v.gluck, grosses_gluck: !!v.grosses_gluck, image: v.image || null,
+      parade: v.parade, robustheit: v.robustheit, panzer: v.panzer || "", spielwerte: v.spielwerte || "" });
+  }
+  const zone = lastNpcZone();
+  const key = `${v.id}|0|${zone}|0`;
+  const vorhanden = E.zeilen.find((z) => z.key === key);
+  if (vorhanden) vorhanden.anzahl += anzahl;
+  else E.zeilen.push({ key, anzahl, zone, anon: false,
+    proto: { name: v.name, isWildCard: !!v.isWildCard, talents: v.talents || [], gluck: !!v.gluck, grosses_gluck: !!v.grosses_gluck,
+             ally: false, image: v.image || null, vorlage: v.id, parade: v.parade, robustheit: v.robustheit, panzer: v.panzer, spielwerte: v.spielwerte || "" } });
+  E.neu = {};
+  render();
+  // Das Feld mit Fokus lässt der Abgleich in Ruhe - darum selbst leeren.
+  document.querySelectorAll("[data-kbn]").forEach((f) => { f.value = f.dataset.kbn === "anzahl" ? "1" : ""; });
+  const f = $("kbn-name"); if (f) f.focus();
 }
 
 function kampfSpeichern() {
