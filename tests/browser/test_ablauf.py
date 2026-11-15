@@ -181,6 +181,9 @@ def test_gegner_ko_und_aufraeumen(tisch):
         tisch.gm({"type": "apply_hit", "id": p1["id"], "steigerungen": 1})
     assert _figur(sl, "Pirat 1")["status"]["out"]
     tisch.gm({"type": "clear_defeated"})
+    # gm() kehrt beim ERSTEN neuen Stand zurück - am langsamen Windows-Läufer
+    # war das manchmal noch ein Nachzügler vom letzten Treffer (CI 15.11.2026).
+    sl.warte_bis("() => App.state.combatants.length === 1")
     namen = [c["name"] for c in sl.state()["combatants"]]
     assert namen == ["Pirat 2"]
 
