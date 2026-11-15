@@ -749,6 +749,11 @@ function notizThemaDialog(alt) {
     } }).then((w) => w === "loeschen" ? { loeschen: true } : w);
 }
 function notizThemaWaehlen(thema) {
+  // Gibt es das Thema schon in anderer Schreibweise („nsc" neben „NSC")? Dann
+  // das vorhandene nehmen - sonst standen zwei Reiter für dasselbe da.
+  const klein = (t) => notizThemaName(t).trim().toLowerCase();
+  const gleich = notizThemenAlle(notizenAlle()).find((t) => klein(t) === klein(thema));
+  if (gleich) thema = gleich;
   notizSpeicherSchreiben("notizEigeneThemen", [...new Set([...notizSpeicherLesen("notizEigeneThemen", []), thema])]);
   App.notizFilter = thema;
   notizSpeicherSchreiben("notizFilter", thema);
@@ -924,7 +929,11 @@ function daumenKnopf(o) {
   } else if (o.canRecover) {
     // Zwei gleichwertige Wege (Probe oder Benny): gleich große Knöpfe. Als
     // kleiner Neben-Knopf war „Benny ausgeben" winzig und „Erholt" dreizeilig.
-    haupt = o.recoverFreeBtn; neben = o.recoverBennyBtn; gleich = !!neben;
+    // Dritter Weg „Nicht geschafft" (Bedienbarkeit 15.11.2026, Vorschlag 6):
+    // vorher gab es keinen Knopf dafür - wer die Probe verpatzte, wusste nicht,
+    // was er tippen soll. Angeschlagen bleibt, der Zug ist vorbei.
+    const nicht = `<button class="ghost big" data-act="confirm-turn" title="Probe verpatzt: bleibt angeschlagen, Zug ist vorbei">✗ Nicht geschafft</button>`;
+    haupt = `<span class="dl-drei">${o.recoverFreeBtn}${nicht}${o.recoverBennyBtn || ""}</span>`;
     frage = `😵 Willenskraft oder Konstitution geschafft?`;
   } else if (isMyTurn && meinAngriff) {
     // Kein „Zug beenden" daneben: sonst endet der Zug, bevor der SL entschieden hat.

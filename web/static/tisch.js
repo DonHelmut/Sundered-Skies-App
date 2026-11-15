@@ -197,7 +197,7 @@ function playerQuickControls(c) {
     ${toggle}
     <div class="req-box">
       <div class="center muted small">Der Spielleiter bestätigt deine Anfrage.</div>
-      <div class="status-ctrl" style="justify-content:center; flex-wrap:wrap; margin-top:8px">${rows.join("")}</div>
+      <div class="status-ctrl req-raster">${rows.join("")}</div>
     </div>
     ${pendingRequestLine(c)}
   </div>`;
@@ -241,10 +241,15 @@ function muenzenKopf(c) {
     ? `<button type="button" class="muenze" data-act="benny-muenze" title="Benny ausgeben">✦</button>`
     : `<span class="muenze" title="Bennies">✦</span>`;
   // Mehr als vier passen neben „Runde" nicht - dann eine Münze mit Zahl.
+  const kurz = `${muenze}<span class="muenzen-zahl">×${n}</span>`;
+  // Ab drei Münzen auf schmalen Handys (360 px, das häufigste Android) beide
+  // Formen mitgeben, CSS zeigt dort die kurze: sonst wurde im Kampf (wenn
+  // „Runde 1" dazukommt) der eigene Name zu „Branni…" bzw. „Ko…" gekürzt.
   const inhalt = !n ? `<span class="muenze leer" title="Keine Bennies mehr"></span>`
-    : n <= 4 ? muenze.repeat(n)
-    : `${muenze}<span class="muenzen-zahl">×${n}</span>`;
-  return `<span class="muenzen" title="${n} Benn${n === 1 ? "y" : "ies"}">${inhalt}</span>`;
+    : n <= 2 ? muenze.repeat(n)
+    : n <= 4 ? `<span class="mz-voll">${muenze.repeat(n)}</span><span class="mz-kurz">${kurz}</span>`
+    : kurz;
+  return `<span class="muenzen${n >= 3 && n <= 4 ? " viele" : ""}" title="${n} Benn${n === 1 ? "y" : "ies"}">${inhalt}</span>`;
 }
 
 function bennyBadge(c) {
