@@ -3293,18 +3293,18 @@ body.theme-pergament button.bad:not(.ghost) { color: #fff6ec; background: var(--
   display: flex; align-items: center; justify-content: center; gap: 18px; padding: 14px 0;
   background: linear-gradient(90deg, transparent, rgba(24, 16, 6, 0.86) 18%, rgba(24, 16, 6, 0.86) 82%, transparent);
   animation: rundenBand 1.6s cubic-bezier(.2, .8, .2, 1) both; }
-.runden-band b { font-family: var(--schrift-titel); font-size: 2rem; letter-spacing: 0.14em;
+.runden-band b { white-space: nowrap; font-family: var(--schrift-titel); font-size: clamp(1.5rem, 7vw, 2rem); letter-spacing: 0.14em;
   background: linear-gradient(180deg, #fff3c4, #e9b448); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.rb-z { width: 90px; height: 1px; background: linear-gradient(90deg, transparent, #e9b448); }
+.rb-z { width: min(90px, 14vw); flex: none; height: 1px; background: linear-gradient(90deg, transparent, #e9b448); }
 .rb-z.rb-r { transform: scaleX(-1); }
 @keyframes rundenBand { 0% { opacity: 0; transform: translateX(-40px); } 15%, 75% { opacity: 1; transform: none; }
   100% { opacity: 0; transform: translateX(40px); } }
 
 .treffer-moment { position: fixed; left: 50%; top: 40%; z-index: 9400; pointer-events: none; text-align: center;
-  width: min(300px, 86vw); padding: 16px 22px; border-radius: 18px; background: rgba(20, 6, 6, 0.86); color: #ffe9e4;
+  width: max-content; min-width: min(260px, 80vw); max-width: 92vw; padding: 16px 22px; border-radius: 18px; background: rgba(20, 6, 6, 0.86); color: #ffe9e4;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); animation: trefferMoment 2.6s cubic-bezier(.2, .8, .2, 1) both; }
 .tm-wer { font-size: 0.85rem; font-weight: 700; opacity: 0.8; }
-.tm-gross { font-family: var(--schrift-titel); font-weight: 700; font-size: 2.2rem; line-height: 1.15; color: #ff6b5b; letter-spacing: 0.05em; }
+.tm-gross { font-family: var(--schrift-titel); font-weight: 700; font-size: clamp(1.4rem, 7.5vw, 2.2rem); white-space: nowrap; line-height: 1.15; color: #ff6b5b; letter-spacing: 0.05em; }
 .tm-pips { display: flex; gap: 8px; justify-content: center; margin: 8px 0 4px; }
 .tm-pips i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #ff6b5b; }
 .tm-pips i.voll { background: #ff6b5b; }
