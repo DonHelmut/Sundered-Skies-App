@@ -77,6 +77,24 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.10 (15.11.2026): Bedienbarkeits-Prüfung – drei Bugs
+
+Kalle: „Bedienbarkeit ist das oberste Gut." Ganzen Abend durchgespielt (SL
+1366×768 + 5 Handys 320–390 px), Klicks und Trefferflächen gemessen. Gefixt:
+
+- **Name im Handy-Kopf abgeschnitten:** im Kampf kommt „Runde 1" dazu – am
+  360-px-Android wurde „Brannigan" zu „Branni…", am 320er „Korgo" zu „Ko…". Bei
+  3–4 Bennies zeigt der Kopf auf Handys ≤ 400 px jetzt eine Münze mit „×3"
+  (`mz-voll`/`mz-kurz` in `muenzenKopf`, tisch.js), Name etwas enger gesetzt.
+- **Benny-Münze zu klein zum Tippen** (22 px, schmal 18 px): unsichtbar
+  vergrößerte Trefferfläche über `button.muenze::after`, Optik gleich.
+- **Notiz-Thema doppelt:** eigenes Thema „nsc" stand als zweiter Reiter neben
+  „👤 NSC". `notizThemaWaehlen` nimmt bei gleichem Namen (Groß/klein egal) das
+  vorhandene.
+
+Test: `test_handy_kopf_name_ganz_und_thema_ohne_doppel`. Vorschläge (Bilder
+heute/neu) in screenshots/bedienbarkeit-2026-11-15/, Kalles Wahl offen.
+
 ## Nach 2.0.10 (15.11.2026): Studio-Runde 3 – Momente + fühlbare Knöpfe
 
 Kalle wählte „Alles (1–4)" (Bilder: `screenshots/studio-runde3-2026-11-15/`):

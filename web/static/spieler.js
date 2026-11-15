@@ -749,6 +749,11 @@ function notizThemaDialog(alt) {
     } }).then((w) => w === "loeschen" ? { loeschen: true } : w);
 }
 function notizThemaWaehlen(thema) {
+  // Gibt es das Thema schon in anderer Schreibweise („nsc" neben „NSC")? Dann
+  // das vorhandene nehmen - sonst standen zwei Reiter für dasselbe da.
+  const klein = (t) => notizThemaName(t).trim().toLowerCase();
+  const gleich = notizThemenAlle(notizenAlle()).find((t) => klein(t) === klein(thema));
+  if (gleich) thema = gleich;
   notizSpeicherSchreiben("notizEigeneThemen", [...new Set([...notizSpeicherLesen("notizEigeneThemen", []), thema])]);
   App.notizFilter = thema;
   notizSpeicherSchreiben("notizFilter", thema);

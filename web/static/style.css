@@ -2057,6 +2057,16 @@ body.sl-ansicht .combatant.gk-mitglied .idx { width: 0; overflow: hidden; }
 button.muenze:hover { background: radial-gradient(circle at 34% 28%, #fff6c2 0 12%, #f0c64a 38%, #c48d22 72%, #8a5d12 100%); border-color: #7a5310; }
 .muenze.leer { background: none; border: 2px dashed var(--line); box-shadow: none; }
 .muenzen-zahl { font-size: 0.85rem; font-weight: 800; color: var(--gold); }
+.muenzen .mz-voll, .muenzen .mz-kurz { display: inline-flex; align-items: center; gap: 3px; }
+.muenzen .mz-kurz { display: none; }
+@media (max-width: 400px) {
+  .handy-kopf .muenzen.viele .mz-voll { display: none; }
+  .handy-kopf .muenzen.viele .mz-kurz { display: inline-flex; }
+  .handy-kopf .hk-name { letter-spacing: 0.03em; }
+}
+/* Münze im Kopf ist nur 22 px (schmal 18 px) groß - zu klein für den Daumen.
+   Unsichtbar vergrößerte Trefferfläche, Optik bleibt gleich. */
+button.muenze::after { content: ""; position: absolute; inset: -11px -3px; }
 
 /* Spieler: Goldrand, solange man dran ist. Fest gemalt, keine Animation. */
 .dran-rahmen { position: fixed; inset: 0; z-index: 96; pointer-events: none;

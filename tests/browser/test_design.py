@@ -201,9 +201,11 @@ def test_handy_feste_kopfleiste_und_reiter(tisch):
     h.warte_bis("() => !!document.querySelector('.handy-kopf .runden-zaehler')")
     kopf = h.js("""() => { const k = document.querySelector('.handy-kopf');
       return { pos: getComputedStyle(k).position, name: k.querySelector('.hk-name').textContent,
-               muenzen: k.querySelectorAll('.muenze').length,
+               // Schmales Handy: drei Bennies als eine Münze „×3" (Platz für den Namen).
+               muenzen: [...k.querySelectorAll('.muenze')].filter(m => m.getBoundingClientRect().width).length
+                 + ' ' + (k.querySelector('.mz-kurz .muenzen-zahl') || {}).textContent,
                pille: getComputedStyle(document.querySelector('.statusbar')).display }; }""")
-    assert kopf == {"pos": "fixed", "name": "Korgo", "muenzen": 3, "pille": "none"}
+    assert kopf == {"pos": "fixed", "name": "Korgo", "muenzen": "1 ×3", "pille": "none"}
     # Nichts verschwindet hinter der Leiste: der Inhalt beginnt darunter.
     assert h.js("document.querySelector('.handy-oben').getBoundingClientRect().top >= 46 - 1")
     h.kein_waagrechtes_scrollen("Kopfleiste schmal")
@@ -398,3 +400,28 @@ def test_studio_runde3_momente(tisch):
     h.warte_bis("() => !!document.querySelector('.treffer-moment .tm-gross')")
     assert "WUNDE" in h.page.inner_text(".treffer-moment .tm-gross") or "ANGESCHLAGEN" in h.page.inner_text(".treffer-moment .tm-gross")
     h.warte_bis("() => !document.querySelector('.treffer-moment')", frist=5000)
+
+
+def test_handy_kopf_name_ganz_und_thema_ohne_doppel(tisch):
+    """Bedienbarkeits-Prüfung 15.11.2026: im Kampf (wenn „Runde 1" dazukommt)
+    wurde der eigene Name am 360-px-Handy zu „Branni…" gekürzt; ein eigenes
+    Thema „nsc" stand als zweiter Reiter neben „👤 NSC"."""
+    tisch.sl()
+    h = tisch.handy("Brannigan", "se")
+    h.page.set_viewport_size({"width": 360, "height": 780})
+    tisch.gm({"type": "add_npc", "name": "Ork"})
+    tisch.gm({"type": "new_round", "runde": 0})
+    h.warte_bis("() => !!document.querySelector('.handy-kopf .runden-zaehler')")
+    breite = h.js("(() => { const n = document.querySelector('.hk-name'); return [n.scrollWidth, n.clientWidth]; })()")
+    assert breite[0] <= breite[1], f"Name im Kopf abgeschnitten: {breite}"
+    # Münze bleibt gut zu treffen: 8 px über ihr landet der Tipp noch auf ihr.
+    treffer = h.js("""(() => { const m = [...document.querySelectorAll('.handy-kopf button.muenze')]
+        .find(e => e.getBoundingClientRect().width); const r = m.getBoundingClientRect();
+        const e = document.elementFromPoint(r.left + r.width / 2, r.top - 8);
+        return !!(e && e.closest('button.muenze')); })()""")
+    assert treffer, "Münze im Kopf: Trefferfläche zu klein"
+    h.reiter("notizen")
+    h.js("() => notizThemaWaehlen('nsc')")
+    h.wait_for_timeout(200)
+    reiter = h.js("[...document.querySelectorAll('.notiz-reiter')].map(e => e.textContent.trim().toLowerCase())")
+    assert not any(r.endswith(" nsc") and not r.startswith("👤") for r in reiter), reiter
