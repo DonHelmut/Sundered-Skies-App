@@ -23,7 +23,7 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('pydantic_core')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 # Spracherkennung (server/sprache.py), siehe Ordner-Spec.
-for _p in ('sherpa_onnx', 'av'):
+for _p in ('sherpa_onnx', 'av', 'sounddevice', '_sounddevice_data'):
     tmp_ret = collect_all(_p)
     datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 

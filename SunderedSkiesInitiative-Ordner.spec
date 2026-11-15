@@ -18,7 +18,7 @@ hiddenimports += collect_submodules('PIL')
 # bringt onnxruntime und ffmpeg mit (~55 MB im Zip). Die Modelle sind NICHT
 # dabei, die lädt der SL einmalig nach data/modelle.
 for paket in ('uvicorn', 'websockets', 'httptools', 'anyio', 'zeroconf',
-              'pydantic', 'pydantic_core', 'sherpa_onnx', 'av'):
+              'pydantic', 'pydantic_core', 'sherpa_onnx', 'av', 'sounddevice', '_sounddevice_data'):
     d, b, h = collect_all(paket)
     datas += d; binaries += b; hiddenimports += h
 

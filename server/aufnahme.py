@@ -426,7 +426,8 @@ class Aufnahmen:
         weg = False
         for p in [self._meta_pfad(name), self.audio_pfad(name),
                   self.ordner / f"{name}-transkript.txt", self.ordner / f"{name}-prompt.txt",
-                  self.ordner / f"{name}-live.txt", self.ordner / f"{name}-stimmen.json"]:
+                  self.ordner / f"{name}-live.txt", self.ordner / f"{name}-stimmen.json",
+                  self.ordner / f"{name}-richtung.bin"]:
             if p and p.exists():
                 p.unlink()
                 weg = True

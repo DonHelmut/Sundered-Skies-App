@@ -58,6 +58,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+from . import richtung as richtung_mod
+
 SR = 16000                      # alle Modelle wollen 16 kHz mono
 HOCHPASS_HZ = 100               # 60 Hz ließ das Brummen drin, 120 Hz brachte nichts mehr
 MAX_STUECK_S = 28.0             # danach: so lang höchstens am Stück erkennen
@@ -85,6 +87,13 @@ MODELLE = {
     # 3D-Speaker legten die beiden Männer zusammen.
     "stimme": (f"{_GH}/speaker-recongition-models/nemo_en_titanet_small.onnx",
                "nemo_en_titanet_small.onnx", 40),
+    # Für den Durchgang danach (seit 15.11.2026, siehe „Sprecher sortieren"):
+    # mit dem neuen Sortieren trennte ERes2Net in allen 7 nachgebauten Runden
+    # 84–93 % der Redezeit richtig, TitaNet (klein wie groß) schwankte
+    # 73–92 %. Kostet etwa 6x die Rechenzeit von TitaNet klein - darum nur
+    # danach, und nur wenn das Mikro keine Richtung liefert (server/richtung.py).
+    "stimme_genau": (f"{_GH}/speaker-recongition-models/3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx",
+                     "3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx", 111),
     "text": (f"{_GH}/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
              "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8", 490),
     # Canary für den Durchgang danach: fest auf Deutsch eingestellt. Parakeet
@@ -136,6 +145,11 @@ def modelle_fehlen(ordner: Path) -> list[str]:
 
 def canary_da(ordner: Path) -> bool:
     return (ordner / MODELLE["genau"][1]).exists()
+
+
+def genau_komplett(ordner: Path) -> bool:
+    """Alles da, was der Durchgang danach für das beste Ergebnis braucht?"""
+    return canary_da(ordner) and (ordner / MODELLE["stimme_genau"][1]).exists()
 
 
 def _laden(url: str, ziel: Path, fortschritt: Callable[[int], None], stopp: threading.Event) -> None:
@@ -628,6 +642,142 @@ def sprache_finden(ton, modelle: Path, max_s: float = 20.0,
     return stuecke
 
 
+# --- Sprecher sortieren (seit 15.11.2026) ---------------------------------------------
+#
+# Kalle: „Hauptsache Sprecher werden gut erkannt", Modelle dürften 5 GB groß
+# sein. Gemessen an 7 nachgebauten Runden (15 min, SL + 5 bzw. + 7, Hall,
+# 20 % Reinreden, SL mit verstellter NSC-Stimme; Zahl = Redezeit beim
+# richtigen Sprecher): Größere Modelle allein halfen NICHT (TitaNet groß,
+# WeSpeaker, Reverb-Segmentierung: gleich oder schlechter). Der Engpass war
+# das Sortieren: die Sprechertrennung von sherpa-onnx fasst erst ganze
+# Segmente zusammen und fand in einer Runde mit fünf Männern nur 2 von 6
+# Leuten - das Nachschärfen kann zusammengelegte Stimmen nicht mehr trennen.
+# Jetzt werden die kurzen Fenster selbst sortiert (Spektral-Clustering: jedes
+# Fenster kennt nur seine ähnlichsten Nachbarn, die Zahl der Gruppen ergibt
+# sich aus der größten Lücke in den Eigenwerten):
+#   bisher 65–90 % (Mittel 78) -> mit ERes2Net 84–93 % (Mittel 89).
+# Hört das Mikro zusätzlich mit vier Kapseln mit (server/richtung.py), zählt
+# der Sitzplatz mit: 98–99 % in allen 7 Runden, auch die NSC-Stimme bleibt
+# beim SL. Dann reicht das kleine, schnelle TitaNet.
+SORT_MAX_N = 800            # mehr Fenster -> Stichprobe (Eigenwerte kosten n³)
+SORT_NACHBARN = (0.02, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2)   # Anteil Nachbarn, bester gewinnt
+SORT_MAX_GRUPPEN = 10
+RICHT_SIGMA = 0.5           # so nah (in Streuungen) gilt als „gleiche Ecke"
+RICHT_ANTEIL = 0.6          # Gewicht der Richtung beim Sortieren (Rest: Stimme)
+RICHT_NACH = 0.5            # … und beim Nachschärfen, auf die Stimm-Ähnlichkeit drauf
+# Zwei Gruppen vom selben Platz sind EINE Person (der SL mit verstellter
+# NSC-Stimme - Kalle: „soll keine neue Person sein"). In den Test-Runden lagen
+# SL und seine NSC-Stimme höchstens 0,24 auseinander, zwei verschiedene Leute
+# mindestens 0,94 (acht am Tisch).
+RICHT_GLEICHER_PLATZ = 0.45
+
+
+def _kmeans(x, k: int, starts: int = 8, runden: int = 50):
+    """Kleines k-Means (numpy, fester Zufall: gleiche Aufnahme -> gleiches
+    Ergebnis). scikit-learn dafür mitzuliefern wären 100 MB im Paket."""
+    import numpy as np
+    rng = np.random.default_rng(0)
+    best = None
+    for _ in range(starts):
+        c = [x[rng.integers(len(x))]]
+        for _ in range(1, k):
+            d = np.min([((x - z) ** 2).sum(1) for z in c], axis=0)
+            c.append(x[rng.choice(len(x), p=d / d.sum())] if d.sum() > 0 else x[rng.integers(len(x))])
+        c = np.array(c)
+        for _ in range(runden):
+            lab = ((x[:, None, :] - c[None]) ** 2).sum(2).argmin(1)
+            n = np.array([x[lab == j].mean(0) if (lab == j).any() else c[j] for j in range(k)])
+            if np.allclose(n, c):
+                break
+            c = n
+        kosten = float(((x - c[lab]) ** 2).sum())
+        if best is None or kosten < best[0]:
+            best = (kosten, lab)
+    return best[1]
+
+
+def _richt_naehe(f, mitten):
+    """Wie nah liegt jedes Fenster (Richtungs-Merkmale f) an jeder Mitte? 1 =
+    gleiche Ecke, gegen 0 = woanders."""
+    import numpy as np
+    d2 = ((f[:, None, :] - mitten[None]) ** 2).mean(2)
+    return np.exp(-d2 / (2 * RICHT_SIGMA ** 2))
+
+
+def sortieren(vektoren, richtung=None, max_gruppen: int = SORT_MAX_GRUPPEN):
+    """Fenster -> Sprecher-Nummer je Fenster. vektoren: Stimmabdrücke (Länge 1).
+    richtung: (merkmale, da) aus richtung.fuer_ton oder None."""
+    import numpy as np
+    v = np.asarray(vektoren, dtype=np.float64)
+    n = len(v)
+    if n < 8:
+        return [0] * n
+    f = None
+    if richtung is not None:
+        f = np.asarray(richtung[0], dtype=np.float64)
+    idx = np.arange(n) if n <= SORT_MAX_N else np.linspace(0, n - 1, SORT_MAX_N).astype(int)
+    vi = v[idx]
+    a = np.clip(vi @ vi.T, 0, None)
+    if f is not None:
+        a = (1 - RICHT_ANTEIL) * a + RICHT_ANTEIL * _richt_naehe(f[idx], f[idx])
+    np.fill_diagonal(a, 0)
+    kmax = min(max_gruppen, len(idx) - 2)
+    best = None
+    for p in SORT_NACHBARN:
+        k = max(2, int(round(p * len(idx))))
+        # Je Fenster nur die k ähnlichsten behalten: so reißen die Brücken
+        # zwischen ähnlichen Stimmen ab, die ein Schwellwert stehen ließe.
+        b = np.where(a >= np.partition(a, -k, axis=1)[:, -k][:, None], a, 0.0)
+        b = (b + b.T) / 2
+        w, u = np.linalg.eigh(np.diag(b.sum(1)) - b)
+        luecken = np.diff(w[:kmax + 1])
+        g = int(np.argmax(luecken)) + 1
+        # Auto-Abstimmung nach Park u. a. 2020: kleiner Nachbar-Anteil bei
+        # großer Lücke gewinnt - ein fester Anteil kippte je nach Runde.
+        guete = p / (luecken.max() / (w[kmax] + 1e-9) + 1e-9)
+        if best is None or guete < best[0]:
+            best = (guete, g, u[:, :g])
+    _, g, u = best
+    lab = np.zeros(len(idx), dtype=int) if g == 1 else _kmeans(u, g)
+    if len(idx) == n and f is None:
+        return [int(x) for x in lab]
+    # Alle Fenster (auch die außerhalb der Stichprobe) zur ähnlichsten Gruppe.
+    gruppen = [j for j in range(g) if (lab == j).any()]
+    z = np.stack([vi[lab == j].mean(0) for j in gruppen])
+    z /= np.linalg.norm(z, axis=1, keepdims=True) + 1e-9
+    nah = v @ z.T
+    if f is None:
+        return [gruppen[int(i)] for i in nah.argmax(1)]
+    nah = nah + _richt_naehe(f, np.stack([np.median(f[idx][lab == j], axis=0) for j in gruppen]))
+    alle = np.array([gruppen[int(i)] for i in nah.argmax(1)])
+    # Gleicher Platz -> gleiche Person: die kleinere Gruppe geht in der größeren auf.
+    while True:
+        da = sorted(set(alle.tolist()), key=lambda j: -int((alle == j).sum()))
+        ecke = {j: np.median(f[alle == j], axis=0) for j in da}
+        paar = next(((x, y) for i, x in enumerate(da) for y in da[i + 1:]
+                     if float(np.sqrt(((ecke[x] - ecke[y]) ** 2).mean())) < RICHT_GLEICHER_PLATZ), None)
+        if paar is None:
+            return [int(x) for x in alle]
+        alle[alle == paar[1]] = paar[0]
+
+
+def _fenster_teile(fenster: list[tuple[float, float]], lab) -> list[tuple[float, float, int]]:
+    """Fenster + Sprecher je Fenster -> teile (start, ende, sprecher). Fenster
+    überlappen: die Grenze liegt mittig zwischen zwei Fenstermitten."""
+    mitte = [(a + b) / 2 for a, b in fenster]
+    erg: list[tuple[float, float, int]] = []
+    for i, ((a, b), sp) in enumerate(zip(fenster, lab)):
+        if i and fenster[i - 1][1] > a:
+            a = (mitte[i - 1] + mitte[i]) / 2
+        if i + 1 < len(fenster) and fenster[i + 1][0] < b:
+            b = (mitte[i] + mitte[i + 1]) / 2
+        if erg and erg[-1][2] == sp and a - erg[-1][1] < 0.05:
+            erg[-1] = (erg[-1][0], b, sp)
+        else:
+            erg.append((a, b, int(sp)))
+    return erg
+
+
 # --- Sprecher nachschärfen ----------------------------------------------------------
 #
 # Erster Testabend 04.11.2026 (Kalle als Korgo + Spielleiter, schnelle
@@ -665,7 +815,7 @@ def nach_fenster(stuecke: list[tuple[float, float]]) -> list[tuple[float, float]
 
 
 def nachschaerfen(fenster: list[tuple[float, float]], vektoren, teile: list[tuple[float, float, int]],
-                  runden: int = 5) -> list[tuple[float, float, int]]:
+                  runden: int = 5, richtung=None) -> list[tuple[float, float, int]]:
     """fenster + je ein Stimmabdruck (Länge 1) -> neue teile (start, ende, sprecher).
     Wie k-Means, gestartet mit der Sprechertrennung: Mittel je Sprecher,
     jedes Fenster zum ähnlichsten, wiederholen. Sprecher unter NACH_MIN_S
@@ -675,6 +825,8 @@ def nachschaerfen(fenster: list[tuple[float, float]], vektoren, teile: list[tupl
     if not fenster or not teile:
         return teile
     v = np.asarray(vektoren, dtype=np.float32)
+    # Richtung (vier Kapseln, server/richtung.py): der Sitzplatz zählt mit.
+    f = np.asarray(richtung[0], dtype=np.float32) if richtung is not None else None
 
     def alt(a: float, b: float) -> Optional[int]:
         anteil: dict[int, float] = {}
@@ -701,7 +853,11 @@ def nachschaerfen(fenster: list[tuple[float, float]], vektoren, teile: list[tupl
             return teile
         namen = list(gross)
         m = np.stack([gross[k] for k in namen])
-        neu = [namen[int(i)] for i in np.argmax(v @ m.T, axis=1)]
+        nah = v @ m.T
+        if f is not None:
+            ecken = np.stack([np.median(f[[i for i, x in enumerate(lab) if x == k]], axis=0) for k in namen])
+            nah = nah + RICHT_NACH * _richt_naehe(f, ecken)
+        neu = [namen[int(i)] for i in np.argmax(nah, axis=1)]
         if neu == lab:
             break
         lab = neu
@@ -710,37 +866,21 @@ def nachschaerfen(fenster: list[tuple[float, float]], vektoren, teile: list[tupl
     for i in range(1, len(lab) - 1):
         if lab[i - 1] == lab[i + 1] != lab[i] and fenster[i + 1][0] - fenster[i - 1][1] < 0.1:
             lab[i] = lab[i - 1]
-    # Fenster überlappen: die Grenze liegt mittig zwischen zwei Fenstermitten.
-    mitte = [(a + b) / 2 for a, b in fenster]
-    erg: list[tuple[float, float, int]] = []
-    for i, ((a, b), sp) in enumerate(zip(fenster, lab)):
-        if i and fenster[i - 1][1] > a:
-            a = (mitte[i - 1] + mitte[i]) / 2
-        if i + 1 < len(fenster) and fenster[i + 1][0] < b:
-            b = (mitte[i] + mitte[i + 1]) / 2
-        if erg and erg[-1][2] == sp and a - erg[-1][1] < 0.05:
-            erg[-1] = (erg[-1][0], b, sp)
-        else:
-            erg.append((a, b, sp))
-    return erg
+    return _fenster_teile(fenster, lab)
 
 
-def stimmen_nachhoeren(ton, stuecke: list[tuple[float, float]], teile: list[tuple[float, float, int]],
-                       modelle: Path, threads: int = 1, stopp: Optional[threading.Event] = None,
-                       melden: Callable[[float], None] = lambda a: None) -> list[tuple[float, float, int]]:
-    """Abdrücke je Fenster rechnen und nachschärfen. Geht etwas schief, bleibt
-    es bei der Sprechertrennung - lieber gröber als kein Transkript."""
+def fenster_abdruecke(ton, fenster: list[tuple[float, float]], modell: Path, threads: int = 1,
+                      stopp: Optional[threading.Event] = None,
+                      melden: Callable[[float], None] = lambda a: None) -> list:
+    """Je Fenster ein Stimmabdruck (Länge 1)."""
     import numpy as np
     import sherpa_onnx as so
-    fenster = nach_fenster(stuecke)
-    if not fenster:
-        return teile
     ex = so.SpeakerEmbeddingExtractor(
-        so.SpeakerEmbeddingExtractorConfig(model=str(modelle / MODELLE["stimme"][1]), num_threads=threads))
+        so.SpeakerEmbeddingExtractorConfig(model=str(modell), num_threads=threads))
     vektoren = []
     for i, (a, b) in enumerate(fenster):
-        if stopp is not None and i % 200 == 0:
-            if stopp.is_set():
+        if i % 200 == 0:
+            if stopp is not None and stopp.is_set():
                 raise InterruptedError
             melden(i / len(fenster))
         st = ex.create_stream()
@@ -748,7 +888,46 @@ def stimmen_nachhoeren(ton, stuecke: list[tuple[float, float]], teile: list[tupl
         st.input_finished()
         x = np.array(ex.compute(st), dtype=np.float32)
         vektoren.append(x / (np.linalg.norm(x) or 1.0))
+    return vektoren
+
+
+def stimmen_nachhoeren(ton, stuecke: list[tuple[float, float]], teile: list[tuple[float, float, int]],
+                       modelle: Path, threads: int = 1, stopp: Optional[threading.Event] = None,
+                       melden: Callable[[float], None] = lambda a: None) -> list[tuple[float, float, int]]:
+    """Abdrücke je Fenster rechnen und nachschärfen. Geht etwas schief, bleibt
+    es bei der Sprechertrennung - lieber gröber als kein Transkript."""
+    fenster = nach_fenster(stuecke)
+    if not fenster:
+        return teile
+    vektoren = fenster_abdruecke(ton, fenster, modelle / MODELLE["stimme"][1], threads, stopp, melden)
     return nachschaerfen(fenster, vektoren, teile)
+
+
+def sprecher_sortieren(ton, stuecke: list[tuple[float, float]], modelle: Path, threads: int = 1,
+                       stopp: Optional[threading.Event] = None,
+                       melden: Callable[[float], None] = lambda a: None,
+                       richtung: Optional[Callable] = None) -> Optional[list[tuple[float, float, int]]]:
+    """Der neue Weg (siehe „Sprecher sortieren"): Fenster abhören, sortieren,
+    nachschärfen. richtung(fenster) liefert die Sitzplatz-Merkmale oder None.
+    Rückgabe None: geht hier nicht (Modell fehlt, kaum Sprache) - dann der
+    alte Weg über die Sprechertrennung."""
+    fenster = nach_fenster(stuecke)
+    if len(fenster) < 8:
+        return None
+    r = None
+    if richtung is not None:
+        try:
+            r = richtung(fenster)
+        except Exception:   # noqa: BLE001 - dann eben nur nach Stimme
+            r = None
+    # Mit Richtung reicht das kleine TitaNet (und war im Test sogar stabiler);
+    # ohne sie braucht es ERes2Net.
+    modell = modelle / MODELLE["stimme" if r is not None else "stimme_genau"][1]
+    if not modell.exists():
+        return None
+    vektoren = fenster_abdruecke(ton, fenster, modell, threads, stopp, melden)
+    lab = sortieren(vektoren, r)
+    return nachschaerfen(fenster, vektoren, _fenster_teile(fenster, lab), richtung=r)
 
 
 def stueck_zuordnen(s: float, e: float, tokens: list[str], zeiten: list[float],
@@ -1030,11 +1209,13 @@ def stimm_abdruecke(ton, abschnitte: list[Abschnitt], modelle: Path, threads: in
 def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
                    fortschritt: Optional[Callable[[float, str], None]] = None,
                    stopp: Optional[threading.Event] = None, namen=(),
-                   abdruecke: Optional[dict] = None) -> str:
+                   abdruecke: Optional[dict] = None, richtung: Optional[Callable] = None) -> str:
     """Ganze Aufnahme -> Transkript „[hh:mm:ss] S00: …". fortschritt(0..1, Schritt).
     personen: höchstens so viele Sprecher (0 = bis zu 8).
     namen: Eigennamen der Runde (server/namen.py).
-    abdruecke: wird (falls gegeben) mit den Stimmabdrücken je Sprecher gefüllt."""
+    abdruecke: wird (falls gegeben) mit den Stimmabdrücken je Sprecher gefüllt.
+    richtung(ton, fenster): Sitzplatz-Merkmale des Tischmikros (server/richtung.py)
+    oder None."""
     stopp = stopp or threading.Event()
     melden = fortschritt or (lambda a, s: None)
     threads = _threads()
@@ -1050,23 +1231,37 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
     # Tisch-Simulation fand die Schwelle alle 4 Stimmen, „genau 4" legte zwei
     # Spielerinnen zusammen. Und Gäste, die nicht in der App stehen, fehlen
     # sonst.
-    dia = _sprechertrennung(modelle, threads, 0)
-
-    def dia_weiter(fertig, gesamt):
-        melden(0.02 + 0.18 * fertig / max(1, gesamt), "Sprecher trennen")
-        return 1 if stopp.is_set() else 0
-    roh = dia.process(ton, callback=dia_weiter).sort_by_start_time()
-    if stopp.is_set():
-        raise InterruptedError
-    teile = [(x.start, x.end, x.speaker) for x in roh]
-    # Grob -> fein (Testabend 04.11.: kurze Einwürfe landeten beim Falschen).
+    teile = None
     try:
-        teile = stimmen_nachhoeren(ton, stuecke, teile, modelle, threads, stopp,
-                                   lambda a: melden(0.2 + 0.05 * a, "Stimmen nachhören"))
+        teile = sprecher_sortieren(ton, stuecke, modelle, threads, stopp,
+                                   lambda a: melden(0.02 + 0.23 * a, "Stimmen sortieren"),
+                                   (lambda fenster: richtung(ton, fenster)) if richtung else None)
     except InterruptedError:
         raise
-    except Exception:   # noqa: BLE001 - dann eben die gröbere Sprechertrennung
-        pass
+    except Exception:   # noqa: BLE001 - dann der alte Weg
+        teile = None
+    if teile is None:
+        # Alter Weg (bis 2.0.10; bleibt für alle, denen das neue Stimm-Modell
+        # noch fehlt - kein Internet beim Update).
+        dia = _sprechertrennung(modelle, threads, 0)
+
+        def dia_weiter(fertig, gesamt):
+            melden(0.02 + 0.18 * fertig / max(1, gesamt), "Sprecher trennen")
+            return 1 if stopp.is_set() else 0
+        roh = dia.process(ton, callback=dia_weiter).sort_by_start_time()
+        if stopp.is_set():
+            raise InterruptedError
+        teile = [(x.start, x.end, x.speaker) for x in roh]
+        # Grob -> fein (Testabend 04.11.: kurze Einwürfe landeten beim Falschen).
+        try:
+            teile = stimmen_nachhoeren(ton, stuecke, teile, modelle, threads, stopp,
+                                       lambda a: melden(0.2 + 0.05 * a, "Stimmen nachhören"))
+        except InterruptedError:
+            raise
+        except Exception:   # noqa: BLE001 - dann eben die gröbere Sprechertrennung
+            pass
+    if stopp.is_set():
+        raise InterruptedError
     korrektur = _namen_korrektur(namen)
     sprach_s = sum(e - s for s, e in stuecke) or 1
     erledigt = 0.0
@@ -1086,7 +1281,7 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
             a.text = text_sauber(korrektur.korrigieren(a.text))
             abschnitte.append(a)
         erledigt += e - s
-        melden(0.2 + 0.8 * erledigt / sprach_s, "Text erkennen")
+        melden(0.25 + 0.75 * erledigt / sprach_s, "Text erkennen")
     fertig = beitraege(kleine_sprecher_weg(abschnitte, personen or MAX_LEUTE_UNBEKANNT))
     if abdruecke is not None and fertig:
         melden(1.0, "Stimmen merken")
@@ -1266,6 +1461,8 @@ class Sprache:
         # Leute laut App am Tisch sitzen (Spieler + SL).
         self.namen_quelle: Callable[[], list[str]] = lambda: []
         self.personen_quelle: Callable[[], int] = lambda: 0
+        # Vier Kapseln des Tischmikros hören mit (Sprecher nach Sitzplatz).
+        self.mithoerer = richtung_mod.Mithoerer()
 
     # Einstellungen (Live an/aus, Personenzahl, Namen & Begriffe) - überleben
     # den Neustart.
@@ -1343,7 +1540,8 @@ class Sprache:
             "verfuegbar": pakete_da(),
             "bereit": self.bereit(),
             "groesseMb": sum(MODELLE[n][2] for n in modelle_fehlen(self.modelle)),
-            "genauerFehlt": pakete_da() and not canary_da(self.modelle),
+            "genauerFehlt": pakete_da() and not genau_komplett(self.modelle),
+            "richtung": self.richtung_status(),
             "laden": None if not self.laden else {k: self.laden[k] for k in ("b", "gesamt", "fehler")},
             "live": None if not self.live else {"name": self.live["name"], "hinweis": self.live["hinweis"]},
             "job": None if not job else {k: job[k] for k in ("name", "anteil", "schritt", "start", "fehler")},
@@ -1378,11 +1576,44 @@ class Sprache:
         """Beim Serverstart: wer vor 1.5.28 eingerichtet hat, hat das
         Genauer-Modell (Canary) nicht. Ohne Klick nachladen - Kalle will immer
         das beste Ergebnis. Ohne Internet bleibt der Knopf „⬇ Genauer"."""
-        if pakete_da() and self.bereit() and not canary_da(self.modelle):
+        if pakete_da() and self.bereit() and not genau_komplett(self.modelle):
             self.modelle_holen()
 
     def _laedt(self) -> bool:
         return bool(self.laden and not self.laden["fehler"])
+
+    # --- Richtung (vier Kapseln, server/richtung.py) ---
+    def richtung_starten(self) -> None:
+        """Nach Start einer Aufnahme: mithören, falls das Mikro seine Kapseln
+        einzeln hergibt. Im Hintergrund - das Öffnen des Geräts kann eine
+        Sekunde dauern, und geht es nicht, läuft die Aufnahme trotzdem."""
+        a = self.aufnahmen.aktiv
+        if not a or not pakete_da():
+            return
+        name = a["name"]
+        pfad = richtung_mod.pfad_fuer(self.aufnahmen.ordner, name)
+
+        def los() -> None:
+            from . import diag
+            if self.mithoerer.starten(pfad):
+                g = self.mithoerer.geraet or {}
+                diag.log(f"RICHTUNG hört mit: {g.get('name')} [{g.get('api')}, {g.get('fs')} Hz]")
+            else:
+                # Damit sich am echten Mikro nachsehen lässt, woran es lag
+                # (Immersive aus? Treiber fehlt? Gerät belegt?).
+                diag.log(f"RICHTUNG aus ({self.mithoerer.fehler or 'kein Mikro mit einzelnen Kapseln'}): "
+                         f"{richtung_mod.geraete_text()}")
+            # Inzwischen schon wieder beendet (Doppelklick)? Dann nicht weiterlaufen.
+            if not self.aufnahmen.aktiv or self.aufnahmen.aktiv["name"] != name:
+                self.mithoerer.stoppen()
+        threading.Thread(target=los, daemon=True, name="richtung").start()
+
+    def richtung_stoppen(self) -> None:
+        self.mithoerer.stoppen()
+
+    def richtung_status(self) -> dict:
+        m = self.mithoerer
+        return {"laeuft": m.laeuft, "geraet": (m.geraet or {}).get("name") if m.laeuft else None}
 
     # --- Live ---
     def aufnahme_laeuft(self) -> None:
@@ -1443,7 +1674,7 @@ class Sprache:
             return
         if name not in self.warten:
             self.warten.append(name)
-        if not canary_da(self.modelle) and not self._laedt():
+        if not genau_komplett(self.modelle) and not self._laedt():
             self.modelle_holen()          # rechnet die Wartenden danach
         else:
             self._naechste()
@@ -1489,8 +1720,12 @@ class Sprache:
             try:
                 namen = self.begriffe() + self.aufnahmen.namen(name) + self._app_namen()
                 abdruecke: dict = {}
+                meta = self.aufnahmen._meta(name) or {}
+                rpfad = richtung_mod.pfad_fuer(self.aufnahmen.ordner, name)
                 text = transkribieren(pfad, self.modelle, self.hoechstens(name), melden, stopp, namen=namen,
-                                      abdruecke=abdruecke)
+                                      abdruecke=abdruecke,
+                                      richtung=(lambda ton, fenster: richtung_mod.fuer_ton(rpfad, meta, ton, SR, fenster))
+                                      if rpfad.exists() else None)
                 if text.strip():
                     (self.aufnahmen.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
                     self.aufnahmen.abdruecke_speichern(name, abdruecke)

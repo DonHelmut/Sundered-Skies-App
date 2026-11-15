@@ -658,6 +658,7 @@ async def aufnahme_start(request: Request):
         # Ende der neuen genau transkribiert.
         sprache.nach_aufnahme(alt)
     diag.log(f"AUFNAHME gestartet: {meta['name']}{meta['endung']}")
+    sprache.richtung_starten()
     sprache.aufnahme_laeuft()
     return JSONResponse({"name": meta["name"]})
 
@@ -679,6 +680,7 @@ async def aufnahme_stop(request: Request):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
     meta = aufnahmen.stoppen(game)
+    sprache.richtung_stoppen()
     if meta:
         diag.log(f"AUFNAHME beendet: {meta['name']} ({meta['dauerMs'] // 60000} min)")
         sprache.nach_aufnahme(meta["name"])

@@ -77,6 +77,69 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.10 (15.11.2026): Sprecher besser erkennen – neues Sortieren + Sitzplatz
+
+Kalle: „Bessere Modelle? Darf auch 5 GB groß sein, Hauptsache Sprecher werden
+gut erkannt. Meist 5 Spieler + SL." Mikro: **SSL Connex** (4 Kapseln).
+
+**Gemessen** an 7 nachgebauten Runden à 15 min (Piper-Stimmen, Raum mit Hall
+per pyroomacoustics, 20 % Reinreden, SL mit verstellter NSC-Stimme; SL + 5,
+zweimal SL + 7; Runden mit fünf Männern; Kapseln einmal als Kugeln im Kreis,
+einmal als Nieren nach vier Seiten) + einer mit 50 min. Zahl = Redezeit beim
+richtigen Sprecher.
+
+| | schlechteste | Mittel | beste |
+|---|---|---|---|
+| bisher (pyannote-Trennung + TitaNet klein + Nachschärfen) | 65 % | 78 % | 90 % |
+| neues Sortieren + ERes2Net (ein Kanal, wie bisher aufgenommen) | 84 % | 89 % | 93 % |
+| neues Sortieren + Sitzplatz (4 Kapseln) + TitaNet klein | 98,6 % | 98,8 % | 99,2 % |
+
+**Größere Modelle allein bringen nichts** (TitaNet groß, WeSpeaker ResNet34/293,
+CAM++, ERes2Net v2, Segmentierung Reverb v1/v2 im alten Ablauf: gleich oder
+schlechter). Der Engpass war das Sortieren: sherpa-onnx fasst ganze Segmente
+zusammen und fand in einer Männerrunde nur 2 von 6 Leuten – das Nachschärfen
+kann Zusammengelegtes nicht mehr trennen. Nicht messbar hier: pyannote
+community-1, DiariZen (brauchen PyTorch + Hugging Face, hier gesperrt);
+Sortformer kann nur 4 Sprecher. Text-Erkennung: nichts Neues für sherpa-onnx.
+
+**Teil 1 – neues Sortieren** (`sprache.sortieren`, `sprecher_sortieren`):
+Stimmabdruck je 1,5-s-Fenster, Spektral-Clustering (jedes Fenster behält nur
+seine ähnlichsten Nachbarn, Gruppenzahl aus der größten Eigenwert-Lücke,
+Nachbar-Anteil stimmt sich selbst ab – ein fester Anteil kippte je nach
+Runde), danach das bekannte Nachschärfen. Ohne scikit-learn (eigenes kleines
+k-Means). Ab 800 Fenstern Stichprobe (Eigenwerte kosten n³), zugeordnet werden
+alle. Neues Modell `stimme_genau` (ERes2Net large, 111 MB) lädt wie Canary von
+selbst nach; fehlt es, läuft der alte Weg. Rechenzeit: ERes2Net braucht hier
+~2 min je 15 min Ton (4 Kerne) – etwa eine halbe Stunde mehr für einen
+4-h-Abend, am ThinkPad mehr.
+
+**Teil 2 – Sitzplatz** (`server/richtung.py`): Das Connex gibt im Modus
+„Immersive" die Kapseln einzeln heraus (USB-Kanäle 3–6, braucht den
+SSL-Treiber). Der Browser kann nur Stereo, darum hört der **Server** während
+der Aufnahme selbst mit (sounddevice) und schreibt je 0,1 s nur Merkmale nach
+`<name>-richtung.bin` (4 h ≈ 10 MB, kein zweiter Ton): Pegel je Kapsel +
+Laufzeit je Kapselpaar (GCC-PHAT). Bewusst ohne die Bauform zu kennen – es
+wird kein Winkel gerechnet, nur „gleiche Ecke?" verglichen. Beim Auswerten:
+Zeit über die Aufnahme-Meta (Pausen fallen weg), Rest-Versatz über die
+Lautstärke-Kurve; die Merkmale zählen beim Sortieren (60 %) und Nachschärfen
+mit; zwei Gruppen vom selben Platz werden EINE Person (NSC-Stimme des SL).
+Mit Richtung reicht TitaNet klein (schneller als bisher). Liefert das Mikro
+nichts Brauchbares (Immersive aus, Treiber fehlt, Kanäle stumm/gleich,
+Mikro umgesteckt), läuft Teil 1 allein. Im Aufnahme-Panel steht dann
+„Sitzplatz-Erkennung an (4 Kapseln)"; `data/log.txt` nennt mit „RICHTUNG …"
+das Gerät oder alle Eingänge mit Kanalzahl.
+
+**Ungeprüft – braucht Kalles echtes Mikro:** ob Windows/der SSL-Treiber die
+6 Kanäle hergibt, während der Browser dasselbe Mikro aufnimmt (WASAPI wird
+vor ASIO versucht); wie stark die echten Kapseln unterscheiden (Köpfe drehen
+sich, Leute lehnen sich vor). Erster Test: Immersive an, 10 min aufnehmen,
+`log.txt`-Zeile „RICHTUNG" und das Transkript ansehen. Paketbau: `sounddevice`
++ `_sounddevice_data` stehen in beiden .spec.
+
+Testwerkzeug (nicht im Repo, Projektordner `recherche/sprecher-2026-11-15/`):
+`gen2.py` baut die Runden (Piper über sherpa-onnx **1.13.8** – in 2.0.1 ist
+die Piper-Ausgabe kaputt), `e2e.py`/`lang.py` messen mit dem echten Code.
+
 ## Nach 2.0.10 (15.11.2026): Bedienbarkeits-Prüfung – drei Bugs
 
 Kalle: „Bedienbarkeit ist das oberste Gut." Ganzen Abend durchgespielt (SL
