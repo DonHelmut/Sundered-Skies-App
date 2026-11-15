@@ -77,7 +77,13 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.10 (15.11.2026): Bedienbarkeits-Prüfung – drei Bugs
+## 2.0.10 (15.11.2026): Patch mit den Abschnitten darunter
+
+Studio-Optik (PR #55), Studio-Runde 2 + 3 (PR #56) und Bedienbarkeit (PR #57).
+Nur Versionsnummer + Paket. Updater unverändert (Aktualisieren aus paket-209
+übernommen, nur Ordner-Spec gebaut).
+
+## Nach 2.0.9 (15.11.2026): Bedienbarkeits-Prüfung – drei Bugs
 
 Kalle: „Bedienbarkeit ist das oberste Gut." Ganzen Abend durchgespielt (SL
 1366×768 + 5 Handys 320–390 px), Klicks und Trefferflächen gemessen. Gefixt:
@@ -116,7 +122,7 @@ Dann Kalles „Mach alles" (Vorschläge 1–7, bei 1 Variante B), Test
    vorhandener) und setzt ihn in den Entwurf. Getipptes im Baukasten steht
    sofort im Entwurf (übersteht Server-Updates).
 
-## Nach 2.0.10 (15.11.2026): Studio-Runde 3 – Momente + fühlbare Knöpfe
+## Nach 2.0.9 (15.11.2026): Studio-Runde 3 – Momente + fühlbare Knöpfe
 
 Kalle wählte „Alles (1–4)" (Bilder: `screenshots/studio-runde3-2026-11-15/`):
 
@@ -134,7 +140,7 @@ Alle Momente `position: fixed`, `pointer-events: none` (blockieren keinen
 Knopf), Keyframes nur opacity/transform; bei reduzierter Bewegung aus.
 Test: `test_studio_runde3_momente`.
 
-## Nach 2.0.10 (15.11.2026): Nichts springt am Handy, schnellerer Abgleich
+## Nach 2.0.9 (15.11.2026): Nichts springt am Handy, schnellerer Abgleich
 
 Messung (Playwright, SL + 3 Handys, CPU 4× gedrosselt, `layout-shift`,
 `longtask`, Bild-Lücken) über einen typischen Zug. Gefundene Sprünge am Handy
@@ -164,7 +170,7 @@ Bewusst geblieben: Wechsel auf „Mein Zug", Reiterwechsel, Kampf beenden
 (Ansicht wechselt), Zonen-Panel wächst, wenn Figuren umziehen.
 Test: `test_handy_springt_nicht_bei_aufdecken_dran_und_zustand`.
 
-## Nach 2.0.10 (14.11.2026): Studio-Runde 2 – Dialoge, Meldungen, Ladebild, Verbindung
+## Nach 2.0.9 (14.11.2026): Studio-Runde 2 – Dialoge, Meldungen, Ladebild, Verbindung
 
 Kalle wählte „Alles" (Bilder: `screenshots/studio-runde2-2026-11-14/`, gebaut
 unter `…/gebaut/`):
