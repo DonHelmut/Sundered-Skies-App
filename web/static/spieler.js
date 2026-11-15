@@ -148,9 +148,9 @@ function renderPlayer() {
          <div class="muted small" style="margin-top:4px">Der Spielleiter nimmt dich wieder rein (z. B. zum Rundenende). Solange bekommst du keine Karten.</div>
        </div>`
     : `<div class="panel" style="padding:12px">
-      <div class="big-card tilt3d" id="bigcard" style="max-width:250px">${cardSlot(mine.id, mine.card, mine.status, "", { open: !!mine.revealed, tappable: !mine.revealed })}</div>
-      ${hints ? `<div class="center" style="margin-top:6px">${hints}</div>` : ""}
-      ${timer ? `<div style="margin-top:8px">${timer}</div>` : ""}
+      <div class="karten-buehne"><div class="big-card tilt3d" id="bigcard" style="max-width:250px">${cardSlot(mine.id, mine.card, mine.status, "", { open: !!mine.revealed, tappable: !mine.revealed })}</div>
+      ${hints ? `<div class="karten-hinweise">${hints}</div>` : ""}
+      ${timer ? `<div class="karten-uhr">${timer}</div>` : ""}</div>
       ${angeschlagenHinweis}
       ${playerQuickControls(mine)}
     </div>`;
@@ -162,10 +162,7 @@ function renderPlayer() {
   // verraten -> normal anzeigen. Waehrend der Aufdeck-Animation ist das Rendern
   // gesperrt; die Liste erscheint also erst, wenn die Karte fertig liegt.
   const reihenfolgeGesperrt = !mine.benched && !!mine.card && !mine.revealed;
-  const orderPanel = reihenfolgeGesperrt
-    ? section("order", "Initiative-Reihenfolge",
-      `<div class="order-locked">🂠 Deck erst deine Karte auf –<br>dann siehst du die Reihenfolge.</div>`)
-    : renderOrderPanel(false);
+  const orderPanel = renderOrderPanel(false, reihenfolgeGesperrt);
 
   // Reihenfolge: Eigene Karte → Reihenfolge → Kampfzonen → Aktionen → Zustände.
   // Schmale Leiste, die beim Scrollen oben stehen bleibt: „wer ist dran" war
@@ -175,9 +172,12 @@ function renderPlayer() {
   // Kommt man als Nächstes, sagt die Leiste das zuerst und hebt sich ab - das
   // übernimmt den früheren Kasten „Gleich bist du dran" unter der Karte.
   const leisteText = werDran || (s.phase === "gate" ? "Warte auf den Spielleiter …" : "");
-  const dranLeiste = s.round && leisteText
+  // Auch ohne Text (kurz zwischen zwei Zügen) bleibt die Leiste stehen, mit
+  // fester Höhe für alle Zustände - sonst schob jeder Wechsel „X ist dran" →
+  // „Gleich bist du dran" → „Du bist dran!" die Karte um 20 px (Messung 15.11.).
+  const dranLeiste = s.round && (leisteText || !ruhe)
     ? `<div class="dran-leiste${isMyTurn ? " ich" : binNaechster ? " gleich" : ""}">${isMyTurn ? "▶ Du bist dran!"
-        : binNaechster ? `⏳ Gleich bist du dran <span class="dl-wer">· ${esc(werDran)}</span>` : esc(leisteText)}</div>`
+        : binNaechster ? `⏳ Gleich bist du dran <span class="dl-wer">· ${esc(werDran)}</span>` : esc(leisteText) || "&nbsp;"}</div>`
     : "";
 
   // Der Daumen-Knopf: EIN großer Knopf unten, immer an derselben Stelle, der
@@ -219,7 +219,14 @@ function renderPlayer() {
   // Zustand steht nicht mehr unter dem Namen (der ist jetzt in der festen
   // Kopfleiste) - nur noch, wenn etwas ist: kein „✓ Gesund" als Dauerzeile.
   const zustand = kopfZustand(mine);
-  const zustandZeile = /kz-ok/.test(zustand) || !/class="kz/.test(zustand) ? "" : `<div class="zustand-zeile">${zustand}</div>`;
+  // Schwebt rechts unter der Leiste statt als eigene Zeile: die Zeile kam bei
+  // „Angeschlagen" dazu und ging beim Erholen wieder weg - jedes Mal sprang
+  // die ganze Karte (Messung 15.11.2026). Im Kampf hängt sie an der festen
+  // Leiste oben; ohne Leiste (Ruhe) bleibt sie eine normale Zeile.
+  const zustandDa = !(/kz-ok/.test(zustand) || !/class="kz/.test(zustand));
+  const zustandSchwebt = zustandDa && !!dranLeiste;
+  const zustandZeile = zustandDa && !zustandSchwebt ? `<div class="zustand-zeile">${zustand}</div>` : "";
+  const zustandSchweb = zustandSchwebt ? `<div class="zustand-schweb">${zustand}</div>` : "";
 
   const wuerfelListe = `<datalist id="wuerfel-vorschlaege">${WUERFEL.map((w) => `<option value="${w}">`).join("")}</datalist>`;
 
@@ -228,7 +235,7 @@ function renderPlayer() {
     ${msgBanner}
     ${dranRahmen}
     ${handyKopfHtml(s, mine)}
-    ${reiterLeiste || dranLeiste ? `<div class="handy-oben">${reiterLeiste}${dranLeiste}</div>` : ""}
+    ${reiterLeiste || dranLeiste ? `<div class="handy-oben">${reiterLeiste}${dranLeiste}${zustandSchweb}</div>` : ""}
     ${zustandZeile}
     ${reiter === "kampf" ? cardPanel : ""}
     ${inhalt}

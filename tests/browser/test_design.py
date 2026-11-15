@@ -343,3 +343,34 @@ def test_studio_runde2_dialog_meldung_ladebild_leerer_bogen(tisch):
     h.js("() => document.querySelector('[data-act=handy-reiter][data-reiter=bogen]').click()")
     h.warte_bis("() => document.querySelectorAll('.bogen-leer [data-act=bogen-bearbeiten]').length === 2")
     h.kein_waagrechtes_scrollen("leerer Bogen")
+
+
+def test_handy_springt_nicht_bei_aufdecken_dran_und_zustand(tisch):
+    """Messung 15.11.2026: Aufdecken, Angeschlagen, eine laufende Anfrage und
+    der Wechsel der Dran-Leiste schoben die Seite jeweils um 20-120 px. Jetzt
+    liegen Hinweis, Uhr und Zustand schwebend auf festem Platz, die Leiste hat
+    eine Höhe. (Ist man selbst dran, wechselt die Ansicht bewusst auf „Mein Zug".)"""
+    sl, h = _kampf_am_handy(tisch)
+    tisch.gm({"type": "new_round", "runde": 0})
+    h.locator("#bigcard").wait_for()
+    h.wait_for_timeout(800)
+    me = h.js("App.state.combatants.find(c => c.playerId === App.myPlayerId).id")
+    oben = lambda sel: round(h.js(f"document.querySelector('{sel}').getBoundingClientRect().top + scrollY"))  # noqa: E731
+    leiste = lambda: round(h.js("document.querySelector('.dran-leiste').getBoundingClientRect().height"))  # noqa: E731
+    vorher, hoehe = oben(".req-knopf-huelle"), leiste()
+    _aufdecken(h)
+    h.wait_for_timeout(3500)
+    assert oben(".req-knopf-huelle") == vorher, "Aufdecken schiebt die Seite"
+    tisch.gm({"type": "apply_hit", "id": me})
+    h.warte_bis("() => !!document.querySelector('.zustand-schweb .kz-shaken')")
+    assert oben(".req-knopf-huelle") == vorher, "Angeschlagen schiebt die Seite"
+    h.js("() => gmAction({type:'request', kind:'status', detail:{woundsDelta:1}, label:'🩸 Wunde +'})")
+    h.warte_bis("() => !!document.querySelector('.req-offen')")
+    reihe = oben(".order")
+    tisch.gm({"type": "resolve_request", "id": sl.state()["requests"][0]["id"]})
+    h.warte_bis("() => !document.querySelector('.req-offen')")
+    assert oben(".order") == reihe, "Laufende Anfrage schiebt die Reihenfolge"
+    tisch.gm({"type": "set_active", "id": me})
+    tisch.gm({"type": "release"})
+    h.warte_bis("() => !!document.querySelector('.dran-leiste.ich')")
+    assert leiste() == hoehe, "Dran-Leiste ändert ihre Höhe"

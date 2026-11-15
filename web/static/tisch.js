@@ -148,8 +148,11 @@ function reqBtn(label, kind, detail) {
 // Nur laufende Anfragen (unter jeder Box angezeigt).
 function pendingRequestLine(c) {
   const pending = (App.state.requests || []).filter((r) => r.combatantId === c.id);
+  // Als Plakette an der Ecke des Anfrage-Knopfs, nicht als eigene Zeile
+  // darunter: die Zeile kam und ging mit jeder Anfrage und schob Reihenfolge
+  // und Zonen jedes Mal um eine Zeile (Messung 15.11.2026).
   return pending.length
-    ? `<div class="center muted small" style="margin-top:6px">⏳ Angefragt: ${pending.map((r) => esc(r.label || r.kind)).join(", ")}</div>` : "";
+    ? `<span class="req-offen" title="Angefragt: ${esc(pending.map((r) => r.label || r.kind).join(", "))}">⏳ ${pending.map((r) => esc(r.label || r.kind)).join(", ")}</span>` : "";
 }
 
 // EIN Umschalter für ALLE Anfragen: aus = nichts sichtbar (ruhige Ansicht),
@@ -161,7 +164,7 @@ function playerQuickControls(c) {
   const toggle = `<button class="${on ? "primary" : "ghost"} big" data-act="toggle-req-mode" style="width:100%">
       ${on ? "✕ Anfragen schließen" : "✋ Etwas beim Spielleiter anfragen"}
     </button>`;
-  if (!on) return `<div style="margin-top:10px">${toggle}${pendingRequestLine(c)}</div>`;
+  if (!on) return `<div class="req-knopf-huelle">${toggle}${pendingRequestLine(c)}</div>`;
 
   const st = c.status || {};
   const conds = (App.state && App.state.conditions) || {};
@@ -190,7 +193,7 @@ function playerQuickControls(c) {
     ? reqBtn(conds[k] + " aufheben", "status", { [k]: false })
     : reqBtn(conds[k], "status", { [k]: true })));
 
-  return `<div style="margin-top:10px">
+  return `<div class="req-knopf-huelle">
     ${toggle}
     <div class="req-box">
       <div class="center muted small">Der Spielleiter bestätigt deine Anfrage.</div>

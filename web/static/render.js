@@ -23,6 +23,8 @@ function domAbgleichen(root, html) {
   t.innerHTML = typeof symboleEinsetzen === "function" ? symboleEinsetzen(html) : html;
   kinderAbgleichen(root, t.content);
 }
+const FELD_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT", "DETAILS", "TEMPLATE"]);
+const FELD_SEL = "input, textarea, select, details, template";
 function domKennung(n) {
   if (n.nodeType !== 1) return null;
   const k = n.getAttribute("id") || n.getAttribute("data-cid") || n.getAttribute("data-rkey");
@@ -64,6 +66,13 @@ function knotenAbgleichen(alt, neu) {
     if (alt.nodeValue !== neu.nodeValue) alt.nodeValue = neu.nodeValue;
     return;
   }
+  // Ganzer Teilbaum gleich (die meisten Karten-SVGs, Zeilen, Panels)? Dann
+  // nichts ablaufen. Der Vergleich läuft im Browser selbst und ist um ein
+  // Vielfaches schneller als der Abgleich Knoten für Knoten in JS - der kostete
+  // am gedrosselten Handy 40-55 ms pro Server-Update (Messung 15.11.2026).
+  // Teilbäume mit Formularfeldern ausgenommen: deren .value/.open hängt nicht
+  // (mehr) am Attribut - die müssen weiter einzeln angeglichen werden.
+  if (!FELD_TAGS.has(alt.nodeName) && alt.isEqualNode(neu) && !alt.querySelector(FELD_SEL)) return;
   // Attribute angleichen (auch Klassen, die JS nachträglich gesetzt hat:
   // innerHTML hätte sie genauso verworfen).
   for (let i = alt.attributes.length - 1; i >= 0; i--) {

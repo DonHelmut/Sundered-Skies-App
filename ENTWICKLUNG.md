@@ -77,6 +77,33 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.10 (15.11.2026): Nichts springt am Handy, schnellerer Abgleich
+
+Messung (Playwright, SL + 3 Handys, CPU 4× gedrosselt, `layout-shift`,
+`longtask`, Bild-Lücken) über einen typischen Zug. Gefundene Sprünge am Handy
+beseitigt (Bugs, ohne Rückfrage):
+
+- **Dran-Leiste** eine Höhe (40 px) für „X ist dran" / „Gleich bist du dran" /
+  „Du bist dran!"; bleibt im Kampf auch ohne Text stehen.
+- **Zustand** (Angeschlagen, Wunden) schwebt rechts unter der Leiste
+  (`.zustand-schweb`) statt als eigene Zeile über der Karte. Ohne Leiste (Ruhe)
+  weiter als Zeile.
+- **„Antippen zum Aufdecken"**, **Talent-Hinweise** (Joker: +2 …) und **Zug-Uhr**
+  liegen auf der Karte (`.karten-buehne`) statt darunter.
+- **Laufende Anfrage** als Plakette an der Ecke des Anfrage-Knopfs (`.req-offen`)
+  statt eigener Zeile.
+- **Reihenfolge gesperrt** (eigene Karte zu): alle Zeilen als „verdeckt" mit
+  Zeile „Erst deine Karte aufdecken" statt kleinem Kasten - gleiche Höhe wie
+  danach. Sind alle offen, bleibt die Trennzeile („Alle Karten liegen offen").
+- `.mein-platz` feste Höhe.
+- **Abgleich** (`render.js`): gleiche Teilbäume (`isEqualNode`, ohne
+  Formularfelder) werden übersprungen → am gedrosselten Handy ~halb so viel
+  Rechenzeit pro Server-Update (40-55 → 20-25 ms).
+
+Bewusst geblieben: Wechsel auf „Mein Zug", Reiterwechsel, Kampf beenden
+(Ansicht wechselt), Zonen-Panel wächst, wenn Figuren umziehen.
+Test: `test_handy_springt_nicht_bei_aufdecken_dran_und_zustand`.
+
 ## Nach 2.0.10 (14.11.2026): Studio-Runde 2 – Dialoge, Meldungen, Ladebild, Verbindung
 
 Kalle wählte „Alles" (Bilder: `screenshots/studio-runde2-2026-11-14/`, gebaut

@@ -3210,3 +3210,52 @@ details.section[open] > .panel-body { animation: weichRein 160ms ease-out; }
 /* Roter Knopf auf hellem Pergament: dunkler Text auf Dunkelrot war kaum lesbar
    („Einspielen", „Löschen") – heller Text, kräftigeres Rot. */
 body.theme-pergament button.bad:not(.ghost) { color: #fff6ec; background: var(--bad); border-color: transparent; }
+
+/* --- Nichts springt am Handy (Messung 15.11.2026) ---------------------------
+   Leiste „wer ist dran" mit EINER Höhe für alle Zustände: vorher hatte
+   „Gleich bist du dran" (1rem) und „Du bist dran!" (1.2rem + mehr Rand) je eine
+   andere Höhe, und jeder Wechsel schob Karte und Liste darunter. */
+.dran-leiste, .dran-leiste.ich, .dran-leiste.gleich { box-sizing: border-box; height: 40px; padding: 0 10px;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  white-space: nowrap; overflow: hidden; }
+.dran-leiste.ich { font-size: 1.12rem; }
+.dran-leiste .dl-wer { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* Gesperrte Reihenfolge: dieselbe Zeile wie „Du bist 3. von 8" - gleiche Höhe. */
+.mein-platz.order-locked { padding: 6px 8px; border-style: dashed; font-weight: 600; color: var(--muted); }
+/* Zustand schwebt rechts unter der Leiste (an ihr festgemacht, scrollt mit ihr). */
+.handy-oben { position: sticky; }
+.zustand-schweb { position: absolute; right: 4px; top: calc(100% + 4px); pointer-events: none; }
+.zustand-schweb .kopf-zustand { justify-content: flex-end; gap: 4px; }
+.zustand-schweb .kz { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 0.82rem; font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,.28); }
+/* Talent-Hinweise (Joker: +2 …) liegen unten auf der Karte statt darunter:
+   sie kamen erst nach dem Aufdecken dazu und schoben alles darunter weg. */
+.karten-buehne { position: relative; }
+.karten-hinweise { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: min(240px, 96%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; z-index: 2; }
+.karten-hinweise .pill { margin: 0 !important; background: var(--panel); box-shadow: 0 2px 10px rgba(0,0,0,.35);
+  white-space: normal; text-align: center; }
+/* Laufende Anfrage als Plakette an der Knopf-Ecke statt eigener Zeile. */
+.req-knopf-huelle { position: relative; margin-top: 10px; }
+.req-offen { position: absolute; right: 8px; top: -9px; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 2px 8px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; pointer-events: none;
+  color: var(--warn); background: var(--panel); border: 1px solid var(--warn); }
+/* Zug-Uhr liegt oben rechts auf der Karte: als Ring unter der Karte kam sie
+   erst, wenn man dran war, und schob 120 px Seite nach unten. */
+.karten-uhr { position: absolute; top: -2px; right: 0; z-index: 3; pointer-events: none; }
+.karten-uhr .ring-wrap { width: 76px; height: 76px; margin: 0; border-radius: 50%;
+  background: var(--panel); box-shadow: 0 3px 12px rgba(0,0,0,.35); }
+.karten-uhr .ring { width: 76px; height: 76px; }
+.karten-uhr .ring-text { font-size: 1.05rem; }
+.karten-uhr .timer-halt { padding: 4px 9px; border-radius: 999px; border-style: solid; font-size: 0.76rem;
+  background: var(--panel); box-shadow: 0 3px 12px rgba(0,0,0,.35); max-width: 150px; }
+/* „Antippen zum Aufdecken" liegt unten AUF der Rückseite statt darunter: die
+   Zeile verschwand nach dem Aufdecken und alles darunter rückte 29 px hoch. */
+#bigcard .card-holder .tap-hint { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); margin: 0; z-index: 2;
+  padding: 4px 12px; border-radius: 999px; white-space: nowrap; pointer-events: none;
+  background: rgba(10, 14, 24, 0.72); color: var(--gold); }
+/* Eine Höhe für „Du bist 3. von 8" und die gesperrte Zeile. */
+.mein-platz { box-sizing: border-box; height: 34px; display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding-top: 0; padding-bottom: 0; white-space: nowrap; overflow: hidden; }
+.mein-platz .ic { flex: 0 0 auto; }
+.order-alle-offen { opacity: 0.45; }
