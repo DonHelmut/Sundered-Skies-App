@@ -3259,3 +3259,6 @@ body.theme-pergament button.bad:not(.ghost) { color: #fff6ec; background: var(--
   padding-top: 0; padding-bottom: 0; white-space: nowrap; overflow: hidden; }
 .mein-platz .ic { flex: 0 0 auto; }
 .order-alle-offen { opacity: 0.45; }
+/* „ROBUSTHEIT" lief am kleinen Handy über den Kachelrand (Rundgang 15.11.). */
+.zk-kachel { min-width: 0; }
+.zk-kachel span { max-width: 100%; font-size: clamp(0.58rem, 2.7vw, 0.7rem); letter-spacing: 0.01em; overflow-wrap: anywhere; }

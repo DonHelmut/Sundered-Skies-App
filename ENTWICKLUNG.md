@@ -100,6 +100,9 @@ beseitigt (Bugs, ohne Rückfrage):
   Formularfelder) werden übersprungen → am gedrosselten Handy ~halb so viel
   Rechenzeit pro Server-Update (40-55 → 20-25 ms).
 
+- Kleinkram aus dem Rundgang: ✎ wird überall zum Linien-Stift (`symbole.js`),
+  „ROBUSTHEIT" in den Werte-Kacheln läuft am kleinen Handy nicht mehr über.
+
 Bewusst geblieben: Wechsel auf „Mein Zug", Reiterwechsel, Kampf beenden
 (Ansicht wechselt), Zonen-Panel wächst, wenn Figuren umziehen.
 Test: `test_handy_springt_nicht_bei_aufdecken_dran_und_zustand`.
