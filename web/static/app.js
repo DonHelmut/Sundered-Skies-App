@@ -337,6 +337,41 @@ function tonWecken() {
 // Vibration kann das iPhone im Browser gar nicht (navigator.vibrate fehlt).
 const kannVibrieren = typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
 // Ersatz, den jeder sieht: der Bildschirmrand blitzt golden auf.
+// Dein-Zug-Moment (Kalle, Studio-Runde 3, 15.11.2026): eine Sekunde lang
+// die eigene Karte groß mit „DU BIST DRAN", dann die normale „Mein Zug"-Ansicht.
+// Schwebt über allem, fängt keine Tipps ab (pointer-events aus) - wer schnell
+// ist, kann schon „Angreifen" drücken.
+function zugMoment() {
+  const s = App.state, mine = myCombatant();
+  if (!s || !mine) return;
+  document.querySelectorAll(".zug-moment").forEach((n) => n.remove());
+  const karte = mine.card ? Cards.renderCardSVG(mine.card, mine.image || null) : "";
+  const n = el(`<div class="zug-moment" aria-live="assertive">
+    ${karte ? `<div class="zm-karte">${karte}</div>` : ""}
+    <div class="zm-titel">DU BIST DRAN</div>
+    <div class="zm-zier"></div>
+    <div class="zm-unter">Runde ${s.round} · ${esc(mine.name)}</div>
+    <div class="zm-balken"><i></i></div>
+  </div>`);
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 1500);
+}
+
+// Runden-Banner (Studio-Runde 3): „RUNDE 3" schwebt kurz quer über SL und
+// Handys, wenn eine neue Runde beginnt. Fester Platz oben, nichts rückt.
+function rundenBanner() {
+  const s = App.state;
+  if (!s) return;
+  if (App._prevRunde === undefined) { App._prevRunde = s.round; return; }
+  const neu = s.round > App._prevRunde && s.round > 0;
+  App._prevRunde = s.round;
+  if (!neu) return;
+  document.querySelectorAll(".runden-band").forEach((n) => n.remove());
+  const n = el(`<div class="runden-band" aria-hidden="true"><i class="rb-z"></i><b>RUNDE ${s.round}</b><i class="rb-z rb-r"></i></div>`);
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 1600);
+}
+
 function dranBlitz() {
   document.querySelectorAll(".dran-blitz").forEach((n) => n.remove());
   const n = el(`<div class="dran-blitz" aria-hidden="true"></div>`);
@@ -469,6 +504,7 @@ function checkTurnNotify() {
   // abschalten, verpassen darf man seinen Zug trotzdem nicht.
   if (myTurn && !App._prevMyTurn && App._turnInit) {   // (Spieler-Ansicht)
     dranBlitz();
+    zugMoment();
     // Erst nach dem Neuzeichnen springen, sonst zielt es auf die alte Seite.
     setTimeout(() => {
       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* s. u. */ }

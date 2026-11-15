@@ -109,6 +109,7 @@ function connect() {
       checkRequestAlert();   // SL: neue Anfrage -> Signal
       checkEffektMeldungen(); // SL: Dauer-Effekt abgelaufen -> Hinweis
       checkTurnNotify();     // Spieler: dran -> Vibration/Ton
+      rundenBanner();        // alle: „RUNDE 3" schwebt kurz durchs Bild
       pruefeAktivenWechsel();  // SL: aktive Zeile ins Bild holen
       // Während einer laufenden Karten-Aufdeckung NICHT sofort neu rendern – sonst
       // baut render() die Karte neu und sie schnappt aufgedeckt (das „Hakeln").

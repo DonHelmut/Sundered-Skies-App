@@ -77,6 +77,24 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.10 (15.11.2026): Studio-Runde 3 – Momente + fühlbare Knöpfe
+
+Kalle wählte „Alles (1–4)" (Bilder: `screenshots/studio-runde3-2026-11-15/`):
+
+1. **Dein-Zug-Moment** (`app.js` `zugMoment`, aus `checkTurnNotify`): 1,5 s
+   eigene Karte + „DU BIST DRAN" + Runde/Name, dann „Mein Zug". Vibration gab
+   es schon (abschaltbar).
+2. **Runden-Banner** (`app.js` `rundenBanner`, aus `verbindung.js` bei jedem
+   Stand): „RUNDE N" schwebt 1,6 s quer über SL + Handys, wenn die Runde steigt.
+3. **Treffer-Moment** (`tisch.js` `trefferMoment`): bei `art: getroffen` statt der
+   kleinen Meldung groß „−1 WUNDE"/„ANGESCHLAGEN"/„AUSGESCHALTET" + Wunden-Punkte
+   + wer, roter Rand, kurze Vibration. Heilung bleibt Meldung.
+4. **Knöpfe fühlbar**: `:active` scale(0.97), `:focus-visible` Goldring.
+
+Alle Momente `position: fixed`, `pointer-events: none` (blockieren keinen
+Knopf), Keyframes nur opacity/transform; bei reduzierter Bewegung aus.
+Test: `test_studio_runde3_momente`.
+
 ## Nach 2.0.10 (15.11.2026): Nichts springt am Handy, schnellerer Abgleich
 
 Messung (Playwright, SL + 3 Handys, CPU 4× gedrosselt, `layout-shift`,

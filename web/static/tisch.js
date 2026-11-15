@@ -790,7 +790,8 @@ function angriffMelden(id) {
 function showKampfToast(text, art) {
   const [kopf, ...rest] = String(text || "").split("\n");
   const eigen = art === "getroffen" || art === "geheilt";
-  document.querySelectorAll(".kampf-toast, .treffer-rand").forEach((n) => n.remove());
+  document.querySelectorAll(".kampf-toast, .treffer-rand, .treffer-moment").forEach((n) => n.remove());
+  if (art === "getroffen") { trefferMoment(kopf, rest); return; }
   const t = el(`<div class="kampf-toast${eigen ? ` eigen ${art}` : ""}">
     <div class="kt-kopf">${esc(kopf)}</div>${rest.length ? `<div class="kt-unter">${esc(rest.join(" · "))}</div>` : ""}</div>`);
   t.addEventListener("click", () => t.remove());
@@ -801,6 +802,35 @@ function showKampfToast(text, art) {
     setTimeout(() => rand.remove(), 1600);
   }
   setTimeout(() => t.remove(), eigen ? 6200 : 5200);
+}
+
+// Treffer-Moment (Kalle, Studio-Runde 3, 15.11.2026): roter Rand + groß, was
+// passiert ist („−1 WUNDE"), Wunden-Punkte, darunter klein wer und wie. Vorher
+// eine kleine Meldung oben, die man im Getümmel leicht übersah. Schwebt über
+// der Seite (nichts verschiebt sich), malt nur opacity/transform, tippt man
+// nicht weg - pointer-events aus, damit kein Knopf blockiert ist.
+function trefferMoment(kopf, rest) {
+  const reinText = String(kopf || "").replace(/^\S+\s/, "");     // Emoji vorn weg
+  const m = reinText.match(/(\d+)\s*Wunde/);
+  const gross = /außer Gefecht/.test(reinText) ? "AUSGESCHALTET"
+    : m ? `−${m[1]} WUNDE${m[1] > 1 ? "N" : ""}`
+    : /angeschlagen/.test(reinText) ? "ANGESCHLAGEN" : reinText;
+  const wer = reinText.split(" – ")[0];
+  const mine = typeof myCombatant === "function" ? myCombatant() : null;
+  const w = mine && mine.status ? mine.status.wounds || 0 : 0;
+  const pips = Array.from({ length: Math.max(3, w) }, (_, i) => `<i class="${i < w ? "voll" : ""}"></i>`).join("");
+  const n = el(`<div class="treffer-moment" aria-live="assertive">
+    <div class="tm-wer">${esc(wer)}</div>
+    <div class="tm-gross">${esc(gross)}</div>
+    ${funktionAn("wunden") ? `<div class="tm-pips">${pips}</div>` : ""}
+    ${rest.length ? `<div class="tm-unter">${esc(rest.join(" · "))}</div>` : ""}
+  </div>`);
+  const rand = el(`<div class="treffer-rand"></div>`);
+  document.body.appendChild(rand);
+  document.body.appendChild(n);
+  try { if (kannVibrieren && localStorage.getItem("notifyTurn") !== "off") navigator.vibrate([60, 40, 140]); } catch { /* egal */ }
+  setTimeout(() => rand.remove(), 1600);
+  setTimeout(() => n.remove(), 2600);
 }
 
 function showMimiToast(text) {

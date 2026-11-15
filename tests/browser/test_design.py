@@ -374,3 +374,27 @@ def test_handy_springt_nicht_bei_aufdecken_dran_und_zustand(tisch):
     tisch.gm({"type": "release"})
     h.warte_bis("() => !!document.querySelector('.dran-leiste.ich')")
     assert leiste() == hoehe, "Dran-Leiste ändert ihre Höhe"
+
+
+def test_studio_runde3_momente(tisch):
+    """Studio-Runde 3 (15.11.2026): Runden-Band auf SL + Handy, Dein-Zug-Moment
+    und Treffer-Moment am Handy - schwebend, fangen keine Tipps ab, gehen von
+    selbst wieder weg."""
+    sl, h = _kampf_am_handy(tisch)
+    tisch.gm({"type": "new_round", "runde": 0})
+    h.warte_bis("() => !!document.querySelector('.runden-band')")
+    sl.warte_bis("() => !!document.querySelector('.runden-band')")
+    assert "RUNDE" in h.page.inner_text(".runden-band")
+    h.locator("#bigcard").wait_for()
+    _aufdecken(h)
+    h.wait_for_timeout(3500)
+    me = h.js("App.state.combatants.find(c => c.playerId === App.myPlayerId).id")
+    tisch.gm({"type": "set_active", "id": me})
+    tisch.gm({"type": "release"})
+    h.warte_bis("() => !!document.querySelector('.zug-moment .zm-karte svg')")
+    assert h.js("getComputedStyle(document.querySelector('.zug-moment')).pointerEvents") == "none"
+    h.warte_bis("() => !document.querySelector('.zug-moment')", frist=4000)
+    tisch.gm({"type": "apply_hit", "id": me, "wounds": 1})
+    h.warte_bis("() => !!document.querySelector('.treffer-moment .tm-gross')")
+    assert "WUNDE" in h.page.inner_text(".treffer-moment .tm-gross") or "ANGESCHLAGEN" in h.page.inner_text(".treffer-moment .tm-gross")
+    h.warte_bis("() => !document.querySelector('.treffer-moment')", frist=5000)
