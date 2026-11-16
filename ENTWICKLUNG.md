@@ -105,6 +105,19 @@ in der App mit drei Schritten; Bilder in `screenshots/update-balken/`).
   das Update VON der Version mit diesem Stand auf die nächste zeigt den Balken –
   das Update auf diese Version läuft noch mit dem alten Updater.
 
+## Nach 2.0.12 (16.11.2026): Sitzplatz-Zeile zeigt den echten Zustand
+
+Am Jonsbo ist kein SSL-Treiber installiert – das Connex läuft mit Windows'
+eigenem USB-Audio-Treiber (`usbaudio2.inf`), und die vier Kapseln sind trotzdem
+einzeln zu sehen. Die Zeile zeigte „SSL-Treiber installiert" (Annahme „Kapseln
+da = Treiber da" in `connex.zustand`). Jetzt:
+
+- Punkte: „Connex erkannt" und „4 Kapseln erkannt/fehlen". Kapseln da →
+  „bereit", vom Treiber steht nichts mehr da.
+- Kapseln fehlen → zuerst der Immersive-Hinweis; „⬇ SSL-Treiber" nur noch als
+  kleiner zweiter Knopf (und in der Anleitung als Schritt 3 „falls nötig").
+- `zustand()["treiber"]` ist nur noch der echte Registry-Eintrag.
+
 ## 2.0.12 (16.11.2026): SSL-Treiber per Klick (Sitzplatz-Erkennung einrichten)
 
 Kalle: „Der Treiber fürs SSL soll ins Game mit rein für den SL."

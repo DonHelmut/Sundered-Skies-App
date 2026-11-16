@@ -266,14 +266,20 @@ function aufnSitzHtml(sp) {
   if (!e || !(e.connex || e.laden)) return "";
   const punkt = (ok, text) => `<span class="aufn-sitz-punkt${ok ? " ok" : ""}"><i></i>${text}</span>`;
   const l = e.laden;
+  // Was zählt, sind die vier Kapseln - nicht der Treiber. Am Jonsbo (16.11.2026)
+  // gibt Windows' eigener USB-Treiber sie einzeln her, ganz ohne SSL-Treiber;
+  // die Zeile behauptete trotzdem „SSL-Treiber installiert". Darum: Kapseln da
+  // → bereit, kein Wort vom Treiber. Kapseln fehlen → zuerst Immersive (das
+  // Wahrscheinlichere), der Treiber nur als zweiter Weg daneben.
+  const immersive = `<span class="muted">Am Mikro: Logo 5 s halten, bis es gelb leuchtet.</span>
+      <button class="ghost small" data-act="aufn-sitz-pruefen">Erneut prüfen</button>`;
   let rest;
   if (e.kapseln) rest = `<span class="muted">bereit – zählt ab der nächsten Aufnahme mit</span>`;
   else if (aufnSitzLaedt(e)) {
     rest = `<span class="aufn-balken"><i style="transform:scaleX(${(l.anteil || 0).toFixed(3)})"></i></span>
       <span class="aufn-sitz-fortschritt muted">${aufnSitzText(l)}</span>`;
   } else if (e.treiber) {
-    rest = `<span class="muted">Am Mikro: Logo 5 s halten, bis es gelb leuchtet.</span>
-      <button class="ghost small" data-act="aufn-sitz-pruefen">Erneut prüfen</button>`;
+    rest = immersive;
   } else if (l && l.schritt === "gestartet") {
     rest = `<span class="muted">Installation läuft in eigenem Fenster – dort bestätigen.</span>
       <button class="ghost small" data-act="aufn-sitz-pruefen">Erneut prüfen</button>`;
@@ -281,12 +287,12 @@ function aufnSitzHtml(sp) {
     rest = `<button class="primary small" data-act="aufn-sitz-anleitung">Anleitung</button>
       <span class="muted">Automatisch ging es nicht.</span>`;
   } else {
-    rest = `<button class="primary small" data-act="aufn-sitz-treiber" title="Lädt den Treiber direkt von Solid State Logic und startet die Installation.">⬇ Treiber installieren</button>`;
+    rest = `${immersive}
+      <button class="ghost small" data-act="aufn-sitz-treiber" title="Nur nötig, wenn die Kapseln trotz Immersive fehlen. Lädt den Treiber direkt von Solid State Logic und startet die Installation.">⬇ SSL-Treiber</button>`;
   }
   return `<div class="aufn-mitschrift aufn-sitz small"><b>Sitzplatz-Erkennung</b>
     ${punkt(e.connex, "Connex erkannt")}
-    ${punkt(e.treiber, e.treiber ? "SSL-Treiber installiert" : "SSL-Treiber fehlt")}
-    ${punkt(e.kapseln, e.kapseln ? "Immersive an" : e.treiber ? "Immersive fehlt" : "Immersive")}
+    ${punkt(e.kapseln, e.kapseln ? "4 Kapseln erkannt" : "4 Kapseln fehlen")}
     ${rest}</div>`;
 }
 function aufnSitzText(l) {
@@ -314,9 +320,9 @@ async function aufnSitzAnleitung() {
     text: "Sitzplatz-Erkennung einrichten\nMit den vier Kapseln des SSL Connex erkennt die Mitschrift, wer wo sitzt. Einmal einrichten:",
     inhalt: `<div class="aufn-sitz-schritte">
         ${nr(e.connex, 1)}<div><b>Connex anschließen</b></div>
-        ${nr(e.treiber, 2)}<div><b>SSL-Treiber installieren</b><br><span class="muted small">Öffnet die Download-Seite von SSL. „SSL Windows ASIO/WDM Driver" laden, doppelklicken, durchklicken.</span>
-          ${e.treiber ? "" : `<br><a class="knopf primary small" href="${esc(e.seite)}" target="_blank" rel="noopener">Treiber bei SSL holen ↗</a>`}</div>
-        ${nr(e.kapseln, 3)}<div><b>Immersive einschalten</b><br><span class="muted small">Am Mikro: Logo 5 s halten, bis es gelb leuchtet.</span></div>
+        ${nr(e.kapseln, 2)}<div><b>Immersive einschalten</b><br><span class="muted small">Am Mikro: Logo 5 s halten, bis es gelb leuchtet.</span></div>
+        ${e.kapseln || e.treiber ? "" : `<b>3</b><div><b>Fehlen die Kapseln dann noch: SSL-Treiber</b><br><span class="muted small">Öffnet die Download-Seite von SSL. „SSL Windows ASIO/WDM Driver" laden, doppelklicken, durchklicken.</span>
+          <br><a class="knopf primary small" href="${esc(e.seite)}" target="_blank" rel="noopener">Treiber bei SSL holen ↗</a></div>`}
       </div>`,
     knoepfe: [{ text: "Schließen", wert: false, abbruch: true }, { text: "Erneut prüfen", wert: true, art: "primary", standard: true }] });
   if (nochmal) aufnSprache("/api/sprache/sitzplatz", { aktion: "pruefen" });
