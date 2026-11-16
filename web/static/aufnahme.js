@@ -135,7 +135,8 @@ function renderAufnahmePanel() {
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
         ${ABEND_ENDE_KNOPF}
       </div>
-      <div class="muted small hilfe" style="margin-top:6px">Tab offen lassen, Laptop nicht zuklappen.</div>`;
+      <div class="muted small hilfe" style="margin-top:6px">Tab offen lassen, Laptop nicht zuklappen.${sp.richtung && sp.richtung.laeuft
+        ? ` <span title="Das Tischmikro liefert seine vier Kapseln einzeln (Immersive): die Mitschrift ordnet Sprecher zusätzlich nach Sitzplatz zu.">Sitzplatz-Erkennung an (4 Kapseln).</span>` : ""}</div>`;
   } else {
     const wahl = aufnMikroWahl();
     const auswahl = Aufn.geraete.length > 1
@@ -248,7 +249,7 @@ function aufnMitschriftHtml(sp) {
   return `<div class="aufn-mitschrift small">
     <label title="Grober Text schon während der Aufnahme. Nicht nötig: das genaue Transkript danach ist besser und kommt von selbst."><input type="checkbox" data-act="aufn-live-an"${sp.liveAn ? " checked" : ""}> Live mitschreiben</label>
     <select data-act="aufn-personen" title="Leute am Tisch, SL mitgezählt. Automatisch: Spieler aus der App + SL, bis zu 2 Gäste mehr werden auch erkannt. Zahl wählen = höchstens so viele Sprecher." style="width:auto">${personen}</select>
-    ${sp.genauerFehlt && !(sp.laden && !sp.laden.fehler) ? `<button class="ghost small" data-act="aufn-modelle" title="Zweiter Erkenner (Canary, fest auf Deutsch) für „Genau transkribieren“ – im Test ein Viertel weniger Fehler. Einmalig, danach offline.">⬇ Genauer (${sp.groesseMb} MB)</button>` : ""}
+    ${sp.genauerFehlt && !(sp.laden && !sp.laden.fehler) ? `<button class="ghost small" data-act="aufn-modelle" title="Modelle für das beste Ergebnis nach der Aufnahme: zweiter Erkenner (Canary, fest auf Deutsch) und das genauere Stimm-Modell (Sprecher besser auseinanderhalten). Einmalig, danach offline.">⬇ Genauer (${sp.groesseMb} MB)</button>` : ""}
     <button class="ghost small" data-act="aufn-begriffe" title="Orte, Schiffe, NSCs … – damit die Mitschrift sie richtig schreibt. Figuren, Gegner und Spieler aus der App sind automatisch dabei.">🏷 Namen${begriffe ? ` (${begriffe})` : ""}</button>
   </div>`;
 }
@@ -371,6 +372,9 @@ async function aufnahmeStarten() {
   aufnGeraeteLaden();
   toast("● Aufnahme läuft");
   aufnStatusLaden();
+  // Die Sitzplatz-Erkennung (server/richtung.py) öffnet das Mikro im
+  // Hintergrund - ihr Stand steht erst kurz danach fest.
+  setTimeout(() => { if (Aufn.rec === rec) aufnStatusLaden(); }, 4000);
 }
 
 function aufnStueckSenden(name, blob) {

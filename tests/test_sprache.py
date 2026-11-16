@@ -217,7 +217,7 @@ def test_ohne_canary_bleibt_alles_bereit(tmp_path):
     if not SP.pakete_da():
         pytest.skip("ohne sherpa-onnx")
     st = sp.status()
-    assert st["bereit"] and st["genauerFehlt"] and st["groesseMb"] == SP.MODELLE["genau"][2]
+    assert st["bereit"] and st["genauerFehlt"] and st["groesseMb"] == SP.MODELLE["genau"][2] + SP.MODELLE["stimme_genau"][2]
 
 
 def test_muell_aus_dem_ersten_echten_test_fliegt_raus():
@@ -284,7 +284,7 @@ def test_nach_der_aufnahme_kommt_das_transkript_von_selbst(tmp_path, monkeypatch
     sp = SP.Sprache(tmp_path / "modelle", auf)
     monkeypatch.setattr(sp, "bereit", lambda: True)
     monkeypatch.setattr(SP, "pakete_da", lambda: True)
-    monkeypatch.setattr(SP, "canary_da", lambda o: True)
+    monkeypatch.setattr(SP, "genau_komplett", lambda o: True)
     weiter = threading.Event()
     gerechnet = []
 
@@ -347,9 +347,15 @@ def test_genauer_wird_beim_start_nachgeholt(tmp_path, monkeypatch):
     monkeypatch.setattr(sp, "modelle_holen", lambda: geholt.append(1))
     sp.genauer_nachholen()
     assert geholt == [1]
+    # Seit dem neuen Sortieren (15.11.2026) gehört auch das genauere
+    # Stimm-Modell dazu: Canary allein reicht nicht mehr als „alles da".
     monkeypatch.setattr(SP, "canary_da", lambda o: True)
     sp.genauer_nachholen()
-    assert geholt == [1]
+    assert geholt == [1, 1]
+    (tmp_path / "modelle").mkdir(exist_ok=True)
+    (tmp_path / "modelle" / SP.MODELLE["stimme_genau"][1]).write_bytes(b"x")
+    sp.genauer_nachholen()
+    assert geholt == [1, 1]
 
 
 def test_hoechstens_so_viele_sprecher_wie_leute():
@@ -412,3 +418,76 @@ def test_nachhoeren_rest_sprecher_mit_bekannter_stimme_geht_auf():
 def test_nachhoeren_ohne_sprechertrennung_bleibt_alles():
     assert SP.nachschaerfen([], [], [(0, 1, 0)]) == [(0, 1, 0)]
     assert SP.nachschaerfen([(0, 1.5)], [[1.0, 0.0]], []) == []
+
+
+# --- Sprecher sortieren (15.11.2026) ---------------------------------------------------
+
+def _stimmen(np, n_leute, je, rauschen, seed=1, dim=32):
+    """Fenster-Abdrücke: je Person eine Richtung im Raum + Rauschen."""
+    rng = np.random.default_rng(seed)
+    mitten = rng.normal(size=(n_leute, dim))
+    v, wer = [], []
+    for i, n in enumerate(je):
+        x = mitten[i] + rauschen * rng.normal(size=(n, dim))
+        v.append(x / np.linalg.norm(x, axis=1, keepdims=True))
+        wer += [i] * n
+    reihenfolge = rng.permutation(len(wer))
+    return np.vstack(v)[reihenfolge], np.array(wer)[reihenfolge]
+
+
+def _richtig(np, lab, wer):
+    """Anteil Fenster beim richtigen Sprecher (jede Gruppe = ihre häufigste Person)."""
+    lab = np.array(lab)
+    return sum(np.bincount(wer[lab == g]).max() for g in set(lab.tolist())) / len(wer)
+
+
+def test_sortieren_findet_die_leute_ohne_dass_man_die_zahl_sagt():
+    # SL redet am meisten, eine Spielerin nur ein paar Sätze - die Zahl der
+    # Gruppen kommt aus den Daten (Kalle will nichts einstellen müssen).
+    np = pytest.importorskip("numpy")
+    v, wer = _stimmen(np, 6, [240, 60, 50, 40, 40, 20], 0.35)
+    lab = SP.sortieren(v)
+    assert len(set(lab)) == 6
+    assert _richtig(np, lab, wer) > 0.97
+
+
+def test_sortieren_einer_allein_bleibt_einer_und_grosse_aufnahme_per_stichprobe():
+    np = pytest.importorskip("numpy")
+    v, _ = _stimmen(np, 1, [120], 0.3)
+    assert len(set(SP.sortieren(v))) == 1
+    # Mehr Fenster als SORT_MAX_N (ein ganzer Abend): sortiert wird eine
+    # Stichprobe, zugeordnet werden trotzdem alle.
+    v, wer = _stimmen(np, 4, [900, 500, 300, 200], 0.35, seed=2)
+    assert len(v) > SP.SORT_MAX_N
+    lab = SP.sortieren(v)
+    assert len(lab) == len(v) and len(set(lab)) == 4 and _richtig(np, lab, wer) > 0.97
+
+
+def test_richtung_trennt_was_gleich_klingt_und_haelt_die_nsc_stimme_beim_sl():
+    # Zwei Spieler mit (fast) gleicher Stimme an verschiedenen Plätzen, und der
+    # SL einmal normal, einmal mit verstellter NSC-Stimme vom selben Platz.
+    np = pytest.importorskip("numpy")
+    rng = np.random.default_rng(3)
+    dim = 24
+    zwilling, sl = rng.normal(size=dim), rng.normal(size=dim)
+    nsc = 0.7 * sl + 0.7 * rng.normal(size=dim)      # verstellt, aber dieselbe Kehle
+    stimme = {0: zwilling, 1: zwilling, 2: sl, 3: nsc}
+    platz = {0: [2.0, -2.0], 1: [-2.0, 2.0], 2: [2.0, 2.0], 3: [2.0, 2.0]}
+    art = np.array([0] * 80 + [1] * 80 + [2] * 120 + [3] * 40)[rng.permutation(320)]
+    v = np.stack([stimme[a] + 0.3 * rng.normal(size=dim) for a in art])
+    v /= np.linalg.norm(v, axis=1, keepdims=True)
+    f = np.zeros((len(art), 10), dtype=np.float32)
+    f[:, :2] = np.array([platz[a] for a in art]) + 0.15 * rng.normal(size=(len(art), 2))
+    person = np.where(art == 3, 2, art)           # NSC-Stimme = SL
+    ohne = SP.sortieren(v)
+    assert _richtig(np, ohne, person) < 0.9       # nur nach Stimme: Zwillinge zusammen
+    lab = SP.sortieren(v, (f, np.ones(len(art), dtype=bool)))
+    assert len(set(lab)) == 3 and _richtig(np, lab, person) > 0.97
+
+
+def test_neues_sortieren_nur_mit_modell_sonst_der_alte_weg(tmp_path):
+    # Wer ohne Internet aktualisiert hat, hat das neue Stimm-Modell nicht:
+    # sprecher_sortieren sagt None, transkribieren nimmt die Sprechertrennung.
+    stuecke = [(float(i * 3), float(i * 3 + 2.5)) for i in range(20)]
+    assert SP.sprecher_sortieren(None, stuecke, tmp_path) is None
+    assert SP.sprecher_sortieren(None, [(0.0, 1.0)], tmp_path) is None     # kaum Sprache

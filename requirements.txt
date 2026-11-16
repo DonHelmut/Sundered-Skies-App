@@ -10,3 +10,6 @@ zeroconf>=0.131
 sherpa-onnx>=1.12,<3
 av>=12          # Ton lesen (webm/Opus aus dem Browser), bringt ffmpeg mit
 numpy>=1.24
+# Vier Kapseln des Tischmikros mithören (server/richtung.py, Sprecher nach
+# Sitzplatz). Bringt PortAudio für Windows mit; fehlt es, läuft alles ohne.
+sounddevice>=0.4.6
