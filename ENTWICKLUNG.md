@@ -77,6 +77,34 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.12 (16.11.2026): Ladebalken beim Update
+
+Kalle: „da fehlt ne Art Ladebalken“ – nach „⬆ Jetzt aktualisieren“ stand nur
+„im schwarzen Fenster sieht man den Fortschritt“. Gewählt: Variante A (Dialog
+in der App mit drei Schritten; Bilder in `screenshots/update-balken/`).
+
+- **Neue Reihenfolge im Updater** (`aktualisieren.py main`): erst laden und
+  entpacken, DANN die App beenden und tauschen. Die App läuft während der
+  ~83 MB weiter und ist nur noch für den Tausch aus (~20 s statt ~1 min).
+- **Fortschritt per Datei:** `--stand <datei>` (nur mit `--auto`), der Updater
+  schreibt `data/update-stand.json` (`schritt`: laden/entpacken/tauschen/
+  fertig/fehler, `geladen`/`groesse`, `fehler`, `alt_heil`). Die App liest sie
+  über `GET /api/update/fortschritt` (nur SL), plus laufende `version`.
+- **Dialog** (`update.js`, `updateLaufZeigen`): eigenes Fenster (nicht
+  wegklickbar, schluckt Tasten), Balken per `transform: scaleX` und nur
+  Teil-Updates (kein Flackern), Restzeit aus den letzten 5 s. Keine Antwort =
+  „App ist kurz aus“ (wandernder Balken). Neue Version antwortet → Neuladen →
+  „✓ Version X läuft“ (sessionStorage `updateZiel`; F5 mittendrin setzt den
+  Balken fort). Fehler → „Nichts kaputt“ + „Nochmal versuchen“.
+- **Schwarzes Fenster startet minimiert** (`STARTUPINFO`). Braucht der Updater
+  doch den SL (App nicht mehr startfähig), holt er sich nach vorn
+  (`konsole_zeigen`). Aus der App heraus wartet er sonst nie auf Enter – die
+  App zeigt den Fehler. App ließ sich nicht beenden → Fehler in der App statt
+  Enter-Schleife im unsichtbaren Fenster.
+- Ungeprüft: echter Lauf unter Windows (minimiertes Fenster, Neustart). Erst
+  das Update VON der Version mit diesem Stand auf die nächste zeigt den Balken –
+  das Update auf diese Version läuft noch mit dem alten Updater.
+
 ## Nach 2.0.12 (16.11.2026): Sitzplatz-Zeile zeigt den echten Zustand
 
 Am Jonsbo ist kein SSL-Treiber installiert – das Connex läuft mit Windows'

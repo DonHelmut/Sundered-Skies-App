@@ -644,6 +644,56 @@ def fehler_meldung(fehler: Exception) -> list[str]:
     return ["Keine Verbindung zu GitHub. Ist der Laptop im Internet?", f"({fehler})"]
 
 
+# --- Fortschritt für die App (Ladebalken im Update-Dialog) ---------------------
+#
+# Vorgeschichte: Nach „⬆ Jetzt aktualisieren" sah der SL in der App nur „im
+# schwarzen Fenster sieht man den Fortschritt" - und das Fenster lag oft hinter
+# dem App-Fenster (Kalle 16.11.2026: „da fehlt ne Art Ladebalken"). Jetzt
+# schreibt der Updater seinen Stand in eine kleine JSON-Datei, die App liest sie
+# und malt Balken und Schritte selbst. Die Datei überlebt das Beenden der App:
+# die NEU gestartete App liest daraus auch „fertig" oder den Fehler.
+
+STAND: Path | None = None      # --stand <datei>, nur aus der App heraus
+
+
+def stand_schreiben(**werte) -> None:
+    """Schreibt den Stand für die App. Wirft nie - der Balken ist Beiwerk, das
+    Update selbst darf daran nicht scheitern. Erst in eine Nebendatei, dann
+    umbenennen: die App liest sonst mal eine halb geschriebene Datei."""
+    if STAND is None:
+        return
+    try:
+        neu = STAND.with_name(STAND.name + ".tmp")
+        neu.write_text(json.dumps({**werte, "zeit": time.time()}, ensure_ascii=False), encoding="utf-8")
+        os.replace(neu, STAND)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def stand_aus_argumenten(argv: list[str]) -> Path | None:
+    if "--stand" in argv:
+        i = argv.index("--stand")
+        if i + 1 < len(argv):
+            return Path(argv[i + 1])
+    return None
+
+
+def konsole_zeigen() -> None:
+    """Aus der App heraus startet das schwarze Fenster minimiert (der Balken
+    ist ja in der App). Muss der SL doch etwas darin lesen oder Enter drücken,
+    holen wir es nach vorn - sonst wartet es unsichtbar in der Taskleiste."""
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        fenster = ctypes.windll.kernel32.GetConsoleWindow()
+        if fenster:
+            ctypes.windll.user32.ShowWindow(fenster, 9)          # SW_RESTORE
+            ctypes.windll.user32.SetForegroundWindow(fenster)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def fortschritt_balken(geladen: int, groesse: int, breite: int = 30, zeichen: str = "█░") -> str:
     """Eine Zeile wie  [██████████░░░░░░░░░░]  52 %   13,4 / 25,9 MB"""
     anteil = min(1.0, geladen / groesse) if groesse else 0.0
@@ -652,7 +702,7 @@ def fortschritt_balken(geladen: int, groesse: int, breite: int = 30, zeichen: st
     return f"  [{zeichen[0] * voll}{zeichen[1] * (breite - voll)}] {round(anteil * 100):3d} %   {mb(geladen)} / {mb(groesse)} MB"
 
 
-def herunterladen(url: str, ziel: Path, groesse: int) -> None:
+def herunterladen(url: str, ziel: Path, groesse: int, melden=None) -> None:
     # Ein Balken, der sich in DERSELBEN Zeile füllt (\r) - statt zehn Zeilen
     # „… 10 %", „… 20 %" (Stefan: sieht besser aus). Ohne echtes Konsolenfenster
     # (umgeleitete Ausgabe, Tests) nur ab und zu eine Zeile, sonst Zeichenmüll.
@@ -666,6 +716,8 @@ def herunterladen(url: str, ziel: Path, groesse: int) -> None:
                 break
             f.write(stueck)
             geladen += len(stueck)
+            if melden:
+                melden(geladen, groesse)
             if not groesse:
                 continue
             if fenster:
@@ -704,9 +756,10 @@ def app_starten(ordner: Path, ausfuehren=None, tauscht_selbst: bool = False) -> 
         return False
 
 
-def _ende(code: int) -> None:
+def _ende(code: int, pause: bool = True) -> None:
     print()
-    if not os.environ.get("SWS_OHNE_PAUSE"):          # (Tests)
+    if pause and not os.environ.get("SWS_OHNE_PAUSE"):          # (Tests)
+        konsole_zeigen()
         try:
             input("Enter drücken zum Schließen … ")
         except EOFError:
@@ -714,7 +767,22 @@ def _ende(code: int) -> None:
     sys.exit(code)
 
 
+class _Melder:
+    """Meldet den Download an die App, höchstens alle 0,25 s - die App fragt
+    ohnehin nur zweimal je Sekunde nach, öfter schreiben wäre nur Plattenlast."""
+
+    def __init__(self, neu: str):
+        self.neu, self.zuletzt = neu, 0.0
+
+    def __call__(self, geladen: int, groesse: int) -> None:
+        jetzt = time.monotonic()
+        if jetzt - self.zuletzt >= 0.25 or (groesse and geladen >= groesse):
+            self.zuletzt = jetzt
+            stand_schreiben(schritt="laden", neu=self.neu, geladen=geladen, groesse=groesse)
+
+
 def main() -> None:
+    global STAND
     # Nie an einem Zeichen scheitern, das die Konsole nicht kennt.
     try:
         sys.stdout.reconfigure(errors="replace")
@@ -725,54 +793,40 @@ def main() -> None:
     # dort schon Ja gesagt - also nicht nochmal fragen, und am Ende die App
     # wieder starten: er sitzt vor dem App-Fenster, nicht vor dem Ordner.
     auto = "--auto" in sys.argv[1:]
+    STAND = stand_aus_argumenten(sys.argv[1:]) if auto else None
     print("============================================")
     print("  Sundered Skies – Initiative: Aktualisieren")
     print("============================================")
     print()
     if not (ordner / APP_EXE).is_file():
         print(f"Hier liegt keine {APP_EXE} – Aktualisieren.exe gehört in den App-Ordner.")
+        stand_schreiben(schritt="fehler", fehler=f"Im App-Ordner fehlt {APP_EXE}.", alt_heil=True)
         _ende(1)
 
     lokal = version_aus_starthier(ordner)
+    stand_schreiben(schritt="laden", neu="", geladen=0, groesse=0)
     try:
         neu, url, groesse = neueste_version()
     except Exception as fehler:  # kein Netz, GitHub down, Proxy, Limit …
-        for zeile in fehler_meldung(fehler):
+        zeilen = fehler_meldung(fehler)
+        for zeile in zeilen:
             print(zeile)
-        _ende(1)
+        # Aus der App heraus: die App läuft noch und zeigt den Fehler selbst -
+        # kein unsichtbares Fenster, das auf Enter wartet.
+        stand_schreiben(schritt="fehler", fehler=zeilen[0], alt_heil=True)
+        _ende(1, pause=not auto)
     print(f"Installiert: {lokal or 'unbekannt'}")
     print(f"Neueste:     {neu}")
     print()
     if not ist_neuer(neu, lokal):
         print("Du hast schon die neueste Version. Nichts zu tun.")
-        _ende(0)
+        stand_schreiben(schritt="fehler", fehler="Du hast schon die neueste Version.", alt_heil=True)
+        _ende(0, pause=not auto)
 
-    if app_laeuft(ordner):
-        print("Die App läuft noch. Sie muss zum Aktualisieren kurz beendet werden.")
-        # Nur den ersten Buchstaben werten - unsichtbare Zeichen (BOM aus
-        # umgeleiteter Eingabe, Leerzeichen) dürfen kein „Nein" erzeugen.
-        if not auto:
-            antwort = re.sub(r"[^a-z]", "", input("Jetzt beenden? (j/n) ").lower())
-            if not antwort.startswith(("j", "y")):
-                print("Abgebrochen – nichts geändert.")
-                _ende(1)
-        if not app_beenden(ordner):
-            # Eigene Kopie nicht gefunden (oder sie wehrt sich): NICHT nach
-            # Namen beenden - das träfe auch andere Kopien. Der SL schließt sie.
-            print("Konnte die App nicht selbst beenden. Bitte das App-Fenster schließen")
-            print("(bzw. Symbol neben der Uhr > Beenden), dann hier Enter drücken.")
-            for _ in range(5):
-                try:
-                    input()
-                except EOFError:
-                    break
-                if not app_laeuft(ordner):
-                    break
-                print("Läuft noch - bitte schließen, dann Enter.")
-            if app_laeuft(ordner):
-                print("Abgebrochen – nichts geändert.")
-                _ende(1)
-
+    # Erst laden und entpacken, DANN die App beenden: so läuft sie während der
+    # ~83 MB weiter (früher war sie die ganze Minute aus) und der SL sieht in
+    # ihr den Balken. Nur der Tausch selbst braucht sie aus.
+    beendet = False
     # ignore_cleanup_errors: ein Virenscanner, der noch im Download liest, darf
     # nach geglücktem Austausch keinen „Fehler" mehr erzeugen.
     with tempfile.TemporaryDirectory(prefix="sws-update-", ignore_cleanup_errors=True) as tmp:
@@ -780,22 +834,63 @@ def main() -> None:
         datei = tmp / "app.zip"
         try:
             print(f"Lade Version {neu} herunter" + (f" ({round(groesse / 1024 / 1024)} MB)" if groesse else "") + " …")
-            herunterladen(url, datei, groesse)
+            herunterladen(url, datei, groesse, _Melder(neu))
             print("Entpacke …")
+            stand_schreiben(schritt="entpacken", neu=neu)
             with zipfile.ZipFile(datei) as z:
                 z.extractall(tmp / "neu")
             quelle = next((p.parent for p in (tmp / "neu").rglob(APP_EXE)), None)
             if quelle is None:
                 raise RuntimeError(f"Im Download fehlt {APP_EXE}.")
+
+            if app_laeuft(ordner):
+                print("Die App läuft noch. Sie muss zum Aktualisieren kurz beendet werden.")
+                # Nur den ersten Buchstaben werten - unsichtbare Zeichen (BOM aus
+                # umgeleiteter Eingabe, Leerzeichen) dürfen kein „Nein" erzeugen.
+                if not auto:
+                    antwort = re.sub(r"[^a-z]", "", input("Jetzt beenden? (j/n) ").lower())
+                    if not antwort.startswith(("j", "y")):
+                        print("Abgebrochen – nichts geändert.")
+                        _ende(1)
+                stand_schreiben(schritt="tauschen", neu=neu)
+                if not app_beenden(ordner):
+                    # Eigene Kopie nicht gefunden (oder sie wehrt sich): NICHT nach
+                    # Namen beenden - das träfe auch andere Kopien. Der SL schließt sie.
+                    if auto:
+                        # Die App läuft ja noch: sie zeigt, was zu tun ist.
+                        print("Konnte die App nicht selbst beenden – nichts geändert.")
+                        stand_schreiben(schritt="fehler", alt_heil=True, fehler=(
+                            "Die App ließ sich nicht selbst beenden. Bitte die App beenden "
+                            "(Symbol neben der Uhr > Beenden) und im App-Ordner Aktualisieren.exe starten."))
+                        _ende(1, pause=False)
+                    print("Konnte die App nicht selbst beenden. Bitte das App-Fenster schließen")
+                    print("(bzw. Symbol neben der Uhr > Beenden), dann hier Enter drücken.")
+                    for _ in range(5):
+                        try:
+                            input()
+                        except EOFError:
+                            break
+                        if not app_laeuft(ordner):
+                            break
+                        print("Läuft noch - bitte schließen, dann Enter.")
+                    if app_laeuft(ordner):
+                        print("Abgebrochen – nichts geändert.")
+                        _ende(1)
+                beendet = True
+            stand_schreiben(schritt="tauschen", neu=neu)
             print("Tausche Programmdateien aus (data bleibt) …")
             austauschen(quelle, ordner)
         except AustauschFehler as fehler:
             print()
             print(f"FEHLER: {fehler}")
+            stand_schreiben(schritt="fehler", alt_heil=fehler.alt_heil, fehler=(
+                f"{fehler} Meist sperrt OneDrive oder ein Virenscanner die Dateien – "
+                "ein paar Minuten warten und nochmal versuchen."))
+            neu_gestartet = False
             if fehler.alt_heil:
                 print(f"Nichts kaputt – Version {lokal or 'bisher'} startet wie gewohnt.")
-                if auto:
-                    app_starten(ordner)
+                if auto and beendet:
+                    neu_gestartet = app_starten(ordner)
             print()
             print("Meist sperrt OneDrive (synchronisiert gerade) oder ein Virenscanner die")
             print("Dateien. Ein paar Minuten warten oder OneDrive kurz anhalten (Wolke unten")
@@ -803,19 +898,22 @@ def main() -> None:
             if not fehler.alt_heil:
                 print("Falls die App nicht startet: neueste SunderedSkies-App.zip von")
                 print(f"https://github.com/{REPO}/releases/latest holen und den Ordner data hineinkopieren.")
-            _ende(1)
+            # Läuft die App (wieder), zeigt sie den Fehler; sonst ist dieses
+            # Fenster das Einzige, was der SL sieht - dann nach vorn und warten.
+            _ende(1, pause=not (auto and (neu_gestartet or not beendet)))
         except Exception as fehler:
             print()
             print(f"FEHLER: {fehler}")
             print(f"Nichts geändert – Version {lokal or 'bisher'} startet wie gewohnt.")
-            if auto:
-                app_starten(ordner)
+            stand_schreiben(schritt="fehler", alt_heil=True, fehler=f"Nichts geändert. ({fehler})")
+            neu_gestartet = auto and beendet and app_starten(ordner)
             print("Falls die App jetzt nicht startet: neueste SunderedSkies-App.zip von")
             print(f"https://github.com/{REPO}/releases/latest holen und den Ordner data hineinkopieren.")
-            _ende(1)
+            _ende(1, pause=not (auto and (neu_gestartet or not beendet)))
 
     tauscht_selbst = selbst_tausch_starten(ordner)
     print()
+    stand_schreiben(schritt="fertig", neu=neu)
     if auto and app_starten(ordner, tauscht_selbst=tauscht_selbst):
         # Kein „Enter drücken": das Fenster soll von selbst verschwinden, die
         # App ist ja wieder da. Kurz stehen lassen, damit man „Fertig" sieht.
