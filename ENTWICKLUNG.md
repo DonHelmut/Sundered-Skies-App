@@ -77,6 +77,23 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.11 (16.11.2026): Karte ließ sich am Handy nicht aufdecken
+
+Bug am echten iPhone (Korgo, Runde 4): weder Antippen der Karte noch
+„Karte aufdecken" wirkten, der SL hat weitergeschaltet. Ursache: das Handy
+merkt sich aufgedeckte Karten als „Figur:Karte" (`App.revealed`), und
+`revealBigCard` ignoriert einen Tipp auf eine schon gemerkte Karte (gegen
+Doppel-Tipps). Die Figur eines Spielers bleibt aber den ganzen Abend
+dieselbe, und nach jedem Joker wird neu gemischt - zog Korgo eine Karte, die
+er früher schon einmal aufgedeckt hatte, war der Tipp tot.
+
+- `cardSlot` (tisch.js): Sagt der Server „noch verdeckt", wird der Schlüssel
+  vergessen (außer während der eigenen Dreh-Animation) - Tipp und Knopf
+  wirken wieder. Fremde verdeckte Karten ebenso, damit sie beim nächsten
+  Aufdecken wieder drehen.
+- Neuer Browser-Test `tests/browser/test_aufdecken.py`: Korgo zieht dieselbe
+  Karte erneut und deckt sie per Knopf bzw. Antippen auf.
+
 ## 2.0.11 (16.11.2026): Sprecher besser erkennen – neues Sortieren + Sitzplatz
 
 Kalle: „Bessere Modelle? Darf auch 5 GB groß sein, Hauptsache Sprecher werden
