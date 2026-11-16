@@ -59,10 +59,12 @@ def test_zustand(tmp_path):
     e.pruefen()
     z = e.zustand()
     assert (z["connex"], z["treiber"], z["kapseln"]) == (True, False, False)
-    # Kapseln einzeln sichtbar = Treiber offensichtlich da, egal was die Registry sagt.
+    # Kapseln einzeln sichtbar heißt NICHT „SSL-Treiber da": Windows' eigener
+    # USB-Treiber gibt sie auch her (Jonsbo). Die Anzeige darf das nicht behaupten.
     e = _einrichtung(tmp_path, {"connex": True, "kapseln": True})
     e.pruefen()
-    assert e.zustand()["treiber"] is True
+    z = e.zustand()
+    assert z["kapseln"] is True and z["treiber"] is False
 
 
 class _Antwort(io.BytesIO):
