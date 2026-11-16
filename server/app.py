@@ -134,6 +134,8 @@ async def _lebenszyklus(_app: FastAPI):
     sichern = asyncio.create_task(_auto_sicherung())
     # Eigener Thread: der erste sherpa-Import dauert eine halbe Sekunde.
     threading.Thread(target=sprache.genauer_nachholen, daemon=True, name="genauer").start()
+    # Ebenso: nachsehen, was der Sitzplatz-Erkennung fehlt (Geräte abfragen dauert).
+    threading.Thread(target=sprache.richtung_pruefen, daemon=True, name="sitzplatz").start()
     yield
     wache.cancel()
     sichern.cancel()
@@ -756,6 +758,26 @@ async def sprache_modelle(request: Request):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
     sprache.modelle_holen()
+    return JSONResponse(sprache.status())
+
+
+@app.post("/api/sprache/sitzplatz")
+async def sprache_sitzplatz(request: Request):
+    """Sitzplatz-Erkennung einrichten: „pruefen" sieht neu nach, „treiber"
+    lädt den SSL-Treiber von SSL und startet den Installer (server/connex.py).
+    Nur am SL-Rechner selbst - hier wird ein Programm gestartet."""
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:   # noqa: BLE001
+        body = {}
+    aktion = body.get("aktion") if isinstance(body, dict) else None
+    if aktion == "treiber":
+        sprache.einrichtung.treiber_holen()
+    else:
+        # Im Thread: das Neu-Einlesen der Geräte hielte sonst alle Spieler auf.
+        await asyncio.to_thread(sprache.richtung_pruefen)
     return JSONResponse(sprache.status())
 
 

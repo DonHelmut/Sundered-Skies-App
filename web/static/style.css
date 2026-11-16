@@ -2591,6 +2591,15 @@ body.player #skinbar.open .skin-menu { max-width: min(300px, calc(100vw - 56px))
 .aufn-mitschrift { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .aufn-mitschrift label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; margin: 0; }
 .aufn-mitschrift input[type=checkbox] { width: auto; margin: 0; }
+/* Sitzplatz-Erkennung einrichten: drei Punkte (Mikro, Treiber, Immersive). */
+.aufn-sitz { border-top: 1px dashed var(--line); padding-top: 8px; min-height: 38px; }
+.aufn-sitz-punkt { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.aufn-sitz-punkt > i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--muted); box-sizing: border-box; }
+.aufn-sitz-punkt.ok > i { background: var(--good); border-color: var(--good); }
+.aufn-sitz-schritte { display: grid; grid-template-columns: 28px 1fr; gap: 10px 6px; align-items: start; text-align: left; line-height: 1.5; }
+.aufn-sitz-ok { color: var(--good); }
+.aufn-sitz-schritte a.knopf { display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 8px; text-decoration: none;
+  background: var(--accent2); border: 1px solid var(--accent); color: var(--on-accent); font-weight: 700; }
 .aufn-job { display: inline-flex; align-items: center; gap: 6px; }
 /* Fortschritt: nur transform ändert sich (kein Neuzeichnen der Breite). */
 .aufn-balken { display: inline-block; width: 80px; height: 6px; border-radius: 3px; overflow: hidden;

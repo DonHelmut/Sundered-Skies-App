@@ -77,6 +77,39 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.11 (16.11.2026): SSL-Treiber per Klick (Sitzplatz-Erkennung einrichten)
+
+Kalle: „Der Treiber fürs SSL soll ins Game mit rein für den SL."
+
+- **Mitliefern geht nicht.** SSLs Lizenz (General End User License Agreement,
+  Abschnitt 6) verbietet, die Software an andere weiterzugeben oder in andere
+  Programme einzubauen – Repo und Releases sind öffentlich. Vorgeschlagen mit
+  Bildern (A Anleitung, B Ein Klick), Kalle wählte **B mit A als Rückfall**.
+- **`server/connex.py`**: `Einrichtung` kennt drei Dinge – Connex da? SSL-Treiber
+  da (ASIO-Eintrag in der Registry)? Kapseln einzeln zu sehen (Immersive)?
+  `treiber_holen()` liest den Download-Link frisch von SSLs Connex-Seite
+  (Zendesk-JSON, Attribut `data-link`; sonst der bekannte Link v5.58.05), lädt
+  **nur** von SSLs eigenem Speicher (`link_erlaubt`), prüft die
+  Windows-Signatur (`Get-AuthenticodeSignature` = Valid) und startet erst dann
+  den Installer. Alles andere → Fehler → die App zeigt die Anleitung.
+- **Zustimmung:** Bei SSL steht vor dem Download „Agree & Download". Die App
+  zeigt darum denselben Hinweis mit Link zur Lizenz; erst „Zustimmen &
+  installieren" lädt.
+- **UI** (`aufnahme.js`, `aufnSitzHtml`): Zeile „Sitzplatz-Erkennung" im
+  Aufnahme-Panel mit drei Punkten, nur wenn ein Connex am Rechner hängt und nur
+  unter Windows. Nach dem Start des Installers sieht die App zehn Minuten lang
+  alle 10 s selbst nach (kein „Erneut prüfen" nötig).
+- **Nebenbei behoben:** PortAudio merkt sich die Geräteliste vom Programmstart.
+  Wer Immersive erst danach einschaltete, wurde bis zum Neustart nicht erkannt.
+  Jetzt liest `richtung_starten` die Liste vor jeder Aufnahme frisch ein
+  (`richtung.uebersicht(neu=True)`), nie während der Mithörer läuft.
+- Route `POST /api/sprache/sitzplatz` (`aktion`: `pruefen` / `treiber`), nur
+  vom SL-Rechner selbst.
+- **Ungeprüft (braucht Windows + echtes Connex):** heißt das Gerät ohne
+  SSL-Treiber schon „…Connex…"? Trägt der Treiber sich unter `SOFTWARE\ASIO`
+  mit „SSL"/„Solid State" ein? Will der Installer einen Neustart? Tests decken
+  die Logik mit eingesetzten Attrappen ab (`tests/test_connex.py`).
+
 ## Nach 2.0.11 (16.11.2026): Karte ließ sich am Handy nicht aufdecken
 
 Bug am echten iPhone (Korgo, Runde 4): weder Antippen der Karte noch

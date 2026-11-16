@@ -257,6 +257,23 @@ def geraet_finden() -> Optional[dict]:
     return min(treffer, key=lambda t: t[0])[1] if treffer else None
 
 
+def uebersicht(neu: bool = False) -> dict:
+    """Für die Einrichtung (server/connex.py): Ist das Mikro überhaupt da, und
+    sind seine Kapseln einzeln zu sehen? neu=True liest die Geräteliste frisch
+    ein - PortAudio merkt sich sonst den Stand vom ersten Blick (Mikro später
+    eingesteckt, Immersive später eingeschaltet). Nicht aufrufen, solange ein
+    Mithörer läuft: das Neu-Einlesen würde ihm den Strom wegziehen."""
+    try:
+        sd = _sd()
+        if neu:
+            sd._terminate()      # noqa: SLF001 - sounddevice bietet dafür nichts Öffentliches
+            sd._initialize()     # noqa: SLF001
+        namen = [str(g.get("name", "")).lower() for g in sd.query_devices() if g.get("max_input_channels", 0) > 0]
+    except Exception:   # noqa: BLE001
+        return {"connex": False, "kapseln": False}
+    return {"connex": any(GERAET_NAME in n for n in namen), "kapseln": geraet_finden() is not None}
+
+
 def geraete_text() -> str:
     """Alle Eingänge mit Kanalzahl in einer Zeile - fürs Diagnose-Protokoll,
     wenn das Mikro nicht gefunden wird (welcher Treiber zeigt was?)."""
