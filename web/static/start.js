@@ -60,7 +60,7 @@ function mountSkins() {
   const gear = document.createElement("button");
   gear.id = "skin-gear";
   gear.type = "button";
-  gear.textContent = "⚙";
+  gear.innerHTML = symbolSvg("settings");   // Linien-Symbol (symbole.js)
   gear.title = "Ansicht: Skins & Mimi";
   gear.addEventListener("click", () => bar.classList.toggle("open"));
   const box = document.createElement("div");

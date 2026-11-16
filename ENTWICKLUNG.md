@@ -102,6 +102,168 @@ Details stehen in den einzelnen Abschnitten darunter.
   der Fall vom 11.11.). Nur am Windows-PC prüfbar: ob `QueryFullProcessImageNameW`
   /`realpath` dort die Pfade wirklich so liefern → Release-Test mit Testkopie
   unter Kurzpfad neben laufender echter App.
+## 2.0.10 (15.11.2026): Patch mit den Abschnitten darunter
+
+Studio-Optik (PR #55), Studio-Runde 2 + 3 (PR #56) und Bedienbarkeit (PR #57).
+Nur Versionsnummer + Paket. Updater unverändert (Aktualisieren aus paket-209
+übernommen, nur Ordner-Spec gebaut).
+
+## Nach 2.0.9 (15.11.2026): Bedienbarkeits-Prüfung – drei Bugs
+
+Kalle: „Bedienbarkeit ist das oberste Gut." Ganzen Abend durchgespielt (SL
+1366×768 + 5 Handys 320–390 px), Klicks und Trefferflächen gemessen. Gefixt:
+
+- **Name im Handy-Kopf abgeschnitten:** im Kampf kommt „Runde 1" dazu – am
+  360-px-Android wurde „Brannigan" zu „Branni…", am 320er „Korgo" zu „Ko…". Bei
+  3–4 Bennies zeigt der Kopf auf Handys ≤ 400 px jetzt eine Münze mit „×3"
+  (`mz-voll`/`mz-kurz` in `muenzenKopf`, tisch.js), Name etwas enger gesetzt.
+- **Benny-Münze zu klein zum Tippen** (22 px, schmal 18 px): unsichtbar
+  vergrößerte Trefferfläche über `button.muenze::after`, Optik gleich.
+- **Notiz-Thema doppelt:** eigenes Thema „nsc" stand als zweiter Reiter neben
+  „👤 NSC". `notizThemaWaehlen` nimmt bei gleichem Namen (Groß/klein egal) das
+  vorhandene.
+
+Test: `test_handy_kopf_name_ganz_und_thema_ohne_doppel`.
+
+Dann Kalles „Mach alles" (Vorschläge 1–7, bei 1 Variante B), Test
+`test_bedienbarkeit_runde_2026_11_15`, Bilder screenshots/bedienbarkeit-2026-11-15/gebaut/:
+
+1. **Gegnerzug: Treffer in der Zeile** (B). Die Karte „X greift an – wen?" ist
+   weg (verdeckte bei 1366×768 die Zeilen 4–9). Vier Stärke-Knöpfe schweben
+   rechts in der Zeile jedes Ziels über Zustand + ⋯ (`gegnerzugZiel`,
+   `gegnerzugZeileHtml`, sl.js) – Zeile bleibt gleich hoch. Angriffswerte und
+   „✗ Daneben" in der Leiste (`gegnerzugLeisteHtml`). Bei „nur Offene" fehlen
+   fertige Spieler in der Liste – dann über 🎯 Treffer.
+2. **Startfläche bleibt bis zum ersten Austeilen** des Abends, erledigte
+   Schritte mit ✓ (`startflaecheNochZeigen`).
+3. **Anfrage beim SL:** „✓ Übernehmen" (grün) / „Ablehnen" statt ✓/✕ 30×21 px.
+4. **⋯ an der Zeile** (und die Zustands-Zelle) öffnet das schwebende
+   Rechtsklick-Menü – mit Bennies und jetzt auch Effekten. Das aufklappende
+   Feld unter der Zeile (schob alles) wird nicht mehr geöffnet.
+5. **Handy-Anfragen** als 2er-Raster mit 46 px hohen Knöpfen.
+6. **Handy angeschlagen:** dritter Knopf „✗ Nicht geschafft" = Zug vorbei.
+7. **Kampf-Baukasten:** „oder neu: Name, Anzahl, Parade, Robustheit, ＋ Dazu"
+   (Enter geht auch) – legt den Typ in der Bibliothek an (gleicher Name =
+   vorhandener) und setzt ihn in den Entwurf. Getipptes im Baukasten steht
+   sofort im Entwurf (übersteht Server-Updates).
+
+## Nach 2.0.9 (15.11.2026): Studio-Runde 3 – Momente + fühlbare Knöpfe
+
+Kalle wählte „Alles (1–4)" (Bilder: `screenshots/studio-runde3-2026-11-15/`):
+
+1. **Dein-Zug-Moment** (`app.js` `zugMoment`, aus `checkTurnNotify`): 1,5 s
+   eigene Karte + „DU BIST DRAN" + Runde/Name, dann „Mein Zug". Vibration gab
+   es schon (abschaltbar).
+2. **Runden-Banner** (`app.js` `rundenBanner`, aus `verbindung.js` bei jedem
+   Stand): „RUNDE N" schwebt 1,6 s quer über SL + Handys, wenn die Runde steigt.
+3. **Treffer-Moment** (`tisch.js` `trefferMoment`): bei `art: getroffen` statt der
+   kleinen Meldung groß „−1 WUNDE"/„ANGESCHLAGEN"/„AUSGESCHALTET" + Wunden-Punkte
+   + wer, roter Rand, kurze Vibration. Heilung bleibt Meldung.
+4. **Knöpfe fühlbar**: `:active` scale(0.97), `:focus-visible` Goldring.
+
+Alle Momente `position: fixed`, `pointer-events: none` (blockieren keinen
+Knopf), Keyframes nur opacity/transform; bei reduzierter Bewegung aus.
+Test: `test_studio_runde3_momente`.
+
+## Nach 2.0.9 (15.11.2026): Nichts springt am Handy, schnellerer Abgleich
+
+Messung (Playwright, SL + 3 Handys, CPU 4× gedrosselt, `layout-shift`,
+`longtask`, Bild-Lücken) über einen typischen Zug. Gefundene Sprünge am Handy
+beseitigt (Bugs, ohne Rückfrage):
+
+- **Dran-Leiste** eine Höhe (40 px) für „X ist dran" / „Gleich bist du dran" /
+  „Du bist dran!"; bleibt im Kampf auch ohne Text stehen.
+- **Zustand** (Angeschlagen, Wunden) schwebt rechts unter der Leiste
+  (`.zustand-schweb`) statt als eigene Zeile über der Karte. Ohne Leiste (Ruhe)
+  weiter als Zeile.
+- **„Antippen zum Aufdecken"**, **Talent-Hinweise** (Joker: +2 …) und **Zug-Uhr**
+  liegen auf der Karte (`.karten-buehne`) statt darunter.
+- **Laufende Anfrage** als Plakette an der Ecke des Anfrage-Knopfs (`.req-offen`)
+  statt eigener Zeile.
+- **Reihenfolge gesperrt** (eigene Karte zu): alle Zeilen als „verdeckt" mit
+  Zeile „Erst deine Karte aufdecken" statt kleinem Kasten - gleiche Höhe wie
+  danach. Sind alle offen, bleibt die Trennzeile („Alle Karten liegen offen").
+- `.mein-platz` feste Höhe.
+- **Abgleich** (`render.js`): gleiche Teilbäume (`isEqualNode`, ohne
+  Formularfelder) werden übersprungen → am gedrosselten Handy ~halb so viel
+  Rechenzeit pro Server-Update (40-55 → 20-25 ms).
+
+- Kleinkram aus dem Rundgang: ✎ wird überall zum Linien-Stift (`symbole.js`),
+  „ROBUSTHEIT" in den Werte-Kacheln läuft am kleinen Handy nicht mehr über.
+
+Bewusst geblieben: Wechsel auf „Mein Zug", Reiterwechsel, Kampf beenden
+(Ansicht wechselt), Zonen-Panel wächst, wenn Figuren umziehen.
+Test: `test_handy_springt_nicht_bei_aufdecken_dran_und_zustand`.
+
+## Nach 2.0.9 (14.11.2026): Studio-Runde 2 – Dialoge, Meldungen, Ladebild, Verbindung
+
+Kalle wählte „Alles" (Bilder: `screenshots/studio-runde2-2026-11-14/`, gebaut
+unter `…/gebaut/`):
+
+- **Dialoge** (`dialoge.js` `dialogKopf`): erster Absatz/erste Zeile = Titel,
+  Rest = Erklärung (`.app-dialog-text`), Symbol-Kachel links (Emoji vorn im
+  Text → Symbol; `art`: gefahr/frage/hinweis). Lange Ein-Absatz-Fragen werden
+  am ersten „? " geteilt. Für neue Rückfragen: „Titel?\n\nErklärung".
+- **Meldungen** (`toast` in sl.js): Symbol + Farbe je Art (●=Aufnahme rot,
+  ✓/■=grün, „nicht/kein/fehl"=Warnung, sonst Hinweis). SL unten rechts.
+- **Ladebild** in `index.html` innerhalb von `#app` – das erste Zeichnen
+  ersetzt es. Pille oben solange aus.
+- **Verbindung kurz weg**: Leiste unten (Spiel bleibt sichtbar), ab 25 s / auf
+  Mobilfunk wie bisher das Blatt mit Prüfpunkten, jetzt unten. Keine zweite
+  „Getrennt"-Pille mehr.
+- **Leerer Bogen**: Symbol, ein Satz, „Werte eintragen" + „📷 Foto vom
+  Papierbogen" (öffnet direkt den Foto-Reiter, `data-reiter` an
+  `bogen-bearbeiten`).
+- **Übergänge**: Dialog/Menü/Panel/Anfrage blenden 140–200 ms ein, nur
+  opacity/transform; `prefers-reduced-motion` schaltet sie ab.
+- Nebenbei: roter Knopf auf Pergament hatte dunklen Text auf Dunkelrot → hell.
+
+Test: `test_studio_runde2_dialog_meldung_ladebild_leerer_bogen`; Foto-Test
+angepasst (leerer Bogen hat jetzt 2 Knöpfe).
+
+## Nach 2.0.9 (14.11.2026): Studio-Optik – Schrift, Symbole, Beitritt, Startfläche
+
+Kalle: „Soll hochwertig wirken und professionell, wie von einem Entwickler-Studio."
+Gewählt aus 7 Vorschlägen: 1A + 2 + 3A + 4 + 5 + 6 + 7 (Bilder:
+`screenshots/studio-2026-11-14/`, gebaut unter `…/gebaut/`). Nicht gewählt:
+1B (Fraunces statt Cinzel), 3B (Beitritt schlicht mit App-Symbol).
+
+- **1A Schrift** mitgeliefert in `web/static/schrift/` (Inter 400–700 für Text,
+  Cinzel 600/700 für Überschriften, Panel-Köpfe, Wortmarke; OFL, `LIZENZ.txt`).
+  Offline – am Spieltisch gibt es kein Internet. CSS-Variablen `--schrift`,
+  `--schrift-titel`; Klasse `.wortmarke`.
+- **2 Linien-Symbole** statt Emoji: `web/static/symbole.js` (Lucide, ISC) VOR
+  `app.js`. `symboleEinsetzen(html)` tauscht ein Emoji direkt hinter einem
+  öffnenden Tag gegen ein SVG – läuft in `domAbgleichen` und `el()`, also für
+  alles, was gezeichnet wird. Emoji mitten im Text, in Attributen, in
+  `<textarea>` bleiben. Ausnahme Notiz-Themen (`notiz-chip/-reiter`,
+  `data-emoji`): dort wählen Spieler ihr Emoji selbst. Neues Emoji in einem
+  Knopf → in `SYMBOL_ZU` eintragen, sonst bleibt es bunt.
+- **3A Beitritt am Handy**: Kartenkunst (`rueckseite.svg`) als Bühne mit fester
+  Höhe + Wortmarke, Formular als Karte, Verbindungstipp eine Zeile.
+- **4 Startfläche** (`startflaecheHtml` in sl.js) bei leerem Tisch: Einladen
+  (QR groß) / Kampf vorbereiten / Abend starten.
+- **5 ☰ Mehr** in Gruppen Spiel/Daten/Hilfe, Zeilen `.km-zeile` ohne Rahmen.
+- **6 SL-Kopfleiste**: Logo + Wortmarke + „Spielleiter", Punkt „N Handys
+  verbunden" (`handysKopfHtml`, feste Mindestbreite) statt Pille; die Pille
+  zeigt beim SL nur noch Getrennt/Verbinde-neu. Knöpfe als Gruppe.
+- **7 Panels** beim SL hell, runde Ecken, weicher Schatten (`--flaeche`,
+  `--schatten-farbe`; dunkle Skins behalten ihre Panel-Farbe). Maße gleich.
+
+Neuer Test `test_studio_optik_schrift_symbole_startflaeche`.
+
+## Nach 2.0.9 (14.11.2026): Zwei kleine Optik-Bugs beim SL
+
+Gefunden bei der Vorschlagsrunde „Studio-Optik" (Bilder im Projektordner unter
+`screenshots/studio-2026-11-14/`, noch nichts davon gebaut):
+
+- **„Verbunden"-Pille stand mitten auf der schwebenden Anfrage.** Die Pille
+  liegt außerhalb von `#app`, `.wrap` bildet eine eigene Stapel-Ebene – der
+  höhere z-index der Anfrage half deshalb nicht. Jetzt: Pille ausgeblendet,
+  solange eine Anfrage schwebt UND die Verbindung steht (getrennt bleibt sie
+  sichtbar). Test in `test_sl_anfrage_und_kampfknoepfe_schieben_nichts`.
+- **☰ Mehr: „Sicherung importieren" größer als die anderen Einträge** (ist ein
+  `<label>` für das Datei-Feld, kein Knopf) – jetzt gleiche Schrift/Polsterung.
 
 ## 2.0.9 (11.11.2026): Patch mit dem Abschnitt darunter
 

@@ -148,9 +148,9 @@ function renderPlayer() {
          <div class="muted small" style="margin-top:4px">Der Spielleiter nimmt dich wieder rein (z. B. zum Rundenende). Solange bekommst du keine Karten.</div>
        </div>`
     : `<div class="panel" style="padding:12px">
-      <div class="big-card tilt3d" id="bigcard" style="max-width:250px">${cardSlot(mine.id, mine.card, mine.status, "", { open: !!mine.revealed, tappable: !mine.revealed })}</div>
-      ${hints ? `<div class="center" style="margin-top:6px">${hints}</div>` : ""}
-      ${timer ? `<div style="margin-top:8px">${timer}</div>` : ""}
+      <div class="karten-buehne"><div class="big-card tilt3d" id="bigcard" style="max-width:250px">${cardSlot(mine.id, mine.card, mine.status, "", { open: !!mine.revealed, tappable: !mine.revealed })}</div>
+      ${hints ? `<div class="karten-hinweise">${hints}</div>` : ""}
+      ${timer ? `<div class="karten-uhr">${timer}</div>` : ""}</div>
       ${angeschlagenHinweis}
       ${playerQuickControls(mine)}
     </div>`;
@@ -162,10 +162,7 @@ function renderPlayer() {
   // verraten -> normal anzeigen. Waehrend der Aufdeck-Animation ist das Rendern
   // gesperrt; die Liste erscheint also erst, wenn die Karte fertig liegt.
   const reihenfolgeGesperrt = !mine.benched && !!mine.card && !mine.revealed;
-  const orderPanel = reihenfolgeGesperrt
-    ? section("order", "Initiative-Reihenfolge",
-      `<div class="order-locked">🂠 Deck erst deine Karte auf –<br>dann siehst du die Reihenfolge.</div>`)
-    : renderOrderPanel(false);
+  const orderPanel = renderOrderPanel(false, reihenfolgeGesperrt);
 
   // Reihenfolge: Eigene Karte → Reihenfolge → Kampfzonen → Aktionen → Zustände.
   // Schmale Leiste, die beim Scrollen oben stehen bleibt: „wer ist dran" war
@@ -175,9 +172,12 @@ function renderPlayer() {
   // Kommt man als Nächstes, sagt die Leiste das zuerst und hebt sich ab - das
   // übernimmt den früheren Kasten „Gleich bist du dran" unter der Karte.
   const leisteText = werDran || (s.phase === "gate" ? "Warte auf den Spielleiter …" : "");
-  const dranLeiste = s.round && leisteText
+  // Auch ohne Text (kurz zwischen zwei Zügen) bleibt die Leiste stehen, mit
+  // fester Höhe für alle Zustände - sonst schob jeder Wechsel „X ist dran" →
+  // „Gleich bist du dran" → „Du bist dran!" die Karte um 20 px (Messung 15.11.).
+  const dranLeiste = s.round && (leisteText || !ruhe)
     ? `<div class="dran-leiste${isMyTurn ? " ich" : binNaechster ? " gleich" : ""}">${isMyTurn ? "▶ Du bist dran!"
-        : binNaechster ? `⏳ Gleich bist du dran <span class="dl-wer">· ${esc(werDran)}</span>` : esc(leisteText)}</div>`
+        : binNaechster ? `⏳ Gleich bist du dran <span class="dl-wer">· ${esc(werDran)}</span>` : esc(leisteText) || "&nbsp;"}</div>`
     : "";
 
   // Der Daumen-Knopf: EIN großer Knopf unten, immer an derselben Stelle, der
@@ -219,7 +219,14 @@ function renderPlayer() {
   // Zustand steht nicht mehr unter dem Namen (der ist jetzt in der festen
   // Kopfleiste) - nur noch, wenn etwas ist: kein „✓ Gesund" als Dauerzeile.
   const zustand = kopfZustand(mine);
-  const zustandZeile = /kz-ok/.test(zustand) || !/class="kz/.test(zustand) ? "" : `<div class="zustand-zeile">${zustand}</div>`;
+  // Schwebt rechts unter der Leiste statt als eigene Zeile: die Zeile kam bei
+  // „Angeschlagen" dazu und ging beim Erholen wieder weg - jedes Mal sprang
+  // die ganze Karte (Messung 15.11.2026). Im Kampf hängt sie an der festen
+  // Leiste oben; ohne Leiste (Ruhe) bleibt sie eine normale Zeile.
+  const zustandDa = !(/kz-ok/.test(zustand) || !/class="kz/.test(zustand));
+  const zustandSchwebt = zustandDa && !!dranLeiste;
+  const zustandZeile = zustandDa && !zustandSchwebt ? `<div class="zustand-zeile">${zustand}</div>` : "";
+  const zustandSchweb = zustandSchwebt ? `<div class="zustand-schweb">${zustand}</div>` : "";
 
   const wuerfelListe = `<datalist id="wuerfel-vorschlaege">${WUERFEL.map((w) => `<option value="${w}">`).join("")}</datalist>`;
 
@@ -228,7 +235,7 @@ function renderPlayer() {
     ${msgBanner}
     ${dranRahmen}
     ${handyKopfHtml(s, mine)}
-    ${reiterLeiste || dranLeiste ? `<div class="handy-oben">${reiterLeiste}${dranLeiste}</div>` : ""}
+    ${reiterLeiste || dranLeiste ? `<div class="handy-oben">${reiterLeiste}${dranLeiste}${zustandSchweb}</div>` : ""}
     ${zustandZeile}
     ${reiter === "kampf" ? cardPanel : ""}
     ${inhalt}
@@ -742,6 +749,11 @@ function notizThemaDialog(alt) {
     } }).then((w) => w === "loeschen" ? { loeschen: true } : w);
 }
 function notizThemaWaehlen(thema) {
+  // Gibt es das Thema schon in anderer Schreibweise („nsc" neben „NSC")? Dann
+  // das vorhandene nehmen - sonst standen zwei Reiter für dasselbe da.
+  const klein = (t) => notizThemaName(t).trim().toLowerCase();
+  const gleich = notizThemenAlle(notizenAlle()).find((t) => klein(t) === klein(thema));
+  if (gleich) thema = gleich;
   notizSpeicherSchreiben("notizEigeneThemen", [...new Set([...notizSpeicherLesen("notizEigeneThemen", []), thema])]);
   App.notizFilter = thema;
   notizSpeicherSchreiben("notizFilter", thema);
@@ -917,7 +929,11 @@ function daumenKnopf(o) {
   } else if (o.canRecover) {
     // Zwei gleichwertige Wege (Probe oder Benny): gleich große Knöpfe. Als
     // kleiner Neben-Knopf war „Benny ausgeben" winzig und „Erholt" dreizeilig.
-    haupt = o.recoverFreeBtn; neben = o.recoverBennyBtn; gleich = !!neben;
+    // Dritter Weg „Nicht geschafft" (Bedienbarkeit 15.11.2026, Vorschlag 6):
+    // vorher gab es keinen Knopf dafür - wer die Probe verpatzte, wusste nicht,
+    // was er tippen soll. Angeschlagen bleibt, der Zug ist vorbei.
+    const nicht = `<button class="ghost big" data-act="confirm-turn" title="Probe verpatzt: bleibt angeschlagen, Zug ist vorbei">✗ Nicht geschafft</button>`;
+    haupt = `<span class="dl-drei">${o.recoverFreeBtn}${nicht}${o.recoverBennyBtn || ""}</span>`;
     frage = `😵 Willenskraft oder Konstitution geschafft?`;
   } else if (isMyTurn && meinAngriff) {
     // Kein „Zug beenden" daneben: sonst endet der Zug, bevor der SL entschieden hat.
@@ -1023,7 +1039,7 @@ function renderJoin() {
     // Klar sagen, dass hier ein Charakter ENTSTEHT - „Beitreten" allein las
     // sich beim ersten Start, als fehle die Charakterwahl (Stefan).
     inhalt = `
-      <div class="join-titel">➕ Neuen Charakter erstellen</div>
+      <div class="join-titel">Neuen Charakter erstellen</div>
       ${s.roster.length ? "" : `<div class="muted small" style="margin-bottom:8px">Noch keine Charaktere da – leg deinen an. Werte trägst du danach im Charakterbogen ein.</div>`}
       <label class="field"><span>Name des Charakters</span>
         <input id="joinneu" value="${esc(E.neuName)}" placeholder="z. B. Tessa" maxlength="40" autocomplete="off" enterkeyhint="go"></label>
@@ -1031,15 +1047,24 @@ function renderJoin() {
       <button class="primary big" data-act="join-neu" style="width:100%">Charakter erstellen &amp; beitreten</button>
       ${s.roster.length ? `<div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="liste">← zur Liste</button></div>` : ""}`;
   }
+  // Erster Eindruck (Kalle, 14.11.2026, Studio-Runde 3A): Kartenkunst als
+  // Bühne + Wortmarke statt einer Georgia-Überschrift über einem Formular.
+  // Die Bühne ist ein fester Block (feste Höhe) – nichts rückt, wenn das Bild
+  // lädt; es liegt als Hintergrund drin.
   return `
-    <h1 class="center">Sundered Skies · Beitreten</h1>
+    <div class="join-buehne" aria-hidden="true">
+      <div class="join-buehne-bild"></div>
+      <div class="join-marke"><div class="wortmarke">Sundered Skies</div>
+        <div class="zier"><span>Initiative</span></div></div>
+    </div>
+    <h1 class="sr-only">Sundered Skies Initiative – Beitreten</h1>
     <div class="panel join-form">
       ${fehler}
       ${inhalt}
     </div>
     ${handyTipp()}
-    <div class="center muted small">Nichts zu installieren – läuft direkt im Browser.</div>
-    <div class="center muted small" style="margin-top:4px; opacity:0.75">Inoffizielles Fanprojekt für Savage Worlds: Sundered Skies.</div>
+    <div class="join-fuss">Nichts zu installieren – läuft direkt im Browser.<br>
+      Inoffizielles Fanprojekt für Savage Worlds: Sundered Skies.</div>
   `;
 }
 
@@ -1050,11 +1075,9 @@ function handyTipp() {
   let touch = false;
   try { touch = window.matchMedia("(pointer: coarse)").matches; } catch { /* egal */ }
   if (!touch) return "";
-  return `<div class="panel verbindungs-tipp">
-      <div class="verbindungs-tipp-titel">📶 Tipp für ein stabiles Spiel</div>
-      <div><b>Flugmodus an</b> und danach nur <b>WLAN</b> wieder einschalten – oder
-      mobile Daten aus.</div>
-      <div class="muted small">Sonst springt das Handy bei Internet-Aussetzern im WLAN
-      still auf Mobilfunk und verliert den Spieltisch.</div>
+  // Eine Zeile statt eigenem Kasten (Studio-Runde 3A); die Begründung steht
+  // im title und in der SL-Anleitung.
+  return `<div class="verbindungs-tipp" title="Sonst springt das Handy bei Internet-Aussetzern im WLAN still auf Mobilfunk und verliert den Spieltisch.">
+      <span>📶</span><span><b>Flugmodus an, dann nur WLAN</b> – oder mobile Daten aus. So bleibt die Verbindung stabil.</span>
     </div>`;
 }

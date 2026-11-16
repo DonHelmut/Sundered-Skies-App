@@ -201,9 +201,11 @@ def test_handy_feste_kopfleiste_und_reiter(tisch):
     h.warte_bis("() => !!document.querySelector('.handy-kopf .runden-zaehler')")
     kopf = h.js("""() => { const k = document.querySelector('.handy-kopf');
       return { pos: getComputedStyle(k).position, name: k.querySelector('.hk-name').textContent,
-               muenzen: k.querySelectorAll('.muenze').length,
+               // Schmales Handy: drei Bennies als eine Münze „×3" (Platz für den Namen).
+               muenzen: [...k.querySelectorAll('.muenze')].filter(m => m.getBoundingClientRect().width).length
+                 + ' ' + (k.querySelector('.mz-kurz .muenzen-zahl') || {}).textContent,
                pille: getComputedStyle(document.querySelector('.statusbar')).display }; }""")
-    assert kopf == {"pos": "fixed", "name": "Korgo", "muenzen": 3, "pille": "none"}
+    assert kopf == {"pos": "fixed", "name": "Korgo", "muenzen": "1 ×3", "pille": "none"}
     # Nichts verschwindet hinter der Leiste: der Inhalt beginnt darunter.
     assert h.js("document.querySelector('.handy-oben').getBoundingClientRect().top >= 46 - 1")
     h.kein_waagrechtes_scrollen("Kopfleiste schmal")
@@ -270,10 +272,15 @@ def test_kampf_beenden_handys_sofort_ruhig(tisch):
 def test_sl_anfrage_und_kampfknoepfe_schieben_nichts(tisch):
     sl, hs = voller_tisch(tisch)          # eine Anfrage (Wunde +) liegt schon an
     sl.warte_bis("() => !!document.querySelector('.anfragen-schweb')")
+    # Die „Verbunden"-Pille stand mitten auf der schwebenden Anfrage (14.11.2026).
+    assert sl.js("() => getComputedStyle(document.querySelector('.statusbar')).visibility") == "hidden"
     zonen, liste = _oben(sl, "[data-sec=zones]"), _oben(sl, ".order-heading, .combatant")
     assert sl.js("() => getComputedStyle(document.querySelector('.anfragen-schweb')).position") == "fixed"
     sl.klick(".anfragen-schweb [data-act=req-dismiss]")
     sl.warte_bis("() => !document.querySelector('.anfragen-schweb')")
+    # Beim SL steht seit der Studio-Runde ohnehin der Handy-Punkt statt der Pille.
+    assert sl.js("() => getComputedStyle(document.querySelector('.statusbar')).visibility") == "hidden"
+    assert "2 Handys verbunden" in sl.js("() => document.querySelector('.kopf-handys').textContent")
     assert _oben(sl, "[data-sec=zones]") == zonen, "Kampfzonen sind beim Wegklicken der Anfrage verrutscht"
     # Gegner fällt: „🧹 … weg" erscheint IN der Knopfzeile, die Reihenfolge bleibt stehen.
     pirat = next(c for c in sl.state()["combatants"] if c["name"] == "Pirat 1")
@@ -294,3 +301,186 @@ def test_handy_reihenfolge_eine_zeile(tisch):
     hoehen = h.js("() => [...document.querySelectorAll('.order .combatant')].map(e => Math.round(e.getBoundingClientRect().height))")
     assert max(hoehen) <= 62, f"Zeilen zu hoch (zweizeilig?): {hoehen}"
     h.kein_waagrechtes_scrollen("Reihenfolge")
+
+
+def test_studio_optik_schrift_symbole_startflaeche(tisch):
+    """Studio-Runde 14.11.2026: eigene Schrift geladen, Linien-Symbole statt
+    Emoji (Notiz-Themen bleiben roh), Startfläche bei leerem Tisch, ☰-Menü in
+    Gruppen, Handy-Punkt statt Pille."""
+    sl = tisch.sl()
+    sl.warte_bis("() => document.fonts.check('16px Inter') && document.fonts.check('16px Cinzel')")
+    assert sl.page.locator(".startflaeche .sf-zeile").count() == 3
+    assert "Noch kein Handy" in sl.js("() => document.querySelector('.kopf-handys').textContent")
+    sl.klick(".kopf-menue > summary")
+    gruppen = sl.js("() => [...document.querySelectorAll('.km-gruppe')].map(e => e.textContent)")
+    assert gruppen == ["Spiel", "Daten", "Hilfe"]
+    h = tisch.handy("Tessa")
+    # Seit 15.11.2026 bleibt sie bis zum ersten Austeilen - mit ✓ beim Einladen.
+    sl.warte_bis("() => !!document.querySelector('.startflaeche .sf-zeile.fertig')")
+    # Reiter: Symbol statt Emoji
+    tabs = h.js("() => [...document.querySelectorAll('.handy-reiter button')].map(b => [!!b.querySelector('svg.ic'), b.textContent.trim()])")
+    assert tabs and all(svg for svg, _ in tabs), tabs
+    assert not any("⚔" in t or "📜" in t for _, t in tabs)
+    # Notiz-Themen-Chips behalten das selbst gewählte Emoji.
+    h.js("""() => gmAction({type: 'notizen_setzen', eintraege: [{id: 'n1', text: 'Schuld', thema: '📜 Aufträge'}]})""")
+    h.reiter("notizen")
+    h.warte_bis("() => [...document.querySelectorAll('.notiz-reiter')].some(b => b.textContent.includes('📜'))")
+    h.kein_waagrechtes_scrollen("Notizen")
+
+
+def test_studio_runde2_dialog_meldung_ladebild_leerer_bogen(tisch):
+    """Studio-Runde 2 (14.11.2026): Dialog mit Titel/Symbol, Meldung mit
+    Symbol, Ladebild verschwindet beim ersten Stand, leerer Bogen mit 2 Wegen."""
+    sl = tisch.sl()
+    assert sl.page.locator(".ladebild").count() == 0          # erster Stand ersetzt es
+    sl.js("() => { frage('Charakter löschen?\\n\\nWeg ist weg.', 'Löschen', true); }")
+    sl.warte_bis("() => !!document.querySelector('.app-dialog-titel')")
+    assert sl.page.inner_text(".app-dialog-titel") == "Charakter löschen?"
+    assert sl.page.inner_text(".app-dialog-text") == "Weg ist weg."
+    assert sl.page.locator(".app-dialog-sym.gefahr svg").count() == 1
+    sl.page.keyboard.press("Escape")
+    sl.js("() => toast('● Aufnahme läuft')")
+    sl.warte_bis("() => document.querySelector('#toast.toast-rec .toast-sym svg')")
+    assert sl.page.inner_text("#toast .toast-text") == "Aufnahme läuft"
+    h = tisch.handy("Rurik")
+    h.js("() => document.querySelector('[data-act=handy-reiter][data-reiter=bogen]').click()")
+    h.warte_bis("() => document.querySelectorAll('.bogen-leer [data-act=bogen-bearbeiten]').length === 2")
+    h.kein_waagrechtes_scrollen("leerer Bogen")
+
+
+def test_handy_springt_nicht_bei_aufdecken_dran_und_zustand(tisch):
+    """Messung 15.11.2026: Aufdecken, Angeschlagen, eine laufende Anfrage und
+    der Wechsel der Dran-Leiste schoben die Seite jeweils um 20-120 px. Jetzt
+    liegen Hinweis, Uhr und Zustand schwebend auf festem Platz, die Leiste hat
+    eine Höhe. (Ist man selbst dran, wechselt die Ansicht bewusst auf „Mein Zug".)"""
+    sl, h = _kampf_am_handy(tisch)
+    tisch.gm({"type": "new_round", "runde": 0})
+    h.locator("#bigcard").wait_for()
+    h.wait_for_timeout(800)
+    me = h.js("App.state.combatants.find(c => c.playerId === App.myPlayerId).id")
+    oben = lambda sel: round(h.js(f"document.querySelector('{sel}').getBoundingClientRect().top + scrollY"))  # noqa: E731
+    leiste = lambda: round(h.js("document.querySelector('.dran-leiste').getBoundingClientRect().height"))  # noqa: E731
+    vorher, hoehe = oben(".req-knopf-huelle"), leiste()
+    _aufdecken(h)
+    h.wait_for_timeout(3500)
+    assert oben(".req-knopf-huelle") == vorher, "Aufdecken schiebt die Seite"
+    tisch.gm({"type": "apply_hit", "id": me})
+    h.warte_bis("() => !!document.querySelector('.zustand-schweb .kz-shaken')")
+    assert oben(".req-knopf-huelle") == vorher, "Angeschlagen schiebt die Seite"
+    h.js("() => gmAction({type:'request', kind:'status', detail:{woundsDelta:1}, label:'🩸 Wunde +'})")
+    h.warte_bis("() => !!document.querySelector('.req-offen')")
+    reihe = oben(".order")
+    tisch.gm({"type": "resolve_request", "id": sl.state()["requests"][0]["id"]})
+    h.warte_bis("() => !document.querySelector('.req-offen')")
+    assert oben(".order") == reihe, "Laufende Anfrage schiebt die Reihenfolge"
+    tisch.gm({"type": "set_active", "id": me})
+    tisch.gm({"type": "release"})
+    h.warte_bis("() => !!document.querySelector('.dran-leiste.ich')")
+    assert leiste() == hoehe, "Dran-Leiste ändert ihre Höhe"
+
+
+def test_studio_runde3_momente(tisch):
+    """Studio-Runde 3 (15.11.2026): Runden-Band auf SL + Handy, Dein-Zug-Moment
+    und Treffer-Moment am Handy - schwebend, fangen keine Tipps ab, gehen von
+    selbst wieder weg."""
+    sl, h = _kampf_am_handy(tisch)
+    tisch.gm({"type": "new_round", "runde": 0})
+    h.warte_bis("() => !!document.querySelector('.runden-band')")
+    sl.warte_bis("() => !!document.querySelector('.runden-band')")
+    assert "RUNDE" in h.page.inner_text(".runden-band")
+    h.locator("#bigcard").wait_for()
+    _aufdecken(h)
+    h.wait_for_timeout(3500)
+    me = h.js("App.state.combatants.find(c => c.playerId === App.myPlayerId).id")
+    tisch.gm({"type": "set_active", "id": me})
+    tisch.gm({"type": "release"})
+    h.warte_bis("() => !!document.querySelector('.zug-moment .zm-karte svg')")
+    assert h.js("getComputedStyle(document.querySelector('.zug-moment')).pointerEvents") == "none"
+    h.warte_bis("() => !document.querySelector('.zug-moment')", frist=4000)
+    tisch.gm({"type": "apply_hit", "id": me, "wounds": 1})
+    h.warte_bis("() => !!document.querySelector('.treffer-moment .tm-gross')")
+    assert "WUNDE" in h.page.inner_text(".treffer-moment .tm-gross") or "ANGESCHLAGEN" in h.page.inner_text(".treffer-moment .tm-gross")
+    h.warte_bis("() => !document.querySelector('.treffer-moment')", frist=5000)
+
+
+def test_handy_kopf_name_ganz_und_thema_ohne_doppel(tisch):
+    """Bedienbarkeits-Prüfung 15.11.2026: im Kampf (wenn „Runde 1" dazukommt)
+    wurde der eigene Name am 360-px-Handy zu „Branni…" gekürzt; ein eigenes
+    Thema „nsc" stand als zweiter Reiter neben „👤 NSC"."""
+    tisch.sl()
+    h = tisch.handy("Brannigan", "se")
+    h.page.set_viewport_size({"width": 360, "height": 780})
+    tisch.gm({"type": "add_npc", "name": "Ork"})
+    tisch.gm({"type": "new_round", "runde": 0})
+    h.warte_bis("() => !!document.querySelector('.handy-kopf .runden-zaehler')")
+    breite = h.js("(() => { const n = document.querySelector('.hk-name'); return [n.scrollWidth, n.clientWidth]; })()")
+    assert breite[0] <= breite[1], f"Name im Kopf abgeschnitten: {breite}"
+    # Münze bleibt gut zu treffen: 8 px über ihr landet der Tipp noch auf ihr.
+    treffer = h.js("""(() => { const m = [...document.querySelectorAll('.handy-kopf button.muenze')]
+        .find(e => e.getBoundingClientRect().width); const r = m.getBoundingClientRect();
+        const e = document.elementFromPoint(r.left + r.width / 2, r.top - 8);
+        return !!(e && e.closest('button.muenze')); })()""")
+    assert treffer, "Münze im Kopf: Trefferfläche zu klein"
+    h.reiter("notizen")
+    h.js("() => notizThemaWaehlen('nsc')")
+    h.wait_for_timeout(200)
+    reiter = h.js("[...document.querySelectorAll('.notiz-reiter')].map(e => e.textContent.trim().toLowerCase())")
+    assert not any(r.endswith(" nsc") and not r.startswith("👤") for r in reiter), reiter
+
+
+def test_bedienbarkeit_runde_2026_11_15(tisch):
+    """Bedienbarkeits-Runde (Kalle 15.11.2026, „Mach alles", 1B): Startfläche
+    bleibt bis zum Austeilen, Gegner im Baukasten direkt neu, Treffer in der
+    Zeile statt verdeckender Karte, ⋯ als schwebendes Menü (schiebt nichts),
+    Anfrage mit Übernehmen-Knopf, „Nicht geschafft" am Handy."""
+    sl = tisch.sl(1366, 768)
+    h = tisch.handy("Tessa", "se")
+    sl.warte_bis("() => !!document.querySelector('.startflaeche .sf-zeile.fertig')")
+    # Baukasten: Gegner direkt neu anlegen (landet auch in der Bibliothek).
+    sl.locator(".startflaeche [data-act=kaempfe-zeigen]").first.click()
+    sl.page.fill("#kbn-name", "Pirat")
+    sl.page.fill("#kbn-anzahl", "2")
+    sl.page.fill("#kbn-parade", "5")
+    sl.locator("[data-act=kb-neu-gegner]").click()
+    sl.warte_bis("() => App.state.bestiary.some(b => b.name === 'Pirat')")
+    assert sl.js("App.kampfEntwurf.zeilen.map(z => [z.proto.name, z.anzahl])") == [["Pirat", 2]]
+    assert sl.js("document.querySelector('#kbn-name').value") == ""
+    sl.page.fill("#kb-name", "Enterkommando")
+    sl.locator("[data-act=kb-speichern]").click()
+    sl.warte_bis("() => App.state.encounters.length === 1")
+    sl.js("() => { App.kampfEntwurf = null; render(); }")
+    sl.locator("[data-act=schnellkampf-start]").click()
+    sl.warte_bis("() => App.state.round === 1")
+    assert not sl.js("!!document.querySelector('.startflaeche')"), "Startfläche nach dem Austeilen noch da"
+    # Gegnerzug: Treffer-Knöpfe in der Zeile, keine Karte über der Liste.
+    st = sl.state()
+    pirat = next(c for c in st["combatants"] if c["kind"] == "npc")
+    tessa = next(c for c in st["combatants"] if c["kind"] == "player")
+    tisch.gm({"type": "set_active", "id": pirat["id"]})
+    sl.warte_bis("(id) => !!document.querySelector(`.combatant[data-cid='${id}'] .gz-inline`)", tessa["id"])
+    assert not sl.js("!!document.querySelector('.al-treffer.gegnerzug')")
+    sl.locator(f".combatant[data-cid='{tessa['id']}'] [data-act=gegnerzug-treffer][data-n='0']").click()
+    sl.warte_bis("(id) => App.state.combatants.find(c => c.id === id).status.shaken", tessa["id"])
+    # ⋯: schwebendes Menü mit Bennies, die Zeilen bleiben, wo sie sind.
+    oben = lambda: sl.js("[...document.querySelectorAll('.order-raster .combatant')].map(e => Math.round(e.getBoundingClientRect().top))")
+    vorher = oben()
+    sl.locator(f".combatant[data-cid='{tessa['id']}'] .actions [data-act=zustand-umschalten]").click()
+    sl.warte_bis("() => !!document.querySelector('.kontext-menue [data-act=benny-plus]')")
+    assert oben() == vorher, "⋯ schiebt die Reihenfolge"
+    b = tessa["bennies"]
+    sl.locator(".kontext-menue [data-act=benny-plus]").click()
+    sl.warte_bis("(a) => App.state.combatants.find(c => c.id === a[0]).bennies === a[1]", [tessa["id"], b + 1])
+    sl.page.keyboard.press("Escape")
+    # Anfrage: beschrifteter Übernehmen-Knopf.
+    h.js("() => gmAction({type: 'request', kind: 'status', detail: {woundsDelta: 1}, label: '🩸 Wunde +'})")
+    sl.warte_bis("() => !!document.querySelector('.anfragen-schweb .req-ja')")
+    assert "Übernehmen" in sl.page.inner_text(".anfragen-schweb .req-ja")
+    sl.locator(".anfragen-schweb .req-ja").click()
+    sl.warte_bis("(id) => App.state.combatants.find(c => c.id === id).status.wounds === 1", tessa["id"])
+    # Handy angeschlagen am Zug: „Nicht geschafft" beendet den Zug.
+    tisch.gm({"type": "set_active", "id": tessa["id"]})
+    tisch.gm({"type": "release"})
+    h.warte_bis("() => !!document.querySelector('.dl-drei [data-act=confirm-turn]')", frist=8000)
+    h.wait_for_timeout(750)
+    h.locator(".dl-drei [data-act=confirm-turn]").click()
+    sl.warte_bis("(id) => App.state.activeId !== id", tessa["id"])

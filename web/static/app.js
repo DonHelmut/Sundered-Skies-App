@@ -5,7 +5,8 @@
 // damit man schneller findet und zwei PCs seltener in derselben Datei kollidieren:
 //   app.js → verbindung.js → dialoge.js → tisch.js → render.js → sl.js →
 //   bogen.js → spieler.js → ereignisse.js → aktionen.js → protokoll.js → regeln.js → start.js
-//   (dazu modi.js, als-app.js, update.js = Update-Hinweis, wach.js = Handy bleibt wach)
+//   (dazu modi.js, als-app.js, update.js = Update-Hinweis, wach.js = Handy bleibt wach,
+//   symbole.js = Linien-Symbole statt Emoji, steht VOR app.js)
 // Klassische <script>-Dateien mit gemeinsamem globalem Bereich (kein Build).
 // Reihenfolge in index.html zählt: Code, der beim LADEN läuft, darf nur auf
 // Dinge aus früheren Dateien zugreifen; Aufrufe in Funktionen/Handlern sind egal.
@@ -95,7 +96,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "2.0.9";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "2.0.10";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -108,7 +109,7 @@ function versionLine() {
     `<div class="muted small" style="margin-top:2px">Inoffizielles Fanprojekt – nicht verbunden mit Pinnacle (Savage Worlds) oder Triple Ace Games (Sundered Skies).</div>` +
     (stale ? `<div class="pill bad" style="margin-top:4px">⚠ Alte Seite im Cache (v${esc(ASSET_VERSION)} statt v${esc(server)}). Einmal Strg+F5 drücken.</div>` : "");
 }
-const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+const el = (html) => { const t = document.createElement("template"); t.innerHTML = symboleEinsetzen(html.trim()); return t.content.firstChild; };
 // Adressbereich = die ersten drei Zahlen einer IPv4 („192.168.178.").
 // Handys müssen darin liegen wie der Laptop - sonst sind sie in einem anderen
 // Netz (Gast-WLAN der Fritzbox ist z. B. 192.168.179.x, Mobilfunk ganz anders)
@@ -336,6 +337,41 @@ function tonWecken() {
 // Vibration kann das iPhone im Browser gar nicht (navigator.vibrate fehlt).
 const kannVibrieren = typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
 // Ersatz, den jeder sieht: der Bildschirmrand blitzt golden auf.
+// Dein-Zug-Moment (Kalle, Studio-Runde 3, 15.11.2026): eine Sekunde lang
+// die eigene Karte groß mit „DU BIST DRAN", dann die normale „Mein Zug"-Ansicht.
+// Schwebt über allem, fängt keine Tipps ab (pointer-events aus) - wer schnell
+// ist, kann schon „Angreifen" drücken.
+function zugMoment() {
+  const s = App.state, mine = myCombatant();
+  if (!s || !mine) return;
+  document.querySelectorAll(".zug-moment").forEach((n) => n.remove());
+  const karte = mine.card ? Cards.renderCardSVG(mine.card, mine.image || null) : "";
+  const n = el(`<div class="zug-moment" aria-live="assertive">
+    ${karte ? `<div class="zm-karte">${karte}</div>` : ""}
+    <div class="zm-titel">DU BIST DRAN</div>
+    <div class="zm-zier"></div>
+    <div class="zm-unter">Runde ${s.round} · ${esc(mine.name)}</div>
+    <div class="zm-balken"><i></i></div>
+  </div>`);
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 1500);
+}
+
+// Runden-Banner (Studio-Runde 3): „RUNDE 3" schwebt kurz quer über SL und
+// Handys, wenn eine neue Runde beginnt. Fester Platz oben, nichts rückt.
+function rundenBanner() {
+  const s = App.state;
+  if (!s) return;
+  if (App._prevRunde === undefined) { App._prevRunde = s.round; return; }
+  const neu = s.round > App._prevRunde && s.round > 0;
+  App._prevRunde = s.round;
+  if (!neu) return;
+  document.querySelectorAll(".runden-band").forEach((n) => n.remove());
+  const n = el(`<div class="runden-band" aria-hidden="true"><i class="rb-z"></i><b>RUNDE ${s.round}</b><i class="rb-z rb-r"></i></div>`);
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 1600);
+}
+
 function dranBlitz() {
   document.querySelectorAll(".dran-blitz").forEach((n) => n.remove());
   const n = el(`<div class="dran-blitz" aria-hidden="true"></div>`);
@@ -468,6 +504,7 @@ function checkTurnNotify() {
   // abschalten, verpassen darf man seinen Zug trotzdem nicht.
   if (myTurn && !App._prevMyTurn && App._turnInit) {   // (Spieler-Ansicht)
     dranBlitz();
+    zugMoment();
     // Erst nach dem Neuzeichnen springen, sonst zielt es auf die alte Seite.
     setTimeout(() => {
       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* s. u. */ }

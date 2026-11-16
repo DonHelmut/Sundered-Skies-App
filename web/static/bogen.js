@@ -52,8 +52,18 @@ function renderBogen(mine) {
   // 25.10.2026) - das nahm am Handy einen halben Bildschirm für „nichts da".
   // Seit 11.11.2026 auch ohne zweiten Knopf „Foto vom Papierbogen": das Foto
   // ist ein Reiter im Bogen, der Knopf öffnet ihn.
+  // Seit 14.11.2026 (Studio-Runde 2 Vorschlag 5, Kalle): ein richtiger
+  // Leerzustand statt einsamem Knopf – Symbol, ein Satz, zwei Wege (Werte
+  // tippen oder Papierbogen fotografieren). Bleibt kompakt, kein Erklärtext.
   if (!edit && bogenIstLeer(b) && !(mine.talents || []).length) {
-    return `<div class="panel bogen-leer"><button class="ghost" data-act="bogen-bearbeiten">📜 Mein Charakter ✎</button>
+    return `<div class="panel bogen-leer">
+      <div class="leer-sym">${symbolSvg("scroll-text")}</div>
+      <div class="leer-titel">Dein Charakterbogen</div>
+      <div class="leer-text">Noch leer. Trag deine Werte ein – oder fotografier einfach deinen Papierbogen.</div>
+      <div class="leer-knoepfe">
+        <button class="primary" data-act="bogen-bearbeiten">✏ Werte eintragen</button>
+        <button class="ghost" data-act="bogen-bearbeiten" data-reiter="foto">📷 Foto vom Papierbogen</button>
+      </div>
       ${mitspielerBoegen(mine)}</div>`;
   }
   if (!edit && bogenIstLeer(b) && reiter !== "talente" && reiter !== "foto") {
