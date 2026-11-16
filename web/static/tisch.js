@@ -34,6 +34,14 @@ function cardSlot(cid, card, status, extraClass = "", opts = {}) {
   // Verdeckt liegen lassen (tischweit noch nicht aufgedeckt).
   if (!faceUp) {
     if (tappable) {
+      // Der Server sagt „noch verdeckt" - dann darf der Tipp auch wirken.
+      // App.revealed merkt sich „Figur:Karte"; die Figur eines Spielers bleibt
+      // den ganzen Abend dieselbe, und nach jedem Joker wird neu gemischt. Zog
+      // er eine Karte, die er früher schon aufgedeckt hatte, hielt revealBigCard
+      // den Tipp für doppelt: weder Antippen noch „Karte aufdecken" taten
+      // etwas (Kalle, 16.11.2026, Korgo am iPhone in Runde 4). Während der
+      // eigenen Dreh-Animation bleibt der Schlüssel, sonst zweimal gedreht.
+      if (!(App.revealLockUntil > Date.now())) App.revealed.delete(key);
       const fresh = !App.seenDealt.has(key);          // Einflieg-Animation nur einmal
       const flipCls = "flip rv-" + revealStyleFor(key) + " await-tap" + (fresh ? " dealin-seal" : "");
       return `<div class="${holderCls}">
@@ -42,6 +50,9 @@ function cardSlot(cid, card, status, extraClass = "", opts = {}) {
         <div class="tap-hint">👆 Antippen zum Aufdecken</div>
       </div>`;
     }
+    // Fremde verdeckte Karte: beim nächsten Aufdecken wieder drehen, auch
+    // wenn dieselbe Karte früher schon einmal offen lag (siehe oben).
+    App.revealed.delete(key);
     return `<div class="${holderCls}">
       <div class="flip rv-${revealStyleFor(key)}" data-rkey="${esc(key)}">${faces}</div>
       ${statusOverlay(status)}
