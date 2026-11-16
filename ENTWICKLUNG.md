@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.12 (16.11.2026): Ladebalken beim Update
+## 2.0.13 (16.11.2026): Ladebalken beim Update
 
 Kalle: „da fehlt ne Art Ladebalken“ – nach „⬆ Jetzt aktualisieren“ stand nur
 „im schwarzen Fenster sieht man den Fortschritt“. Gewählt: Variante A (Dialog
@@ -105,7 +105,7 @@ in der App mit drei Schritten; Bilder in `screenshots/update-balken/`).
   das Update VON der Version mit diesem Stand auf die nächste zeigt den Balken –
   das Update auf diese Version läuft noch mit dem alten Updater.
 
-## Nach 2.0.12 (16.11.2026): Sitzplatz-Zeile zeigt den echten Zustand
+## 2.0.13 (16.11.2026): Sitzplatz-Zeile zeigt den echten Zustand
 
 Am Jonsbo ist kein SSL-Treiber installiert – das Connex läuft mit Windows'
 eigenem USB-Audio-Treiber (`usbaudio2.inf`), und die vier Kapseln sind trotzdem
