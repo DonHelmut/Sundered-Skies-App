@@ -2855,6 +2855,30 @@ body.sl-ansicht .nur-handy { display: none; }
 /* Update-Hinweis (update.js) */
 .upd-text { text-align: left; line-height: 1.6; }
 .upd-text a { word-break: break-all; color: var(--accent); }
+/* Ladebalken beim Update (update.js): drei Schritte, Balken unter dem aktiven.
+   Nur transform/opacity bewegen - keine Breite, kein filter (ruckelt). */
+.upd-lauf .app-dialog { min-height: 250px; display: flex; flex-direction: column; }
+.upd-titel { font-weight: 800; font-size: 1.1rem; margin-bottom: 10px; }
+.upd-koerper { flex: 1; }
+.upd-schritte { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 12px; }
+.upd-schritte li { display: grid; grid-template-columns: 26px 1fr; gap: 6px 10px; align-items: center; }
+.upd-nr { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 0.8rem;
+  font-weight: 800; border: 2px solid var(--line); color: var(--muted); box-sizing: border-box; }
+.upd-schritte li.fertig .upd-nr { background: var(--good); border-color: var(--good); color: #132; }
+.upd-schritte li.jetzt .upd-nr { border-color: var(--accent); color: var(--accent); }
+.upd-schritte li.jetzt .upd-t { font-weight: 700; }
+.upd-schritte li.offen .upd-t { color: var(--muted); }
+.upd-unter { grid-column: 2; }
+.upd-balken { height: 12px; border-radius: 6px; background: var(--input-bg); border: 1px solid var(--line); overflow: hidden; }
+.upd-balken i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent));
+  transform-origin: left; transform: scaleX(0); transition: transform 0.45s ease-out; }
+.upd-balken.wandern i { width: 35%; transform: none; transition: none; animation: updWandern 1.4s ease-in-out infinite alternate; }
+@keyframes updWandern { from { transform: translateX(-10%); } to { transform: translateX(195%); } }
+.upd-zahlen { display: flex; justify-content: space-between; gap: 10px; font-size: 0.82rem; color: var(--muted);
+  margin-top: 4px; font-variant-numeric: tabular-nums; }
+.upd-fuss { font-size: 0.85rem; color: var(--muted); margin-top: 14px; line-height: 1.45; }
+.upd-lauf .app-dialog-knoepfe { margin-top: 14px; }
+@media (prefers-reduced-motion: reduce) { .upd-balken.wandern i { animation-duration: 4s; } }
 
 /* 🌙 Abend beenden (aufnahme.js) */
 .abend-liste { display: grid; gap: 10px; text-align: left; }

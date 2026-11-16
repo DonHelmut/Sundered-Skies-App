@@ -38,6 +38,7 @@ from .namen import namen_aus_spiel
 
 WEB_DIR = RESOURCE_DIR / "web"
 SICHERUNG_DIR = DATA_DIR / "sicherungen"   # automatische Sicherungen (stündlich)
+update.STAND_DATEI = DATA_DIR / "update-stand.json"   # Ladebalken beim Update
 LOCAL_IP = local_ip()
 
 
@@ -208,6 +209,13 @@ async def update_auskunft(request: Request):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
     return JSONResponse({**update.auskunft(BASE_DIR), "aufnahme": bool(aufnahmen.aktiv)})
+
+
+@app.get("/api/update/fortschritt")
+async def update_fortschritt(request: Request):
+    if not _is_loopback(request):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    return JSONResponse(update.fortschritt(), headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/update/start")

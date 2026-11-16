@@ -27,6 +27,11 @@ from .paths import APP_VERSION
 # (noch nicht gefragt, kein Internet) - dann zeigt die App nichts.
 stand: dict = {"neu": None, "titel": ""}
 
+# Hierhin schreibt Aktualisieren.exe ihren Fortschritt (aktualisieren.py,
+# stand_schreiben) - die App liest ihn für den Ladebalken. Setzt app.py
+# (liegt in data/, überlebt also das Beenden und den Tausch).
+STAND_DATEI: Path | None = None
+
 
 def _titel_holen(repo: str) -> str:
     """Titel des neuesten Releases („… 2.0.7 – was sich geändert hat"), nur als
@@ -103,16 +108,46 @@ def auskunft(basis: Path) -> dict:
 
 
 def starten(basis: Path, ausfuehren: Callable | None = None) -> bool:
-    """Startet Aktualisieren.exe im eigenen Fenster. Sie beendet diese App,
-    tauscht die Dateien und startet die App neu (``--auto``)."""
+    """Startet Aktualisieren.exe im eigenen Fenster. Sie lädt die neue Version,
+    beendet dann diese App, tauscht die Dateien und startet die App neu
+    (``--auto``). Den Fortschritt schreibt sie nach STAND_DATEI."""
     exe = updater_pfad(basis)
     if not exe:
         return False
+    befehl = [str(exe), "--auto"]
+    if STAND_DATEI is not None:
+        # Alten Stand weg (sonst zeigte der Dialog kurz „fertig" vom letzten Mal).
+        try:
+            STAND_DATEI.parent.mkdir(parents=True, exist_ok=True)
+            STAND_DATEI.write_text(json.dumps({"schritt": "start"}), encoding="utf-8")
+        except OSError:
+            pass
+        befehl += ["--stand", str(STAND_DATEI)]
     try:
         # Eigenes Konsolenfenster + eigene Prozessgruppe: der Updater muss
-        # weiterleben, wenn er gleich diese App beendet.
+        # weiterleben, wenn er gleich diese App beendet. Das Fenster startet
+        # minimiert - den Balken zeigt die App; nur wenn der Updater doch
+        # etwas vom SL braucht, holt er sich nach vorn (konsole_zeigen).
         flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-        (ausfuehren or subprocess.Popen)([str(exe), "--auto"], cwd=str(basis), close_fds=True, creationflags=flags)
+        extra = {}
+        if hasattr(subprocess, "STARTUPINFO"):
+            info = subprocess.STARTUPINFO()
+            info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            info.wShowWindow = 7                          # SW_SHOWMINNOACTIVE
+            extra["startupinfo"] = info
+        (ausfuehren or subprocess.Popen)(befehl, cwd=str(basis), close_fds=True, creationflags=flags, **extra)
         return True
     except Exception:  # noqa: BLE001
         return False
+
+
+def fortschritt() -> dict:
+    """Was der Updater zuletzt schrieb, plus die Version, die gerade läuft:
+    daran erkennt der Dialog, ob die neue App schon da ist."""
+    daten: dict = {}
+    if STAND_DATEI is not None:
+        try:
+            daten = json.loads(STAND_DATEI.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            daten = {}
+    return {**daten, "version": APP_VERSION}

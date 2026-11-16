@@ -69,9 +69,15 @@ def test_update_starten_ruft_updater_mit_auto(tmp_path, monkeypatch):
     (tmp_path / "Aktualisieren.exe").write_bytes(b"x")
     monkeypatch.setattr(U.os, "name", "nt")
     rufe = []
+    monkeypatch.setattr(U, "STAND_DATEI", tmp_path / "data" / "update-stand.json")
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "update-stand.json").write_text('{"schritt": "fertig"}')
     assert U.starten(tmp_path, lambda befehl, **kw: rufe.append((befehl, kw)))
     befehl, kw = rufe[0]
-    assert befehl == [str(tmp_path / "Aktualisieren.exe"), "--auto"] and kw["cwd"] == str(tmp_path)
+    assert befehl == [str(tmp_path / "Aktualisieren.exe"), "--auto", "--stand", str(U.STAND_DATEI)]
+    assert kw["cwd"] == str(tmp_path)
+    # Alter Stand vom letzten Mal ist weg - der Balken beginnt bei null.
+    assert U.fortschritt()["schritt"] == "start"
     # Ohne die .exe (Entwickler-Start): nichts starten.
     assert not U.starten(tmp_path / "leer", lambda *a, **k: rufe.append(1))
     assert len(rufe) == 1
@@ -104,6 +110,87 @@ def test_update_start_nicht_waehrend_der_aufnahme(monkeypatch, tmp_path):
 
 
 # --- Updater --auto ---------------------------------------------------------------
+
+def test_fortschritt_route_liest_stand_des_updaters(monkeypatch, tmp_path):
+    datei = tmp_path / "update-stand.json"
+    monkeypatch.setattr(U, "STAND_DATEI", datei)
+    # Noch nichts geschrieben: nur die laufende Version.
+    assert _json(asyncio.run(A.update_fortschritt(_req()))) == {"version": A.APP_VERSION}
+    monkeypatch.setattr(akt, "STAND", datei)
+    akt.stand_schreiben(schritt="laden", neu="9.9.9", geladen=5, groesse=10)
+    d = _json(asyncio.run(A.update_fortschritt(_req())))
+    assert (d["schritt"], d["geladen"], d["groesse"], d["version"]) == ("laden", 5, 10, A.APP_VERSION)
+    fremd = SimpleNamespace(client=SimpleNamespace(host="192.168.1.20"), headers={"host": "192.168.1.5:8000"}, cookies={})
+    assert asyncio.run(A.update_fortschritt(fremd)).status_code == 403
+
+
+def test_stand_schreiben_wirft_nie(monkeypatch, tmp_path):
+    monkeypatch.setattr(akt, "STAND", None)
+    akt.stand_schreiben(schritt="laden")                      # ohne --stand: nichts
+    monkeypatch.setattr(akt, "STAND", tmp_path / "gibts-nicht" / "x.json")
+    akt.stand_schreiben(schritt="laden")                      # Ordner fehlt: still
+    assert akt.stand_aus_argumenten(["--auto", "--stand", "C:/a/b.json"]) == Path("C:/a/b.json")
+    assert akt.stand_aus_argumenten(["--auto"]) is None
+
+
+def _updater_nachspielen(monkeypatch, tmp_path, tauschen=None):
+    """main() mit --auto, ohne Netz und ohne Windows. Merkt sich die
+    Reihenfolge der Schritte und was in der Stand-Datei stand."""
+    import io, json, zipfile
+    ordner = tmp_path / "app"
+    ordner.mkdir()
+    (ordner / akt.APP_EXE).write_bytes(b"alt")
+    stand = tmp_path / "data" / "update-stand.json"
+    stand.parent.mkdir()
+    puffer = io.BytesIO()
+    with zipfile.ZipFile(puffer, "w") as z:
+        z.writestr(f"SunderedSkies-App/{akt.APP_EXE}", "neu")
+    reihe = []
+    def lesen():
+        return json.loads(stand.read_text(encoding="utf-8"))
+    def herunterladen(url, ziel, groesse, melden=None):
+        reihe.append("laden")
+        melden(groesse // 2, groesse)
+        reihe.append(("stand", lesen()["schritt"], lesen()["geladen"]))
+        ziel.write_bytes(puffer.getvalue())
+    an = {"app": True}
+    def beenden(o):
+        reihe.append("beenden")
+        an["app"] = False
+        return True
+    monkeypatch.setattr(akt.sys, "argv", ["Aktualisieren.exe", "--auto", "--stand", str(stand)])
+    monkeypatch.setattr(akt.Path, "cwd", staticmethod(lambda: ordner))
+    monkeypatch.setattr(akt, "version_aus_starthier", lambda o: "1.0.0")
+    monkeypatch.setattr(akt, "neueste_version", lambda: ("1.0.1", "https://x/z.zip", 1000))
+    monkeypatch.setattr(akt, "herunterladen", herunterladen)
+    monkeypatch.setattr(akt, "app_laeuft", lambda o: an["app"])
+    monkeypatch.setattr(akt, "app_beenden", beenden)
+    monkeypatch.setattr(akt, "austauschen", tauschen or (lambda q, o: reihe.append("tauschen") or []))
+    monkeypatch.setattr(akt, "selbst_tausch_starten", lambda o: False)
+    monkeypatch.setattr(akt, "app_starten", lambda o, **k: reihe.append("starten") or True)
+    monkeypatch.setattr(akt.time, "sleep", lambda s: None)
+    monkeypatch.setenv("SWS_OHNE_PAUSE", "1")
+    try:
+        akt.main()
+    except SystemExit as e:
+        reihe.append(("ende", e.code))
+    return reihe, lesen()
+
+
+def test_updater_laedt_erst_und_beendet_die_app_danach(monkeypatch, tmp_path):
+    # Kalle 16.11.2026: Ladebalken in der App - dafür muss die App während des
+    # Downloads noch laufen. Früher: erst beenden, dann laden (1 min aus).
+    reihe, ende = _updater_nachspielen(monkeypatch, tmp_path)
+    assert reihe == ["laden", ("stand", "laden", 500), "beenden", "tauschen", "starten", ("ende", 0)]
+    assert ende["schritt"] == "fertig" and ende["neu"] == "1.0.1"
+
+
+def test_updater_meldet_fehler_und_startet_alte_app(monkeypatch, tmp_path):
+    def tauschen(q, o):
+        raise akt.AustauschFehler("gesperrt", alt_heil=True)
+    reihe, ende = _updater_nachspielen(monkeypatch, tmp_path, tauschen)
+    assert reihe[-2:] == ["starten", ("ende", 1)]
+    assert ende["schritt"] == "fehler" and ende["alt_heil"] is True and "gesperrt" in ende["fehler"]
 
 def test_app_starten_ohne_zweites_fenster(tmp_path):
     rufe = []

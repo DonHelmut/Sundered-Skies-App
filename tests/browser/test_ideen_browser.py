@@ -47,6 +47,42 @@ def test_update_hinweis_einmal_als_dialog_dann_knopf(browser, tmp_path, monkeypa
         srv.stop()
 
 
+def test_update_ladebalken_schritte_und_fehler(browser, tmp_path, monkeypatch):
+    # Kalle 16.11.2026: „da fehlt ne Art Ladebalken". Der Updater schreibt
+    # data/update-stand.json, die App zeigt Balken und Schritte.
+    import json
+    monkeypatch.setenv("SWI_NEUESTE_VERSION", "99.0.0")
+    srv = C.Server(tmp_path / "data").start()
+    tisch = C.Tisch(browser, srv)
+    stand = tmp_path / "data" / "update-stand.json"
+    try:
+        sl = tisch.sl()
+        sl.js("() => document.querySelectorAll('.app-dialog-hg button').forEach(b => b.click())")
+        stand.write_text(json.dumps({"schritt": "laden", "neu": "99.0.0", "geladen": 0, "groesse": 1000}))
+        sl.js("() => updateLaufZeigen('99.0.0')")
+        sl.warte_bis("() => document.querySelector('.upd-lauf .upd-balken')")
+        stand.write_text(json.dumps({"schritt": "laden", "neu": "99.0.0", "geladen": 500, "groesse": 1000}))
+        sl.warte_bis("() => document.querySelector('.upd-lauf .upd-zahlen').textContent.includes('50 %')")
+        # Weiterer Stand: derselbe Balken bewegt sich (kein Neuaufbau = kein Flackern).
+        sl.js("() => { window._balken = document.querySelector('.upd-lauf .upd-balken i'); }")
+        stand.write_text(json.dumps({"schritt": "laden", "neu": "99.0.0", "geladen": 800, "groesse": 1000}))
+        sl.warte_bis("() => document.querySelector('.upd-lauf .upd-zahlen').textContent.includes('80 %')")
+        assert sl.js("() => window._balken === document.querySelector('.upd-lauf .upd-balken i')")
+        # Wegklicken geht nicht, solange es läuft.
+        sl.page.mouse.click(5, 5)
+        assert sl.page.locator(".upd-lauf").count() == 1
+        stand.write_text(json.dumps({"schritt": "fehler", "alt_heil": True, "fehler": "Datei gesperrt."}))
+        sl.warte_bis("() => document.querySelector('.upd-lauf [data-upd=nochmal]')")
+        text = sl.page.inner_text(".upd-lauf")
+        assert "nicht geklappt" in text and "Datei gesperrt." in text and "Nichts kaputt" in text
+        sl.klick(".upd-lauf [data-upd=ok]")
+        assert sl.page.locator(".upd-lauf").count() == 0
+        assert not tisch.alle_fehler(), tisch.alle_fehler()
+    finally:
+        tisch.schliessen()
+        srv.stop()
+
+
 def test_update_dialog_kommt_nicht_mitten_im_kampf(browser, tmp_path, monkeypatch):
     monkeypatch.setenv("SWI_NEUESTE_VERSION", "99.0.0")
     srv = C.Server(tmp_path / "data").start()
