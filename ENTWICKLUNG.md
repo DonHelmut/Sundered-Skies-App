@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.11 (16.11.2026): SSL-Treiber per Klick (Sitzplatz-Erkennung einrichten)
+## 2.0.12 (16.11.2026): SSL-Treiber per Klick (Sitzplatz-Erkennung einrichten)
 
 Kalle: „Der Treiber fürs SSL soll ins Game mit rein für den SL."
 
@@ -110,7 +110,7 @@ Kalle: „Der Treiber fürs SSL soll ins Game mit rein für den SL."
   mit „SSL"/„Solid State" ein? Will der Installer einen Neustart? Tests decken
   die Logik mit eingesetzten Attrappen ab (`tests/test_connex.py`).
 
-## Nach 2.0.11 (16.11.2026): Karte ließ sich am Handy nicht aufdecken
+## 2.0.12 (16.11.2026): Karte ließ sich am Handy nicht aufdecken
 
 Bug am echten iPhone (Korgo, Runde 4): weder Antippen der Karte noch
 „Karte aufdecken" wirkten, der SL hat weitergeschaltet. Ursache: das Handy
