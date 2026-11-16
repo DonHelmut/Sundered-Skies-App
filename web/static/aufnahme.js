@@ -158,6 +158,7 @@ function renderAufnahmePanel() {
   return section("aufnahme", "🎙 Aufnahme &amp; Protokoll", `
     ${oben}
     ${aufnMitschriftHtml(sp)}
+    ${aufnSitzHtml(sp)}
     ${zeilen ? `<div class="aufn-liste">${zeilen}</div>` : ""}
     ${aufnPlatzHtml(st)}
     <div class="muted small hilfe" style="margin-top:6px; line-height:1.5">
@@ -252,6 +253,73 @@ function aufnMitschriftHtml(sp) {
     ${sp.genauerFehlt && !(sp.laden && !sp.laden.fehler) ? `<button class="ghost small" data-act="aufn-modelle" title="Modelle für das beste Ergebnis nach der Aufnahme: zweiter Erkenner (Canary, fest auf Deutsch) und das genauere Stimm-Modell (Sprecher besser auseinanderhalten). Einmalig, danach offline.">⬇ Genauer (${sp.groesseMb} MB)</button>` : ""}
     <button class="ghost small" data-act="aufn-begriffe" title="Orte, Schiffe, NSCs … – damit die Mitschrift sie richtig schreibt. Figuren, Gegner und Spieler aus der App sind automatisch dabei.">🏷 Namen${begriffe ? ` (${begriffe})` : ""}</button>
   </div>`;
+}
+// Sitzplatz-Erkennung einrichten (server/connex.py). Kalle (16.11.2026): „Der
+// Treiber fürs SSL soll ins Game mit rein für den SL." Mitliefern verbietet
+// SSLs Lizenz, darum lädt die App ihn auf Knopfdruck von SSL. Die Zeile gibt
+// es nur, wenn ein Connex am Rechner hängt - alle anderen SLs sehen nichts.
+function aufnSitzLaedt(e) {
+  return !!(e && e.laden && !e.laden.fehler && e.laden.schritt !== "gestartet");
+}
+function aufnSitzHtml(sp) {
+  const e = sp.richtung && sp.richtung.einrichtung;
+  if (!e || !(e.connex || e.laden)) return "";
+  const punkt = (ok, text) => `<span class="aufn-sitz-punkt${ok ? " ok" : ""}"><i></i>${text}</span>`;
+  const l = e.laden;
+  let rest;
+  if (e.kapseln) rest = `<span class="muted">bereit – zählt ab der nächsten Aufnahme mit</span>`;
+  else if (aufnSitzLaedt(e)) {
+    rest = `<span class="aufn-balken"><i style="transform:scaleX(${(l.anteil || 0).toFixed(3)})"></i></span>
+      <span class="aufn-sitz-fortschritt muted">${aufnSitzText(l)}</span>`;
+  } else if (e.treiber) {
+    rest = `<span class="muted">Am Mikro: Logo 5 s halten, bis es gelb leuchtet.</span>
+      <button class="ghost small" data-act="aufn-sitz-pruefen">Erneut prüfen</button>`;
+  } else if (l && l.schritt === "gestartet") {
+    rest = `<span class="muted">Installation läuft in eigenem Fenster – dort bestätigen.</span>
+      <button class="ghost small" data-act="aufn-sitz-pruefen">Erneut prüfen</button>`;
+  } else if (l && l.fehler) {
+    rest = `<button class="primary small" data-act="aufn-sitz-anleitung">Anleitung</button>
+      <span class="muted">Automatisch ging es nicht.</span>`;
+  } else {
+    rest = `<button class="primary small" data-act="aufn-sitz-treiber" title="Lädt den Treiber direkt von Solid State Logic und startet die Installation.">⬇ Treiber installieren</button>`;
+  }
+  return `<div class="aufn-mitschrift aufn-sitz small"><b>Sitzplatz-Erkennung</b>
+    ${punkt(e.connex, "Connex erkannt")}
+    ${punkt(e.treiber, e.treiber ? "SSL-Treiber installiert" : "SSL-Treiber fehlt")}
+    ${punkt(e.kapseln, e.kapseln ? "Immersive an" : e.treiber ? "Immersive fehlt" : "Immersive")}
+    ${rest}</div>`;
+}
+function aufnSitzText(l) {
+  return l.schritt === "pruefen" ? "Treiber wird geprüft …" : `Treiber wird von SSL geladen … ${Math.round((l.anteil || 0) * 100)} %`;
+}
+async function aufnSitzTreiber() {
+  const e = Aufn.status && Aufn.status.sprache && Aufn.status.sprache.richtung && Aufn.status.sprache.richtung.einrichtung;
+  if (!e) return;
+  // Bei SSL steht vor dem Download dieselbe Zustimmung - die App darf sie
+  // dem SL nicht abnehmen.
+  const ja = await dialog({ art: "frage",
+    text: "⬇ SSL-Treiber installieren\nDie App lädt den Treiber direkt von Solid State Logic und startet die Installation. Windows fragt danach einmal um Erlaubnis.",
+    inhalt: `<p class="small" style="margin:0">Der Treiber gehört SSL. Mit „Zustimmen" nimmst du die
+      <a href="${esc(e.lizenz)}" target="_blank" rel="noopener" style="color:inherit">Lizenzbedingungen von SSL ↗</a> an.</p>`,
+    knoepfe: [{ text: "Abbrechen", wert: false, abbruch: true }, { text: "Zustimmen & installieren", wert: true, art: "primary", standard: true }] });
+  if (ja) aufnSprache("/api/sprache/sitzplatz", { aktion: "treiber" });
+}
+// Rückfall, wenn der Ein-Klick-Weg nicht geht: dieselben drei Schritte von
+// Hand, mit Knopf zur SSL-Seite.
+async function aufnSitzAnleitung() {
+  const e = Aufn.status && Aufn.status.sprache && Aufn.status.sprache.richtung && Aufn.status.sprache.richtung.einrichtung;
+  if (!e) return;
+  const nr = (ok, n) => ok ? `<b class="aufn-sitz-ok">✓</b>` : `<b>${n}</b>`;
+  const nochmal = await dialog({ art: "hinweis",
+    text: "Sitzplatz-Erkennung einrichten\nMit den vier Kapseln des SSL Connex erkennt die Mitschrift, wer wo sitzt. Einmal einrichten:",
+    inhalt: `<div class="aufn-sitz-schritte">
+        ${nr(e.connex, 1)}<div><b>Connex anschließen</b></div>
+        ${nr(e.treiber, 2)}<div><b>SSL-Treiber installieren</b><br><span class="muted small">Öffnet die Download-Seite von SSL. „SSL Windows ASIO/WDM Driver" laden, doppelklicken, durchklicken.</span>
+          ${e.treiber ? "" : `<br><a class="knopf primary small" href="${esc(e.seite)}" target="_blank" rel="noopener">Treiber bei SSL holen ↗</a>`}</div>
+        ${nr(e.kapseln, 3)}<div><b>Immersive einschalten</b><br><span class="muted small">Am Mikro: Logo 5 s halten, bis es gelb leuchtet.</span></div>
+      </div>`,
+    knoepfe: [{ text: "Schließen", wert: false, abbruch: true }, { text: "Erneut prüfen", wert: true, art: "primary", standard: true }] });
+  if (nochmal) aufnSprache("/api/sprache/sitzplatz", { aktion: "pruefen" });
 }
 function aufnJobText(job) {
   const pro = Math.round((job.anteil || 0) * 100);
@@ -625,18 +693,46 @@ async function aufnSprache(url, body) {
 // Text anfassen - ein ganzes render() alle paar Sekunden über eine Stunde
 // würde am Spieltisch stören (Eingaben, Aufklappen).
 let aufnLetzterStand = "";
+let aufnSitzRunden = 0;
 setInterval(async () => {
   const sp = Aufn.status && Aufn.status.sprache;
-  if (App.role !== "gm" || !sp || !(sp.laden || sp.job)) return;
+  if (App.role !== "gm" || !sp) return;
+  // Sitzplatz einrichten: solange der Treiber lädt, und danach (Installer
+  // läuft in eigenem Fenster) ab und zu neu nachsehen - der SL soll nicht
+  // „Erneut prüfen" drücken müssen. Höchstens zehn Minuten, dann ist Ruhe.
+  const sitz = sp.richtung && sp.richtung.einrichtung;
+  const sitzLaedt = aufnSitzLaedt(sitz);
+  const sitzWartet = !!(sitz && sitz.laden && sitz.laden.schritt === "gestartet" && !sitz.kapseln && !Aufn.rec);
+  aufnSitzRunden = sitzWartet ? aufnSitzRunden + 1 : 0;
+  const sitzSchaut = sitzWartet && aufnSitzRunden <= 240;
+  if (!(sp.laden || sp.job || sitzLaedt || sitzSchaut)) return;
   let st;
-  try { st = await (await fetch("/api/aufnahme")).json(); } catch { return; }
+  try {
+    // Jede vierte Runde (10 s) die Geräte wirklich neu einlesen lassen.
+    if (sitzSchaut && aufnSitzRunden % 4 === 0 && !(sp.laden || sp.job)) {
+      const r = await fetch("/api/sprache/sitzplatz", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ aktion: "pruefen" }) });
+      st = Object.assign({}, Aufn.status, { sprache: await r.json() });
+    } else if (sp.laden || sp.job || sitzLaedt) st = await (await fetch("/api/aufnahme")).json();
+    else return;
+  } catch { return; }
   const neu = st.sprache || {};
-  const stand = JSON.stringify([!!neu.laden, neu.laden && neu.laden.fehler, neu.job && neu.job.name, neu.job && neu.job.fehler, neu.bereit]);
+  const ne = (neu.richtung && neu.richtung.einrichtung) || {};
+  const stand = JSON.stringify([!!neu.laden, neu.laden && neu.laden.fehler, neu.job && neu.job.name, neu.job && neu.job.fehler, neu.bereit,
+    ne.connex, ne.treiber, ne.kapseln, ne.laden && ne.laden.schritt, ne.laden && ne.laden.fehler]);
   Aufn.status = st;
-  if (stand !== aufnLetzterStand) { aufnLetzterStand = stand; render(); return; }
+  // Ein-Klick ging nicht: gleich die Anleitung zeigen (Kalle wählte „mit
+  // Anleitung als Rückfall"), nicht nur einen Knopf dafür.
+  const sitzKaputt = sitzLaedt && ne.laden && ne.laden.fehler;
+  if (stand !== aufnLetzterStand) { aufnLetzterStand = stand; render(); if (sitzKaputt) aufnSitzAnleitung(); return; }
+  if (sitzLaedt && ne.laden) {
+    // Eigener Balken in der Sitzplatz-Zeile - nicht den der Mitschrift anfassen.
+    document.querySelectorAll(".aufn-sitz .aufn-balken > i").forEach((x) => { x.style.transform = `scaleX(${(ne.laden.anteil || 0).toFixed(3)})`; });
+    document.querySelectorAll(".aufn-sitz-fortschritt").forEach((x) => { x.textContent = aufnSitzText(ne.laden); });
+    if (!(neu.laden || neu.job)) return;
+  }
   const anteil = neu.job ? neu.job.anteil : neu.laden ? neu.laden.b / Math.max(1, neu.laden.gesamt) : 0;
   const text = neu.job ? aufnJobText(neu.job) : `Mitschrift wird eingerichtet … ${Math.round(anteil * 100)} %`;
-  document.querySelectorAll(".aufn-balken > i").forEach((x) => { x.style.transform = `scaleX(${anteil.toFixed(3)})`; });
+  document.querySelectorAll(".aufn-balken > i").forEach((x) => { if (!x.closest(".aufn-sitz")) x.style.transform = `scaleX(${anteil.toFixed(3)})`; });
   document.querySelectorAll(".aufn-fortschritt").forEach((x) => { x.textContent = text; });
 }, 2500);
 
@@ -783,6 +879,9 @@ document.addEventListener("click", async (e) => {
   else if (act === "aufn-weiter") { e.preventDefault(); aufnWeiter(); }
   else if (act === "aufn-stimme") { e.preventDefault(); aufnStimme(t.dataset.figur); }
   else if (act === "aufn-prompt") { e.preventDefault(); aufnPromptAus(t.dataset.name, t.dataset.quelle); }
+  else if (act === "aufn-sitz-treiber") { e.preventDefault(); aufnSitzTreiber(); }
+  else if (act === "aufn-sitz-anleitung") { e.preventDefault(); aufnSitzAnleitung(); }
+  else if (act === "aufn-sitz-pruefen") { e.preventDefault(); aufnSprache("/api/sprache/sitzplatz", { aktion: "pruefen" }); }
   else if (act === "aufn-modelle") { e.preventDefault(); aufnSprache("/api/sprache/modelle"); }
   else if (act === "aufn-begriffe") { e.preventDefault(); aufnBegriffe(); }
   else if (act === "aufn-sprecher") { e.preventDefault(); aufnSprecherDialog(t.dataset.name, t.dataset.quelle); }

@@ -58,6 +58,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
+from . import connex as connex_mod
 from . import richtung as richtung_mod
 
 SR = 16000                      # alle Modelle wollen 16 kHz mono
@@ -1463,6 +1464,13 @@ class Sprache:
         self.personen_quelle: Callable[[], int] = lambda: 0
         # Vier Kapseln des Tischmikros hören mit (Sprecher nach Sitzplatz).
         self.mithoerer = richtung_mod.Mithoerer()
+        # Was der Sitzplatz-Erkennung noch fehlt (Mikro, SSL-Treiber,
+        # Immersive) und der Ein-Klick-Weg zum Treiber. Der Installer landet
+        # neben den Modellen - dort darf die App schreiben.
+        self.einrichtung = connex_mod.Einrichtung(modelle / "treiber")
+        # Geräteliste neu einlesen und Mithörer starten nie gleichzeitig: das
+        # Neu-Einlesen zöge dem eben geöffneten Mikro den Strom weg.
+        self._richt_sperre = threading.Lock()
 
     # Einstellungen (Live an/aus, Personenzahl, Namen & Begriffe) - überleben
     # den Neustart.
@@ -1595,7 +1603,14 @@ class Sprache:
 
         def los() -> None:
             from . import diag
-            if self.mithoerer.starten(pfad):
+            with self._richt_sperre:
+                # Erst frisch nachsehen: PortAudio merkt sich die Geräte vom
+                # Programmstart - wer Immersive erst danach einschaltet (oder
+                # den Treiber eben installiert hat), bliebe sonst unerkannt.
+                if not self.mithoerer.laeuft:
+                    self.einrichtung.pruefen(neu=True)
+                gestartet = self.mithoerer.starten(pfad)
+            if gestartet:
                 g = self.mithoerer.geraet or {}
                 diag.log(f"RICHTUNG hört mit: {g.get('name')} [{g.get('api')}, {g.get('fs')} Hz]")
             else:
@@ -1613,7 +1628,18 @@ class Sprache:
 
     def richtung_status(self) -> dict:
         m = self.mithoerer
-        return {"laeuft": m.laeuft, "geraet": (m.geraet or {}).get("name") if m.laeuft else None}
+        return {"laeuft": m.laeuft, "geraet": (m.geraet or {}).get("name") if m.laeuft else None,
+                "einrichtung": self.einrichtung.zustand()}
+
+    def richtung_pruefen(self) -> None:
+        """Mikro/Treiber/Immersive neu ansehen (Programmstart, „Erneut
+        prüfen"). Läuft der Mithörer, ist ohnehin alles da - dann Finger weg
+        von der Geräteliste."""
+        if not pakete_da():
+            return
+        with self._richt_sperre:
+            if not self.mithoerer.laeuft:
+                self.einrichtung.pruefen(neu=True)
 
     # --- Live ---
     def aufnahme_laeuft(self) -> None:
