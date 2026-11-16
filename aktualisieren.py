@@ -17,7 +17,9 @@ Nur Standardbibliothek: die .exe bleibt klein.
 from __future__ import annotations
 
 import json
+import ntpath
 import os
+import posixpath
 import re
 import shutil
 import subprocess
@@ -92,31 +94,143 @@ def app_laeuft(ordner: Path) -> bool:
     return False
 
 
-def beenden_befehl(ordner: Path) -> list[str]:
-    """PowerShell-Aufruf, der NUR die App aus diesem Ordner beendet. Vorher
-    ``taskkill /IM``: das traf jede laufende SunderedSkiesInitiative.exe - auch
-    eine zweite Kopie in einem anderen Ordner (Test-Ordner neben dem echten
-    Spiel), die mit dem Update nichts zu tun hat (Durchleuchtung 10.11.2026)."""
-    exe = str(ordner / APP_EXE).replace("'", "''")
+# --- Nur die App aus DIESEM Ordner beenden ----------------------------------
+#
+# Vorgeschichte: bis 2.0.6 ``taskkill /IM`` - traf jede laufende
+# SunderedSkiesInitiative.exe, auch eine zweite Kopie in einem anderen Ordner
+# (Durchleuchtung 10.11.2026). 2.0.7 verglich dann in PowerShell ``$_.Path -eq``
+# mit dem Ordner als Text - beim Release-Test 2.0.9 lag die Testkopie unter
+# einem Windows-Kurzpfad (``C:\Users\KALLEN~1\…``), der Text passte nicht,
+# „gezielt" beendete nichts, und der Rückfall ``taskkill /IM`` schoss Kalles
+# echte App auf Port 8000 ab. Darum jetzt: Pfade erst auflösen (Kurz- ->
+# Langname, Groß/Klein, Schrägstriche, Junctions/Symlinks), dann vergleichen,
+# und nur noch per PID beenden. Einen Rückfall „alle mit dem Namen" gibt es
+# nicht mehr: findet der Updater die eigene Kopie nicht, bittet er den SL, sie
+# selbst zu schließen - lieber eine Frage mehr als eine fremde App weg.
+
+def _windows_langpfad(pfad: str) -> str:
+    """Kurzpfad (``KALLEN~1``) -> Langpfad. Nur unter Windows, sonst unverändert."""
+    if os.name != "nt":
+        return pfad
+    try:
+        import ctypes
+        puffer = ctypes.create_unicode_buffer(32768)
+        n = ctypes.windll.kernel32.GetLongPathNameW(pfad, puffer, len(puffer))
+        return puffer.value if 0 < n < len(puffer) else pfad
+    except Exception:  # noqa: BLE001 - dann eben ohne
+        return pfad
+
+
+def _aufloesen(pfad: str) -> str:
+    # realpath folgt Junctions/Symlinks und liefert unter Windows auch den
+    # Langnamen; GetLongPathNameW davor für den Fall, dass realpath an einer
+    # gesperrten Stelle aufgibt.
+    try:
+        return os.path.realpath(_windows_langpfad(pfad))
+    except (OSError, ValueError):
+        return pfad
+
+
+def pfad_schluessel(pfad, aufloesen=_aufloesen) -> str:
+    """Vergleichbare Form eines Pfads: aufgelöst, Trenner vereinheitlicht,
+    doppelte und abschließende Trenner weg, Groß/Klein egal. Windows-Pfade
+    (Laufwerksbuchstabe oder ``\\``) werden nach Windows-Regeln behandelt -
+    auch wenn der Test unter Linux läuft; ``aufloesen`` ist dort austauschbar."""
+    text = aufloesen(str(pfad))
+    if "\\" in text or re.match(r"^[A-Za-z]:", text):
+        if text.startswith(("\\\\?\\", "\\\\.\\")):
+            text = text[4:]  # „lange Pfade"-Präfix, sonst passt C:\x nicht zu \\?\C:\x
+        text = ntpath.normcase(ntpath.normpath(text))
+        return text.rstrip("\\") if len(text) > 3 else text
+    text = posixpath.normpath(text)
+    return text.rstrip("/") or "/"
+
+
+def ist_eigene_app(exe_pfad, ordner, aufloesen=_aufloesen) -> bool:
+    """Gehört dieser Prozess-Pfad zur App aus ``ordner``?"""
+    if not exe_pfad:
+        return False  # Pfad nicht lesbar (anderer Benutzer) -> nicht unsere
+    return pfad_schluessel(exe_pfad, aufloesen) == pfad_schluessel(Path(ordner) / APP_EXE, aufloesen)
+
+
+def eigene_pids(prozesse, ordner, aufloesen=_aufloesen) -> list[int]:
+    """Aus ``[(pid, exe_pfad), …]`` die PIDs der App aus ``ordner`` - nur die
+    mit passendem Pfad, nie bloß wegen des Namens."""
+    return [pid for pid, pfad in prozesse if ist_eigene_app(pfad, ordner, aufloesen)]
+
+
+def _prozesse_ctypes() -> list[tuple[int, str]]:
+    """Alle Prozesse mit Programmpfad über die Windows-API - ohne PowerShell,
+    die auf Firmen-Laptops gern gesperrt ist."""
+    import ctypes
+    from ctypes import wintypes
+    k32 = ctypes.windll.kernel32
+    k32.OpenProcess.restype = wintypes.HANDLE
+    pids = (wintypes.DWORD * 4096)()
+    bytes_ = wintypes.DWORD()
+    if not k32.K32EnumProcesses(pids, ctypes.sizeof(pids), ctypes.byref(bytes_)):
+        raise OSError("EnumProcesses ging nicht")
+    liste = []
+    for pid in pids[: bytes_.value // ctypes.sizeof(wintypes.DWORD)]:
+        h = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            continue
+        try:
+            puffer = ctypes.create_unicode_buffer(32768)
+            groesse = wintypes.DWORD(len(puffer))
+            if k32.QueryFullProcessImageNameW(h, 0, puffer, ctypes.byref(groesse)):
+                liste.append((int(pid), puffer.value))
+        finally:
+            k32.CloseHandle(h)
+    return liste
+
+
+def liste_aus_powershell(text: str) -> list[tuple[int, str]]:
+    """Ausgabe ``PID|Pfad`` je Zeile -> ``[(pid, pfad), …]``."""
+    liste = []
+    for zeile in text.splitlines():
+        pid, _, pfad = zeile.strip().partition("|")
+        if pid.isdigit() and pfad:
+            liste.append((int(pid), pfad))
+    return liste
+
+
+def _prozesse_powershell() -> list[tuple[int, str]]:
     name = APP_EXE[:-4]
-    return ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-            f"Get-Process -Name '{name}' -ErrorAction SilentlyContinue | "
-            f"Where-Object {{ $_.Path -eq '{exe}' }} | Stop-Process -Force"]
+    r = subprocess.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+         f"Get-Process -Name '{name}' -ErrorAction SilentlyContinue | "
+         "ForEach-Object { \"$($_.Id)|$($_.Path)\" }"],
+        capture_output=True, text=True, timeout=30,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    return liste_aus_powershell(r.stdout or "")
 
 
-def app_beenden(ordner: Path, ausfuehren=None, laeuft=None, warten=time.sleep) -> bool:
-    """App aus ``ordner`` beenden und warten, bis ihre Dateien frei sind.
-    Erst gezielt (nur diese Kopie); klappt das nicht (PowerShell gesperrt,
-    Firmen-Laptop), wie früher über den Programmnamen. Rückgabe: ob sie aus ist."""
+def prozesse_auflisten() -> list[tuple[int, str]]:
+    for weg in (_prozesse_ctypes, _prozesse_powershell):
+        try:
+            return weg()
+        except Exception:  # noqa: BLE001 - dann eben der nächste Weg
+            continue
+    return []
+
+
+def app_beenden(ordner: Path, ausfuehren=None, laeuft=None, warten=time.sleep,
+                auflisten=None, aufloesen=_aufloesen) -> bool:
+    """App aus ``ordner`` beenden (nur diese Kopie, per PID) und warten, bis
+    ihre Dateien frei sind. Rückgabe: ob sie aus ist. Nie nach Namen beenden."""
     ausfuehren = ausfuehren or (lambda befehl: subprocess.run(
         befehl, capture_output=True, timeout=30,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)))
     laeuft = laeuft or app_laeuft
-    for befehl in (beenden_befehl(ordner), ["taskkill", "/F", "/IM", APP_EXE]):
+    auflisten = auflisten or prozesse_auflisten
+    pids = eigene_pids(auflisten(), ordner, aufloesen)
+    for pid in pids:
         try:
-            ausfuehren(befehl)
-        except Exception:  # noqa: BLE001 - dann eben der nächste Weg
-            continue
+            ausfuehren(["taskkill", "/F", "/T", "/PID", str(pid)])  # /T: ihre Kinder sind auch unsere
+        except Exception:  # noqa: BLE001
+            pass
+    if pids:
         for _ in range(20):
             if not laeuft(ordner):
                 return True
@@ -642,7 +756,22 @@ def main() -> None:
             if not antwort.startswith(("j", "y")):
                 print("Abgebrochen – nichts geändert.")
                 _ende(1)
-        app_beenden(ordner)
+        if not app_beenden(ordner):
+            # Eigene Kopie nicht gefunden (oder sie wehrt sich): NICHT nach
+            # Namen beenden - das träfe auch andere Kopien. Der SL schließt sie.
+            print("Konnte die App nicht selbst beenden. Bitte das App-Fenster schließen")
+            print("(bzw. Symbol neben der Uhr > Beenden), dann hier Enter drücken.")
+            for _ in range(5):
+                try:
+                    input()
+                except EOFError:
+                    break
+                if not app_laeuft(ordner):
+                    break
+                print("Läuft noch - bitte schließen, dann Enter.")
+            if app_laeuft(ordner):
+                print("Abgebrochen – nichts geändert.")
+                _ende(1)
 
     # ignore_cleanup_errors: ein Virenscanner, der noch im Download liest, darf
     # nach geglücktem Austausch keinen „Fehler" mehr erzeugen.
