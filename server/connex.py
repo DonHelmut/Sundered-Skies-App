@@ -6,8 +6,9 @@ weiterzugeben oder in andere Programme einzubauen (General End User License
 Agreement, Abschnitt 6), und Repo wie Releases sind öffentlich. Darum der
 kürzeste erlaubte Weg (Kalle wählte „Ein Klick, mit Anleitung als Rückfall"):
 
-- Die App zeigt im Aufnahme-Panel, was noch fehlt: Mikro da? Treiber da?
-  Kapseln einzeln zu sehen (Immersive)?
+- Die App zeigt im Aufnahme-Panel, was noch fehlt: Mikro da? Kapseln einzeln
+  zu sehen (Immersive)? Nur die Kapseln zählen - Windows' eigener USB-Treiber
+  gibt sie oft schon her, dann braucht es SSLs Treiber gar nicht.
 - „Treiber installieren": der SL stimmt in der App der SSL-Lizenz zu (bei SSL
   steht vor dem Download dieselbe Zustimmung), dann lädt die App den
   Installer DIREKT von SSL und startet ihn. Der Link steht auf SSLs
@@ -141,8 +142,10 @@ class Einrichtung:
         g = self._geraete
         laden = self.laden
         return {"connex": bool(g.get("connex")), "kapseln": bool(g.get("kapseln")),
-                # Sind die Kapseln einzeln zu sehen, ist der Treiber offensichtlich da.
-                "treiber": bool(g.get("kapseln")) or self.treiber_da(),
+                # Nur was wirklich in der Registry steht. Früher galt „Kapseln zu
+                # sehen = Treiber da" - falsch: Windows' eigener USB-Treiber
+                # gibt sie auch her (Jonsbo, 16.11.2026).
+                "treiber": self.treiber_da(),
                 "laden": dict(laden) if laden else None, "seite": SEITE, "lizenz": LIZENZ}
 
     def treiber_holen(self) -> bool:
