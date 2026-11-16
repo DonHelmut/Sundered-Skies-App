@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.10 (15.11.2026): Sprecher besser erkennen – neues Sortieren + Sitzplatz
+## 2.0.11 (16.11.2026): Sprecher besser erkennen – neues Sortieren + Sitzplatz
 
 Kalle: „Bessere Modelle? Darf auch 5 GB groß sein, Hauptsache Sprecher werden
 gut erkannt. Meist 5 Spieler + SL." Mikro: **SSL Connex** (4 Kapseln).
@@ -140,7 +140,7 @@ Testwerkzeug (nicht im Repo, Projektordner `recherche/sprecher-2026-11-15/`):
 `gen2.py` baut die Runden (Piper über sherpa-onnx **1.13.8** – in 2.0.1 ist
 die Piper-Ausgabe kaputt), `e2e.py`/`lang.py` messen mit dem echten Code.
 
-## Nach 2.0.9 (11.11.2026): Updater beendet nur noch die eigene App
+## 2.0.11 (16.11.2026): Updater beendet nur noch die eigene App
 
 - **Bug beim Release-Test 2.0.9:** Ein-Klick-Update in einer Testkopie hat auch
   Kalles echte App (Port 8000, anderer Ordner) beendet. Ursache bestätigt in
