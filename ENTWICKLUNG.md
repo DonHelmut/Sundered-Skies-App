@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (17.11.2026): AAA-Rundgang – 6 Bereiche + 3 Optik-Fehler
+## 2.0.16 (17.11.2026): AAA-Rundgang – 6 Bereiche + 3 Optik-Fehler
 
 Kalle: „Schau dir an, was noch nicht auf AAA-Studio-Stand ist.“ Ganze App
 durchgegangen, 6 Vorschläge mit Bildern (Projektordner
