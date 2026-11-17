@@ -239,7 +239,7 @@ def test_gruppen_notiz_sehen_alle_handys(tisch):
     korgo = tisch.handy("Korgo", "klein")
     tessa.reiter("notizen")
     korgo.reiter("notizen")
-    tessa.locator("[data-act=notiz-ziel]").first.click()
+    tessa.locator("[data-act=notiz-ziel][data-ziel=gruppe]").first.click()
     tessa.locator("#notiz-neu").fill("Treffpunkt Leuchtturm")
     tessa.locator("[data-act=notiz-hinzu]").click()
     korgo.warte_bis("() => (App.state.gruppenNotizen || []).some(n => n.text === 'Treffpunkt Leuchtturm')")
@@ -267,19 +267,22 @@ def test_notiz_bearbeiten_suchen_loeschen(tisch):
     assert any("Varn" in t for t in sichtbar) and not any("Seil" in t for t in sichtbar)
     h.locator("[data-act=notiz-suche-zu]").first.click()
     # Bearbeiten
-    h.locator("li.zeile", has_text="Seil kaufen").locator("button[data-act=notiz-bearbeiten]").first.click()
+    # Tipp auf den Text bearbeitet (kein ✎ je Zeile mehr, 16.11.2026).
+    h.locator("li.zeile", has_text="Seil kaufen").locator("[data-act=notiz-bearbeiten]").first.click()
     h.page.locator("#notiz-edit").fill("Seil UND Haken kaufen")
     h.locator("[data-act=notiz-fertig]").first.click()
     h.warte_bis("() => App.state.meineNotizen.some(n => n.text === 'Seil UND Haken kaufen')")
-    # Löschen fragt erst nach: Abbrechen lässt die Notiz stehen ...
-    h.locator("li.zeile", has_text="Seil UND").locator("[data-act=notiz-loeschen]").first.click()
+    # Löschen steht im Bearbeiten-Modus und fragt erst nach: Abbrechen lässt
+    # die Notiz stehen ...
+    h.locator("li.zeile", has_text="Seil UND").locator("[data-act=notiz-bearbeiten]").first.click()
+    h.locator("li.zeile.bearbeiten [data-act=notiz-loeschen]").first.click()
     h.page.locator(".app-dialog-hg").wait_for()
     assert "Seil UND Haken kaufen" in h.page.locator(".app-dialog-text").inner_text()
     h.page.locator(".app-dialog-hg button.ghost").click()
     h.wait_for_timeout(300)
     assert h.js("App.state.meineNotizen.some(n => n.text === 'Seil UND Haken kaufen')")
     # ... „Löschen" löscht.
-    h.locator("li.zeile", has_text="Seil UND").locator("[data-act=notiz-loeschen]").first.click()
+    h.locator("li.zeile.bearbeiten [data-act=notiz-loeschen]").first.click()
     h.page.locator(".app-dialog-hg button.bad").click()
     h.warte_bis("() => !App.state.meineNotizen.some(n => n.text.startsWith('Seil'))")
 

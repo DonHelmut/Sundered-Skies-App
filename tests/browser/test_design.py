@@ -484,3 +484,54 @@ def test_bedienbarkeit_runde_2026_11_15(tisch):
     h.wait_for_timeout(750)
     h.locator(".dl-drei [data-act=confirm-turn]").click()
     sl.warte_bis("(id) => App.state.activeId !== id", tessa["id"])
+
+
+def test_notizen_studio_runde_2026_11_16(tisch):
+    """Studio-Runde Notizen (Kalle 16.11.2026, „alles"): ruhige Zeile ohne
+    ✎/🗑, Themen als Linien-Symbol, Komposer „Nur ich | Für alle", Gruppen-
+    Notiz mit Schreiber + Uhrzeit, Post mit Uhrzeit + Lesezeichen, 📌 Merken
+    als schwebende Karte (schiebt nichts), Schriftgröße im Protokoll."""
+    sl = tisch.sl()
+    h = tisch.handy("Tessa", "se")
+    tisch.gm({"type": "message", "target": "all", "text": "Der Wirt lügt."})
+    tisch.gm({"type": "protokoll_speichern", "text": "# Abend 1\nEs war Nacht.", "freigegeben": True})
+    h.warte_bis("() => App.state.messages.length > 0")
+    h.js("() => { App.lastSeenMsgTs = Infinity; Prot.offen = false; render(); }")
+    h.reiter("notizen")
+    # Komposer: „Für alle" in Worten, ↑ legt an; Gruppen-Notiz zeigt Schreiber.
+    h.locator("[data-act=notiz-ziel][data-ziel=gruppe]").click()
+    h.locator("#notiz-neu").fill("Treffpunkt Leuchtturm")
+    h.locator("[data-act=notiz-hinzu]").click()
+    h.warte_bis("() => App.state.gruppenNotizen.some(n => n.text === 'Treffpunkt Leuchtturm' && n.ts > 0)")
+    h.warte_bis("() => !!document.querySelector('li.zeile.gruppe .wer .wer-av')")
+    assert h.js("document.querySelector('[data-act=notiz-ziel][data-ziel=ich]').classList.contains('on')"), \
+        "👥 gilt nur für die eine Notiz"
+    # Zeile ohne ✎/🗑; Themen-Reiter mit Linien-Symbol.
+    assert not h.js("!!document.querySelector('li.zeile:not(.bearbeiten) [data-act=notiz-loeschen]')")
+    assert h.js("!!document.querySelector('.notiz-reiter[data-thema=NSC] svg.ic')")
+    h.kein_waagrechtes_scrollen("Notizen")
+    # Post: Lesezeichen merkt die Nachricht als Notiz, dann „In Notizen".
+    h.reiter("msgs")
+    assert h.js("!!document.querySelector('.msg .msg-zeit')")
+    h.locator("[data-act=notiz-merken]").first.click()
+    h.warte_bis("() => (App.state.meineNotizen || []).some(n => n.text === 'Der Wirt lügt.')")
+    h.warte_bis("() => !!document.querySelector('.msg span.msg-merk.ok')")
+    # Protokoll: A+ macht die Schrift größer und bleibt gemerkt.
+    h.js("() => { Prot.offen = true; protokollOeffnen(); render(); }")
+    vorher = h.js("parseFloat(getComputedStyle(document.querySelector('.protokoll-fenster .pt-text')).fontSize)")
+    h.locator("[data-act=prot-schrift][data-d='1']").first.click()
+    h.warte_bis("(v) => parseFloat(getComputedStyle(document.querySelector('.protokoll-fenster .pt-text')).fontSize) > v", vorher)
+    assert h.js("localStorage.getItem('protSchrift')") == "2"
+    # SL: 📌 Merken öffnet keinen Dialog, sondern eine schwebende Karte.
+    oben = lambda: sl.js("Math.round(document.querySelector('.sl-kopf').nextElementSibling.getBoundingClientRect().top)")
+    sl.js("() => { Aufn.rec = {}; Aufn.start = Date.now() - 60000; Aufn.pauseGesamt = 0; render(); }")
+    sl.warte_bis("() => !!document.querySelector('[data-act=aufn-marke]')")
+    vorher = oben()
+    sl.locator("[data-act=aufn-marke]").first.click()
+    sl.warte_bis("() => !!document.querySelector('#marke-karte.sichtbar')")
+    assert not sl.js("!!document.querySelector('.app-dialog-hg')"), "Merken hält das Spiel mit einem Dialog an"
+    assert sl.js("getComputedStyle(document.querySelector('#marke-karte')).position") == "fixed"
+    assert oben() == vorher, "Merken-Karte schiebt Inhalt"
+    sl.page.keyboard.press("Escape")
+    sl.warte_bis("() => !document.querySelector('#marke-karte')")
+    sl.js("() => { Aufn.rec = null; render(); }")

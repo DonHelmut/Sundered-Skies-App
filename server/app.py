@@ -724,7 +724,9 @@ async def aufnahme_marke(request: Request):
         body = {}
     body = body if isinstance(body, dict) else {}
     if body.get("nachtragen"):
-        return JSONResponse({"ok": aufnahmen.marke_text(str(body.get("text") or ""))})
+        index = body.get("index")
+        return JSONResponse({"ok": aufnahmen.marke_text(str(body.get("text") or ""),
+                                                        index if isinstance(index, int) else None)})
     return JSONResponse({"ok": aufnahmen.marke(str(body.get("text") or ""))})
 
 

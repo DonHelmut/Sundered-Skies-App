@@ -375,6 +375,9 @@ def _notiz_eintrag(e, i: int) -> Optional[dict]:
     for feld in ("von", "vonId"):
         if isinstance(e.get(feld), str) and e[feld]:
             eintrag[feld] = e[feld][:60]
+    # Wann (Gruppen-Notizen zeigen Schreiber + Uhrzeit, 16.11.2026).
+    if isinstance(e.get("ts"), (int, float)) and e["ts"] > 0:
+        eintrag["ts"] = int(e["ts"])
     return eintrag
 
 
@@ -2360,6 +2363,7 @@ class Game:
             # Rückgängig nach Löschen bringt den alten Schreiber mit, sonst der Neue.
             if not e.get("vonId"):
                 e["von"], e["vonId"] = c.get("name", "")[:60], c.get("characterId") or c["id"]
+            e.setdefault("ts", now_ms())
             pos = a.get("index")
             pos = pos if isinstance(pos, int) and 0 <= pos <= len(liste) else 0
             liste.insert(pos, e)

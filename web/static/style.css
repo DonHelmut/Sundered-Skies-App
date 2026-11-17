@@ -3397,3 +3397,104 @@ button:where(:not(.zone-token):not(.muenze):not(:disabled)):active { transform: 
 .gz-inline-weit { font-size: 0.7rem; color: var(--muted); margin-right: 2px; white-space: nowrap; }
 .gz-leiste { font-size: 0.85rem; color: var(--bad); margin-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 340px; display: inline-block; vertical-align: middle; }
 .gz-leiste-werte { color: var(--muted); font-weight: 500; }
+
+/* --- Studio-Runde Notizen (Kalle 16.11.2026, „alles“) -----------------------------
+   1 ruhige Zeile (kein ✎/🗑 je Zeile, Tipp auf Text = bearbeiten), 2 Themen als
+   Linien-Symbol mit leisem Farbton, 3 Komposer (Feld + „Nur ich | Für alle“ +
+   ↑), 4 Gruppen-Notiz mit Initiale/Name/Uhrzeit, 5 Post mit Uhrzeit und
+   Lesezeichen, 6 📌 Merken als schwebende Karte, 7 Chronik zum Lesen. */
+.th { display: inline-flex; align-items: center; gap: 4px; }
+.th .ic { width: 14px; height: 14px; vertical-align: 0; color: var(--tc, currentColor); }
+button.notiz-reiter.on .th .ic { color: inherit; }
+.th.ttag { font-size: 0.72rem; font-weight: 600; border-radius: 999px; padding: 1px 8px 1px 6px; white-space: nowrap;
+  margin-left: 4px; vertical-align: 1px; text-decoration: none;
+  color: color-mix(in srgb, var(--tc, var(--muted)) 75%, var(--text));
+  border: 1px solid color-mix(in srgb, var(--tc, var(--muted)) 45%, transparent);
+  background: color-mix(in srgb, var(--tc, var(--muted)) 10%, transparent); }
+.th.ttag .ic { width: 12px; height: 12px; }
+.th.th-roh.ttag { --tc: var(--muted); }
+.th.ttag.nur-symbol { font-size: 0; gap: 0; padding: 2px 6px; }
+.th.ttag.nur-symbol .ic { width: 12px; height: 12px; }
+.zeile { padding: 10px 12px; gap: 12px; }
+.zeile .zt { padding-top: 1px; }
+/* Gruppen-Notiz: wer + wann statt Farbbalken (der las sich wie „Fehler“). */
+.zeile.gruppe { box-shadow: none; }
+.wer { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+.wer-av { width: 18px; height: 18px; border-radius: 50%; background: var(--panel2); border: 1px solid var(--line);
+  display: inline-grid; place-items: center; font-size: 0.58rem; font-weight: 800; color: var(--text); flex: none; }
+/* Bearbeiten: Löschen links, rot, weit weg von „Fertig“. */
+.notiz-edit-knoepfe button.notiz-del { margin-right: auto; color: var(--bad); border-color: transparent; background: transparent; }
+/* Komposer */
+.notiz-neu { display: block; border: 1px solid var(--line); border-radius: 14px; background: var(--input-bg);
+  padding: 8px 8px 6px 12px; transition: border-color 160ms ease; }
+.notiz-neu:focus-within { border-color: var(--accent); }
+.notiz-neu.gruppe { border-color: color-mix(in srgb, #2f7f9a 60%, var(--line)); }
+.notiz-neu textarea { border: 0 !important; padding: 4px 0 !important; background: transparent !important; border-radius: 0; }
+.notiz-neu-fuss { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.notiz-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; gap: 2px; }
+.notiz-seg button { border: 0; background: transparent; border-radius: 999px; padding: 6px 11px; font-size: 0.8rem;
+  color: var(--muted); display: inline-flex; align-items: center; gap: 5px; height: auto; min-height: 32px; }
+.notiz-seg button .ic { width: 13px; height: 13px; }
+.notiz-seg button.on { background: var(--panel2); color: var(--text); font-weight: 600; }
+.notiz-seg button:disabled { opacity: 0.45; }
+.notiz-neu .notiz-plus { width: 38px; height: 38px; border-radius: 50%; padding: 0; display: grid; place-items: center; }
+.notiz-neu .notiz-plus .ic { width: 18px; height: 18px; }
+.notiz-neu .notiz-plus:disabled { background: color-mix(in srgb, var(--line) 55%, transparent); border-color: transparent; color: var(--muted); }
+/* 🔍 oben rechts im Kopf */
+button.notiz-such { margin-left: auto; width: 36px; height: 36px; border-radius: 10px; padding: 0; display: grid; place-items: center;
+  background: transparent; color: var(--muted); }
+button.notiz-such .ic { width: 17px; height: 17px; }
+button.notiz-such.on { border-color: var(--accent); color: var(--accent); }
+.notiz-suche .ic { color: var(--muted); }
+/* Post: an wen · Uhrzeit · Lesezeichen in einer Kopfzeile */
+.msg .to { display: flex; align-items: center; gap: 6px; min-height: 26px; }
+.msg .to .msg-zeit { color: var(--muted); font-weight: 400; }
+.msg .to .msg-zeit::before { content: "·"; margin-right: 6px; }
+.msg .to button.msg-merk { margin: 0 -4px 0 auto; width: 36px; height: 32px; padding: 0; border: 0; border-radius: 8px; display: grid;
+  place-items: center; background: transparent; color: var(--muted); font-size: 0; }
+.msg .to button.msg-merk .ic { width: 18px; height: 18px; }
+.msg .to span.msg-merk.ok { margin: 0 0 0 auto; padding: 0; border: 0; display: inline-flex; align-items: center; gap: 4px;
+  color: var(--accent); font-size: 0.72rem; font-weight: 600; }
+.msg .to span.msg-merk.ok .ic { width: 14px; height: 14px; }
+.msg .to .msg-ib { border: 0; background: transparent; color: var(--muted); padding: 2px 4px; }
+.msg .to .msg-ib .ic { width: 15px; height: 15px; }
+.msg .to .msg-ib:first-of-type { margin-left: auto; }
+/* 📌 Merken: schwebende Karte (fest, schiebt nichts). Nur opacity/transform. */
+.marke-karte { position: fixed; z-index: 140; display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 12px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--accent); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35); font-size: 0.9rem;
+  opacity: 0; transform: translateY(-4px); transition: opacity 160ms ease, transform 160ms ease; }
+.marke-karte.sichtbar { opacity: 1; transform: none; }
+.marke-karte::before { content: ""; position: absolute; top: -7px; left: var(--pfeil, 50%); width: 12px; height: 12px;
+  background: var(--panel); border-left: 1px solid var(--accent); border-top: 1px solid var(--accent); transform: rotate(45deg); }
+.marke-karte .mk-ok { color: var(--good); display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; }
+.marke-karte .mk-ok .ic { width: 16px; height: 16px; }
+.marke-karte input { flex: 1; min-width: 0; padding: 6px 10px; border-radius: 8px; }
+.marke-karte .mk-save { width: 34px; height: 34px; border-radius: 8px; padding: 0; display: grid; place-items: center; flex: none; }
+.marke-karte .mk-save .ic { width: 16px; height: 16px; }
+.aufn-momente { margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.am-kopf { display: flex; align-items: center; gap: 6px; padding: 7px 12px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--accent2); background: var(--panel2); }
+.am-zeile { display: flex; align-items: center; gap: 10px; padding: 4px 6px 4px 12px; border-top: 1px solid var(--line); font-size: 0.9rem; }
+.am-zeile b { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; flex: none; }
+.am-zeile span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.am-zeile i { flex: 1; color: var(--muted); }
+button.am-knopf { width: 32px; height: 30px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); flex: none; }
+/* Chronik / Protokoll lesen: Ornament, Initiale, Schriftgröße A−/A+ */
+.protokoll-fenster .pt-text { font-size: var(--pt-gr, 1rem); }
+.pt-schrift { display: inline-flex; gap: 4px; }
+.pt-schrift button { min-width: 36px; padding-left: 6px; padding-right: 6px; font-variant-numeric: tabular-nums; }
+.chronik .chr-kopf { text-align: center; }
+.chr-orn { color: var(--accent); font-size: 0.8rem; opacity: 0.8; margin-bottom: 2px; }
+.chronik .chr-kapitel { border-top: 0; margin-top: 18px; }
+.chronik .chr-kapitel .pt-text { line-height: 1.62; display: flow-root; }   /* hält die Initiale (float) im Kapitel - sonst ragte sie bei kurzem Text heraus */
+.chronik .chr-kapitel .pt-text > p:first-child::first-letter { font-family: Cinzel, Georgia, serif; font-size: 3.1em; float: left;
+  line-height: 0.85; padding: 4px 6px 0 0; color: var(--accent2); }
+@media (max-width: 480px) {
+  .pt-titelzeile { flex-wrap: wrap; row-gap: 8px; }
+  .pt-titelzeile .chr-knoepfe { margin-left: auto; }
+}
+@media print {
+  body.chronik-druck .chr-kapitel .pt-text > p:first-child::first-letter { color: #000; }
+  body.chronik-druck .protokoll-fenster .pt-text { font-size: 11pt; }
+}

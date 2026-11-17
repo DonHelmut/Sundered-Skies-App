@@ -77,6 +77,36 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nächste Version (16.11.2026): Notizen-Umfeld auf Studio-Niveau
+
+Kalle: „Notizen etc. brauchen noch ne Verbesserung – wie aus einem AAA-Studio."
+7 Vorschläge mit Bildern (Projektordner `screenshots/notizen-studio-2026-11-16/`),
+Kalle wählte **alles**:
+
+- **1 Ruhige Notizzeile** (`spieler.js` `notizZeileHtml`): kein ✎/🗑 mehr je
+  Zeile. Tipp auf den Text = bearbeiten; „🗑 Löschen" steht im Bearbeiten-Modus
+  links (rot, weit weg von „Fertig"), Rückfrage + ↶ bleiben.
+- **2 Themen als Linien-Symbol mit Farbton** (`NOTIZ_THEMA_SYMBOL`,
+  `notizThemaHtml`): NSC/Orte/Beute/Offen/Gruppe/Sonstiges; eigene Themen
+  behalten ihr Emoji (Klasse `th-roh`, in `SYMBOL_ROH`).
+- **3 Komposer**: Feld + „🔒 Nur ich | 👥 Für alle" in Worten + runder ↑.
+  🔍 oben rechts im Notizen-Kopf (schon ab 4 Notizen statt 8).
+- **4 Gruppen-Notiz**: Initiale + Schreiber + Uhrzeit statt Farbbalken.
+  Server setzt `ts` beim Anlegen (`gruppen_notiz`, `_notiz_eintrag`).
+- **5 Post**: Kopfzeile „An alle · 20:31 · 🔖" (Lesezeichen merkt als Notiz,
+  danach „In Notizen"). SL-Verlauf mit Uhrzeit, 🔁/📺 als Linien-Symbol rechts.
+- **6 📌 Merken ohne Dialog** (`aufnahme.js` `aufnMarkeKarte`): schwebende Karte
+  unter dem Knopf („✓ Gemerkt 0:45:00" + Stichwort), weg nach 6 s ohne Tippen,
+  Esc/Klick daneben. Vorher hielt ein Dialog das Spiel an. Im Aufnahme-Panel
+  „Gemerkte Momente" mit ✎ (`/api/aufnahme/marke` `nachtragen` + `index`,
+  Status liefert `aktiv.momente`).
+- **7 Lesen** (`protokoll.js`): A−/A+ in 4 Stufen (`localStorage.protSchrift`)
+  im Protokoll- und Chronik-Fenster; Chronik mit ✦-Ornament, zentriertem
+  Kapitelkopf und Initiale (`display: flow-root`, sonst ragte die Initiale beim
+  Drucken über das Fenster).
+- Tests: `test_notizen_studio_runde_2026_11_16`, Marken-Index in
+  `test_stichwort_zur_letzten_marke`, angepasst `test_notiz_bearbeiten_suchen_loeschen`.
+
 ## 2.0.13 (16.11.2026): Ladebalken beim Update
 
 Kalle: „da fehlt ne Art Ladebalken“ – nach „⬆ Jetzt aktualisieren“ stand nur
