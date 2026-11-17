@@ -258,15 +258,18 @@ class Aufnahmen:
         self._meta_schreiben(self.aktiv)
         return True
 
-    def marke_text(self, text: str) -> bool:
+    def marke_text(self, text: str, index: Optional[int] = None) -> bool:
         """Stichwort zur zuletzt gemerkten Stelle nachtragen (der SL tippt es
-        nach dem 📌 ein - die Zeit bleibt die vom Tipp, nicht vom Schreiben)."""
+        nach dem 📌 ein - die Zeit bleibt die vom Tipp, nicht vom Schreiben).
+        Mit index: eine bestimmte Marke (Liste „Gemerkte Momente" im Panel)."""
         if not self.aktiv:
             return False
         marken = [e for e in self.aktiv["ereignisse"] if e.get("art") == "marke"]
         if not marken:
             return False
-        marken[-1]["text"] = " ".join(str(text or "").split())[:200]
+        if index is not None and not (0 <= index < len(marken)):
+            return False
+        marken[-1 if index is None else index]["text"] = " ".join(str(text or "").split())[:200]
         self._meta_schreiben(self.aktiv)
         return True
 
@@ -380,6 +383,9 @@ class Aufnahmen:
                 "letztesStueck": self._letztes_stueck,
                 "pausiert": self.pausiert,
                 "marken": sum(1 for e in a["ereignisse"] if e.get("art") == "marke"),
+                # Die Liste fürs Panel („Gemerkte Momente", 16.11.2026): Stelle + Stichwort.
+                "momente": [{"t": e.get("t", 0), "text": e.get("text", "")}
+                            for e in a["ereignisse"] if e.get("art") == "marke"],
                 "stimmen": [e.get("figur") for e in a["ereignisse"] if e.get("art") == "stimme"],
             },
             "stimmenBekannt": sorted(self.stimmprofile()),

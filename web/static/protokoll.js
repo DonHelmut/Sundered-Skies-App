@@ -17,6 +17,21 @@ const Prot = {
   entwurf: null,        // SL: { id|null, name, text } im Einfüge-Fenster
   chronik: false,       // Lesefenster zeigt alle Abende am Stück (📖 Chronik)
 };
+// Schriftgröße beim Lesen (Studio-Runde Notizen, 16.11.2026, Vorschlag 7):
+// am Handy liest man zwei Seiten am Stück - A−/A+ in vier Stufen, pro Gerät
+// gemerkt.
+const PROT_SCHRIFT = [0.92, 1.02, 1.14, 1.28];
+function protSchrift() {
+  let i = 1;
+  try { i = Number(localStorage.getItem("protSchrift") ?? 1); } catch { /* privat */ }
+  return Number.isInteger(i) && i >= 0 && i < PROT_SCHRIFT.length ? i : 1;
+}
+function protSchriftKnoepfe() {
+  const i = protSchrift();
+  return `<span class="pt-schrift nicht-drucken" role="group" aria-label="Schriftgröße">
+    <button type="button" class="ghost small" data-act="prot-schrift" data-d="-1"${i === 0 ? " disabled" : ""} aria-label="Schrift kleiner" title="Schrift kleiner">A−</button>
+    <button type="button" class="ghost small" data-act="prot-schrift" data-d="1"${i === PROT_SCHRIFT.length - 1 ? " disabled" : ""} aria-label="Schrift größer" title="Schrift größer">A+</button></span>`;
+}
 
 function protokollListe() {
   return (App.state && App.state.protokolle) || [];
@@ -166,7 +181,7 @@ function protokollChronikHtml() {
     const t = protokollText(p);
     if (!t) fehlt++;
     return `<section class="chr-kapitel" id="chr-${esc(p.id)}">
-      <div class="chr-kopf"><div class="chr-nr">Kapitel ${n - i}${p.datum ? ` · ${protokollDatum(p.datum)}` : ""}${
+      <div class="chr-kopf"><div class="chr-orn" aria-hidden="true">✦</div><div class="chr-nr">Kapitel ${n - i}${p.datum ? ` · ${protokollDatum(p.datum)}` : ""}${
         App.role === "gm" && !p.freigegeben ? ` · <span class="nicht-drucken">nur du</span>` : ""}</div>
         <div class="chr-titel">${esc(p.name)}</div></div>
       ${t ? `<div class="pt-text">${protokollHtml(chronikText(t.text, p.name))}</div>` : `<div class="muted small pt-text">Lädt …</div>`}
@@ -176,9 +191,9 @@ function protokollChronikHtml() {
   const marken = n >= 4 ? `<div class="chr-marken nicht-drucken">${liste.map((p, i) =>
     `<button type="button" class="ghost small" data-act="prot-sprung" data-id="${esc(p.id)}">${n - i} ${esc(p.name)}</button>`).join("")}</div>` : "";
   return `<div class="protokoll-hg" data-act="prot-zu">
-    <div class="protokoll-fenster breit panel chronik" data-act="" data-scroll-merk="chronik">
+    <div class="protokoll-fenster breit panel chronik" data-act="" data-scroll-merk="chronik" style="--pt-gr:${PROT_SCHRIFT[protSchrift()]}rem">
       <div class="pt-titelzeile"><strong>📖 Chronik</strong>
-        <span class="row tight nicht-drucken chr-knoepfe">
+        <span class="row tight nicht-drucken chr-knoepfe">${protSchriftKnoepfe()}
           ${App.role === "gm" ? `<button class="ghost small" data-act="prot-drucken"${fehlt ? " disabled" : ""} title="Drucken oder als PDF sichern (im Druckfenster „Als PDF speichern“ wählen)">🖨 Drucken / PDF</button>` : ""}
           <button class="ghost small" data-act="prot-einzeln" title="Zurück zur Liste der Abende">☰ Einzeln</button>
           <button class="ghost small" data-act="prot-zu">Schließen</button></span></div>
@@ -202,9 +217,9 @@ function protokollLeseHtml() {
       ${inhalt}</div>`;
   }).join("");
   return `<div class="protokoll-hg" data-act="prot-zu">
-    <div class="protokoll-fenster panel" data-act="" data-scroll-merk="protokoll">
+    <div class="protokoll-fenster panel" data-act="" data-scroll-merk="protokoll" style="--pt-gr:${PROT_SCHRIFT[protSchrift()]}rem">
       <div class="pt-titelzeile"><strong>📜 ${Prot.wasBisher ? "Was bisher geschah" : "Protokolle"}</strong>
-        <button class="ghost small" data-act="prot-zu">Schließen</button></div>
+        <span class="row tight chr-knoepfe">${protSchriftKnoepfe()}<button class="ghost small" data-act="prot-zu">Schließen</button></span></div>
       ${protokollListe().length > 1 ? `<div class="row tight chr-einstieg"><button class="primary small" data-act="prot-chronik">📖 Alles am Stück lesen</button>
         <span class="muted small">${protokollListe().length} Abende</span></div>` : ""}
       ${abende || `<div class="muted small">Noch nichts freigegeben.</div>`}
@@ -298,6 +313,11 @@ document.addEventListener("click", async (e) => {
     return;
   }
   if (act === "prot-drucken") { chronikDrucken(); return; }
+  if (act === "prot-schrift") {
+    const i = Math.max(0, Math.min(PROT_SCHRIFT.length - 1, protSchrift() + Number(t.dataset.d || 0)));
+    try { localStorage.setItem("protSchrift", String(i)); } catch { /* privat */ }
+    render(); return;
+  }
   if (act === "prot-auf") {
     if (Prot.auf.has(id)) Prot.auf.delete(id); else Prot.auf.add(id);
     render(); return;

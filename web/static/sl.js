@@ -2304,9 +2304,9 @@ function renderMessagePanel() {
   // Das Panel ist jetzt dauerhaft offen -> nur die letzten drei Nachrichten,
   // sonst waechst die linke Spalte mit jedem verschickten Benny.
   const log = s.messages.filter((m) => m.sender !== "kampf").slice(-3).reverse().map((m) => `
-    <div class="msg${m.target === "all" ? "" : " gefluestert"}"><div class="to">${m.target === "all" ? "an alle" : `🤫 nur an ${[].concat(m.target).map((id) => esc(spielerAnzeige(s.players.find((p) => p.id === id)))).join(", ")}`}
-        <button class="st-btn" data-act="nochmal-senden" data-msg="${m.id}" title="Nochmal senden – an den oben gewählten Empfänger">🔁</button>
-        ${m.imageUrl ? `<button class="st-btn" data-act="auf-tv" data-url="${esc(m.imageUrl)}" title="Bild groß auf den TV/Beamer">📺</button>` : ""}
+    <div class="msg${m.target === "all" ? "" : " gefluestert"}"><div class="to"><span>${m.target === "all" ? "an alle" : `🤫 nur an ${[].concat(m.target).map((id) => esc(spielerAnzeige(s.players.find((p) => p.id === id)))).join(", ")}`}</span>${m.ts ? `<span class="msg-zeit">${zeitKurz(m.ts)}</span>` : ""}
+        <button class="st-btn msg-ib" data-act="nochmal-senden" data-msg="${m.id}" title="Nochmal senden – an den oben gewählten Empfänger" aria-label="Nochmal senden">🔁</button>
+        ${m.imageUrl ? `<button class="st-btn msg-ib" data-act="auf-tv" data-url="${esc(m.imageUrl)}" title="Bild groß auf den TV/Beamer" aria-label="Auf den TV">📺</button>` : ""}
       </div>
       ${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}" title="Groß ansehen">` : ""}</div>`).join("");
 

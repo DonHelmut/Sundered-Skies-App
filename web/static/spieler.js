@@ -106,11 +106,14 @@ function renderPlayer() {
     .map((id) => esc(spielerAnzeige(s.players.find((p) => p.id === id))));
   const anWen = (m) => !geflustert(m) ? "An alle"
     : mitwisser(m).length ? `🤫 Nur an dich und ${mitwisser(m).join(", ")}` : "🤫 Nur an dich";
+  // Kopfzeile je Nachricht: an wen · Uhrzeit · Lesezeichen (Studio-Runde
+  // Notizen, 16.11.2026). Das Lesezeichen merkt den Hinweis als eigene Notiz -
+  // vorher ein eigener „📝 Merken"-Knopf unter jedem Text, das war laut.
+  const merk = (m) => !(m.text && m.id) ? ""
+    : nachrichtGemerkt(m.id) ? `<span class="msg-merk ok" title="Steht in deinen Notizen">${symbolSvg("bookmark-check")}In Notizen</span>`
+    : `<button type="button" class="msg-merk" data-act="notiz-merken" data-id="${esc(m.id)}" aria-label="In Notizen merken" title="In Notizen merken">🔖</button>`;
   const msgs = gmMsgs.slice().reverse().slice(0, 8)
-    .map((m) => `<div class="msg${geflustert(m) ? " gefluestert" : ""}"><div class="to">${anWen(m)}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}${
-      // 💬 Hinweis vom SL als Notiz merken - ging sonst im Verlauf unter.
-      m.text && m.id ? (nachrichtGemerkt(m.id) ? `<span class="msg-merk ok">✓ In Notizen</span>`
-        : `<button type="button" class="msg-merk" data-act="notiz-merken" data-id="${esc(m.id)}">📝 Merken</button>`) : ""}</div>`).join("");
+    .map((m) => `<div class="msg${geflustert(m) ? " gefluestert" : ""}"><div class="to"><span>${anWen(m)}</span>${m.ts ? `<span class="msg-zeit">${zeitKurz(m.ts)}</span>` : ""}${merk(m)}</div>${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}">` : ""}</div>`).join("");
 
   // Blockierendes Banner für jede neue SL-Nachricht.
   const newest = gmMsgs[gmMsgs.length - 1];
@@ -290,7 +293,13 @@ function ruhePanelHtml(s, mine) {
 // mehrere Handys gleichzeitig schreiben.
 const NOTIZ_THEMEN = [["NSC", "👤"], ["Orte", "🗺"], ["Beute", "💰"], ["Offen", "❓"]];
 const NOTIZ_GRUPPE = "\u0001gruppe";   // Reiter „👥 Gruppe" (kein echtes Thema)
-const NOTIZ_SUCHE_AB = 8;              // ab so vielen Notizen gibt es die 🔎
+const NOTIZ_SUCHE_AB = 4;              // ab so vielen Notizen gibt es die 🔎 (oben im Kopf)
+// Feste Themen als Linien-Symbol mit leisem Farbton (Studio-Runde Notizen,
+// Kalle 16.11.2026, Vorschlag 2): die bunten Emoji sahen je nach Handy anders
+// aus und bissen sich mit den Linien-Symbolen vom Rest der App. Eigene Themen
+// behalten ihr Emoji (das wählen die Spieler selbst).
+const NOTIZ_THEMA_SYMBOL = { NSC: ["user", "#b0652a"], Orte: ["map-pin", "#4f8a5b"], Beute: ["gem", "#b8901a"],
+  Offen: ["circle-help", "#8f6cc4"], "\u0001gruppe": ["users", "#2f7f9a"], "": ["tag", "#8a7a60"] };
 // Eigene Themen tragen ihr Emoji vorne im Namen („💎 Seelensteine") - so kommt
 // es mit jeder Notiz mit, auch bei Gruppen-Notizen auf fremden Handys, ohne
 // eigene Themen-Liste auf dem Server.
@@ -304,7 +313,27 @@ function notizThemaTeile(thema) {
 }
 function notizIcon(thema) { return notizThemaTeile(thema)[0]; }
 function notizThemaName(thema) { return notizThemaTeile(thema)[1]; }
-function notizThemaLabel(thema) { return `${notizIcon(thema)} ${esc(notizThemaName(thema))}`; }
+// Nur Text (Platzhalter, Dialoge): feste Themen ohne Emoji, eigene mit.
+function notizThemaText(thema) {
+  if (thema === NOTIZ_GRUPPE) return "Gruppe";
+  return thema in NOTIZ_THEMA_SYMBOL ? notizThemaName(thema) : `${notizIcon(thema)} ${notizThemaName(thema)}`;
+}
+// Als Chip: Symbol + Name, Farbton über --tc. Klasse th-roh: symboleEinsetzen
+// lässt das Emoji eigener Themen in Ruhe (sonst würde „📜 Aufträge" zur Linie,
+// „💎 Seelensteine" bliebe bunt - sähe kaputt aus).
+function notizThemaHtml(thema, extra = "") {
+  const fest = NOTIZ_THEMA_SYMBOL[thema];
+  if (fest) return `<span class="th ${extra}" style="--tc:${fest[1]}">${symbolSvg(fest[0])}${esc(notizThemaText(thema))}</span>`;
+  return `<span class="th th-roh ${extra}">${notizIcon(thema)} ${esc(notizThemaName(thema))}</span>`;
+}
+function notizThemaLabel(thema) { return notizThemaHtml(thema); }
+// Uhrzeit kurz: heute „20:31", sonst „14.11." (Gruppen-Notizen, Nachrichten).
+function zeitKurz(ts) {
+  if (!ts) return "";
+  const d = new Date(ts), h = new Date();
+  const zwei = (n) => String(n).padStart(2, "0");
+  return d.toDateString() === h.toDateString() ? `${zwei(d.getHours())}:${zwei(d.getMinutes())}` : `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}.`;
+}
 function notizSpeicherLesen(schluessel, ersatz) {
   try { const w = JSON.parse(localStorage.getItem(schluessel)); return w == null ? ersatz : w; } catch { return ersatz; }
 }
@@ -412,6 +441,7 @@ function notizZeileHtml(e, mitThema, q) {
       <div class="notiz-vorschlag" id="notiz-vorschlag-edit">${notizVorschlagHtml("edit", ed.text)}</div>
       <div class="notiz-chips klein">${chips}</div>
       <div class="notiz-edit-knoepfe">
+        <button type="button" class="ghost small notiz-del" data-act="notiz-loeschen" data-id="${esc(e.id)}" data-gruppe="${g}">🗑 Löschen</button>
         <button type="button" class="ghost small" data-act="notiz-abbrechen">Abbrechen</button>
         <button type="button" class="primary small" data-act="notiz-fertig">✓ Fertig</button>
       </div>
@@ -419,14 +449,15 @@ function notizZeileHtml(e, mitThema, q) {
   }
   const id = esc(e.id);
   const daten = `data-id="${id}" data-gruppe="${g}"`;
-  const tags = [mitThema && e.thema ? notizThemaLabel(e.thema) : "", mitThema && e.gruppe ? "👥" : ""].filter(Boolean);
+  // Keine ✎/🗑 je Zeile mehr (Studio-Runde Notizen, 16.11.2026): Tipp auf den
+  // Text bearbeitet, Löschen steht im Bearbeiten-Modus. Die Zeile gehört dem Text.
+  const tags = [mitThema && e.thema ? notizThemaHtml(e.thema, "ttag") : "",
+    mitThema && e.gruppe ? notizThemaHtml(NOTIZ_GRUPPE, "ttag nur-symbol") : ""].filter(Boolean);
+  const wer = e.gruppe && e.von
+    ? `<span class="wer"><span class="wer-av">${esc(zoneInitials(e.von))}</span>${esc(e.von)}${e.ts ? ` · ${zeitKurz(e.ts)}` : ""}</span>` : "";
   return `<li class="zeile${e.erledigt ? " erl" : ""}${e.gruppe ? " gruppe" : ""}" data-id="${id}">
     <button type="button" class="haken" data-act="notiz-haken" ${daten} role="checkbox" aria-checked="${!!e.erledigt}" aria-label="Erledigt">${e.erledigt ? "✓" : ""}</button>
-    <div class="zt" data-act="notiz-bearbeiten" ${daten}>${notizTextHtml(e.text, q)}${tags.length ? ` <span class="ttag">${tags.join(" · ")}</span>` : ""}${e.gruppe && e.von ? `<span class="wer">${esc(e.von)}</span>` : ""}</div>
-    <span class="zk">
-      <button type="button" class="notiz-knopf" data-act="notiz-bearbeiten" ${daten} aria-label="Bearbeiten" title="Bearbeiten">✎</button>
-      <button type="button" class="notiz-knopf weg" data-act="notiz-loeschen" ${daten} aria-label="Löschen" title="Löschen">🗑</button>
-    </span>
+    <div class="zt" data-act="notiz-bearbeiten" ${daten} role="button" aria-label="Bearbeiten">${notizTextHtml(e.text, q)}${tags.length ? ` ${tags.join(" ")}` : ""}${wer}</div>
   </li>`;
 }
 function notizFilterJetzt() {
@@ -450,12 +481,13 @@ function notizenPanelHtml() {
     `<button type="button" class="notiz-reiter${an ? " on" : ""}" data-act="notiz-filter" data-thema="${t === null ? "*" : esc(t)}">${label}</button>`;
   const zahl = (n) => n ? ` <b>${n}</b>` : "";
   const reiterHtml = [reiter(null, `Alle${zahl(offenZahl(() => true))}`, filter === null),
-    reiter(NOTIZ_GRUPPE, `👥 Gruppe${zahl(offenZahl((e) => e.gruppe))}`, filter === NOTIZ_GRUPPE),
-    ...themen.map((t) => reiter(t, `${notizThemaLabel(t)}${zahl(offenZahl((e) => e.thema === t))}`, filter === t)),
-    ...(alle.some((e) => !e.thema) ? [reiter("", `📝 Sonstiges${zahl(offenZahl((e) => !e.thema))}`, filter === "")] : []),
+    reiter(NOTIZ_GRUPPE, `${notizThemaHtml(NOTIZ_GRUPPE)}${zahl(offenZahl((e) => e.gruppe))}`, filter === NOTIZ_GRUPPE),
+    ...themen.map((t) => reiter(t, `${notizThemaHtml(t)}${zahl(offenZahl((e) => e.thema === t))}`, filter === t)),
+    ...(alle.some((e) => !e.thema) ? [reiter("", `${notizThemaHtml("")}${zahl(offenZahl((e) => !e.thema))}`, filter === "")] : []),
     `<button type="button" class="notiz-reiter neu" data-act="notiz-thema-neu" aria-label="Neues Thema" title="Neues Thema">＋</button>`].join("");
+  // 🔎 oben rechts im Kopf (nicht mehr als Chip in der Reiterzeile).
   const suchKnopf = alle.length >= NOTIZ_SUCHE_AB
-    ? `<button type="button" class="notiz-reiter such" data-act="notiz-suche-auf" aria-label="Suchen" title="Suchen">🔎</button>` : "";
+    ? `<button type="button" class="notiz-such${App.notizSuche != null ? " on" : ""}" data-act="${App.notizSuche != null ? "notiz-suche-zu" : "notiz-suche-auf"}" aria-label="Suchen" title="Suchen">🔍</button>` : "";
   // Suche: über alle Themen und die Gruppe, Abgehakte gleich mit aufgeklappt.
   const sicht = q ? alle.filter((e) => `${e.text}\n${e.thema}\n${e.von || ""}`.toLowerCase().includes(q.toLowerCase()))
     : filter === null ? alle
@@ -470,7 +502,7 @@ function notizenPanelHtml() {
   const leerText = q ? `Nichts gefunden für „${esc(q)}“.`
     : filter === null ? ""
     : filter === NOTIZ_GRUPPE ? "Noch keine Gruppen-Notiz. Alles hier sehen alle Spieler."
-    : `Noch nichts unter ${notizThemaLabel(filter)}.`;
+    : `Noch nichts unter ${notizThemaHtml(filter)}.`;
   const inhalt = !sicht.length
     ? `<div class="notizen-leer klein">${leerText}</div>`
     : `${offen.length ? `<ul class="zeilen">${offen.map(zeile).join("")}</ul>`
@@ -482,22 +514,30 @@ function notizenPanelHtml() {
   const zielGruppe = notizZielGruppe();
   const thema = filter === null || filter === NOTIZ_GRUPPE ? "" : filter;
   const h = App.notizNeu && App.notizHoehe && App.notizHoehe["notiz-neu"];
-  const platzhalter = zielGruppe ? `Für alle${thema ? ` unter ${notizThemaLabel(thema)}` : ""} …`
-    : thema ? `Neu unter ${notizThemaLabel(thema)} …` : "Neue Notiz …";
+  const platzhalter = zielGruppe ? `Für alle${thema ? ` unter ${esc(notizThemaText(thema))}` : ""} …`
+    : thema ? `Neu unter ${esc(notizThemaText(thema))} …` : "Neue Notiz …";
+  // Eingabe als Komposer (Vorschlag 3): ein Feld, darunter „Nur ich | Für alle"
+  // in Worten (das 🔒 allein verstand ohne Erklärung keiner) und ein runder
+  // ↑-Knopf. Im Gruppe-Reiter ist „Für alle" fest.
+  const imGruppenReiter = filter === NOTIZ_GRUPPE;
   return `<div class="panel notizen">
-    <div class="notizen-kopf"><h2>📝 Notizen</h2>${alle.length ? `<span class="notizen-zahl">${offenZahl(() => true)}</span>` : ""}</div>
-    <div class="notiz-neu">
+    <div class="notizen-kopf"><h2>📝 Notizen</h2>${alle.length ? `<span class="notizen-zahl">${offenZahl(() => true)}</span>` : ""}${suchKnopf}</div>
+    <div class="notiz-neu${zielGruppe ? " gruppe" : ""}">
       <textarea id="notiz-neu" rows="1" maxlength="1000" enterkeyhint="done" aria-label="Neue Notiz"${h ? ` style="height:${h}px"` : ""}
         placeholder="${platzhalter}">${esc(App.notizNeu || "")}</textarea>
-      <button type="button" class="notiz-ziel${zielGruppe ? " gruppe" : ""}" data-act="notiz-ziel"${filter === NOTIZ_GRUPPE ? " disabled" : ""}
-        aria-label="${zielGruppe ? "Für alle Spieler" : "Nur für mich"}" title="${zielGruppe ? "👥 Für alle Spieler – tippen: nur für mich" : "🔒 Nur für mich – tippen: für alle Spieler"}">${zielGruppe ? "👥" : "🔒"}</button>
-      <button type="button" class="primary notiz-plus" data-act="notiz-hinzu" aria-label="Notiz hinzufügen" title="Hinzufügen"${(App.notizNeu || "").trim() ? "" : " disabled"}>＋</button>
+      <div class="notiz-neu-fuss">
+        <span class="notiz-seg" role="group" aria-label="Für wen">
+          <button type="button" class="${zielGruppe ? "" : "on"}" data-act="notiz-ziel" data-ziel="ich"${imGruppenReiter ? " disabled" : ""} title="Nur du siehst diese Notiz">🔒 Nur ich</button>
+          <button type="button" class="${zielGruppe ? "on" : ""}" data-act="notiz-ziel" data-ziel="gruppe" title="Alle Spieler sehen und ändern diese Notiz">👥 Für alle</button>
+        </span>
+        <button type="button" class="primary notiz-plus" data-act="notiz-hinzu" aria-label="Notiz hinzufügen" title="Hinzufügen"${(App.notizNeu || "").trim() ? "" : " disabled"}>${symbolSvg("arrow-up")}</button>
+      </div>
     </div>
     <div class="notiz-vorschlag" id="notiz-vorschlag-neu">${notizVorschlagHtml("neu", App.notizNeu)}</div>
     ${App.notizSuche != null
-      ? `<div class="notiz-suche"><span>🔎</span><input id="notiz-suche" type="text" enterkeyhint="search" value="${esc(App.notizSuche)}" placeholder="In allen Notizen suchen …" aria-label="Suchen" autocomplete="off">
+      ? `<div class="notiz-suche">🔍<input id="notiz-suche" type="text" enterkeyhint="search" value="${esc(App.notizSuche)}" placeholder="In allen Notizen suchen …" aria-label="Suchen" autocomplete="off">
           <button type="button" class="notiz-knopf" data-act="notiz-suche-zu" aria-label="Suche schließen">✕</button></div>`
-      : `<div class="notiz-reiter-leiste">${suchKnopf}${reiterHtml}</div>`}
+      : `<div class="notiz-reiter-leiste">${reiterHtml}</div>`}
     ${weg ? `<div class="notiz-undo"><span>Notiz gelöscht</span><button type="button" class="ghost small" data-act="notiz-zurueck">↶ Rückgängig</button></div>` : ""}
     ${alle.length ? inhalt
       : `<div class="notizen-leer">Noch nichts notiert.<br><span>NSC-Namen, Orte, Beute, offene Fragen. 🔒 nur du, 👥 alle Spieler.</span></div>`}
@@ -630,7 +670,7 @@ document.addEventListener("click", async (e) => {
       render();
       break;
     case "notiz-ziel":
-      App.notizZiel = App.notizZiel === "gruppe" ? "ich" : "gruppe";
+      App.notizZiel = t.dataset.ziel || (App.notizZiel === "gruppe" ? "ich" : "gruppe");
       render();
       break;
     case "notiz-thema-neu": {

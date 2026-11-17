@@ -129,6 +129,7 @@ function renderAufnahmePanel() {
       ${sp.live && sp.live.hinweis ? `<div class="muted small">${esc(sp.live.hinweis)}</div>` : ""}
       <div class="muted small aufn-stille" style="display:none; margin-top:4px">Seit über einer Minute kein Ton – falls das nicht stimmt: Mikro prüfen.</div>
       ${aufnStimmenHtml(st)}
+      ${aufnMomenteHtml(st)}
       <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
         <button class="ghost" data-act="aufn-marke">📌 Moment merken</button>
         <button class="ghost" data-act="aufn-pause" title="Aufnahme anhalten – danach geht es in derselben Aufnahme weiter">⏸ Pause</button>
@@ -640,18 +641,81 @@ async function aufnStimme(figur) {
   } catch { /* Laptop-Server weg - nichts zu tun */ }
 }
 
-async function aufnMarke() {
+async function aufnMarke(knopf) {
   if (!Aufn.rec) return;
   // Sofort merken, ohne Nachfrage: am Tisch zählt der Moment, nicht der Text.
   try { await fetch("/api/aufnahme/marke", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); } catch { return; }
   // Danach optional ein Stichwort („Korgos Joker", „Rask flieht") - Kalle
-  // 02.11.2026. Die Zeit steht schon; Enter ohne Text oder Esc = nur die Zeit.
-  const text = await eingabe(`📌 Gemerkt bei ${aufnZeit(aufnLaenge())}. Stichwort dazu? (optional)`, "", "Merken");
-  if (!text) return;
-  try {
-    await fetch("/api/aufnahme/marke", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nachtragen: true, text }) });
-  } catch { /* Zeit ist gemerkt, nur ohne Stichwort */ }
+  // 02.11.2026. Seit 16.11.2026 (Studio-Runde Notizen, Vorschlag 6) kein
+  // Dialog mehr, der das Spiel anhält: eine kleine Karte schwebt unter dem
+  // Knopf, verschwindet nach ein paar Sekunden von selbst, wenn man nichts
+  // tippt. Schwebend (position: fixed) - schiebt nichts.
+  aufnMarkeKarte(knopf, aufnZeit(aufnLaenge()));
+  aufnStatusLaden();
+}
+function aufnMarkeZu() {
+  const k = document.getElementById("marke-karte");
+  clearTimeout(Aufn.markeTimer);
+  if (k) { k.classList.remove("sichtbar"); setTimeout(() => k.remove(), 180); }
+}
+function aufnMarkeKarte(knopf, zeit, index) {
+  aufnMarkeZu();
+  const alt = document.getElementById("marke-karte");
+  if (alt) alt.remove();
+  const k = document.createElement("div");
+  k.id = "marke-karte";
+  k.className = "marke-karte";
+  k.innerHTML = `<span class="mk-ok">${symbolSvg("circle-check")}Gemerkt ${esc(zeit)}</span>
+    <input id="marke-text" maxlength="200" placeholder="Stichwort (optional)" autocomplete="off" enterkeyhint="done">
+    <button type="button" class="primary mk-save" aria-label="Stichwort speichern" title="Speichern (Enter)">${symbolSvg("check")}</button>`;
+  // Unter den gedrückten Knopf (Kopfleiste oder Panel); sonst oben rechts.
+  const r = knopf && knopf.getBoundingClientRect && knopf.isConnected ? knopf.getBoundingClientRect() : null;
+  const breite = Math.min(400, window.innerWidth - 16);
+  const links = r ? Math.max(8, Math.min(window.innerWidth - breite - 8, r.right - breite + 40)) : window.innerWidth - breite - 16;
+  k.style.left = `${links}px`;
+  k.style.top = `${r ? r.bottom + 10 : 64}px`;
+  k.style.width = `${breite}px`;
+  if (r) k.style.setProperty("--pfeil", `${Math.max(16, Math.min(breite - 24, r.left + r.width / 2 - links))}px`);
+  document.body.appendChild(k);
+  requestAnimationFrame(() => k.classList.add("sichtbar"));
+  const feld = k.querySelector("input");
+  const speichern = async () => {
+    const text = feld.value.trim();
+    aufnMarkeZu();
+    if (!text) return;
+    try {
+      await fetch("/api/aufnahme/marke", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nachtragen: true, text, ...(index != null ? { index } : {}) }) });
+    } catch { /* Zeit ist gemerkt, nur ohne Stichwort */ }
+    aufnStatusLaden();
+  };
+  // Nichts getippt -> nach 6 s weg; sobald getippt wird, bleibt sie.
+  const zuSpaeter = () => { clearTimeout(Aufn.markeTimer); Aufn.markeTimer = setTimeout(() => { if (!feld.value.trim()) aufnMarkeZu(); }, 6000); };
+  zuSpaeter();
+  feld.addEventListener("input", () => clearTimeout(Aufn.markeTimer));
+  feld.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); speichern(); }
+    else if (e.key === "Escape") { e.preventDefault(); aufnMarkeZu(); }
+  });
+  k.querySelector(".mk-save").addEventListener("click", speichern);
+  feld.focus({ preventScroll: true });
+}
+// Klick daneben schließt die Karte (Getipptes wird dabei gespeichert).
+document.addEventListener("pointerdown", (e) => {
+  const k = document.getElementById("marke-karte");
+  if (!k || k.contains(e.target) || (e.target.closest && e.target.closest("[data-act=aufn-marke],[data-act=aufn-moment]"))) return;
+  const f = k.querySelector("input");
+  if (f && f.value.trim()) k.querySelector(".mk-save").click(); else aufnMarkeZu();
+});
+// 📌 Gemerkte Momente im Panel: Zeit + Stichwort, ✎ trägt nach.
+function aufnMomenteHtml(st) {
+  const m = ((st.aktiv || {}).momente) || [];
+  if (!m.length) return "";
+  return `<div class="aufn-momente">
+    <div class="am-kopf">📌 Gemerkte Momente · ${m.length}</div>
+    ${m.map((x, i) => `<div class="am-zeile"><b>${aufnZeit(x.t)}</b>${x.text ? `<span>${esc(x.text)}</span>` : `<i>ohne Stichwort</i>`}
+      <button type="button" class="am-knopf" data-act="aufn-moment" data-i="${i}" data-zeit="${aufnZeit(x.t)}" aria-label="Stichwort ändern" title="Stichwort ändern">✎</button></div>`).join("")}
+  </div>`;
 }
 
 // --- Live-Mitschrift ---------------------------------------------------------------
@@ -880,7 +944,14 @@ document.addEventListener("click", async (e) => {
   else if (act === "aufn-stop") {
     e.preventDefault();
     if (await frage("Aufnahme beenden?", "Beenden")) aufnahmeBeenden();
-  } else if (act === "aufn-marke") { e.preventDefault(); aufnMarke(); }
+  } else if (act === "aufn-marke") { e.preventDefault(); aufnMarke(t); }
+  else if (act === "aufn-moment") {
+    e.preventDefault();
+    aufnMarkeKarte(t, t.dataset.zeit, Number(t.dataset.i));
+    const m = (((Aufn.status || {}).aktiv || {}).momente || [])[Number(t.dataset.i)];
+    const f = document.getElementById("marke-text");
+    if (f && m && m.text) f.value = m.text;
+  }
   else if (act === "aufn-pause") { e.preventDefault(); aufnPause(); }
   else if (act === "aufn-weiter") { e.preventDefault(); aufnWeiter(); }
   else if (act === "aufn-stimme") { e.preventDefault(); aufnStimme(t.dataset.figur); }

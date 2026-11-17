@@ -125,8 +125,12 @@ def test_gruppen_notizen_fuer_alle_mit_schreiber(fresh_game):
     assert g.gruppen_notizen[1]["von"] == "Mira" and g.gruppen_notizen[0]["von"] == "Korgo"
     # Korgo hakt Miras Notiz ab, ändert sie - Schreiber bleibt Mira.
     assert g.gruppen_notiz(k, {"op": "aendern", "id": "g1", "erledigt": True, "text": "Beute: 2 Heiltränke"})
+    # Uhrzeit (ts) vom Anlegen bleibt beim Ändern stehen (Gruppen-Notiz zeigt „Mira · 20:31").
+    ts = g.gruppen_notizen[1].pop("ts")
+    assert isinstance(ts, int) and ts > 0
     assert g.gruppen_notizen[1] == {"id": "g1", "text": "Beute: 2 Heiltränke", "thema": "Beute", "erledigt": True,
                                     "von": "Mira", "vonId": "char_mira"}
+    g.gruppen_notizen[1]["ts"] = ts
     weg = g.gruppen_notizen[1]
     assert g.gruppen_notiz(k, {"op": "loeschen", "id": "g1"})
     # Rückgängig: an alter Stelle, alter Schreiber.
@@ -191,6 +195,10 @@ def test_stichwort_zur_letzten_marke(tmp_path):
     assert a.marke_text("  Korgos   Joker ")
     marken = [e for e in a.aktiv["ereignisse"] if e["art"] == "marke"]
     assert marken[0]["text"] == "" and marken[1]["text"] == "Korgos Joker"
+    # „Gemerkte Momente" im Panel: eine bestimmte Marke nachtragen (✎).
+    assert a.marke_text("Wirt gesteht", index=0)
+    assert not a.marke_text("x", index=5)
+    assert [m["text"] for m in a.status()["aktiv"]["momente"]] == ["Wirt gesteht", "Korgos Joker"]
 
 
 # --- Stimmen über Abende -----------------------------------------------------------------

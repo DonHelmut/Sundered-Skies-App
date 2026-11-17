@@ -66,8 +66,19 @@ const SYMBOL_PFADE = {
   "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/> <path d=\"M16 3.128a4 4 0 0 1 0 7.744\"/> <path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/> <circle cx=\"9\" cy=\"7\" r=\"4\"/>",
   "wifi": "<path d=\"M12 20h.01\"/> <path d=\"M2 8.82a15 15 0 0 1 20 0\"/> <path d=\"M5 12.859a10 10 0 0 1 14 0\"/> <path d=\"M8.5 16.429a5 5 0 0 1 7 0\"/>",
   "wifi-off": "<path d=\"M12 20h.01\"/> <path d=\"M8.5 16.429a5 5 0 0 1 7 0\"/> <path d=\"M5 12.859a10 10 0 0 1 5.17-2.69\"/> <path d=\"M19 12.859a10 10 0 0 0-2.007-1.523\"/> <path d=\"M2 8.82a15 15 0 0 1 4.177-2.643\"/> <path d=\"M22 8.82a15 15 0 0 0-11.288-3.764\"/> <path d=\"m2 2 20 20\"/>",
+  // Notizen-Themen, Lesezeichen, Komposer (Studio-Runde Notizen, 16.11.2026).
+  "user": "<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/> <circle cx=\"12\" cy=\"7\" r=\"4\"/>",
+  "map-pin": "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\"/> <circle cx=\"12\" cy=\"10\" r=\"3\"/>",
+  "gem": "<path d=\"M6 3h12l4 6-10 13L2 9Z\"/> <path d=\"M11 3 8 9l4 13 4-13-3-6\"/> <path d=\"M2 9h20\"/>",
+  "tag": "<path d=\"M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z\"/> <circle cx=\"7.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/>",
+  "bookmark": "<path d=\"m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z\"/>",
+  "bookmark-check": "<path d=\"m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z\"/> <path d=\"m9 10 2 2 4-4\"/>",
+  "arrow-up": "<path d=\"m5 12 7-7 7 7\"/> <path d=\"M12 19V5\"/>",
+  "repeat": "<path d=\"m17 2 4 4-4 4\"/> <path d=\"M3 11v-1a4 4 0 0 1 4-4h14\"/> <path d=\"m7 22-4-4 4-4\"/> <path d=\"M21 13v1a4 4 0 0 1-4 4H3\"/>",
+  "check": "<path d=\"M20 6 9 17l-5-5\"/>",
+  "a-large-small": "<path d=\"M21 14h-5\"/> <path d=\"M16 16v-3.5a2.5 2.5 0 0 1 5 0V16\"/> <path d=\"M4.5 13h6\"/> <path d=\"m3 16 4.5-9 4.5 9\"/>",
 };
-const SYMBOL_ZU = {"⏱": "timer", "🌅": "sunrise", "⬆": "circle-arrow-up", "↻": "refresh-cw", "🂠": "layers", "⚔": "swords", "📜": "scroll-text", "📝": "notebook-pen", "✉": "mail", "🎯": "crosshair", "🩹": "heart-plus", "🏁": "flag", "☰": "menu", "▣": "scan", "▤": "scan", "⚙": "settings", "🎙": "mic", "📖": "book-open", "🎛": "sliders-horizontal", "📺": "tv", "💾": "download", "⤵": "upload", "🛟": "life-buoy", "⟲": "rotate-ccw", "🧹": "brush", "⌨": "keyboard", "✋": "hand", "👆": "pointer", "🚫": "ban", "👣": "footprints", "↶": "undo-2", "⏭": "skip-forward", "➕": "plus", "📶": "wifi", "🃏": "layers", "🏹": "target", "👥": "users", "🌙": "moon", "📷": "camera", "📌": "pin", "🗑": "trash-2", "✏": "pencil", "✎": "pencil", "🔍": "search", "💬": "message-circle", "📋": "clipboard-list", "🔒": "lock", "🖼": "image", "🎲": "dices"};
+const SYMBOL_ZU = {"⏱": "timer", "🌅": "sunrise", "⬆": "circle-arrow-up", "↻": "refresh-cw", "🂠": "layers", "⚔": "swords", "📜": "scroll-text", "📝": "notebook-pen", "✉": "mail", "🎯": "crosshair", "🩹": "heart-plus", "🏁": "flag", "☰": "menu", "▣": "scan", "▤": "scan", "⚙": "settings", "🎙": "mic", "📖": "book-open", "🎛": "sliders-horizontal", "📺": "tv", "💾": "download", "⤵": "upload", "🛟": "life-buoy", "⟲": "rotate-ccw", "🧹": "brush", "⌨": "keyboard", "✋": "hand", "👆": "pointer", "🚫": "ban", "👣": "footprints", "↶": "undo-2", "⏭": "skip-forward", "➕": "plus", "📶": "wifi", "🃏": "layers", "🏹": "target", "👥": "users", "🌙": "moon", "📷": "camera", "📌": "pin", "🗑": "trash-2", "✏": "pencil", "✎": "pencil", "🔍": "search", "💬": "message-circle", "📋": "clipboard-list", "🔒": "lock", "🖼": "image", "🎲": "dices", "🔁": "repeat", "🔖": "bookmark"};
 
 function symbolSvg(name) {
   const p = SYMBOL_PFADE[name];
@@ -85,7 +96,7 @@ const SYMBOL_RE = new RegExp(
 // Ausnahme Notizen: dort wählen die Spieler ihre Themen-Emoji selbst
 // („📜 Aufträge", „💎 Seelensteine") – ein Teil davon als Linie, der Rest bunt,
 // sähe kaputt aus. Themen-Chips/-Reiter und Knöpfe mit data-emoji bleiben roh.
-const SYMBOL_ROH = /\bnotiz-(chip|reiter)|data-emoji/;
+const SYMBOL_ROH = /\bnotiz-(chip|reiter)|th-roh|data-emoji/;
 function symboleEinsetzen(html) {
   if (typeof html !== "string" || !html) return html;
   return html.replace(SYMBOL_RE, (ganz, tag, leer, emo) =>
