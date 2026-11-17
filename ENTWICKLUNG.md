@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.14 (17.11.2026): Ein-Klick-Update blieb beim Tauschen stehen
+## 2.0.15 (17.11.2026): Ein-Klick-Update blieb beim Tauschen stehen
 
 Kalles echtes Update 2.0.13 → 2.0.14: Dialog hing bei „App kurz beenden,
 Dateien tauschen", App aus, nichts getauscht, `%TEMP%\sws-update-*` blieb liegen.
