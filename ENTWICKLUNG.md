@@ -77,6 +77,58 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (17.11.2026): AAA-Rundgang – 6 Bereiche + 3 Optik-Fehler
+
+Kalle: „Schau dir an, was noch nicht auf AAA-Studio-Stand ist.“ Ganze App
+durchgegangen, 6 Vorschläge mit Bildern (Projektordner
+`screenshots/aaa-2026-11-17/`, gebaut: `…/gebaut/`), Kalle wählte **alle**.
+
+- **1 Handy-⚙ als Einstellungen-Blatt** (`spieler.js spielerMenueHtml`,
+  `start.js`, `render.js`): Blatt von unten mit Gruppen (Wenn ich dran bin /
+  Karten / Farbe / Reihenfolge / Mitspieler holen), Schalter statt Häkchen
+  (echte Checkbox liegt unsichtbar darüber, `data-act` unverändert),
+  Rückseiten gleich als Kacheln (`rueckseiteWahlHtml(mine, true)`), Farben mit
+  Kurznamen (`SKIN_KURZ`), „Spiel verlassen“ abgesetzt ganz unten. Die alte
+  Kiste blendet `#skinbar.einst-blatt` aus (SL und Beitrittsseite unverändert).
+  Joker-Häkchen gibt es dadurch zweimal im Menü → `change` zählt nur die
+  Gruppe, in der getippt wurde.
+- **2 Bibliothek-Zeilen** (`sl.js bibListeHtml`, `BIB_ART`): Avatar, Name,
+  Werte-Zeile (Spickzettel), „⚔ In den Kampf“ = 1 Klick in gemerkter
+  Startzone, ▾ = schwebendes Fenster (Anzahl/Zone/verdeckt), ⋯ = Bearbeiten/
+  Bogen/Löschen, Tipp auf den Namen = Bearbeiten (scrollt zum Formular). Suche
+  ab 5 Einträgen. Direkter Knopf setzt immer EINEN sichtbaren Gegner.
+- **3 Aufdecken nur einmal (Handy):** kein „Antippen zum Aufdecken“ auf der
+  Karte, wenn unten „Karte aufdecken“ steht (`body.leiste-aufdecken`); in der
+  Reihenfolge statt „Erst deine Karte aufdecken“ „Runde X · N im Kampf“
+  (gleiche Höhe, nichts rückt).
+- **4 Beitritt-Panel** (`renderConnectPanel`): QR + große Adresse (IP, weil
+  pnp.local nicht an jedem Handy geht), „QR-Bild kopieren“ / „Groß zeigen“ / ⋯
+  (Teilen, WhatsApp), „Am Tisch“ als Avatare mit Online-Punkt; WLAN, Adress-
+  bereich, Firewall und Checkliste hinter „Handy kommt nicht rein?“. Warnungen
+  (Adresse gewechselt, öffentliches Netz, kein WLAN) bleiben oben.
+- **5 Nachricht/Bennies als Komposer** (`renderMessagePanel`): Empfänger-Pillen
+  (Spieler an-/abwählen; mehrere = an mehrere flüstern, keiner = alle; TV),
+  Feld mit rundem ↑ (Enter schickt), Bennies-Zeile „+1 an …“ + SL-Pool, letzte
+  3 Nachrichten sichtbar. Test `test_sl_fluestert_nur_einem_handy` tippt jetzt
+  die Pille statt der Auswahlliste.
+- **6 Protokoll-Zeilen** (`protokoll.js`): Buchrücken mit Abend-Nummer, Tipp =
+  lesen, „Freigeben“ bzw. grüner Chip „Spieler sehen es“ (Klick zieht zurück),
+  Bearbeiten/Löschen hinter ⋯.
+- Schwebende Fenster: Panels `bibliothek`/`connect`/`protokolle` haben
+  `overflow: visible` (sonst schnitt das Kopfband-`overflow: hidden` sie ab).
+
+Optik-Fehler (ohne Rückfrage behoben):
+
+- **Treffer-Knöpfe „zu weit“ durchsichtig:** `.gz-weg` setzte `opacity` auf die
+  ganze schwebende Leiste samt Hintergrund – Wundpunkte und ⋯ der Zeile
+  schienen durch die Knöpfe. Jetzt sind nur die Knöpfe blass.
+- **Untere Leiste bei 1366 px:** mit Angriffswerten des Gegners („Säbel:
+  Kämpfen W8 …“) blieb von „danach: …“ nur ein „d“, der Name brach ab.
+  `.gz-leiste` ist unter 1500 px höchstens 190 px breit (Werte stehen im Tooltip).
+- **Alte Schrift:** Titel in Regeln/Protokoll/Chronik-Fenstern und die
+  Abschnittsnamen im Regel-Spickzettel liefen noch in Georgia (vor der
+  Cinzel/Inter-Umstellung) – jetzt `--schrift-titel` bzw. `--schrift`.
+
 ## 2.0.15 (17.11.2026): Ein-Klick-Update blieb beim Tauschen stehen
 
 Kalles echtes Update 2.0.13 → 2.0.14: Dialog hing bei „App kurz beenden,

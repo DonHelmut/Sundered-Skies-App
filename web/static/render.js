@@ -167,10 +167,19 @@ function render() {
     // Spieler-Teil im ⚙-Menü (liegt außerhalb von #app) mit auffrischen.
     const sm = $("spieler-menue");
     const meine = App.role === "player" && App.joined ? myCombatant() : null;
-    if (sm) sm.innerHTML = meine ? spielerMenueHtml(meine) : "";
+    if (sm) {
+      // Ganzes Blatt neu nur, wenn sich etwas geändert hat: sonst sprang bei
+      // jedem Stand vom Server die Scroll-Lage im offenen Blatt.
+      const neu = meine ? spielerMenueHtml(meine) : "";
+      if (sm._html !== neu) { sm._html = neu; sm.innerHTML = neu; }
+      const bar = $("skinbar");
+      if (bar) bar.classList.toggle("einst-blatt", !!meine);
+    }
     // Platz für die fixierte Steuerleiste schaffen - über eine Klasse statt über
     // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
     document.body.classList.toggle("hat-leiste", !!root.querySelector(".aktionsleiste"));
+    // Unten steht „Karte aufdecken" - dann kein zweiter Hinweis auf der Karte.
+    document.body.classList.toggle("leiste-aufdecken", !!root.querySelector("[data-act=daumen-aufdecken]"));
     const dh = root.querySelector(".daumen-leiste .dl-haupt");
     const dSig = dh ? dh.innerHTML : "";
     if (dSig !== App._daumenSig) { App._daumenSig = dSig; App._daumenSeit = Date.now(); }
