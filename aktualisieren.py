@@ -215,19 +215,97 @@ def prozesse_auflisten() -> list[tuple[int, str]]:
     return []
 
 
+# --- Sich selbst dabei verschonen --------------------------------------------
+#
+# Kalle, 17.11.2026 (echtes Update 2.0.13 -> 2.0.14): der Dialog blieb bei
+# „App kurz beenden, Dateien tauschen" stehen, die App war aus, nichts
+# getauscht. Ursache: „⬆ Jetzt aktualisieren" startet Aktualisieren.exe als
+# KIND der App, und ``taskkill /T`` beendet den ganzen Prozessbaum - also den
+# Updater gleich mit. Bis 2.0.12 fiel das nicht auf, weil der Updater die App
+# sofort beendete; seit 2.0.13 lädt er erst (App läuft weiter, Ladebalken).
+# Jetzt: App per PID ohne /T beenden, ihre übrigen Nachfahren einzeln - nur
+# den Updater selbst und seine Vorfahren nicht.
+
+def _eltern_ctypes() -> dict[int, int]:
+    """{pid: eltern_pid} aller Prozesse (Toolhelp-Schnappschuss)."""
+    import ctypes
+    from ctypes import wintypes
+
+    class PE32(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                    ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_size_t),
+                    ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                    ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+                    ("dwFlags", wintypes.DWORD), ("szExeFile", ctypes.c_wchar * 260)]
+
+    k32 = ctypes.windll.kernel32
+    k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    snap = k32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    if not snap or snap == wintypes.HANDLE(-1).value:
+        raise OSError("Prozess-Schnappschuss ging nicht")
+    eltern = {}
+    try:
+        e = PE32()
+        e.dwSize = ctypes.sizeof(PE32)
+        ok = k32.Process32FirstW(snap, ctypes.byref(e))
+        while ok:
+            eltern[int(e.th32ProcessID)] = int(e.th32ParentProcessID)
+            ok = k32.Process32NextW(snap, ctypes.byref(e))
+    finally:
+        k32.CloseHandle(snap)
+    return eltern
+
+
+def eltern_auflisten() -> dict[int, int]:
+    try:
+        return _eltern_ctypes()
+    except Exception:  # noqa: BLE001 - dann eben nur die App selbst
+        return {}
+
+
+def vorfahren(pid: int, eltern: dict[int, int]) -> set[int]:
+    """``pid`` und alle seine Vorfahren (gegen Zyklen/PID-Wiederverwendung abgesichert)."""
+    kette = set()
+    while pid and pid not in kette:
+        kette.add(pid)
+        pid = eltern.get(pid, 0)
+    return kette
+
+
+def zu_beenden(app_pids, eltern: dict[int, int], selbst: int) -> list[int]:
+    """Die App-PIDs und ihre Nachfahren - ohne ``selbst`` und dessen Vorfahren
+    (der Updater ist Kind der App, wenn sie ihn gestartet hat). App zuerst."""
+    schonen = vorfahren(selbst, eltern) - set(app_pids)
+    kinder: dict[int, list[int]] = {}
+    for pid, vater in eltern.items():
+        if pid != vater:
+            kinder.setdefault(vater, []).append(pid)
+    liste, offen = [], list(app_pids)
+    while offen:
+        pid = offen.pop(0)
+        if pid in liste or pid == selbst or pid in schonen:
+            continue
+        liste.append(pid)
+        offen.extend(kinder.get(pid, []))
+    return liste
+
+
 def app_beenden(ordner: Path, ausfuehren=None, laeuft=None, warten=time.sleep,
-                auflisten=None, aufloesen=_aufloesen) -> bool:
-    """App aus ``ordner`` beenden (nur diese Kopie, per PID) und warten, bis
-    ihre Dateien frei sind. Rückgabe: ob sie aus ist. Nie nach Namen beenden."""
+                auflisten=None, aufloesen=_aufloesen, eltern=None, selbst=None) -> bool:
+    """App aus ``ordner`` beenden (nur diese Kopie, per PID, samt ihren Kindern
+    außer dem Updater selbst) und warten, bis ihre Dateien frei sind.
+    Rückgabe: ob sie aus ist. Nie nach Namen beenden, nie mit ``/T``."""
     ausfuehren = ausfuehren or (lambda befehl: subprocess.run(
         befehl, capture_output=True, timeout=30,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)))
     laeuft = laeuft or app_laeuft
     auflisten = auflisten or prozesse_auflisten
+    eltern = eltern or eltern_auflisten
     pids = eigene_pids(auflisten(), ordner, aufloesen)
-    for pid in pids:
+    ziel = zu_beenden(pids, eltern() if pids else {}, os.getpid() if selbst is None else selbst)
+    for pid in ziel:
         try:
-            ausfuehren(["taskkill", "/F", "/T", "/PID", str(pid)])  # /T: ihre Kinder sind auch unsere
+            ausfuehren(["taskkill", "/F", "/PID", str(pid)])
         except Exception:  # noqa: BLE001
             pass
     if pids:
