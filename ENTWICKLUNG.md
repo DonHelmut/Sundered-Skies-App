@@ -77,6 +77,25 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (17.11.2026): drei Optik-Fehler aus dem AAA-Rundgang
+
+Beim Durchgehen der ganzen App (Thread „App auf AAA-Studio-Niveau heben“)
+gefunden und ohne Rückfrage behoben (nur `style.css`):
+
+- **Treffer-Knöpfe „zu weit“ durchsichtig:** `.gz-weg` setzte `opacity` auf die
+  ganze schwebende Leiste samt Hintergrund – Wundpunkte und ⋯ der Zeile
+  schienen durch die Knöpfe. Jetzt sind nur die Knöpfe blass.
+- **Untere Leiste bei 1366 px:** mit Angriffswerten des Gegners („Säbel:
+  Kämpfen W8 …“) blieb von „danach: …“ nur ein „d“, der Name brach ab.
+  `.gz-leiste` ist unter 1500 px höchstens 190 px breit (Werte stehen im Tooltip).
+- **Alte Schrift:** Titel in Regeln/Protokoll/Chronik-Fenstern und die
+  Abschnittsnamen im Regel-Spickzettel liefen noch in Georgia (vor der
+  Cinzel/Inter-Umstellung) – jetzt `--schrift-titel` bzw. `--schrift`.
+
+Vorschläge 1–6 dieses Rundgangs (Einstellungen-Blatt am Handy, Bibliothek-
+Zeilen, Aufdecken nur einmal, Beitritt-Panel, Nachricht-Komposer,
+Protokoll-Zeilen) liegen als Bilder in `screenshots/aaa-2026-11-17/`, Wahl offen.
+
 ## 2.0.15 (17.11.2026): Ein-Klick-Update blieb beim Tauschen stehen
 
 Kalles echtes Update 2.0.13 → 2.0.14: Dialog hing bei „App kurz beenden,

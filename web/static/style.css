@@ -2457,11 +2457,11 @@ body.tv-modus .tv-tile.enemy .tv-tilename { color: var(--foe-name); }
 .protokoll-fenster textarea { font: inherit; width: 100%; resize: vertical; font-size: 0.9rem; line-height: 1.45; min-height: 220px;
   background: var(--input-bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .pt-titelzeile { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-.pt-titelzeile strong { font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; }
+.pt-titelzeile strong { font-family: var(--schrift-titel); font-size: 1.1rem; }
 .pt-abend { border-top: 1px solid var(--line); }
 .pt-kopf { display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 10px 2px; background: none; border: 0;
   color: var(--text); text-align: left; cursor: pointer; font: inherit; box-shadow: none; }
-.pt-name { flex: 1; font-family: Georgia, "Times New Roman", serif; font-weight: 700; font-size: 1.02rem; }
+.pt-name { flex: 1; font-family: var(--schrift); font-weight: 700; font-size: 1.02rem; }
 .pt-datum { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
 .pt-pfeil { color: var(--muted); transition: transform 0.15s; }
 .pt-abend.auf .pt-pfeil { transform: rotate(90deg); }
@@ -3394,9 +3394,18 @@ button:where(:not(.zone-token):not(.muenze):not(:disabled)):active { transform: 
   display: flex; gap: 4px; align-items: center; padding: 3px 4px; border-radius: 9px;
   background: var(--panel2); box-shadow: -10px 0 10px -4px var(--panel2); }
 .gz-inline .tz-stufe { min-width: 44px; padding: 5px 8px; font-size: 0.9rem; }
+/* „zu weit" nur die Knöpfe blass, nicht die ganze Leiste: sonst wurde auch
+   der Hintergrund halb durchsichtig und Wundpunkte + ⋯ schienen durch die
+   Knöpfe (sah aus wie übereinandergedruckt). */
+.gz-inline.gz-weg { opacity: 1; }
+.gz-inline.gz-weg .tz-stufe { opacity: 0.55; }
 .gz-inline-weit { font-size: 0.7rem; color: var(--muted); margin-right: 2px; white-space: nowrap; }
 .gz-leiste { font-size: 0.85rem; color: var(--bad); margin-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 340px; display: inline-block; vertical-align: middle; }
 .gz-leiste-werte { color: var(--muted); font-weight: 500; }
+/* Laptop-Breite (1366): mit Angriffswerten nahm die Leiste so viel Platz,
+   dass von „danach: …" nur noch ein „d" übrig blieb und der Name abbrach.
+   Die Werte stehen ohnehin im Tooltip und in der Zeile des Gegners. */
+@media (max-width: 1500px) { body.sl-ansicht .gz-leiste { max-width: 190px; } }
 
 /* --- Studio-Runde Notizen (Kalle 16.11.2026, „alles“) -----------------------------
    1 ruhige Zeile (kein ✎/🗑 je Zeile, Tipp auf Text = bearbeiten), 2 Themen als
