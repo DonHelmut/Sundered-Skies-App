@@ -77,6 +77,26 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.14 (17.11.2026): Ein-Klick-Update blieb beim Tauschen stehen
+
+Kalles echtes Update 2.0.13 → 2.0.14: Dialog hing bei „App kurz beenden,
+Dateien tauschen", App aus, nichts getauscht, `%TEMP%\sws-update-*` blieb liegen.
+Ursache: „⬆ Jetzt aktualisieren" startet Aktualisieren.exe als **Kind der App**,
+und `app_beenden` nutzte `taskkill /F /T /PID <app>` – der Baum enthielt den
+Updater selbst. Release-Tests sahen das nicht, weil dort der Updater von außen
+gestartet wurde (Playwright fing `/api/update/start` ab).
+
+- `aktualisieren.py`: `zu_beenden()` sammelt App + Nachfahren über einen
+  Toolhelp-Schnappschuss (`_eltern_ctypes`), lässt den Updater und seine
+  Vorfahren aus, beendet einzeln **ohne `/T`**.
+- Echt nachgestellt (2.0.13-Kopie startet ihren Updater selbst, Download von
+  GitHub): vorher stirbt der Updater beim Beenden der App, mit Fix fertig in 18 s.
+- **Wirkt erst ab dem Updater dieser Version.** Das nächste Update (von 2.0.14)
+  läuft noch mit dem alten Updater: einmal App schließen und
+  Aktualisieren.exe im App-Ordner per Doppelklick starten.
+- Release-Test künftig mit `scratchpad/kind.py`-Muster: App startet den
+  Updater selbst (kein Abfangen).
+
 ## 2.0.14 (17.11.2026): Notizen-Umfeld auf Studio-Niveau
 
 Kalle: „Notizen etc. brauchen noch ne Verbesserung – wie aus einem AAA-Studio."

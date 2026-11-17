@@ -283,7 +283,7 @@ def test_powershell_liste_wird_gelesen():
     assert akt.liste_aus_powershell(text) == [(111, "C:\\a\\" + EXE), (333, "C:\\b\\" + EXE)]
 
 
-def _beenden(prozesse, ordner, an=True):
+def _beenden(prozesse, ordner, an=True, eltern=None, selbst=999):
     gelaufen, zustand = [], {"an": an}
 
     def ausfuehren(befehl):
@@ -291,7 +291,8 @@ def _beenden(prozesse, ordner, an=True):
         zustand["an"] = False
 
     aus = akt.app_beenden(ordner, ausfuehren, lambda o: zustand["an"], warten=lambda s: None,
-                          auflisten=lambda: prozesse, aufloesen=_windows)
+                          auflisten=lambda: prozesse, aufloesen=_windows,
+                          eltern=lambda: eltern or {}, selbst=selbst)
     return aus, gelaufen
 
 
@@ -299,7 +300,7 @@ def test_beenden_nur_per_pid_der_eigenen_kopie():
     aus, gelaufen = _beenden([(111, LANG + "\\" + EXE),
                               (222, "C:\\Users\\KALLEN~1\\Desktop\\Testkopie\\" + EXE)], TEST)
     assert aus
-    assert gelaufen == [["taskkill", "/F", "/T", "/PID", "222"]]
+    assert gelaufen == [["taskkill", "/F", "/PID", "222"]]
 
 
 def test_beenden_ohne_treffer_kein_rueckfall_nach_namen():
@@ -382,3 +383,19 @@ def test_updater_tauscht_sich_selbst_nach_dem_schliessen(tmp_path):
     assert not (tmp_path / "Aktualisieren.exe.neu").exists()
     assert not (tmp_path / "_aktualisieren.neu").exists()
     assert not [p for p in tmp_path.iterdir() if akt.WEG in p.name]   # aufgeräumt, Skript weg
+
+
+def test_beenden_verschont_den_updater_als_kind_der_app():
+    # Kalle 17.11.2026: „⬆ Jetzt aktualisieren" startet den Updater als Kind der
+    # App; taskkill /T beendete ihn mit, das Update blieb beim Tauschen stehen.
+    # 222 = App, 300 = Updater (Kind), 301 = sein Kind, 400 = anderes App-Kind.
+    eltern = {222: 10, 300: 222, 301: 300, 400: 222, 401: 400, 111: 10}
+    aus, gelaufen = _beenden([(222, TEST + "\\" + EXE)], TEST, eltern=eltern, selbst=301)
+    assert aus
+    assert [b[-1] for b in gelaufen] == ["222", "400", "401"]
+    assert all("/T" not in b for b in gelaufen)
+
+
+def test_vorfahren_ueberleben_zyklen():
+    assert akt.vorfahren(3, {3: 2, 2: 3}) == {2, 3}
+    assert akt.zu_beenden([5], {5: 5}, 1) == [5]
