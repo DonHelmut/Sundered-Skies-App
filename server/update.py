@@ -17,6 +17,7 @@ import json
 import os
 import subprocess
 import threading
+import time
 import urllib.request
 from pathlib import Path
 from typing import Callable
@@ -26,6 +27,16 @@ from .paths import APP_VERSION
 # Was die Nachfrage ergab. "neu" bleibt None, solange nichts bekannt ist
 # (noch nicht gefragt, kein Internet) - dann zeigt die App nichts.
 stand: dict = {"neu": None, "titel": ""}
+
+# Kennung dieses App-Starts: der Hinweis kommt einmal je Version UND Start von
+# selbst („Später" = Ruhe bis zum nächsten Start). Vorher einmal je Version für
+# immer - wer ihn einmal weggeklickt hatte, sah ihn nie wieder.
+START = str(int(time.time()))
+
+# Wie oft GitHub nachgefragt wird. Vorher nur beim Start - lief die App den
+# ganzen Tag, kam ein neues Release nie an. Stündlich bleibt weit unter dem
+# Limit der GitHub-API (60/Stunde).
+ABSTAND_S = 3600
 
 # Hierhin schreibt Aktualisieren.exe ihren Fortschritt (aktualisieren.py,
 # stand_schreiben) - die App liest ihn für den Ladebalken. Setzt app.py
@@ -83,7 +94,12 @@ def pruefen_im_hintergrund() -> None:
         # „Neu: Sundered Skies Initiative 9.9.9 – …" statt nur dem Neuen.
         stand.update({"neu": fest or None, "titel": was_neu(os.environ.get("SWI_NEUESTE_TITEL", ""))})
         return
-    threading.Thread(target=pruefen, daemon=True).start()
+    def schleife() -> None:
+        while True:
+            pruefen()
+            time.sleep(ABSTAND_S)
+
+    threading.Thread(target=schleife, daemon=True).start()
 
 
 def verfuegbar() -> bool:
@@ -104,7 +120,7 @@ def updater_pfad(basis: Path) -> Path | None:
 
 def auskunft(basis: Path) -> dict:
     return {"lokal": APP_VERSION, "neu": stand["neu"], "verfuegbar": verfuegbar(),
-            "titel": stand["titel"], "kann": updater_pfad(basis) is not None}
+            "titel": stand["titel"], "kann": updater_pfad(basis) is not None, "start": START}
 
 
 def starten(basis: Path, ausfuehren: Callable | None = None) -> bool:

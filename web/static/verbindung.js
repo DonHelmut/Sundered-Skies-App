@@ -111,6 +111,9 @@ function connect() {
       checkTurnNotify();     // Spieler: dran -> Vibration/Ton
       rundenBanner();        // alle: „RUNDE 3" schwebt kurz durchs Bild
       pruefeAktivenWechsel();  // SL: aktive Zeile ins Bild holen
+      // SL: wartender Update-Hinweis kommt im nächsten ruhigen Moment (nach
+      // Kampfende, nach „Fortsetzen/Verwerfen"). update.js lädt später - darum typeof.
+      if (typeof updateVonSelbstZeigen === "function") updateVonSelbstZeigen();
       // Während einer laufenden Karten-Aufdeckung NICHT sofort neu rendern – sonst
       // baut render() die Karte neu und sie schnappt aufgedeckt (das „Hakeln").
       // Neuesten Zustand nur merken und direkt nach der Animation einmal anwenden.

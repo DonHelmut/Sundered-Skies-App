@@ -99,6 +99,47 @@ def test_update_dialog_kommt_nicht_mitten_im_kampf(browser, tmp_path, monkeypatc
         srv.stop()
 
 
+def test_update_hinweis_wartet_auf_ruhigen_moment(browser, tmp_path, monkeypatch):
+    # Kalle 17.11.2026 („Hinweis für den SL als Popup", Variante A): vorher kam
+    # der Dialog nie, wenn „Gespeicherte Sitzung gefunden" dastand - also fast
+    # nie. Jetzt wartet er: nicht bei offener Sitzungsfrage, nicht im Kampf,
+    # aber nach Kampfende. Einmal je Version UND App-Start.
+    monkeypatch.setenv("SWI_NEUESTE_VERSION", "99.0.0")
+    srv = C.Server(tmp_path / "data").start()
+    tisch = C.Tisch(browser, srv)
+    try:
+        sl, _ = voller_tisch(tisch)                 # Runde 1 läuft
+        sl.js("() => document.querySelectorAll('.app-dialog-hg button').forEach(b => b.click())")
+        srv.neustart()                              # neuer App-Start
+        sl.reload()
+        sl.warte_bis("() => App.state && App.state.hasSavedSession", frist=15000)
+        sl.js("() => updateLaden()")
+        sl.warte_bis("() => Upd.info && Upd.info.verfuegbar")
+        # Knopf oben ganz links in der Gruppe: schiebt beim Erscheinen nichts.
+        sl.warte_bis("() => document.querySelector('.sl-kopf .row.tight > :first-child').matches('.upd-knopf')")
+        time.sleep(2.5)
+        assert sl.page.locator(".app-dialog-hg").count() == 0      # Sitzungsfrage offen
+        sl.locator("[data-act=resume]").first.click()
+        sl.warte_bis("() => !App.state.hasSavedSession && App.state.round > 0")
+        time.sleep(2.5)
+        assert sl.page.locator(".app-dialog-hg").count() == 0      # Kampf läuft
+        sl.klick("[data-act=kampf-beenden]")
+        sl.dialog_knopf("Kampf beenden")
+        sl.warte_bis("() => document.querySelector('.app-dialog-hg') && "
+                     "document.querySelector('.app-dialog').innerText.includes('Version 99.0.0 ist da')")
+        sl.dialog_knopf("OK")
+        # Weggeklickt: bis zum nächsten App-Start Ruhe.
+        sl.js("() => updateLaden()")
+        sl.reload()
+        sl.warte_bis("() => Upd.info && Upd.info.verfuegbar", frist=15000)
+        time.sleep(2.5)
+        assert sl.page.locator(".app-dialog-hg").count() == 0
+        assert not tisch.alle_fehler(), tisch.alle_fehler()
+    finally:
+        tisch.schliessen()
+        srv.stop()
+
+
 def test_abend_beenden_stoppt_aufnahme_raeumt_ab_und_sichert(tisch):
     sl, hs = voller_tisch(tisch)
     sl.js(FAKE_MIKRO)
