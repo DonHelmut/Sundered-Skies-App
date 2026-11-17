@@ -57,30 +57,51 @@ document.addEventListener("click", (e) => {
     "resume": () => gmAction({ type: "resume_session" }),
     "discard-session": () => gmAction({ type: "discard_session" }),
     // SL – Charakterliste
-    "new-char": () => renderCharForm(null),
+    "new-char": () => { renderCharForm(null); bibFormZeigen("charform"); },
+    // Ohne offenes ▾-Fenster gilt die gemerkte Startzone (Bibliothek 17.11.2026).
     "roster-to-combat": () => {
-      const z = parseInt(($("rosterzone") || {}).value, 10);
+      const z = parseInt(($("rosterzone") || { value: lastPlayerZone() }).value, 10);
       gmAction({ type: "add_from_roster", id, zone: isNaN(z) ? undefined : z });
+      bibPopZu();
     },
-    "edit-char": () => renderCharForm(S.roster.find((r) => r.id === id)),
+    "edit-char": () => { bibPopZu(); renderCharForm(S.roster.find((r) => r.id === id)); bibFormZeigen("charform"); },
     "cancel-char": () => { const h = $("charform"); if (h) h.innerHTML = ""; },
     "save-char": saveChar,
     "delete-char": async () => { if (await frage("Charakter löschen?", "Löschen", true)) gmAction({ type: "roster_delete", id }); },
     // SL – Gegner-Bibliothek
-    "bestiary-new": () => renderBestiaryForm(null),
-    "bestiary-edit": () => renderBestiaryForm((S.bestiary || []).find((r) => r.id === id)),
+    "bestiary-new": () => { renderBestiaryForm(null); bibFormZeigen("bestiaryform"); },
+    "bestiary-edit": () => { bibPopZu(); renderBestiaryForm((S.bestiary || []).find((r) => r.id === id)); bibFormZeigen("bestiaryform"); },
     "bestiary-save": saveBestiary,
     "bestiary-cancel": () => { const h = $("bestiaryform"); if (h) h.innerHTML = ""; },
     "bestiary-delete": async () => { if (await frage("Gegner-Typ löschen?", "Löschen", true)) gmAction({ type: "bestiary_delete", id }); },
     "bestiary-to-combat": () => {
-      const z = parseInt(($("bestzone") || {}).value, 10);
-      const anzahl = parseInt(($("bestcount") || {}).value, 10);
+      // Anzahl/verdeckt nur aus dem offenen ▾-Fenster dieses Gegners - der
+      // direkte Knopf setzt immer EINEN, sichtbar (sonst wirkte eine alte
+      // Einstellung unbemerkt nach).
+      const imFenster = !!target.closest(".bib-pop");
+      const z = parseInt(($("bestzone") || { value: lastNpcZone() }).value, 10);
+      const anzahl = imFenster ? parseInt(($("bestcount") || {}).value, 10) : 1;
       gmAction({
         type: "add_npc_from_bestiary", id,
         zone: isNaN(z) ? undefined : z,
         count: isNaN(anzahl) ? 1 : anzahl,
-        anon: !!($("bestanon") || {}).checked,
+        anon: imFenster && !!($("bestanon") || {}).checked,
       });
+      bibPopZu();
+    },
+    "bt-mehr": () => { App.btMehr = !App.btMehr; render(); },
+    "bib-pop": () => {
+      const art = target.getAttribute("data-art");
+      const offen = App.bibPop && App.bibPop.id === id && App.bibPop.art === art;
+      App.bibPop = offen ? null : { id, art };
+      if (!offen) { App.bibAnzahl = 1; App.bibAnon = false; }
+      render();
+    },
+    "bib-anzahl": () => {
+      const f = $("bestcount");
+      const n = Math.max(1, Math.min(20, (parseInt(f && f.value, 10) || 1) + Number(target.dataset.d)));
+      App.bibAnzahl = n;
+      if (f) f.value = n;
     },
     "set-anon": () => gmAction({ type: "set_anon", id, on: target.getAttribute("data-on") === "1" }),
     "bilder-aufraeumen": () => bilderAufraeumen(),
@@ -100,8 +121,8 @@ document.addEventListener("click", (e) => {
       }
     },
     // SL – Verbündeten-Bibliothek
-    "ally-new": () => renderAllyForm(null),
-    "ally-edit": () => renderAllyForm((S.allies || []).find((r) => r.id === id)),
+    "ally-new": () => { renderAllyForm(null); bibFormZeigen("allyform"); },
+    "ally-edit": () => { bibPopZu(); renderAllyForm((S.allies || []).find((r) => r.id === id)); bibFormZeigen("allyform"); },
     "ally-save": saveAlly,
     "ally-cancel": () => { const h = $("allyform"); if (h) h.innerHTML = ""; },
     "ally-delete": async () => { if (await frage("Verbündeten-Typ löschen?", "Löschen", true)) gmAction({ type: "ally_delete", id }); },
@@ -134,8 +155,9 @@ document.addEventListener("click", (e) => {
     },
     "encounter-delete": async () => { if (await frage("Vorbereiteten Kampf löschen?", "Löschen", true)) gmAction({ type: "delete_encounter", id }); },
     "ally-to-combat": () => {
-      const z = parseInt(($("allyzone") || {}).value, 10);
+      const z = parseInt(($("allyzone") || { value: lastAllyZone() }).value, 10);
       gmAction({ type: "add_ally_from_library", id, zone: isNaN(z) ? undefined : z });
+      bibPopZu();
     },
     // SL – Nachrichten
     "send-message": sendMessage,
@@ -468,6 +490,17 @@ document.addEventListener("click", (e) => {
       if (ziel === "beamer") { toast("Bennies gehen nur an Spieler"); return; }
       gmAction({ type: "message", target: ziel, text: "", bennies: 1 });
       toast(ziel === "all" ? "🪙 Jeder Spieler bekommt einen Benny" : "🪙 Benny verteilt");
+    },
+    "msg-pille": () => {
+      const ziel = target.getAttribute("data-ziel");
+      if (ziel === "all" || ziel === "beamer") { App.msgZiel = ziel; App.msgMehrere.clear(); render(); return; }
+      // Spieler: an-/abwählen. Keiner mehr = alle, einer = flüstern, mehrere = mehrere.
+      const set = App.msgZiel === "mehrere" ? new Set(App.msgMehrere)
+        : (App.msgZiel === "all" || App.msgZiel === "beamer") ? new Set() : new Set([App.msgZiel]);
+      if (set.has(ziel)) set.delete(ziel); else set.add(ziel);
+      App.msgMehrere = set;
+      App.msgZiel = set.size === 0 ? "all" : set.size === 1 ? [...set][0] : "mehrere";
+      render();
     },
     "msg-ziel-toggle": () => {
       const pid = target.getAttribute("data-id");

@@ -295,7 +295,8 @@ def test_sl_fluestert_nur_einem_handy(tisch):
     korgo = tisch.handy("Korgo")
     _panel_auf(sl, "message")
     sl.locator("#msgtext").wait_for()
-    sl.page.locator("select[data-act=msg-ziel]").select_option(tessa.js("App.myPlayerId"))
+    # Empfänger als Pille (17.11.2026): Tessa antippen = nur an sie flüstern.
+    sl.page.locator(f"[data-act=msg-pille][data-ziel='{tessa.js('App.myPlayerId')}']").click()
     sl.page.locator("#msgtext").fill("Du hörst ein Flüstern")
     _knopf(sl, "send-message")
     tessa.warte_bis("() => App.state.messages.some(m => m.text === 'Du hörst ein Flüstern')")

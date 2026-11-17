@@ -229,18 +229,28 @@ function protokollLeseHtml() {
 // --- SL: Panel + Einfüge-Fenster -----------------------------------------------
 
 function renderProtokollPanel() {
-  const zeilen = protokollListe().map((p) => `<div class="pt-zeile">
-      <div class="pt-zeile-name"><b>${esc(p.name)}</b>
-        <span class="muted small">${protokollDatum(p.datum)}</span>
-        ${p.freigegeben ? `<span class="pill good pt-pill" title="Die Spieler sehen es unter 📜">👁 für Spieler</span>`
-                        : `<span class="pill pt-pill" title="Nur hier am Laptop">nur du</span>`}</div>
-      <div class="row tight">
-        <button class="${p.freigegeben ? "ghost" : "primary"} small" data-act="prot-frei" data-id="${esc(p.id)}" data-an="${p.freigegeben ? "0" : "1"}">
-          ${p.freigegeben ? "Zurückziehen" : "Freigeben"}</button>
-        <button class="ghost small" data-act="prot-ansehen" data-id="${esc(p.id)}" title="So sehen es die Spieler">Ansehen</button>
-        <button class="ghost small" data-act="prot-bearbeiten" data-id="${esc(p.id)}" title="Bearbeiten">✎</button>
-        <button class="ghost small" data-act="prot-loeschen" data-id="${esc(p.id)}" title="Löschen">🗑</button>
-      </div></div>`).join("");
+  // Ruhige Zeilen (AAA-Runde 17.11.2026, Vorschlag 6): vorher vier Knöpfe je
+  // Abend (Freigeben/Zurückziehen, Ansehen, ✎, 🗑). Jetzt: Tipp auf die Zeile =
+  // lesen, rechts nur die Sichtbarkeit (der Schritt, den man wirklich braucht),
+  // Bearbeiten/Löschen hinter ⋯. Die Nummer am Buchrücken zählt die Abende.
+  const liste = protokollListe();
+  // Liste steht neueste zuerst - umgedreht + stabil sortiert zählt auch zwei
+  // Abende vom selben Tag richtig.
+  const nach = [...liste].reverse().sort((x, y) => String(x.datum || "").localeCompare(String(y.datum || "")));
+  const nr = new Map(nach.map((p, i) => [p.id, i + 1]));
+  const zeilen = liste.map((p) => `<div class="pt-zeile pz${App.ptMenue === p.id ? " pop-offen" : ""}">
+      <button type="button" class="pz-haupt" data-act="prot-ansehen" data-id="${esc(p.id)}" title="Lesen – so sehen es die Spieler">
+        <span class="pz-buch" aria-hidden="true">${nr.get(p.id)}</span>
+        <span class="pz-t"><b>${esc(p.name)}</b><small>${protokollDatum(p.datum)} · Tippen zum Lesen</small></span></button>
+      ${p.freigegeben
+        ? `<button type="button" class="pz-sicht an" data-act="prot-frei" data-id="${esc(p.id)}" data-an="0" title="Die Spieler sehen es unter 📜 – klicken zum Zurückziehen">${symbolSvg("check")} Spieler sehen es</button>`
+        : `<span class="pz-nurdu">nur du</span><button type="button" class="primary small pz-frei" data-act="prot-frei" data-id="${esc(p.id)}" data-an="1" title="Am Handy unter 📜 zeigen">Freigeben</button>`}
+      <button type="button" class="bib-mehr pz-mehr${App.ptMenue === p.id ? " on" : ""}" data-act="prot-mehr" data-id="${esc(p.id)}" title="Bearbeiten, Löschen" aria-label="Mehr">⋯</button>
+      ${App.ptMenue === p.id ? `<div class="bib-pop bib-pop-menue pz-pop" role="menu">
+        <button type="button" class="km-zeile" data-act="prot-bearbeiten" data-id="${esc(p.id)}">${symbolSvg("pencil")} Bearbeiten</button>
+        <div class="km-trenner"></div>
+        <button type="button" class="km-zeile bib-loeschen" data-act="prot-loeschen" data-id="${esc(p.id)}">🗑 Löschen …</button></div>` : ""}
+    </div>`).join("");
   return section("protokolle", "📜 Protokolle", `
     <div class="row tight" style="flex-wrap:wrap; gap:6px">
       <button class="primary" data-act="prot-neu">＋ Protokoll einfügen</button>
@@ -344,11 +354,14 @@ document.addEventListener("click", async (e) => {
     if (t.dataset.frei) aktion.freigegeben = true;
     gmAction(aktion);
     Prot.entwurf = null; render();
+  } else if (act === "prot-mehr") {
+    App.ptMenue = App.ptMenue === id ? null : id; render();
   } else if (act === "prot-frei") {
     gmAction({ type: "protokoll_freigeben", id, an: t.dataset.an === "1" });
   } else if (act === "prot-ansehen") {
     Prot.auf = new Set([id]); Prot.chronik = false; Prot.offen = true; render();
   } else if (act === "prot-bearbeiten") {
+    App.ptMenue = null;
     const p = protokollListe().find((x) => x.id === id);
     if (!p) return;
     let d = null;
@@ -357,9 +370,19 @@ document.addEventListener("click", async (e) => {
     Prot.entwurf = { id, name: d.name || p.name, text: d.text };
     render();
   } else if (act === "prot-loeschen") {
+    App.ptMenue = null; render();
     const p = protokollListe().find((x) => x.id === id);
     if (await frage(`Protokoll „${p ? p.name : ""}" löschen?${p && p.freigegeben ? "\n\nDie Spieler sehen es dann auch nicht mehr." : ""}`, "Löschen", true)) {
       gmAction({ type: "protokoll_loeschen", id });
     }
   }
+});
+
+// ⋯-Menü der Protokoll-Zeile: Klick daneben / Esc schließt.
+document.addEventListener("click", (e) => {
+  if (!App.ptMenue || !e.target.isConnected || e.target.closest(".pz-pop, [data-act=prot-mehr]")) return;
+  App.ptMenue = null; render();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && App.ptMenue) { App.ptMenue = null; render(); }
 });

@@ -25,6 +25,11 @@ const SKIN_NAMES = {
   dark: "Dark Mode", glutstein: "Glutstein", nebelmeer: "Nebelmeer",
   pergament: "Pergament (hell)",
 };
+// Kurzname unter dem Farbkreis im Einstellungen-Blatt (passt unter 44 px).
+const SKIN_KURZ = {
+  sand: "Sand", skies: "Giftnebel", blood: "Blut", dark: "Dunkel",
+  glutstein: "Glut", nebelmeer: "Nebel", pergament: "Hell",
+};
 function applySkin(skin) {
   if (!SKINS.includes(skin)) skin = "pergament";
   App.skin = skin;
@@ -33,7 +38,7 @@ function applySkin(skin) {
   localStorage.setItem("skin", skin);
   slAnsichtSichern();
   const box = $("skins");
-  if (box) box.querySelectorAll(".skin-dot").forEach((d) => d.classList.toggle("active", d.dataset.skin === skin));
+  if (box) box.querySelectorAll(".skin-dot, .es-farbe").forEach((d) => d.classList.toggle(d.classList.contains("es-farbe") ? "an" : "active", d.dataset.skin === skin));
 }
 // Joker-Stile pro Geraet (wie Skin & Aufdeck-Stil). Standard: alle an, der Stil
 // wird je Joker zufaellig aus den angehakten gewaehlt.
@@ -88,24 +93,32 @@ function mountSkins() {
        <div class="joker-checks">${Cards.JOKER_STILE.map((s) =>
          `<label><input type="checkbox" data-joker="${s}"${jokerAuswahlLaden().includes(s) ? " checked" : ""}> ${Cards.JOKER_NAMEN[s]}</label>`).join("")}</div>
      </details>`;
+  // Hintergrund des Einstellungen-Blatts (Handy): Tippen daneben schließt.
+  const hg = document.createElement("div");
+  hg.className = "einst-hg";
+  hg.addEventListener("click", () => bar.classList.remove("open"));
   box.addEventListener("click", (e) => {
-    const b = e.target.closest(".skin-dot");
+    const b = e.target.closest(".skin-dot, .es-farbe");
     if (b) applySkin(b.dataset.skin);
+    if (e.target.closest("[data-act=einst-zu]")) bar.classList.remove("open");
   });
   box.addEventListener("change", (e) => {
     if (e.target && e.target.dataset && e.target.dataset.joker) {
-      const liste = [...box.querySelectorAll("input[data-joker]:checked")].map((i) => i.dataset.joker);
+      // Nur die Häkchen-Gruppe, in der getippt wurde: am Handy stehen sie
+      // zweimal im Menü (alte Kiste ausgeblendet + Einstellungen-Blatt).
+      const gruppe = e.target.closest(".joker-checks") || box;
+      const liste = [...gruppe.querySelectorAll("input[data-joker]:checked")].map((i) => i.dataset.joker);
       // Mindestens einer bleibt an – sonst gaebe es keinen Joker-Stil mehr.
       if (!liste.length) { e.target.checked = true; return; }
       try { localStorage.setItem("jokerStile", JSON.stringify(liste)); } catch { /* ignore */ }
       slAnsichtSichern();
       Cards.setJokerAuswahl(liste);
-      const zahl = $("jokerzahl");
-      if (zahl) zahl.textContent = jokerZahlText();
+      box.querySelectorAll("#jokerzahl, .es-jokerzahl").forEach((z) => { z.textContent = jokerZahlText(); });
+      box.querySelectorAll("input[data-joker]").forEach((i) => { i.checked = liste.includes(i.dataset.joker); });
       if (App.state) render();
       return;
     }
-    if (e.target && e.target.id === "revealsel") {
+    if (e.target && (e.target.id === "revealsel" || e.target.classList.contains("es-select"))) {
       try { localStorage.setItem("reveal", e.target.value); } catch { /* ignore */ }
       slAnsichtSichern();
       _revealPick.clear();
@@ -113,6 +126,7 @@ function mountSkins() {
     }
   });
   bar.appendChild(gear);
+  bar.appendChild(hg);
   bar.appendChild(box);
   document.body.appendChild(bar);
   // Klick außerhalb schließt das Menü.

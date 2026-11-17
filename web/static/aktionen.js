@@ -167,14 +167,16 @@ async function uploadFigurRueckseite(file, profil) {
 // Spieler sucht sich die Rückseite SEINER Karten aus: Standard (die des
 // Tisches), sein Charakterbild oder ein eigenes Bild. Eingeklappt, damit die
 // Spieleransicht aufgeräumt bleibt; offen als drei kleine Karten zum Antippen.
-function rueckseiteWahlHtml(mine) {
+function rueckseiteWahlHtml(mine, immerOffen) {
   const w = mine.rueckseite || null;
   const eigen = typeof w === "string" && w.startsWith("/uploads/") ? w : null;
   // Ohne eigene Wahl gilt automatisch: Charakterbild, falls vorhanden, sonst Standard.
   const gilt = eigen ? "eigen" : w === "profil" || (!w && mine.image) ? "profil" : "standard";
   const name = { eigen: "Eigenes Bild", profil: "Profil", standard: "Standard" }[gilt];
   const kopf = `<button type="button" class="ghost small rs-wahl-kopf" data-act="rs-wahl-auf">🂠 Kartenrückseite: <b>${name}</b> ${App.rsWahlOffen ? "▴" : "▾"}</button>`;
-  if (!App.rsWahlOffen) return `<div class="rs-wahl">${kopf}</div>`;
+  // Im Einstellungen-Blatt (17.11.2026) stehen die Kacheln gleich offen da -
+  // das Aufklappen kostete dort nur einen Tipp mehr.
+  if (!App.rsWahlOffen && !immerOffen) return `<div class="rs-wahl">${kopf}</div>`;
   const karte = (svg) => `<span class="rs-karte">${svg}</span>`;
   const leer = (text) => `<span class="rs-karte rs-leer">${text}</span>`;
   const datei = (profil) => `<input type="file" accept="image/*" data-act="pick-figur-rueckseite"${profil ? ' data-profil="1"' : ""} style="display:none">`;
@@ -190,7 +192,7 @@ function rueckseiteWahlHtml(mine) {
         ${karte(Cards.renderBackSVG(null, eigen))}<span>Eigenes</span></button>`
     : `<label class="rs-kachel">${leer("🖼<br>Bild<br>hochladen")}<span>Eigenes</span>${datei(false)}</label>`;
   const neu = eigen ? `<label class="ghost small rs-neu">🖼 anderes Bild${datei(false)}</label>` : "";
-  return `<div class="rs-wahl offen">${kopf}<div class="rs-kacheln">${std}${prof}${eig}</div>${neu}</div>`;
+  return `<div class="rs-wahl offen">${immerOffen ? "" : kopf}<div class="rs-kacheln">${std}${prof}${eig}</div>${neu}</div>`;
 }
 
 // Empfänger für Nachricht/Benny: "all" | "beamer" | Spieler-ID | Liste von IDs.

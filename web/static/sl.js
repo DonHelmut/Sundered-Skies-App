@@ -661,27 +661,72 @@ function kopfMenueHtml() {
   </details>`;
 }
 
+// Beitritt-Panel (AAA-Runde 17.11.2026, Vorschlag 4). Vorher: QR, zwei
+// Adressen als Code-Kästchen, drei Zeilen Netz-Erklärung, vier Knöpfe und
+// grüne Namens-Pillen - alles gleich laut. Jetzt: QR + EINE große Adresse
+// (die IP - die klappt an jedem Handy, pnp.local nicht überall), zwei Knöpfe
+// + ⋯ (Teilen, WhatsApp), „Am Tisch" als Avatare. Die Netz-Hilfe steht hinter
+// „Handy kommt nicht rein?"; Warnungen (Adresse gewechselt, kein WLAN,
+// öffentliches Netz) bleiben sichtbar oben.
+const ohneSchema = (u) => String(u || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+function beitrittAdresseHtml() {
+  const info = App._info;
+  if (!info) return `<div class="bt-adr">…</div>`;
+  const urls = (info.urls && info.urls.length) ? info.urls : [info.url];
+  const loopback = /127\.0\.0\.1/.test(info.ip || info.url || "");
+  return `<div class="bt-adr" title="${esc(urls[0])}">${esc(ohneSchema(urls[0]))}</div>
+    ${info.prettyUrl ? `<div class="bt-adr2">oder ${esc(ohneSchema(info.prettyUrl))}</div>` : ""}
+    ${loopback ? `<div class="pill bad" style="margin-top:8px">⚠ Keine WLAN-Adresse gefunden – ist der Laptop im WLAN? 127.0.0.1 erreicht keine Handys.</div>` : ""}`;
+}
+function amTischHtml() {
+  const players = (App.state && App.state.players) || [];
+  if (!players.length) return `<div class="bt-gruppe">Am Tisch</div><div class="muted small">Noch niemand beigetreten.</div>`;
+  const online = players.filter((p) => p.connected).length;
+  const plaetze = players.map((p) => `<div class="bt-platz${p.connected ? "" : " weg"}" title="${esc(p.name)} – ${p.connected ? "verbunden" : "offline"}">
+      <span class="bt-av">${esc(zoneInitials(p.name))}</span><span class="bt-name">${esc(p.name)}</span></div>`).join("");
+  return `<div class="bt-gruppe">Am Tisch · ${online} von ${players.length} verbunden</div><div class="bt-plaetze">${plaetze}</div>`;
+}
+function beitrittHilfeHtml() {
+  const info = App._info || {};
+  const urls = (info.urls && info.urls.length) ? info.urls : [];
+  const pub = info.networkPublic === true;
+  return `<details class="unter-klapp bt-hilfe" data-merk="bt-hilfe"${App.offeneUnter.has("bt-hilfe") ? " open" : ""}>
+    <summary>${symbolSvg("circle-help")} Handy kommt nicht rein?</summary>
+    <div class="bt-hilfe-inhalt">
+      ${wlanHtml(info.wlan)}
+      ${adressBereichHtml(info.ip)}
+      ${urls.length > 1 ? `<div class="muted small" style="margin-top:8px">Andere Adresse probieren (muss zum WLAN des Handys passen):</div>
+        ${urls.slice(1).map((u) => `<div style="margin-top:3px"><code class="url">${esc(u)}</code></div>`).join("")}` : ""}
+      ${pub ? "" : firewallHtml()}
+      ${verbindungsHilfeHtml()}
+    </div>
+  </details>`;
+}
 function renderConnectPanel() {
+  const info = App._info || {};
+  const pub = info.networkPublic === true;
+  const mehr = App.btMehr ? `<div class="bib-pop bib-pop-menue bt-pop" role="menu">
+      <button type="button" class="km-zeile" data-act="einladung-teilen" title="Bild mit QR-Code über den Teilen-Dialog verschicken">${symbolSvg("upload")} Teilen …</button>
+      <button type="button" class="km-zeile" data-act="einladung-whatsapp" title="Nur Text – WhatsApp macht die Adresse leider nicht antippbar">${symbolSvg("message-circle")} Text per WhatsApp</button>
+    </div>` : "";
   return section("connect", "Beitritt für Spieler", `
     ${adresswechselHtml()}
-    <div class="qrbox">
-      <img src="/qr.png" alt="QR-Code" onerror="this.style.display='none'">
-      <div>
-        <div class="muted small">Handy-Kamera auf den QR-Code halten, oder im Browser öffnen:</div>
-        <div class="small" style="margin-top:6px">${joinUrlHtml()}</div>
-        <div class="muted small hilfe" style="margin-top:6px">Der Laptop hier ist automatisch Spielleiter.</div>
-        <div class="row" style="margin-top:10px; flex-wrap:wrap; gap:6px">
-          <button class="primary" data-act="einladung-bild" title="Bild mit QR-Code kopieren – in WhatsApp mit Strg+V einfügen">🖼 QR-Bild kopieren</button>
-          <button class="ghost" data-act="einladung-teilen" title="Bild mit QR-Code über den Teilen-Dialog verschicken">📤 Teilen…</button>
-          <button class="ghost" data-act="qr-gross" title="QR-Code bildschirmfüllend zum Scannen am Tisch">🔍 QR groß zeigen</button>
-          <button class="ghost" data-act="einladung-whatsapp" title="Nur Text – WhatsApp macht die Adresse leider nicht antippbar">💬 Text per WhatsApp</button>
+    <div class="bt">
+      <img class="bt-qr" src="/qr.png" alt="QR-Code" onerror="this.style.display='none'">
+      <div class="bt-rechts">
+        <div class="muted small">Handy-Kamera drauf – oder im Browser eintippen:</div>
+        ${beitrittAdresseHtml()}
+        <div class="muted small hilfe" style="margin-top:4px">Der Laptop hier ist automatisch Spielleiter. WhatsApp macht Zahlen-Adressen nicht antippbar – darum lieber das QR-Bild schicken.</div>
+        <div class="bt-knoepfe">
+          <button class="primary" data-act="einladung-bild" title="Bild mit QR-Code kopieren – in WhatsApp mit Strg+V einfügen">${symbolSvg("image")} QR-Bild kopieren</button>
+          <button class="ghost" data-act="qr-gross" title="QR-Code bildschirmfüllend zum Scannen am Tisch">${symbolSvg("scan")} Groß zeigen</button>
+          <span class="bt-mehr-huelle"><button class="ghost bt-mehr${App.btMehr ? " on" : ""}" data-act="bt-mehr" title="Teilen, WhatsApp" aria-label="Weitere Wege">⋯</button>${mehr}</span>
         </div>
-        <div class="muted small hilfe" style="margin-top:6px">WhatsApp macht Zahlen-Adressen nicht antippbar – darum lieber das <b>QR-Bild</b> schicken.</div>
       </div>
     </div>
-    ${connectedPlayersHtml()}
-    ${firewallHtml()}
-    ${verbindungsHilfeHtml()}`);
+    ${pub ? firewallHtml() : ""}
+    ${amTischHtml()}
+    ${beitrittHilfeHtml()}`);
 }
 
 // Kampf-Steuerung (Body, ohne eigenes Panel) – wird oben in die Kampf&Initiative-Box gesetzt.
@@ -1467,7 +1512,11 @@ function renderOrderPanel(isGM, gesperrt = false) {
   const meinPlatz = openC.findIndex((c) => c.id === mineId);
   const vorMir = meinPlatz >= 0 ? openC.slice(0, meinPlatz).filter((c) => !c.done && !(c.status || {}).out).length : 0;
   const positionsZeile = gesperrt
-    ? `<div class="mein-platz order-locked">🂠 Erst deine Karte aufdecken</div>`
+    // Nicht noch einmal „aufdecken" sagen (AAA-Runde 17.11.2026, 3): das stand
+    // schon auf der Karte und unten im großen Knopf - dreimal dasselbe. Die
+    // Zeile bleibt aber stehen (gleiche Höhe), sonst rückt die Liste, sobald
+    // nach dem Aufdecken „Du bist 3. von 7" kommt.
+    ? `<div class="mein-platz order-locked">Runde ${s.round} · ${openC.length + hiddenC.length} im Kampf</div>`
     : meinPlatz >= 0
     ? `<div class="mein-platz">Du bist <b>${meinPlatz + 1}.</b> von ${openC.length + hiddenC.length}${
         s.activeId === mineId ? " – <b>du bist dran!</b>"
@@ -1742,28 +1791,81 @@ function renderBibliothekPanel() {
   return section("bibliothek", "Bibliothek", `<div class="bib-reiterleiste">${reiter}</div>${inhalt}`);
 }
 
-function rosterInhalt() {
-  const s = App.state;
-  const items = s.roster.map((r) => `
-    <div class="roster-item">
-      <div class="grow"><strong>${esc(r.name)}</strong>
-        <div class="badges">${r.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)">WC</span>' : ""}${talentBadges(r.talents)}</div>
-      </div>
-      ${hatBogen(r) ? `<button class="ghost small" data-act="bogen-ansicht" data-id="${r.id}" data-quelle="roster" title="Charakterbogen ansehen">📜</button>` : ""}
-      <button class="small primary" data-act="roster-to-combat" data-id="${r.id}" title="Diesen Charakter in den Kampf setzen (SL-gesteuert)">+ Kampf</button>
-      <button class="ghost small" data-act="edit-char" data-id="${r.id}">Bearbeiten</button>
-      <button class="ghost small bad" data-act="delete-char" data-id="${r.id}">✕</button>
-    </div>`).join("") || `<div class="muted small">Noch keine Charaktere gespeichert.</div>`;
-
-  return `
-    <div class="row" style="margin-bottom:6px; align-items:flex-end; gap:10px">
-      <button data-act="new-char">+ Neuer Charakter</button>
-      <label class="field" style="max-width:200px; margin:0"><span>Startzone für „+ Kampf"</span>
-        <select id="rosterzone" data-act="remember-player-zone">${zoneOptions(lastPlayerZone())}</select></label>
+// Bibliothek-Zeilen (AAA-Runde 17.11.2026, Vorschlag 2). Vorher je Zeile
+// „+ Kampf / Bearbeiten / ✕" als Knopfreihe und oben Startzone/Anzahl/verdeckt
+// als Formular, das man vor jedem Klick prüfen musste. Jetzt: Avatar, Name,
+// Werte-Zeile; „⚔ In den Kampf" bleibt EIN Klick (gemerkte Startzone), das ▾
+// daneben öffnet ein schwebendes Fenster für Anzahl/Zone/verdeckt. Bearbeiten
+// = Tipp auf den Namen oder ⋯, Löschen nur noch im ⋯ (nicht mehr direkt neben
+// „In den Kampf", wo man sich vertippen konnte). Schwebend: nichts rückt.
+const BIB_ART = {
+  roster: { kampf: "roster-to-combat", edit: "edit-char", del: "delete-char", neu: "new-char", neuText: "Neuer Charakter",
+    zone: "rosterzone", zoneAct: "remember-player-zone", zoneWert: () => lastPlayerZone(), form: "charform",
+    leer: "Noch keine Charaktere gespeichert.", such: "Charakter suchen …", av: "bib-sp" },
+  bestiary: { kampf: "bestiary-to-combat", edit: "bestiary-edit", del: "bestiary-delete", neu: "bestiary-new", neuText: "Neuer Gegner",
+    zone: "bestzone", zoneAct: "remember-zone", zoneWert: () => lastNpcZone(), form: "bestiaryform", anzahl: true, anon: true,
+    leer: "Noch keine Gegner-Vorlagen.", such: "Gegner suchen …", av: "bib-feind" },
+  allies: { kampf: "ally-to-combat", edit: "ally-edit", del: "ally-delete", neu: "ally-new", neuText: "Neuer Verbündeter",
+    zone: "allyzone", zoneAct: "remember-ally-zone", zoneWert: () => lastAllyZone(), form: "allyform",
+    leer: "Noch keine Verbündeten-Vorlagen.", such: "Verbündeten suchen …", av: "bib-freund" },
+};
+function bibWerteZeile(r) {
+  const sw = String(r.spielwerte || "").split("\n").map((z) => z.trim()).filter(Boolean).join(" · ");
+  return sw || kampfwerteText(r) || "";
+}
+function bibPopHtml(art, r) {
+  const k = BIB_ART[art], pop = App.bibPop;
+  if (!pop || pop.id !== r.id) return "";
+  if (pop.art === "menue") {
+    return `<div class="bib-pop bib-pop-menue" role="menu">
+      <button type="button" class="km-zeile" data-act="${k.edit}" data-id="${r.id}">${symbolSvg("pencil")} Bearbeiten</button>
+      ${art === "roster" && hatBogen(r) ? `<button type="button" class="km-zeile" data-act="bogen-ansicht" data-id="${r.id}" data-quelle="roster">${symbolSvg("scroll-text")} Charakterbogen ansehen</button>` : ""}
+      <div class="km-trenner"></div>
+      <button type="button" class="km-zeile bib-loeschen" data-act="${k.del}" data-id="${r.id}">🗑 Löschen …</button></div>`;
+  }
+  return `<div class="bib-pop" role="dialog" aria-label="${esc(r.name)} in den Kampf">
+    <div class="bib-pop-titel">${esc(r.name)} in den Kampf</div>
+    ${k.anzahl ? `<div class="bib-pop-zeile"><span>Anzahl</span><span class="bib-zahl">
+      <button type="button" data-act="bib-anzahl" data-d="-1" aria-label="weniger">−</button>
+      <input id="bestcount" type="number" min="1" max="20" value="${App.bibAnzahl || 1}" aria-label="Anzahl">
+      <button type="button" data-act="bib-anzahl" data-d="1" aria-label="mehr">+</button></span></div>` : ""}
+    <label class="bib-pop-zeile"><span>Startzone</span>
+      <select id="${k.zone}" data-act="${k.zoneAct}">${zoneOptions(k.zoneWert())}</select></label>
+    ${k.anon ? `<label class="bib-pop-zeile" title="Spieler sehen dann nur einen unlesbaren Namen – du weiterhin den echten"><span>Name verdeckt 🫥</span>
+      <span class="es-sch"><input type="checkbox" id="bestanon"${App.bibAnon ? " checked" : ""}><i></i></span></label>` : ""}
+    <div class="bib-pop-fuss"><button type="button" class="primary" data-act="${k.kampf}" data-id="${r.id}">${symbolSvg("swords")} Hinzufügen</button></div>
+  </div>`;
+}
+function bibListeHtml(art, list) {
+  const k = BIB_ART[art];
+  const q = (App.bibSuche || "").trim().toLowerCase();
+  const mitSuche = list.length >= 5;
+  const gezeigt = mitSuche && q ? list.filter((r) => (r.name + " " + (r.spielwerte || "")).toLowerCase().includes(q)) : list;
+  const zeilen = gezeigt.map((r) => {
+    const werte = art === "roster" ? "" : bibWerteZeile(r);
+    const offen = App.bibPop && App.bibPop.id === r.id;
+    const av = `<span class="avatar bib-av ${k.av}${r.image ? " zoomable" : ""}"${r.image ? ` data-act="open-image" data-url="${esc(r.image)}" data-name="${esc(r.name)}" title="Bild groß anzeigen"` : ""}>${r.image ? `<img src="${esc(r.image)}" alt="">` : esc(zoneInitials(r.name))}</span>`;
+    return `<div class="bib-zeile roster-item${offen ? " pop-offen" : ""}" data-bib-id="${r.id}">
+      ${av}
+      <button type="button" class="bib-t" data-act="${k.edit}" data-id="${r.id}" title="Bearbeiten">
+        <span class="bib-name">${esc(r.name)}${r.isWildCard ? '<span class="bib-chip wc">WC</span>' : ""}${talentBadges(r.talents)}</span>
+        ${werte ? `<small>${esc(werte)}</small>` : ""}</button>
+      <span class="bib-split">
+        <button type="button" class="bib-kampf" data-act="${k.kampf}" data-id="${r.id}" title="In den Kampf (gemerkte Startzone)">${symbolSvg("swords")} In den Kampf</button><button type="button" class="bib-pfeil${offen && App.bibPop.art === "kampf" ? " on" : ""}" data-act="bib-pop" data-art="kampf" data-id="${r.id}" title="${k.anzahl ? "Anzahl, " : ""}Startzone${k.anon ? ", verdeckt" : ""}" aria-label="Optionen für In den Kampf">▾</button></span>
+      <button type="button" class="bib-mehr${offen && App.bibPop.art === "menue" ? " on" : ""}" data-act="bib-pop" data-art="menue" data-id="${r.id}" title="Bearbeiten, Löschen" aria-label="Mehr">⋯</button>
+      ${bibPopHtml(art, r)}
+    </div>`;
+  }).join("") || `<div class="muted small bib-leer">${list.length ? "Nichts gefunden." : k.leer}</div>`;
+  return `<div class="bib-werkzeug">
+      ${mitSuche ? `<label class="bib-suche">${symbolSvg("search")}<input id="bib-suche" type="text" value="${esc(App.bibSuche || "")}" placeholder="${k.such}" aria-label="Suchen" autocomplete="off"></label>` : `<span class="bib-luecke"></span>`}
+      <button type="button" class="bib-neu" data-act="${k.neu}">${symbolSvg("plus")} ${k.neuText}</button>
     </div>
-    <div class="muted small hilfe">Bleibt gespeichert. Spieler wählen ihren Charakter beim Beitritt.</div>
-    <div style="margin-top:8px">${items}</div>
-    <div id="charform"></div>`;
+    <div class="bib-liste">${zeilen}</div>
+    <div id="${k.form}"></div>`;
+}
+function rosterInhalt() {
+  return `<div class="muted small hilfe">Bleibt gespeichert. Spieler wählen ihren Charakter beim Beitritt.</div>
+    ${bibListeHtml("roster", App.state.roster || [])}`;
 }
 
 function talentChecklist(selected, prefix) {
@@ -1775,57 +1877,52 @@ function talentChecklist(selected, prefix) {
 
 // Gegner-Bibliothek: Standard-Gegner mit Bild, schnell in den Kampf (wie Roster).
 function bestiaryInhalt() {
-  const list = (App.state && App.state.bestiary) || [];
-  const items = list.map((r) => `
-    <div class="roster-item">
-      <span class="avatar${r.image ? " zoomable" : ""}"${r.image ? ` data-act="open-image" data-url="${esc(r.image)}" data-name="${esc(r.name)}" title="Bild groß anzeigen"` : ""}>${r.image ? `<img src="${esc(r.image)}" alt="">` : esc(zoneInitials(r.name))}</span>
-      <div class="grow"><strong>${esc(r.name)}</strong>
-        <div class="badges">${r.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)">WC</span>' : ""}${kampfwerteText(r) ? `<span class="tag kampfwert-tag">${kampfwerteText(r)}</span>` : ""}${talentBadges(r.talents)}</div>
-      </div>
-      <button class="small primary" data-act="bestiary-to-combat" data-id="${r.id}" title="In den Kampf (in gewählter Startzone)">+ Kampf</button>
-      <button class="ghost small" data-act="bestiary-edit" data-id="${r.id}">Bearbeiten</button>
-      <button class="ghost small bad" data-act="bestiary-delete" data-id="${r.id}">✕</button>
-    </div>`).join("") || `<div class="muted small">Noch keine Gegner-Vorlagen.</div>`;
-  return `
-    <div class="row" style="margin-bottom:6px; align-items:flex-end; gap:10px">
-      <button data-act="bestiary-new">+ Neuer Gegner-Typ</button>
-      <label class="field" style="max-width:200px; margin:0"><span>Startzone für „+ Kampf"</span>
-        <select id="bestzone" data-act="remember-zone">${zoneOptions(lastNpcZone())}</select></label>
-      <label class="field" style="max-width:90px; margin:0"><span>Anzahl</span>
-        <input id="bestcount" type="number" min="1" max="20" value="1"></label>
-      <label class="feld-kasten" title="Spieler sehen dann nur einen unlesbaren Namen – du weiterhin den echten">
-        <input type="checkbox" id="bestanon"> 🫥 verdeckt
-      </label>
-    </div>
-    <div class="muted small hilfe">Standard-Gegner (mit Bild) – bleiben gespeichert, per „+ Kampf" in der gewählten Zone rein.
-      Mehrere gleiche werden automatisch durchnummeriert (Ork 1, Ork 2 …).</div>
-    <div style="margin-top:8px">${items}</div>
-    <div id="bestiaryform"></div>`;
+  return `<div class="muted small hilfe">Standard-Gegner (mit Bild) – bleiben gespeichert. „⚔ In den Kampf" setzt sie in die
+      gemerkte Startzone, ▾ daneben für Anzahl, Zone und verdeckt. Mehrere gleiche werden durchnummeriert (Ork 1, Ork 2 …).</div>
+    ${bibListeHtml("bestiary", (App.state && App.state.bestiary) || [])}`;
 }
 
 // Verbündeten-Bibliothek – wie das Bestiarium, aber Figuren landen auf Spielerseite.
 function allyInhalt() {
-  const list = (App.state && App.state.allies) || [];
-  const items = list.map((r) => `
-    <div class="roster-item">
-      <span class="avatar${r.image ? " zoomable" : ""}"${r.image ? ` data-act="open-image" data-url="${esc(r.image)}" data-name="${esc(r.name)}" title="Bild groß anzeigen"` : ""}>${r.image ? `<img src="${esc(r.image)}" alt="">` : esc(zoneInitials(r.name))}</span>
-      <div class="grow"><strong>${esc(r.name)}</strong>
-        <div class="badges">${r.isWildCard ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)">WC</span>' : ""}${kampfwerteText(r) ? `<span class="tag kampfwert-tag">${kampfwerteText(r)}</span>` : ""}${talentBadges(r.talents)}</div>
-      </div>
-      <button class="small primary" data-act="ally-to-combat" data-id="${r.id}" title="In den Kampf (Spielerseite, gewählte Startzone)">+ Kampf</button>
-      <button class="ghost small" data-act="ally-edit" data-id="${r.id}">Bearbeiten</button>
-      <button class="ghost small bad" data-act="ally-delete" data-id="${r.id}">✕</button>
-    </div>`).join("") || `<div class="muted small">Noch keine Verbündeten-Vorlagen.</div>`;
-  return `
-    <div class="row" style="margin-bottom:6px; align-items:flex-end; gap:10px">
-      <button data-act="ally-new">+ Neuer Verbündeter</button>
-      <label class="field" style="max-width:200px; margin:0"><span>Startzone für „+ Kampf"</span>
-        <select id="allyzone" data-act="remember-ally-zone">${zoneOptions(lastAllyZone())}</select></label>
-    </div>
-    <div class="muted small hilfe">NPCs auf Spielerseite (grün). Bleiben gespeichert, per „+ Kampf" in der gewählten Zone rein.</div>
-    <div style="margin-top:8px">${items}</div>
-    <div id="allyform"></div>`;
+  return `<div class="muted small hilfe">NPCs auf Spielerseite (grün). Bleiben gespeichert, „⚔ In den Kampf" setzt sie in die gemerkte Startzone.</div>
+    ${bibListeHtml("allies", (App.state && App.state.allies) || [])}`;
 }
+
+// Enter im Nachrichtenfeld schickt ab (vorher nur per Knopf).
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && e.target && e.target.id === "msgtext") { e.preventDefault(); sendMessage(); }
+});
+// Schließt das ▾/⋯-Fenster, ohne neu zu zeichnen (der Server-Stand kommt
+// ohnehin). Gibt nichts zurück - darum taugt es vor „||".
+function bibPopZu() { if (App.bibPop) { App.bibPop = null; render(); } }
+// Bearbeiten-Formular erscheint unter der Liste - bei langen Listen außerhalb
+// des Bildes. Danach sanft hinscrollen, sonst sah es aus, als passiere nichts.
+function bibFormZeigen(hostId) {
+  const h = $(hostId);
+  const f = h && h.firstElementChild;
+  if (f) requestAnimationFrame(() => f.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+}
+// Schwebendes Fenster der Bibliothek: Tippen daneben / Esc schließt.
+document.addEventListener("click", (e) => {
+  if (!e.target.isConnected) return;
+  // ⋯ im Beitritt-Panel: nach dem Teilen/WhatsApp oder Klick daneben zu.
+  // Erst nach dem Klick zuklappen - sonst verschwände der Menüpunkt, bevor
+  // seine eigene Aktion läuft.
+  if (App.btMehr && !e.target.closest("[data-act=bt-mehr]")) setTimeout(() => { App.btMehr = false; render(); }, 0);
+  if (!App.bibPop) return;
+  if (e.target.closest(".bib-pop, [data-act=bib-pop]")) return;
+  App.bibPop = null; render();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && App.bibPop) { e.stopImmediatePropagation(); App.bibPop = null; render(); }
+}, true);
+document.addEventListener("input", (e) => {
+  if (e.target && e.target.id === "bib-suche") { App.bibSuche = e.target.value; render(); }
+  else if (e.target && e.target.id === "bestcount") App.bibAnzahl = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1));
+});
+document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "bestanon") App.bibAnon = e.target.checked;
+});
 
 // Begegnungen: gespeicherte Gegner-/Verbündeten-Gruppen, auf einen Schlag einsetzbar.
 // --- Kämpfe vorbereiten ------------------------------------------------------
@@ -2291,24 +2388,32 @@ function renderMessagePanel() {
   // Flüstern hätte die nächste Nachricht dann versehentlich jeder gelesen.
   if (App.msgZiel !== "all" && App.msgZiel !== "beamer" && App.msgZiel !== "mehrere"
       && !s.players.some((p) => p.id === App.msgZiel)) App.msgZiel = "all";
-  const opt = (v, t) => `<option value="${v}"${App.msgZiel === v ? " selected" : ""}>${t}</option>`;
-  const opts = [opt("all", "Alle Spieler"), opt("beamer", "📺 Beamer / TV (Bild groß)")]
-    .concat(s.players.map((p) => opt(p.id, `🤫 ${esc(spielerAnzeige(p))}${p.connected ? "" : " (offline)"}`)))
-    .concat(s.players.length > 1 ? [opt("mehrere", "🤫 Mehrere flüstern …")] : [])
+  // Empfänger als Pillen statt Auswahlliste (AAA-Runde 17.11.2026, 5): ein
+  // Tipp, und man SIEHT, an wen es geht. Mehrere Spieler antippen = an
+  // mehrere flüstern (vorher eigener Listeneintrag „Mehrere …" + Chips).
+  const gewaehlt = App.msgZiel === "mehrere" ? App.msgMehrere : new Set([App.msgZiel]);
+  const pille = (ziel, inhalt, an, titel) => `<button type="button" class="msg-pille${an ? " an" : ""}" data-act="msg-pille" data-ziel="${esc(ziel)}" aria-pressed="${an}" title="${esc(titel)}">${inhalt}</button>`;
+  const pillen = [pille("all", "Alle", App.msgZiel === "all", "An alle Spieler")]
+    .concat(s.players.map((p) => pille(p.id, `<span class="msg-av${p.connected ? "" : " weg"}">${esc(zoneInitials(spielerAnzeige(p)))}</span>${esc(spielerAnzeige(p))}`,
+      gewaehlt.has(p.id), `Nur ${spielerAnzeige(p)} (flüstern)${p.connected ? "" : " – gerade offline"}. Mehrere antippen = an mehrere.`)))
+    .concat(funktionAn("nachrichten") ? [pille("beamer", `${symbolSvg("tv")} TV`, App.msgZiel === "beamer", "Bild groß auf den TV/Beamer")] : [])
     .join("");
-  const mehrere = App.msgZiel === "mehrere" ? `<div class="ziel-chips">${s.players.map((p) =>
-    `<button class="ziel-chip${App.msgMehrere.has(p.id) ? " on" : ""}" data-act="msg-ziel-toggle" data-id="${p.id}">${esc(spielerAnzeige(p))}</button>`).join("")}</div>` : "";
+  const zielNamen = App.msgZiel === "all" ? "alle" : App.msgZiel === "beamer" ? "den TV"
+    : [...gewaehlt].map((id) => spielerAnzeige(s.players.find((p) => p.id === id))).join(", ");
+  const platzhalter = App.msgZiel === "all" ? "Nachricht an alle …" : App.msgZiel === "beamer" ? "Text zum Bild auf dem TV …"
+    : `Flüstern an ${zielNamen} …`;
   const preview = App.pendingImageUrl
-    ? `<div class="msg"><img src="${esc(App.pendingImageUrl)}"><button class="ghost small" data-act="clear-image" style="margin-top:6px">Bild entfernen</button></div>`
+    ? `<div class="msg-vorschau"><img src="${esc(App.pendingImageUrl)}" alt=""><button class="ghost small" data-act="clear-image">Bild entfernen</button></div>`
     : "";
   // Das Panel ist jetzt dauerhaft offen -> nur die letzten drei Nachrichten,
   // sonst waechst die linke Spalte mit jedem verschickten Benny.
   const log = s.messages.filter((m) => m.sender !== "kampf").slice(-3).reverse().map((m) => `
-    <div class="msg${m.target === "all" ? "" : " gefluestert"}"><div class="to"><span>${m.target === "all" ? "an alle" : `🤫 nur an ${[].concat(m.target).map((id) => esc(spielerAnzeige(s.players.find((p) => p.id === id)))).join(", ")}`}</span>${m.ts ? `<span class="msg-zeit">${zeitKurz(m.ts)}</span>` : ""}
-        <button class="st-btn msg-ib" data-act="nochmal-senden" data-msg="${m.id}" title="Nochmal senden – an den oben gewählten Empfänger" aria-label="Nochmal senden">🔁</button>
-        ${m.imageUrl ? `<button class="st-btn msg-ib" data-act="auf-tv" data-url="${esc(m.imageUrl)}" title="Bild groß auf den TV/Beamer" aria-label="Auf den TV">📺</button>` : ""}
-      </div>
-      ${m.text ? mehrzeilig(m.text) : ""}${m.imageUrl ? `<img src="${esc(m.imageUrl)}" data-act="open-image" data-url="${esc(m.imageUrl)}" title="Groß ansehen">` : ""}</div>`).join("");
+    <div class="msg-log-zeile${m.target === "all" ? "" : " gefluestert"}">${m.ts ? `<time>${zeitKurz(m.ts)}</time>` : ""}
+      <span class="msg-log-text"><span class="msg-log-an">${m.target === "all" ? "An alle" : m.target === "beamer" ? "TV" : `An ${[].concat(m.target).map((id) => esc(spielerAnzeige(s.players.find((p) => p.id === id)))).join(", ")}`} ·</span>
+        ${m.text ? esc(m.text.replace(/\n/g, " ")) : ""}${m.imageUrl ? ` <img src="${esc(m.imageUrl)}" alt="" class="msg-log-bild" data-act="open-image" data-url="${esc(m.imageUrl)}" title="Groß ansehen">` : ""}${!m.text && !m.imageUrl && m.bennies ? `🪙 +${m.bennies} Benny` : ""}</span>
+      <button class="st-btn msg-ib" data-act="nochmal-senden" data-msg="${m.id}" title="Nochmal senden – an den oben gewählten Empfänger" aria-label="Nochmal senden">🔁</button>
+      ${m.imageUrl ? `<button class="st-btn msg-ib" data-act="auf-tv" data-url="${esc(m.imageUrl)}" title="Bild groß auf den TV/Beamer" aria-label="Auf den TV">📺</button>` : ""}
+    </div>`).join("");
 
   // Bild-Archiv: jedes schon einmal verschickte Bild bleibt als Miniatur da -
   // Karten, Handouts und Porträts lassen sich so ohne Suchen erneut zeigen.
@@ -2340,28 +2445,23 @@ function renderMessagePanel() {
   }
   const mitNachricht = funktionAn("nachrichten"), mitBenny = funktionAn("bennies");
   const titel = [mitNachricht ? "✉ Nachricht / Bild" : "", mitBenny ? (mitNachricht ? "Bennies" : "🪙 Bennies") : ""].filter(Boolean).join(" / ");
+  const bennyAn = App.msgZiel === "all" ? "alle" : App.msgZiel === "beamer" ? "…" : zielNamen;
   return section("message", `${titel}${mitBenny ? ` <span class="sec-zusatz">· 🪙 Pool ${s.slBennies}</span>` : ""}`, `
-    <div class="nachricht-zeile">
-      <select id="msgtarget" data-act="msg-ziel" title="Empfänger">${opts}</select>
-      ${mitBenny ? `<button data-act="benny-geben" title="Der gewählte Empfänger (bei „Alle Spieler“ jeder) bekommt einen Benny – mit kurzem Hinweis aufs Handy">🪙 +1 Benny</button>` : ""}
-    </div>
-    ${mehrere}
-    ${mitNachricht ? `<div class="nachricht-zeile">
-      <input id="msgtext" placeholder="Nachricht…">
-      <label class="ghost knopf-label${App.pendingImageUrl ? " on" : ""}" title="Bild anhängen">🖼<input type="file" id="msgimage" accept="image/*" data-act="pick-image" style="display:none"></label>
-      <button class="primary" data-act="send-message">Senden</button>
+    <div class="msg-an"><span class="msg-an-l">An</span>${pillen}</div>
+    ${mitNachricht ? `<div class="msg-komp">
+      <input id="msgtext" placeholder="${esc(platzhalter)}" enterkeyhint="send" autocomplete="off">
+      <label class="msg-rund knopf-label${App.pendingImageUrl ? " on" : ""}" title="Bild anhängen">${symbolSvg("image")}<input type="file" id="msgimage" accept="image/*" data-act="pick-image" style="display:none"></label>
+      <button class="msg-rund msg-senden" data-act="send-message" title="Senden (Enter)" aria-label="Senden">${symbolSvg("arrow-up")}</button>
     </div>
     ${preview}` : ""}
-    ${mitBenny ? `<div class="row" style="align-items:center; gap:6px; margin-top:8px">
-      <span class="muted small">SL-Pool</span>
-      <button class="st-btn" data-act="sl-benny-minus">–</button>
-      <span style="min-width:40px; text-align:center; font-weight:700">🪙 ${s.slBennies}</span>
-      <button class="st-btn" data-act="sl-benny-plus">+</button>
-      <button class="ghost small" data-act="benny-refresh" style="margin-left:auto" title="Jede Wildcard auf den Startwert (+ Glück-Bonus) setzen – z. B. zu Beginn des Abends. Startwert: ⚙ unten in der Leiste">↻ Bennies auffrischen</button>
+    ${mitBenny ? `<div class="msg-benny">
+      <span class="msg-muenze" aria-hidden="true"></span><b>Bennies</b>
+      <button class="ghost small" data-act="benny-geben"${App.msgZiel === "beamer" ? " disabled" : ""} title="Der gewählte Empfänger (bei „Alle“ jeder) bekommt einen Benny – mit kurzem Hinweis aufs Handy">+1 an ${esc(bennyAn)}</button>
+      <span class="msg-pool"><span class="muted small">SL-Pool</span>
+        <button class="msg-pm" data-act="sl-benny-minus" aria-label="SL-Pool weniger">−</button><b>${s.slBennies}</b><button class="msg-pm" data-act="sl-benny-plus" aria-label="SL-Pool mehr">+</button></span>
+      <button class="msg-rund msg-auffrischen" data-act="benny-refresh" title="Bennies auffrischen: jede Wildcard auf den Startwert (+ Glück-Bonus) – z. B. zu Beginn des Abends. Startwert: ⚙ unten in der Leiste" aria-label="Bennies auffrischen">${symbolSvg("refresh-cw")}</button>
     </div>` : ""}
     ${s.tvImage ? `<div class="row" style="margin-top:8px"><span class="pill good">📺 TV zeigt gerade ein Bild</span><button class="ghost small" data-act="clear-tv">TV-Bild entfernen</button></div>` : ""}
-    ${mitNachricht && log ? `<details class="unter-klapp" data-merk="verlauf"${App.offeneUnter.has("verlauf") ? " open" : ""}>
-      <summary>Verlauf (letzte ${Math.min(3, s.messages.filter((m) => m.sender !== "kampf").length)})</summary>${log}
-      <button class="ghost small" data-act="clear-messages" style="margin-top:6px">Verlauf leeren</button></details>` : ""}
+    ${mitNachricht && log ? `<div class="msg-log">${log}<button class="msg-log-leeren" data-act="clear-messages">Verlauf leeren</button></div>` : ""}
     ${mitNachricht ? archivHtml : ""}`, false);
 }

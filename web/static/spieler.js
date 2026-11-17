@@ -924,32 +924,59 @@ function handyBereichSchieben(k, dir) {
 // Spieler-Teil des ⚙-Menüs: was man einmal einstellt, aber nicht im Kampf
 // braucht. Stand vorher unten auf der Seite (Ton, Rückseite) bzw. als
 // „Verlassen" direkt neben „Runde", wo man leicht draufkam.
+// Seit 17.11.2026 (AAA-Runde, Vorschlag 1) ein Blatt von unten statt einer
+// schmalen Kiste: vorher Häkchen + Emoji + Farbpunkte ohne Namen, und
+// „Spiel verlassen" stand mitten zwischen den Einstellungen. Jetzt Gruppen mit
+// Schaltern, Rückseiten gleich als Bild-Kacheln, Farben mit Namen, Verlassen
+// ganz unten und abgesetzt. Die alten Knöpfe der Kiste (QR, Als App, Farben,
+// Aufdecken, Joker) blendet .einst-blatt aus - sie stehen hier neu.
+function einstSchalter(act, an, titel, text, extra) {
+  return `<label class="es-zeile es-schalter-zeile"><span class="es-t">${titel}<small>${text}</small></span>${extra || ""}
+    <span class="es-sch"><input type="checkbox" data-act="${act}"${an ? " checked" : ""} aria-label="${esc(titel)}"><i></i></span></label>`;
+}
 function spielerMenueHtml(mine) {
   // Seit den Reitern (11.11.2026) gibt es nur noch im ⚔ Kampf etwas zu
   // sortieren: Reihenfolge und Zonen.
   const liste = handyBereiche().filter((k) => k === "order" || k === "zones").filter(bereichAn);
-  const zeilen = liste.map((k, i) => `<div class="hb-zeile"><span>${HANDY_BEREICHE[k]}</span>
-      <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="-1"${i === 0 ? " disabled" : ""} title="Nach oben">▲</button>
-      <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="1"${i === liste.length - 1 ? " disabled" : ""} title="Nach unten">▼</button></div>`).join("");
-  return `${funktionAn("regeln") ? `<button type="button" class="ghost sm-regeln" data-act="regeln-oeffnen">📖 Regeln nachschlagen</button>` : ""}
-    <div class="sm-titel">Mein Handy</div>
-    <label class="row tight sm-ton">
-      <input type="checkbox" data-act="toggle-notify" ${localStorage.getItem("notifyTurn") !== "off" ? "checked" : ""} style="width:auto">
-      <span class="small">🔔 ${kannVibrieren ? "Vibration/Ton" : "Ton"}, wenn ich dran bin</span>
-      <button type="button" class="ghost small" data-act="ton-testen" title="Lautstärke prüfen – am iPhone muss der Lautlos-Schalter aus sein">▶ Test</button>
-    </label>
-    <label class="row tight sm-ton">
-      <input type="checkbox" data-act="toggle-zug-kurz" ${kurzAnsichtAn() ? "checked" : ""} style="width:auto">
-      <span class="small">🎯 Kurzansicht, wenn ich dran bin (nur meine Werte und Knöpfe)</span>
-    </label>
-    <label class="row tight sm-ton">
-      <input type="checkbox" data-act="toggle-wach" ${wachGewollt() ? "checked" : ""} style="width:auto">
-      <span class="small">☀ Bildschirm anlassen, solange gekämpft wird</span>
-    </label>
-    ${rueckseiteWahlHtml(mine)}
-    ${liste.length > 1 ? `<div class="sm-titel">Reihenfolge im ⚔ Kampf</div>
-    <div class="hb-liste">${zeilen}</div>` : ""}
-    <button type="button" class="ghost small sm-verlassen" data-act="leave">🚪 Spiel verlassen</button>`;
+  const zeilen = liste.map((k, i) => `<div class="es-zeile hb-zeile"><span class="es-t">${HANDY_BEREICHE[k]}</span>
+      <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="-1"${i === 0 ? " disabled" : ""} title="Nach oben" aria-label="Nach oben">▲</button>
+      <button type="button" class="st-btn" data-act="bereich-schieben" data-k="${k}" data-dir="1"${i === liste.length - 1 ? " disabled" : ""} title="Nach unten" aria-label="Nach unten">▼</button></div>`).join("");
+  const pfeil = symbolSvg("chevron-right");
+  const reveal = revealSetting();
+  const farben = SKINS.map((k) => `<button type="button" class="es-farbe${App.skin === k ? " an" : ""}" data-skin="${k}" title="${SKIN_NAMES[k]}">
+      <i class="skin-${k}"></i><span>${SKIN_KURZ[k]}</span></button>`).join("");
+  return `<div class="es-griff" aria-hidden="true"></div>
+    <div class="es-kopf"><h3>Einstellungen</h3><button type="button" class="es-zu" data-act="einst-zu" aria-label="Schließen">✕</button></div>
+    ${funktionAn("regeln") ? `<div class="es-karte"><button type="button" class="es-zeile es-link" data-act="regeln-oeffnen">${symbolSvg("book-open")}<span class="es-t">Regeln nachschlagen</span>${pfeil}</button></div>` : ""}
+    <div class="es-gruppe">Wenn ich dran bin</div>
+    <div class="es-karte">
+      ${einstSchalter("toggle-notify", localStorage.getItem("notifyTurn") !== "off", kannVibrieren ? "Vibration & Ton" : "Ton",
+        "Kurzer Summer, wenn du dran bist",
+        `<button type="button" class="es-test" data-act="ton-testen" title="Lautstärke prüfen – am iPhone muss der Lautlos-Schalter aus sein">Test</button>`)}
+      ${einstSchalter("toggle-zug-kurz", kurzAnsichtAn(), "Kurzansicht", "Nur deine Werte und Knöpfe")}
+      ${einstSchalter("toggle-wach", wachGewollt(), "Bildschirm anlassen", "Solange gekämpft wird")}
+    </div>
+    <div class="es-gruppe">Karten</div>
+    <div class="es-karte">
+      ${rueckseiteWahlHtml(mine, true)}
+      <label class="es-zeile"><span class="es-t">Aufdecken</span>
+        <select class="es-select" aria-label="Aufdecken">${REVEALS.map((r) =>
+          `<option value="${r}"${r === reveal ? " selected" : ""}>${REVEAL_NAMES[r]}</option>`).join("")}</select></label>
+      <details class="es-zeile es-joker joker-pick" data-merk="einst-joker"${App.offeneUnter.has("einst-joker") ? " open" : ""}>
+        <summary><span class="es-t">Joker-Stile</span><span class="es-wert es-jokerzahl">${jokerZahlText()}</span></summary>
+        <div class="joker-checks">${Cards.JOKER_STILE.map((st) =>
+          `<label><input type="checkbox" data-joker="${st}"${jokerAuswahlLaden().includes(st) ? " checked" : ""}> ${Cards.JOKER_NAMEN[st]}</label>`).join("")}</div>
+      </details>
+    </div>
+    <div class="es-gruppe">Farbe der App</div>
+    <div class="es-karte"><div class="es-farben">${farben}</div></div>
+    ${liste.length > 1 ? `<div class="es-gruppe">Reihenfolge im Kampf-Reiter</div><div class="es-karte">${zeilen}</div>` : ""}
+    <div class="es-gruppe">Mitspieler holen</div>
+    <div class="es-karte">
+      <button type="button" class="es-zeile es-link" data-act="qr-gross">${symbolSvg("qr-code")}<span class="es-t">QR-Code zeigen<small>Der Nächste scannt von deinem Handy</small></span>${pfeil}</button>
+      <button type="button" class="es-zeile es-link" data-act="als-app">${symbolSvg("download")}<span class="es-t">Als App auf den Startbildschirm</span>${pfeil}</button>
+    </div>
+    <button type="button" class="es-verlassen" data-act="leave">${symbolSvg("log-in")} Spiel verlassen</button>`;
 }
 
 // Was der große Knopf unten gerade anbietet - in dieser Reihenfolge: wer
