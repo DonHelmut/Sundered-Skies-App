@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Geld: Börse + Gruppenkasse (18.11.2026, noch kein Release)
+## 2.0.17 (18.11.2026): Geld: Börse + Gruppenkasse
 
 Kalle: „Jeder Char einzeln eine Geldbörse, einzahlen, auszahlen, automatisch.
 Und ne Gruppenkasse." Story Teil 2 spielt im Himmel nach der Barriere, neue
@@ -110,7 +110,7 @@ Buchungen.
   (`body.geld-offen`), unten lag sie über „Bezahlen".
 - Tests: `tests/test_geld.py`, `tests/browser/test_geld_browser.py`.
 
-## Unveröffentlicht (17.11.2026): Update-Hinweis kommt zuverlässig
+## 2.0.17 (17.11.2026): Update-Hinweis kommt zuverlässig
 
 Kalle: „Hinweis für den SL als Popup, wenn ne neue Version verfügbar ist?" –
 gab es schon (seit 2.0.7), kam aber praktisch nie. Varianten in
