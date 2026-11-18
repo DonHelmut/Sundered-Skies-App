@@ -146,7 +146,7 @@ function render() {
   }
   Cards.renderStart();
   let html;
-  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay() + bogenAnsichtHtml() + protokollFensterHtml() + regelnFensterHtml(); }
+  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay() + bogenAnsichtHtml() + protokollFensterHtml() + regelnFensterHtml() + (funktionAn("geld") ? geldBlattHtml() : ""); }
   finally { Cards.renderEnde(); }
   // Unveraendert? Dann den Bildschirm NICHT neu aufbauen. Jeder Neuaufbau ersetzt
   // alle Karten: laufende Animationen (Joker, Glanz, Glimmen) starten von vorn,
@@ -163,7 +163,9 @@ function render() {
     root.querySelectorAll("[data-scroll-merk]").forEach((e) => {
       if (scrollMerk[e.dataset.scrollMerk]) e.scrollTop = scrollMerk[e.dataset.scrollMerk];
     });
-    document.body.classList.toggle("blatt-offen", !!root.querySelector(".angriff-blatt"));
+    document.body.classList.toggle("blatt-offen", !!root.querySelector(".angriff-blatt, .g-blatt"));
+    // 💰 Geld-Blatt: Bestätigung oben zeigen - unten lag sie über „Bezahlen".
+    document.body.classList.toggle("geld-offen", !!root.querySelector(".g-blatt"));
     // Spieler-Teil im ⚙-Menü (liegt außerhalb von #app) mit auffrischen.
     const sm = $("spieler-menue");
     const meine = App.role === "player" && App.joined ? myCombatant() : null;

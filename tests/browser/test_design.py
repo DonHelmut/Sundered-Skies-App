@@ -318,7 +318,7 @@ def test_studio_optik_schrift_symbole_startflaeche(tisch):
     # Seit 15.11.2026 bleibt sie bis zum ersten Austeilen - mit ✓ beim Einladen.
     sl.warte_bis("() => !!document.querySelector('.startflaeche .sf-zeile.fertig')")
     # Reiter: Symbol statt Emoji
-    tabs = h.js("() => [...document.querySelectorAll('.handy-reiter button')].map(b => [!!b.querySelector('svg.ic'), b.textContent.trim()])")
+    tabs = h.js("() => [...document.querySelectorAll('.handy-reiter button')].map(b => [!!b.querySelector('svg.ic, svg.g-fater'), b.textContent.trim()])")
     assert tabs and all(svg for svg, _ in tabs), tabs
     assert not any("⚔" in t or "📜" in t for _, t in tabs)
     # Notiz-Themen-Chips behalten das selbst gewählte Emoji.

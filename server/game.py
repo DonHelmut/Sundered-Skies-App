@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional
 
-from . import engine, kampf_import
+from . import engine, geld, kampf_import
 from .paths import BASE_DIR
 
 # Standard: data/ neben der .exe. Über SWI_DATA_DIR umlegbar (z. B. für Tests).
@@ -61,6 +61,7 @@ ALLIES_FILE = DATA_DIR / "allies.json"        # dauerhafte Verbündeten-Vorlagen
 ENCOUNTERS_FILE = DATA_DIR / "encounters.json"  # gespeicherte Begegnungen (Gegner-Gruppen)
 PROTOKOLLE_FILE = DATA_DIR / "protokolle.json"  # Spielabend-Protokolle (SL fügt ein, gibt frei)
 GRUPPEN_NOTIZEN_FILE = DATA_DIR / "gruppen_notizen.json"  # 👥 Notizen, die alle Spieler sehen
+GRUPPENKASSE_FILE = DATA_DIR / "gruppenkasse.json"  # 👥 Geld der Gruppe (Stand + Verlauf)
 SESSION_FILE = DATA_DIR / "session.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"   # dauerhafte SL-Voreinstellungen
 UPLOAD_DIR = DATA_DIR / "uploads"
@@ -412,7 +413,7 @@ def _notizen_liste(wert) -> list:
 # beim Wiedereinschalten wieder da. Zusatz-Zustände und Spieler-Anfragen haben
 # ihre alten eigenen Schalter (conditionsEnabled/requestsEnabled) behalten.
 FUNKTIONEN = ("zonen", "timer", "angriff", "wunden", "bennies",
-              "aufnahme", "notizen", "nachrichten", "boegen", "regeln")
+              "aufnahme", "notizen", "nachrichten", "boegen", "regeln", "geld")
 
 
 class Game:
@@ -435,6 +436,9 @@ class Game:
         # 👥 Gruppen-Notizen: gehören keinem Charakter, sondern der Runde -
         # dauerhaft wie die Protokolle, ein „Verwerfen" beim Start kostet sie nicht.
         self.gruppen_notizen: list[dict] = _notizen_liste(_lade_liste(GRUPPEN_NOTIZEN_FILE))
+        # 👥 Gruppenkasse: wie die Gruppen-Notizen dauerhaft und kein Teil der
+        # Sitzung - ein „Verwerfen" beim Start darf kein Geld kosten.
+        self.gruppenkasse: dict = geld.kasse(_read_json(GRUPPENKASSE_FILE))
         self.combatants: list[dict] = []
         self.players: list[dict] = []
         self.messages: list[dict] = []
@@ -507,6 +511,9 @@ class Game:
         # Ton-Schalter des SL: gehoert zu den Einstellungen, nicht zum Kampf.
         # Stand frueher nur in der Sitzung - nach „Verwerfen" war er wieder an.
         self.sound_enabled = bool(settings.get("soundEnabled", True))
+        # Name des Kleingelds: Kalle kannte ihn am 18.11.2026 noch nicht -
+        # darum einstellbar statt fest „Münzen".
+        self.muenz_name: str = geld.muenz_name(settings.get("muenzName"))
         # Ansicht des SL-Laptops (Panel-Anordnung, aufgeklappte Panels, Design,
         # Joker-/Aufdeck-Stil). Der Browser merkt sich das pro ADRESSE - startet
         # die App einmal auf Port 8001 statt 8000, sah alles zurueckgesetzt aus.
@@ -545,7 +552,9 @@ class Game:
         # stellte Rückgängig die ganze Charakterliste von VOR der letzten
         # SL-Aktion wieder her - eine Notiz oder ein Bogen, die ein Handy
         # seitdem gespeichert hatte, war still weg (Stresstest 04.11.2026).
-        spieler_felder = ("notizen", "bogen", "rueckseite")
+        # Geld genauso: jede Buchung steht im Verlauf, ein ↶ des SL soll sie
+        # nicht still wegnehmen (Fehlbuchung = Gegenbuchung).
+        spieler_felder = ("notizen", "bogen", "rueckseite", "geld", "geldVerlauf")
         eigen_roster = {r.get("id"): {f: r[f] for f in spieler_felder if f in r}
                         for r in self.roster if isinstance(r, dict)}
         eigen_figur = {c.get("id"): {f: c[f] for f in ("bogen", "rueckseite") if f in c}
@@ -658,7 +667,11 @@ class Game:
             "spielerAngriff": self.spieler_angriff,
             "funktionen": self.funktionen,
             "rueckseiteBild": self.rueckseite_bild,
+            "muenzName": self.muenz_name,
         })
+
+    def save_gruppenkasse(self) -> None:
+        _write_json(GRUPPENKASSE_FILE, self.gruppenkasse, backup=True)
 
     def export_data(self) -> dict:
         """Alles Dauerhafte (Charaktere + Bibliotheken + Begegnungen + Einstellungen)
@@ -669,6 +682,7 @@ class Game:
             "allies": self.allies, "encounters": self.encounters,
             "protokolle": self.protokolle,
             "gruppenNotizen": self.gruppen_notizen,
+            "gruppenkasse": self.gruppenkasse,
             # ALLE Einstellungen des Tisches. Bis 2.0.6 nur die ersten vier:
             # nach einem Laptop-Umzug waren Spielmodus (🎛), Hausregeln und
             # Kartenrückseite wieder auf Anfang (Durchleuchtung 10.11.2026).
@@ -686,6 +700,7 @@ class Game:
                          "gruppenKarte": self.gruppen_karte,
                          "spielerAngriff": self.spieler_angriff,
                          "funktionen": dict(self.funktionen),
+                         "muenzName": self.muenz_name,
                          "rueckseiteBild": self.rueckseite_bild},
         }
 
@@ -741,6 +756,11 @@ class Game:
             self.save_gruppen_notizen()
             bericht["uebernommen"]["Gruppen-Notizen"] = len(self.gruppen_notizen)
             touched = True
+        if isinstance(data.get("gruppenkasse"), dict):
+            self.gruppenkasse = geld.kasse(data["gruppenkasse"])
+            self.save_gruppenkasse()
+            bericht["uebernommen"]["Gruppenkasse"] = 1
+            touched = True
         s = data.get("settings")
         if isinstance(s, dict):
             try:
@@ -766,6 +786,8 @@ class Game:
                     if isinstance(s["funktionen"].get(k), bool):
                         self.funktionen[k] = s["funktionen"][k]
                 bericht["uebernommen"]["Einstellungen"] = 1
+            if isinstance(s.get("muenzName"), str):
+                self.muenz_name = geld.muenz_name(s["muenzName"])
             if "rueckseiteBild" in s:
                 rs = s["rueckseiteBild"]
                 self.rueckseite_bild = rs if _rueckseite_gueltig(rs) else None
@@ -1105,8 +1127,14 @@ class Game:
             # Eigene Notizen der Spieler (am Charakter) gehen nur an den
             # Besitzer - kommen einzeln als „meineNotizen" (notizen_fuer).
             # Auch nicht an den SL: am Handy steht „nur du siehst das".
-            "roster": [{k: v for k, v in r.items() if k != "notizen"} for r in self.roster],
+            # Geld ebenso: die eigene Börse kommt einzeln als „meinGeld", die
+            # Börsen aller sieht nur der SL („geldAlle").
+            "roster": [{k: v for k, v in r.items() if k not in ("notizen", "geld", "geldVerlauf")} for r in self.roster],
             "meineNotizen": self.notizen_fuer(player_id) if fuer_spieler else [],
+            "meinGeld": self.geld_fuer(player_id) if fuer_spieler else None,
+            "geldAlle": {} if fuer_spieler else {r["id"]: self._geld_von(r) for r in self.roster if isinstance(r, dict) and r.get("id")},
+            "gruppenkasse": self.gruppenkasse,
+            "muenzName": self.muenz_name,
             "gruppenNotizen": self.gruppen_notizen,
             "bestiary": [] if fuer_spieler else self.bestiary,
             # Vorbereitung des SL geht die Handys nichts an: gespeicherte
@@ -1193,6 +1221,16 @@ class Game:
             self.protokoll_aktion(action)
             return
 
+        # Geld: dauerhaft am Charakter bzw. in der Gruppenkasse, mit eigenem
+        # Verlauf - kein Undo-Ziel und keine „erste Aktion" (siehe oben).
+        if t == "geld":
+            self.geld_sl(action)
+            return
+        if t == "set_muenz_name":
+            self.muenz_name = geld.muenz_name(action.get("name"))
+            self.save_settings()
+            return
+
         # Eigene Initiative-Talente (Schnell, Kühler Kopf …) + Glück: pflegt der
         # Spieler ebenfalls selbst - aus demselben Grund kein Undo-Ziel.
         if t == "talents_update":
@@ -1266,7 +1304,7 @@ class Game:
             "image": a.get("image", (prev or {}).get("image")),
         }
         # Gemerkte Bennies und den Charakterbogen der Spieler ebenso.
-        for feld in ("bennies", "bogen", "rueckseite", "notizen"):
+        for feld in ("bennies", "bogen", "rueckseite", "notizen", "geld", "geldVerlauf"):
             if prev and feld in prev:
                 entry[feld] = prev[feld]
         for i, r in enumerate(self.roster):
@@ -2385,6 +2423,102 @@ class Game:
             else:
                 return False
         self.save_gruppen_notizen()
+        return True
+
+    # Geld (Börse je Charakter + 👥 Gruppenkasse) -----------------------------
+    # Hängt wie die Notizen am Charakter (reist in der Sicherung mit, kein
+    # Undo-Ziel). Rechenregeln und Verlauf: geld.py.
+
+    @staticmethod
+    def _geld_von(char: Optional[dict]) -> dict:
+        char = char or {}
+        return {"stand": geld.stand(char.get("geld")), "verlauf": geld.verlauf(char.get("geldVerlauf"))}
+
+    def _char_von_figur(self, cid: Optional[str]) -> Optional[dict]:
+        c = self._combatant(cid) if cid else None
+        return c and next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
+
+    def geld_fuer(self, player_id: Optional[str]) -> Optional[dict]:
+        if not player_id:
+            return None
+        c = next((x for x in self.combatants if x.get("playerId") == player_id), None)
+        char = c and next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
+        return self._geld_von(char) if char else None
+
+    def _boerse(self, char: dict) -> tuple[dict, list]:
+        """Stand + Verlauf eines Charakters zum Ändern (bereinigt, am Charakter)."""
+        char["geld"] = geld.stand(char.get("geld"))
+        char["geldVerlauf"] = geld.verlauf(char.get("geldVerlauf"))
+        return char["geld"], char["geldVerlauf"]
+
+    def geld_spieler(self, cid: Optional[str], a: dict) -> bool:
+        """Handy bucht in der eigenen Börse bzw. mit der Gruppenkasse.
+
+        was: einstecken | bezahlen (eigene Börse), einlegen | herausnehmen
+        (eigene Börse ↔ Kasse), kasse_bezahlen (direkt aus der Kasse).
+        Alles oder nichts: geht eine Seite ins Minus, passiert gar nichts."""
+        char = self._char_von_figur(cid)
+        p = geld.posten(a) if isinstance(a, dict) else None
+        if char is None or p is None:
+            return False
+        art, nenner, n = p
+        was, text = a.get("was"), geld.wofuer(a)
+        name, cid_char = char.get("name", ""), char.get("id", "")
+        kasse_s, kasse_v = self.gruppenkasse["stand"], self.gruppenkasse["verlauf"]
+        eigen_s, eigen_v = self._boerse(char)
+        if was in ("einstecken", "bezahlen"):
+            d = n if was == "einstecken" else -n
+            if not geld.geht(eigen_s, art, nenner, d):
+                return False
+            geld.buchen(eigen_s, eigen_v, art, nenner, d, name, text, cid_char)
+            self.save_roster()
+            return True
+        if was in ("einlegen", "herausnehmen"):
+            d = n if was == "herausnehmen" else -n
+            if not (geld.geht(eigen_s, art, nenner, d) and geld.geht(kasse_s, art, nenner, -d)):
+                return False
+            geld.buchen(eigen_s, eigen_v, art, nenner, d, name,
+                        text or ("Aus der Gruppenkasse" if d > 0 else "In die Gruppenkasse"), cid_char)
+            geld.buchen(kasse_s, kasse_v, art, nenner, -d, name,
+                        text or ("Herausgenommen" if d > 0 else "Eingelegt"), cid_char)
+            self.save_roster()
+            self.save_gruppenkasse()
+            return True
+        if was == "kasse_bezahlen":
+            if not geld.geht(kasse_s, art, nenner, -n):
+                return False
+            geld.buchen(kasse_s, kasse_v, art, nenner, -n, name, text, cid_char)
+            self.save_gruppenkasse()
+            return True
+        return False
+
+    def geld_sl(self, a: dict) -> bool:
+        """SL gibt oder nimmt - einem, mehreren („an jeden") oder der Kasse.
+        ziele: Liste aus Charakter-IDs und/oder "gruppe". Beim Nehmen alles
+        oder nichts: hat einer zu wenig, bleibt bei allen alles, wie es war."""
+        p = geld.posten(a) if isinstance(a, dict) else None
+        ziele = a.get("ziele") if isinstance(a, dict) else None
+        if p is None or not isinstance(ziele, list) or not ziele or a.get("was") not in ("geben", "nehmen"):
+            return False
+        art, nenner, n = p
+        d = n if a["was"] == "geben" else -n
+        konten = []
+        for z in dict.fromkeys(ziele):
+            if z == "gruppe":
+                konten.append((self.gruppenkasse["stand"], self.gruppenkasse["verlauf"]))
+                continue
+            char = next((r for r in self.roster if isinstance(r, dict) and r.get("id") == z), None)
+            if char is None:
+                return False
+            konten.append(self._boerse(char))
+        if not all(geld.geht(st, art, nenner, d) for st, _ in konten):
+            return False
+        text = geld.wofuer(a) or ("Vom Spielleiter" if d > 0 else "Vom Spielleiter abgezogen")
+        for st, vl in konten:
+            geld.buchen(st, vl, art, nenner, d, "Spielleiter", text, "sl")
+        self.save_roster()
+        if "gruppe" in ziele:
+            self.save_gruppenkasse()
         return True
 
     def namen_fuer_notizen(self, fuer_spieler: bool) -> list[str]:

@@ -22,6 +22,7 @@ const MODUS_SCHALTER = {
   abend: [
     ["aufnahme", "🎙 Aufnahme & Protokoll", "Mitschrift und Nacherzählung des Abends"],
     ["notizen", "📝 Notizen", "Eigene und Gruppen-Notizen am Handy"],
+    ["geld", "Geld", "Börse je Charakter und Gruppenkasse (Fater, Lose, Münzen)"],
     ["nachrichten", "✉ Nachrichten & Bilder", "SL flüstert, zeigt Bilder, TV-Bild"],
     ["boegen", "📜 Charakterbögen", "Bogen am Handy, Werte im eigenen Zug"],
     ["regeln", "📖 Regel-Spickzettel", "Regeln nachschlagen am Handy"],
@@ -80,7 +81,7 @@ function modusFensterHtml() {
         <div><div class="modus-gruppe">Rund um den Abend</div>${MODUS_SCHALTER.abend.map(zeile).join("")}</div>
       </div>
       <div class="row spread modus-fuss">
-        <span class="muted small">Ausgeschaltetes verschwindet nur – Wunden, Bennies, Notizen bleiben gespeichert.</span>
+        <span class="muted small">Ausgeschaltetes verschwindet nur – Wunden, Bennies, Notizen, Geld bleiben gespeichert.</span>
         <button class="primary" data-act="modus-zu">Fertig</button>
       </div>
     </div>
@@ -148,11 +149,12 @@ const ANLEITUNG = [
     ["<b>📖 Chronik</b> (Panel „Protokolle“): alle Abende am Stück, der neueste zuerst – auch zum Drucken oder als PDF. Am Handy: 📜 → „Alles am Stück lesen“."],
     ["<b>Wer hat was gesagt?</b> Ordnet die Mitschrift selbst zu. Mit dem SSL Connex noch sicherer: „Immersive“ einschalten (im Setup-Menü das Logo 5 s halten, es wird gelb) und den SSL-Treiber installieren – dann zählt auch der Sitzplatz, und im Panel steht „Sitzplatz-Erkennung an“. Mikro während des Abends nicht verschieben."],
   ], tipp: "Das Mikro mittig auf den Tisch – das bringt mehr als jede Einstellung." },
-  { k: "handy", titel: "📱 Am Handy der Spieler", f: ["boegen", "notizen", "regeln"], schritte: [
+  { k: "handy", titel: "📱 Am Handy der Spieler", f: ["boegen", "notizen", "geld", "regeln"], schritte: [
     ["<b>📜 Charakterbogen</b>: einmal ausfüllen – im eigenen Zug stehen Parade, Robustheit, Waffen und Würfel-Tipps.", "boegen"],
     ["<b>📷 Foto vom Papierbogen</b>: wer auf Papier spielt, fotografiert den Bogen im Reiter „📷 Foto“ – du siehst ihn über 📜 an der Figur.", "boegen"],
     ["<b>☀ Bildschirm bleibt an</b>, solange gekämpft wird (abschaltbar im ⚙ am Handy)."],
     ["<b>📝 Notizen</b>: eigene (nur man selbst sieht sie) und 👥 Gruppen-Notizen für alle.", "notizen"],
+    ["<b>Geld</b>: Börse je Charakter + 👥 Gruppenkasse (Fater, Lose, Münzen). Handy-Reiter „Geld“; Beute verteilen im Panel „Vermögen“.", "geld"],
     ["<b>📖 Regeln</b>: Spickzettel für den eigenen Zug.", "regeln"],
   ] },
   { k: "sichern", titel: "🛟 Sichern & Netzwerk", schritte: [

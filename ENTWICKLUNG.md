@@ -77,6 +77,39 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Geld: Börse + Gruppenkasse (18.11.2026, noch kein Release)
+
+Kalle: „Jeder Char einzeln eine Geldbörse, einzahlen, auszahlen, automatisch.
+Und ne Gruppenkasse." Story Teil 2 spielt im Himmel nach der Barriere, neue
+Währung. Mockups im Projektordner `screenshots/geld/` (Runde 1–3), gebaut:
+`…/geld/gebaut/`. Gewählt: **B – eigener Reiter „Geld"** (nicht unter Notizen).
+
+**Währung** (Kalle): **Fater** = schwarzer, rauchender Seelenstein, ändert ein
+Schicksal, unheimlich viel wert („1 Milliarde"). **Lose** = Scheine mit festem
+Wert ½ … 1/100.000 Fater, man BEZAHLT damit – kein Glücksspiel (Runde 2 hatte
+„Einlösen: Gewinn/Niete", falsch verstanden). **Münzen** = Kleingeld, winzig;
+echter Name noch offen → SL stellt ihn ein (`muenzName`, Panel „Vermögen").
+Die App rechnet **nicht** um (Kurs unbekannt), zählt nur. Wechselgeld = zwei
+Buchungen.
+
+- Server `server/geld.py` (prüfen/buchen/Verlauf, nie ins Minus, alles oder
+  nichts), `Game.geld_spieler` (einstecken/bezahlen/einlegen/herausnehmen/
+  kasse_bezahlen) und `geld_sl` (geben/nehmen an mehrere Ziele). Börse am
+  Charakter (`geld`, `geldVerlauf`), Kasse in `data/gruppenkasse.json`. Kein
+  Undo-Ziel (wie Notizen), reist in der Sicherung mit. Eigene Börse nur ans
+  eigene Handy (`meinGeld`, in `broadcast_state` je Handy), alle nur an den
+  SL (`geldAlle`). 🎛-Schalter „Geld".
+- Client `web/static/geld.js`: Schatulle (dunkles Holz, 3 Zeilen), Blatt von
+  unten: Münzen per eigenem Zahlenblock (keine Handy-Tastatur), Lose nur
+  antippen (Scheine mit ×Anzahl, Raster der Werte, „1/…" für Sonderwerte),
+  Fater mit − / +. Wörter: Bezahlen/Einstecken, Kasse Herausnehmen/Einlegen,
+  SL Abziehen/Geben. Fater-Symbol als SVG nach Kalles Bild (Verläufe einmal
+  im Dokument, sonst änderte sich das HTML bei jedem Zeichnen).
+- Fünf Reiter: Symbol über Wort (`.handy-reiter.fuenf`), sonst passte es auf
+  320 px nicht. Bei offenem Geld-Blatt steht die Bestätigung oben
+  (`body.geld-offen`), unten lag sie über „Bezahlen".
+- Tests: `tests/test_geld.py`, `tests/browser/test_geld_browser.py`.
+
 ## 2.0.16 (17.11.2026): AAA-Rundgang – 6 Bereiche + 3 Optik-Fehler
 
 Kalle: „Schau dir an, was noch nicht auf AAA-Studio-Stand ist.“ Ganze App
