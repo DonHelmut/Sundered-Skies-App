@@ -378,7 +378,9 @@ class Hub:
             pid = meta.get("playerId")
             return {"type": "state",
                     "state": {**fassung["player"]["state"], "messages": game.nachrichten_fuer(pid),
-                              "meineNotizen": game.notizen_fuer(pid)}}
+                              "meineNotizen": game.notizen_fuer(pid),
+                              # Börse genauso nur ans eigene Handy (geteilte Fassung hat None).
+                              "meinGeld": game.geld_fuer(pid)}}
         ziele = list(self.sockets.items())
         ok = await asyncio.gather(*(self._senden(ws, fuer(meta)) for ws, meta in ziele))
         for (ws, meta), gesendet in zip(ziele, ok):
@@ -1152,6 +1154,12 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         if atype == "gruppen_notiz":
             # 👥 Notiz für alle Spieler - Schreiber ist immer der eigene Charakter.
             if game.gruppen_notiz(own["id"], action):
+                await hub.broadcast_state()
+            return
+        if atype == "geld":
+            # Börse des eigenen Charakters bzw. 👥 Gruppenkasse - geht wie die
+            # Notizen auch, solange „Fortsetzen?" noch offen ist.
+            if game.geld_spieler(own["id"], action):
                 await hub.broadcast_state()
             return
         # Wartet noch eine gespeicherte Sitzung auf „Fortsetzen?", zählen die

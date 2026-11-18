@@ -31,6 +31,7 @@ def fresh_game(tmp_path, monkeypatch):
     monkeypatch.setattr(gmod, "ENCOUNTERS_FILE", d / "encounters.json")
     monkeypatch.setattr(gmod, "PROTOKOLLE_FILE", d / "protokolle.json")
     monkeypatch.setattr(gmod, "GRUPPEN_NOTIZEN_FILE", d / "gruppen_notizen.json")
+    monkeypatch.setattr(gmod, "GRUPPENKASSE_FILE", d / "gruppenkasse.json")
     monkeypatch.setattr(gmod, "SESSION_FILE", d / "session.json")
     monkeypatch.setattr(gmod, "SETTINGS_FILE", d / "settings.json")
     monkeypatch.setattr(gmod, "UPLOAD_DIR", d / "uploads")

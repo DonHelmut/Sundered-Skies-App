@@ -234,6 +234,15 @@ abschalten** – dann sehen die Spieler den Knopf gar nicht erst.
 
 ## 🎛 Was nutzen wir heute? (Spielmodus)
 
+### Geld
+
+Am Handy im Reiter **Geld**: eigene Börse und 👥 Gruppenkasse mit **Fater**,
+**Losen** (Scheine von ½ bis 1/100.000) und **Münzen** (Name stellt der SL ein).
+Zeile antippen → Münzen über den Zahlenblock, Lose antippen, Fater mit − / +;
+„Bezahlen / Einstecken", in der Kasse „Herausnehmen / Einlegen". Jede Buchung
+steht im Verlauf. Der SL sieht im Panel **Vermögen** alle Börsen und verteilt
+Beute („Jeden" + Kasse). Die App rechnet nicht um, sie zählt nur.
+
 Oben in der SL-Kopfleiste (oder ☰ Mehr): Teile der App an- und ausschalten –
 gilt für Laptop, Handys und TV und bleibt gespeichert.
 
@@ -242,9 +251,9 @@ gilt für Laptop, Handys und TV und bleibt gespeichert.
 - **⚔ Voller Kampf** – alles an.
 - **✎ Eigene Auswahl** – Einzelschalter: Zonen, Zug-Uhr, Angreifen & Treffer,
   Wunden, Zusatz-Zustände, Bennies, Anfragen, Aufnahme & Protokoll, Notizen,
-  Nachrichten, Charakterbögen, Regel-Spickzettel.
+  Geld, Nachrichten, Charakterbögen, Regel-Spickzettel.
 
-Ausgeschaltetes wird nur ausgeblendet – Wunden, Bennies und Notizen bleiben
+Ausgeschaltetes wird nur ausgeblendet – Wunden, Bennies, Notizen und Geld bleiben
 gespeichert. **📖 Anleitung für den SL** (☰ Mehr) erklärt kurz, was geht und wo
 es steckt.
 

@@ -70,9 +70,10 @@ const PANEL_BAU = {
   // Ausschalten nicht mehr an „■ Beenden".
   aufnahme: () => funktionAn("aufnahme") || Aufn.rec ? renderAufnahmePanel() : "",
   protokolle: () => funktionAn("aufnahme") ? renderProtokollPanel() : "",
+  geld: () => funktionAn("geld") ? renderGeldPanel() : "",
 };
 const STANDARD_ANORDNUNG = {
-  links: ["requests", "zones", "message", "bibliothek", "connect", "aufnahme", "protokolle"],
+  links: ["requests", "zones", "message", "geld", "bibliothek", "connect", "aufnahme", "protokolle"],
   rechts: ["combat"],
 };
 

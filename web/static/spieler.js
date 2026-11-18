@@ -205,13 +205,16 @@ function renderPlayer() {
     bogen: renderBogen(mine),
     msgs: `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs || `<div class="muted small">Noch keine Nachrichten.</div>`}</div>`,
     notizen: notizenPanelHtml(),
+    geld: geldSeiteHtml(),
   };
   const reiterDa = kurz ? [] : handyReiterListe();
   const reiter = reiterDa.includes(App.handyReiter) ? App.handyReiter : "kampf";
   // Keine Zahl „neu" am ✉: jede Nachricht kommt ohnehin als Banner, das man
   // wegtippen muss - eine Zahl danach wäre nur Lärm.
-  const reiterLeiste = reiterDa.length > 1 ? `<div class="handy-reiter">${reiterDa.map((k) =>
-    `<button type="button" class="${k === reiter ? "an" : ""}" data-act="handy-reiter" data-reiter="${k}">${HANDY_REITER[k]}</button>`).join("")}</div>` : "";
+  // Ab fünf Reitern (mit 💰 Geld) Symbol über Wort wie eine App-Leiste: neben-
+  // einander passten „Kampf Bogen Geld Notizen Post" auf 320 px nicht mehr.
+  const reiterLeiste = reiterDa.length > 1 ? `<div class="handy-reiter${reiterDa.length >= 5 ? " fuenf" : ""}">${reiterDa.map((k) =>
+    `<button type="button" class="${k === reiter ? "an" : ""}" data-act="handy-reiter" data-reiter="${k}">${k === "geld" ? geldReiterLabel() : HANDY_REITER[k]}</button>`).join("")}</div>` : "";
   const kampfTeile = kurz ? ["zones"].filter(bereichAn)
     // Ohne Kampf sagen Reihenfolge und Zonen nichts.
     : ruhe ? []
@@ -876,7 +879,7 @@ document.addEventListener("click", (e) => {
 const HANDY_BEREICHE = { order: "Initiative-Reihenfolge", zones: "Kampfzonen", bogen: "Mein Charakter", msgs: "Nachrichten", notizen: "Notizen" };
 // 🎛 Bereiche, die der SL ausgeschaltet hat, gar nicht erst bauen. Die eigene
 // Reihenfolge bleibt gemerkt - beim Wiedereinschalten steht alles wie vorher.
-const BEREICH_FUNKTION = { zones: "zonen", bogen: "boegen", msgs: "nachrichten", notizen: "notizen" };
+const BEREICH_FUNKTION = { zones: "zonen", bogen: "boegen", msgs: "nachrichten", notizen: "notizen", geld: "geld" };
 function bereichAn(k) { return !BEREICH_FUNKTION[k] || funktionAn(BEREICH_FUNKTION[k]); }
 function handyBereiche() {
   let liste = [];
@@ -887,7 +890,8 @@ function handyBereiche() {
   return liste;
 }
 // Die Reiter in fester Reihenfolge; was der SL im 🎛 ausgeschaltet hat, fehlt.
-const HANDY_REITER = { kampf: "⚔ Kampf", bogen: "📜 Bogen", notizen: "📝 Notizen", msgs: "✉ Post" };
+// 💰 Geld seit 18.11.2026 (Kalle wählte den eigenen Reiter statt „unter Notizen").
+const HANDY_REITER = { kampf: "⚔ Kampf", bogen: "📜 Bogen", geld: "Geld", notizen: "📝 Notizen", msgs: "✉ Post" };
 function handyReiterListe() {
   return Object.keys(HANDY_REITER).filter((k) => k === "kampf" || bereichAn(k));
 }
