@@ -110,6 +110,25 @@ Buchungen.
   (`body.geld-offen`), unten lag sie über „Bezahlen".
 - Tests: `tests/test_geld.py`, `tests/browser/test_geld_browser.py`.
 
+## Unveröffentlicht (17.11.2026): Update-Hinweis kommt zuverlässig
+
+Kalle: „Hinweis für den SL als Popup, wenn ne neue Version verfügbar ist?" –
+gab es schon (seit 2.0.7), kam aber praktisch nie. Varianten in
+`screenshots/update-hinweis/` (A Dialog wie bisher, B Karte unten rechts,
+C Zeile in der Startfläche) – Kalle wählte **A**.
+- **Bug:** Dialog wurde unterdrückt, solange „Gespeicherte Sitzung gefunden"
+  dastand (fast immer), und nur 6 s/90 s nach dem Laden versucht → nie gesehen.
+  Jetzt prüft jeder Zustand vom Server (`updateVonSelbstZeigen` in
+  `verbindung.js`): kommt im ersten ruhigen Moment (nach Fortsetzen/Verwerfen,
+  nach Kampfende), 1,5 s verzögert. Nie im Kampf, bei Aufnahme, offenem Dialog
+  oder wenn der SL gerade tippt.
+- **Einmal je Version UND App-Start** (`update.START` in `/api/update`,
+  localStorage `updateGezeigt` = `version@start`). „Später" = Ruhe bis zum
+  nächsten Start; vorher einmal je Version für immer.
+- **GitHub stündlich** statt nur beim Start (`update.ABSTAND_S`), App holt alle 20 min.
+- **Kopf-Knopf** „⬆ Version X da" ganz links in der Knopfgruppe – schob beim
+  Erscheinen vorher „Handys"/„Voller Kampf" weg.
+
 ## 2.0.16 (17.11.2026): AAA-Rundgang – 6 Bereiche + 3 Optik-Fehler
 
 Kalle: „Schau dir an, was noch nicht auf AAA-Studio-Stand ist.“ Ganze App

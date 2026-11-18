@@ -26,10 +26,10 @@ function renderGM() {
     <div class="row spread sl-kopf" style="align-items:center; margin-bottom:10px">
       <h1 class="kopf-marke"><img src="/static/icon.svg" alt="" class="kopf-logo"><span class="wortmarke">Sundered Skies</span><span class="kopf-rolle">Spielleiter</span></h1>
       <div class="row tight">
+        ${updateKopfHtml()}
         ${handysKopfHtml()}
         ${aufnahmeKopfHtml()}
         ${modusKopfHtml()}
-        ${updateKopfHtml()}
         ${anordnungIstStandard(spalte) ? "" : `<button class="ghost" data-act="anordnung-zuruecksetzen" title="Panels wieder in die ursprüngliche Reihenfolge bringen">↺ Anordnung zurücksetzen</button>`}
         <span class="kopf-gruppe">
         ${kopfMenueHtml()}

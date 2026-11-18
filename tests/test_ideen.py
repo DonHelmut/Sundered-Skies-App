@@ -60,6 +60,26 @@ def test_update_ohne_internet_bleibt_still(monkeypatch):
     assert U.verfuegbar() and U.stand["titel"] == ""
 
 
+def test_update_fragt_regelmaessig_nach_und_nennt_den_start(monkeypatch):
+    # Kalle 17.11.2026: vorher nur beim Start gefragt - lief die App den ganzen
+    # Tag, kam ein neues Release nie an. Jetzt stündlich (hier: sofort).
+    import threading
+    monkeypatch.delenv("SWI_NEUESTE_VERSION", raising=False)
+    monkeypatch.setattr(U, "ABSTAND_S", 0.01)
+    zwei, ewig, aufrufe = threading.Event(), threading.Event(), []
+
+    def zaehlen():
+        aufrufe.append(1)
+        if len(aufrufe) >= 2:
+            zwei.set()
+            ewig.wait()                 # Faden parkt hier, fragt nie echt GitHub
+    monkeypatch.setattr(U, "pruefen", zaehlen)
+    U.pruefen_im_hintergrund()
+    assert zwei.wait(5)
+    # Der Start steckt in der Auskunft: „Später" gilt bis zum nächsten Start.
+    assert U.auskunft(Path("/gibt/es/nicht"))["start"] == U.START
+
+
 def test_was_neu_nimmt_den_teil_hinter_dem_strich():
     assert U.was_neu("Sundered Skies Initiative 2.0.6 – Eigenes Fenster") == "Eigenes Fenster"
     assert U.was_neu("Sundered Skies Initiative 2.0.6") == ""

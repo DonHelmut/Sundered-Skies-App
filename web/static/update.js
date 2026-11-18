@@ -23,22 +23,42 @@ async function updateLaden() {
   updateVonSelbstZeigen();
 }
 
-// Der Dialog kommt von selbst nur EINMAL je Version und nie mitten ins Spiel:
-// läuft schon ein Kampf, eine Aufnahme oder steht eine andere Frage offen,
-// bleibt es beim Knopf in der Kopfleiste.
+// Der Dialog kommt von selbst EINMAL je Version und App-Start (Kalle
+// 17.11.2026, Variante A) und nie mitten ins Spiel: läuft ein Kampf, eine
+// Aufnahme, steht eine andere Frage offen oder tippt der SL gerade, wartet er
+// und kommt beim nächsten ruhigen Moment (Zustand vom Server) - also nach
+// „Fortsetzen/Verwerfen" oder nach Kampfende. „Später" = Ruhe bis zum nächsten
+// App-Start. Vorgeschichte: vorher kam er nur in den ersten 90 s und nie, wenn
+// „Gespeicherte Sitzung gefunden" dastand - also praktisch nie; dazu nur
+// einmal je Version für immer.
 function updateVonSelbstZeigen() {
-  const neu = Upd.info.neu;
+  const i = Upd.info;
+  if (!i || !i.verfuegbar || Upd.laeuft || App.role !== "gm") return;
+  const schluessel = `${i.neu}@${i.start || ""}`;
   let gezeigt = null;
   try { gezeigt = localStorage.getItem("updateGezeigt"); } catch { /* privates Fenster */ }
-  if (gezeigt === neu) return;
+  if (gezeigt === schluessel || Upd.gezeigt === schluessel) return;
   const s = App.state || {};
-  if (s.round || s.hasSavedSession || Aufn.rec || document.querySelector(".app-dialog-hg")) return;
-  try { localStorage.setItem("updateGezeigt", neu); } catch { /* egal */ }
-  updateZeigen();
+  const tippt = document.activeElement && document.activeElement.matches("input, textarea, select, [contenteditable]");
+  if (s.round || s.hasSavedSession || Aufn.rec || tippt || document.querySelector(".app-dialog-hg")) return;
+  // Kurz warten: direkt nach „Kampf beenden" oder „Fortsetzen" nicht im selben
+  // Augenblick aufpoppen (wirkt wie ein Fehlklick). Danach nochmal prüfen.
+  clearTimeout(Upd._warte);
+  Upd._warte = setTimeout(() => {
+    const s2 = App.state || {};
+    const tippt2 = document.activeElement && document.activeElement.matches("input, textarea, select, [contenteditable]");
+    if (s2.round || s2.hasSavedSession || Aufn.rec || tippt2 || Upd.laeuft || document.querySelector(".app-dialog-hg")) return;
+    Upd.gezeigt = schluessel;
+    try { localStorage.setItem("updateGezeigt", schluessel); } catch { /* egal */ }
+    updateZeigen();
+  }, 1500);
 }
 
 function updateKopfHtml() {
   const i = Upd.info;
+  // Steht in sl.js GANZ LINKS in der Knopfgruppe: die Gruppe hängt rechts, also
+  // rückt beim Erscheinen (6 s nach dem Start) nur leerer Platz - vorher
+  // stand er in der Mitte und schob „Handys"/„Voller Kampf" unter der Maus weg.
   // Läuft die Aufnahme, ist die Kopfleiste voll (Zeit, Pegel, ⏸, 📌) und schob
   // sich mit dem Knopf unter die „Verbunden"-Pille. Aktualisieren geht dann
   // ohnehin nicht - er kommt nach dem Ende der Aufnahme wieder.
@@ -273,6 +293,9 @@ document.addEventListener("click", (e) => {
 
 // Der Server fragt GitHub nach dem Start im Hintergrund - kurz warten, und
 // später nochmal, falls das Internet beim Start noch nicht da war.
+// Der Server fragt GitHub stündlich nach (läuft die App den ganzen Tag, kam
+// ein neues Release sonst nie an) - hier alle 20 min den Stand abholen.
 setTimeout(updateLaden, 6000);
 setTimeout(updateNachNeuladen, 1500);
 setTimeout(updateLaden, 90000);
+setInterval(updateLaden, 20 * 60000);
