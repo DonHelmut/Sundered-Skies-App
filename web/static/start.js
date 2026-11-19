@@ -58,6 +58,50 @@ function jokerZahlText() {
 }
 Cards.setJokerAuswahl(jokerAuswahlLaden());
 
+// SL-⚙ als aufgeräumtes Menü (Kalle, Durchleuchtung 19.11.2026, Vorschlag 2):
+// gleiche Bausteine wie das Einstellungen-Blatt am Handy (es-*), nur als
+// schwebendes Fenster unter dem Zahnrad. Vorher eine enge Kiste mit
+// Farbpunkten ohne Namen, drei kleinen Rückseiten-Knöpfen und einem
+// 🐈-Knöpfchen, das man nicht als Mimi-Schalter erkannte.
+function slMenueHtml() {
+  const pfeil = symbolSvg("chevron-right");
+  const rs = (App.state && App.state.rueckseiteBild) || null;
+  const eigen = rs && rs !== "gruen" ? rs : null;
+  const kachel = (on, inhalt, wort, attr, tag = "button") =>
+    `<${tag} type="button" class="sl-rs-kachel${on ? " on" : ""}"${attr}>${inhalt}<span>${wort}</span>${tag === "label"
+      ? `<input type="file" accept="image/*" data-act="pick-rueckseite" style="display:none">` : ""}</${tag}>`;
+  const reveal = revealSetting();
+  const farben = SKINS.map((k) => `<button type="button" class="es-farbe${App.skin === k ? " an" : ""}" data-skin="${k}" title="${SKIN_NAMES[k]}">
+      <i class="skin-${k}"></i><span>${SKIN_KURZ[k]}</span></button>`).join("");
+  let mimiAn = false;
+  try { mimiAn = localStorage.getItem("mimi-on") === "1"; } catch { /* egal */ }
+  return `<div class="es-kopf"><h3>Ansicht</h3><button type="button" class="es-zu" data-act="einst-zu" aria-label="Schließen">✕</button></div>
+    <div class="es-gruppe">Karten für alle</div>
+    <div class="es-karte">
+      <div class="sl-rs">
+        ${kachel(!rs, `<img class="sl-rs-k" src="/static/rueckseite.svg" alt="">`, "Standard", ` data-act="rueckseite-standard" title="Mitgeliefertes Standardbild"`)}
+        ${kachel(rs === "gruen", `<i class="sl-rs-k gruen"></i>`, "Grün", ` data-act="rueckseite-gruen" title="Schlichte grüne Rückseite ohne Bild"`)}
+        ${kachel(!!eigen, eigen ? `<img class="sl-rs-k" src="${esc(eigen)}" alt="">` : `<i class="sl-rs-k leer">${symbolSvg("image")}</i>`,
+          eigen ? "Eigenes · ändern" : "Eigenes Bild", ` title="Eigenes Bild hochladen – bleibt nur auf diesem Laptop (Ordner data)"`, "label")}
+      </div>
+      <label class="es-zeile"><span class="es-t">Aufdecken</span>
+        <select class="es-select" aria-label="Aufdecken">${REVEALS.map((r) =>
+          `<option value="${r}"${r === reveal ? " selected" : ""}>${REVEAL_NAMES[r]}</option>`).join("")}</select></label>
+      <details class="es-zeile es-joker joker-pick" data-merk="einst-joker"${App.offeneUnter.has("einst-joker") ? " open" : ""}>
+        <summary><span class="es-t">Joker-Stile</span><span class="es-wert es-jokerzahl">${jokerZahlText()}</span></summary>
+        <div class="joker-checks">${Cards.JOKER_STILE.map((st) =>
+          `<label><input type="checkbox" data-joker="${st}"${jokerAuswahlLaden().includes(st) ? " checked" : ""}> ${Cards.JOKER_NAMEN[st]}</label>`).join("")}</div>
+      </details>
+    </div>
+    <div class="es-gruppe">Farbe der App</div>
+    <div class="es-karte"><div class="es-farben">${farben}</div></div>
+    <div class="es-gruppe">Am Tisch</div>
+    <div class="es-karte">
+      ${einstSchalter("mimi-schalter", mimiAn, "Mimi", "Die Katze läuft unten am Rand")}
+      <button type="button" class="es-zeile es-link" data-act="qr-gross">${symbolSvg("qr-code")}<span class="es-t">QR-Code groß zeigen<small>Für Spieler, die noch fehlen</small></span>${pfeil}</button>
+    </div>`;
+}
+
 function mountSkins() {
   // Aufgeräumt: Skins + Mimi liegen hinter einem ⚙-Knopf (eingeklappt).
   const bar = document.createElement("div");
@@ -116,6 +160,13 @@ function mountSkins() {
       box.querySelectorAll("#jokerzahl, .es-jokerzahl").forEach((z) => { z.textContent = jokerZahlText(); });
       box.querySelectorAll("input[data-joker]").forEach((i) => { i.checked = liste.includes(i.dataset.joker); });
       if (App.state) render();
+      return;
+    }
+    // Mimi-Schalter im SL-Menü: schaltet über ihren eigenen (versteckten) Knopf,
+    // so bleibt alles, was mimi.js beim An/Aus tut, an einer Stelle.
+    if (e.target && e.target.dataset && e.target.dataset.act === "mimi-schalter") {
+      const t = document.getElementById("mimi-toggle");
+      if (t) t.click();
       return;
     }
     if (e.target && (e.target.id === "revealsel" || e.target.classList.contains("es-select"))) {

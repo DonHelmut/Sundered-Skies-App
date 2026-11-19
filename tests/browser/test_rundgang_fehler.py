@@ -45,3 +45,40 @@ def test_rennen_platzhalter_passt(tisch):
     h.locator("button:has-text('Werte eintragen')").first.click()
     feld = h.locator("input[data-bogen=rennen]")
     assert feld.get_attribute("placeholder") == "z. B. 6"
+
+
+# --- Vorschläge, Kalle: „alles" (19.11.2026) -----------------------------------
+
+def test_sl_menue_aufgeraeumt_und_mimi_schalter(tisch):
+    sl = tisch.sl()
+    sl.klick("#skin-gear")
+    sl.warte_bis("() => !!document.querySelector('#skinbar.einst-sl.open .es-farbe')")
+    # Farben mit Namen, Rückseiten als Kacheln, alte Kiste weg.
+    assert sl.locator("#skinbar .es-farbe span").first.inner_text()
+    assert sl.locator(".sl-rs-kachel").count() == 3
+    assert not sl.locator("#skinbar .skin-dot").first.is_visible()
+    # Mimi per Schalter an.
+    sl.locator("#skinbar .es-schalter-zeile").first.click()
+    sl.warte_bis("() => localStorage.getItem('mimi-on') === '1'")
+    # Farbe wechseln wirkt.
+    sl.locator("#skinbar .es-farbe[data-skin=dark]").click()
+    assert sl.js("document.body.classList.contains('theme-dark')")
+
+
+def test_anfrage_karte_laesst_kopfleiste_frei(tisch):
+    sl, hs = voller_tisch(tisch, handys=(("Tessa", "iphone"),))
+    sl.warte_bis("() => !!document.querySelector('.anfragen-schweb')")
+    karte = sl.locator(".anfragen-schweb").bounding_box()
+    kopf = sl.js("document.querySelector('.sl-kopf, header, .kopfleiste') ? document.querySelector('.sl-kopf, header, .kopfleiste').getBoundingClientRect().bottom : 60")
+    assert karte["y"] > kopf + 100, (karte, kopf)
+
+
+def test_handy_anfragen_hauptwege_als_kacheln(tisch):
+    sl, hs = voller_tisch(tisch, handys=(("Tessa", "iphone"),))
+    h = hs[0]
+    _nachrichten_weg(h)
+    h.klick("[data-act=toggle-req-mode]")
+    h.warte_bis("() => document.querySelectorAll('.req-raster .req-haupt').length >= 3")
+    haupt = h.locator(".req-raster .req-haupt").first.bounding_box()
+    neben = h.locator(".req-raster > button:not(.req-haupt)").first.bounding_box()
+    assert haupt["height"] > neben["height"] + 20

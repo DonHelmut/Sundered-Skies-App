@@ -3966,3 +3966,53 @@ body.geld-offen .toast { top: calc(14px + env(safe-area-inset-top, 0px)); bottom
 button.haken::after { content: ""; position: absolute; inset: -10px -10px -10px -12px; }
 #skin-gear { position: relative; }
 #skin-gear::before, #protokoll-knopf::before { content: ""; position: absolute; inset: -7px -4px; }   /* ::after = Neu-Punkt */
+/* Linien-Symbole mit Bedeutungsfarbe: der Bluttropfen war als Emoji rot - als
+   Linie bleibt er rot, sonst liest man „Wunde" nicht mehr auf einen Blick. */
+.ic-droplet { color: var(--bad); }
+
+/* Durchleuchtung 19.11.2026 – Kalle: „alles".
+   3B Anfrage-Karte unten rechts über der Leiste: oben mittig deckte sie
+   „Handys verbunden", „Voller Kampf" und das ☰ ab, sobald ein Spieler etwas
+   wollte. Unten rechts ist neben der Reihenfolge fast immer Luft. */
+body.sl-ansicht .anfragen-schweb { top: auto; bottom: 74px; left: auto; right: 16px; transform: none; }
+body.sl-ansicht:not(:has(.aktionsleiste)) .anfragen-schweb { bottom: 16px; }
+
+/* 4 Bogen am Handy: Name über dem Feld, Felder groß (46 px) und zweispaltig.
+   Vorher ~30 px kleine Felder neben dem Wort - „davon Panzer" brach um, der
+   Platzhalter von „Rennen" wurde abgeschnitten. */
+body.player .bogen-raster { gap: 10px 12px; }
+body.player .bogen-raster label { flex-direction: column; align-items: stretch; gap: 4px; font-size: 0.78rem;
+  font-weight: 700; color: var(--muted); letter-spacing: 0.02em; }
+body.player .bogen-raster input { width: 100% !important; min-height: 46px; font-size: 1.15rem; font-weight: 700;
+  text-align: center; border-radius: 10px; color: var(--text); box-sizing: border-box; }
+
+/* 6 Handy-Anfragen: Hauptwege als große Kacheln, Symbol über dem Wort;
+   Zustände (Verwundbar …) schlichter darunter. */
+.req-box .req-raster > button.req-haupt { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; min-height: 76px; font-size: 0.95rem; font-weight: 700; }
+.req-box .req-raster > button.req-haupt .ic { width: 26px; height: 26px; margin: 0; }
+.req-box .req-raster > button.req-haupt .muenze { width: 24px; height: 24px; font-size: 0.7rem; }
+.req-box .req-raster > button:not(.req-haupt) { min-height: 42px; font-size: 0.92rem; }
+
+/* 2 SL-⚙ als aufgeräumtes Menü: schwebt unter dem Zahnrad (nichts rückt). */
+#skinbar.einst-sl .skin-menu > :not(#spieler-menue) { display: none !important; }
+#skinbar.einst-sl #spieler-menue { display: block; }
+#skinbar.einst-sl.open .skin-menu { display: block; position: fixed; top: 52px; right: 10px; width: 340px; max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 70px); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box;
+  padding: 4px 16px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel);
+  box-shadow: 0 24px 60px -20px var(--schatten-farbe, rgba(0,0,0,0.45)), 0 2px 8px rgba(0, 0, 0, 0.12);
+  animation: einst-sl-rein 0.16s ease-out; }
+@keyframes einst-sl-rein { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+#skinbar.einst-sl .es-kopf h3 { font-family: var(--schrift-titel); letter-spacing: 0.08em; margin: 14px 2px 2px; font-size: 1.05rem; color: var(--gold); }
+#skinbar.einst-sl .es-gruppe:first-of-type { margin-top: 10px; }
+#skinbar.einst-sl #mimi-toggle { display: none; }
+.sl-rs { display: flex; gap: 10px; padding: 12px 0 10px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.sl-rs-kachel { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 2px solid transparent;
+  border-radius: 10px; padding: 4px; color: var(--muted); font-size: 0.8rem; box-shadow: none; cursor: pointer; min-height: 0; }
+.sl-rs-kachel.on { border-color: var(--accent); color: var(--text); }
+.sl-rs-k { width: 54px; aspect-ratio: 5 / 7; border-radius: 6px; display: block; object-fit: cover; box-sizing: border-box; }
+.sl-rs-k.gruen { background: radial-gradient(circle at 50% 40%, #2f7d55, #174b33); border: 2px solid #c9a24a; }
+.sl-rs-k.leer { border: 2px dashed var(--muted); display: flex; align-items: center; justify-content: center; opacity: 0.8; }
+.sl-rs-k.leer .ic { width: 20px; height: 20px; }
+#skinbar.einst-sl .es-farbe span { font-size: 0.68rem; }
+@media (prefers-reduced-motion: reduce) { #skinbar.einst-sl.open .skin-menu { animation: none; } }

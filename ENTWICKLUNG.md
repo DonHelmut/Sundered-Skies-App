@@ -98,10 +98,25 @@ abgeschnittener Text, Seitwärts-Scrollen). Bilder im Projektordner
   anderen Felder (`wuerfelWahl(…, platz)`).
 - Test: `tests/browser/test_rundgang_fehler.py`.
 
-Vorschläge (Wahl offen): 1 letzte bunte Emoji → Linien-Symbole, 2 SL-⚙ als
-aufgeräumtes Menü, 3 Anfrage-Karte deckt Kopfleiste nicht mehr (A unter der
-Kopfleiste / B unten rechts), 4 Bogen-Felder am Handy groß, 6 Handy-Anfragen:
-4 Hauptwege als große Kacheln.
+Vorschläge mit Bildern, Kalle wählte **alles** (bei 3 Variante B):
+
+- **1 Linien-Symbole statt der letzten bunten Emoji** (`symbole.js`):
+  😵 ☠ 🩸 💥 🔄 ⏸ 🤝 ⚠ ⬇ ⏳ 🫥 📱 … → Lucide (lucide-static 0.460). Jedes SVG trägt
+  jetzt `ic-<name>`; `.ic-droplet` bleibt rot (Wunde auf einen Blick). 🪙 bleibt
+  bunt (Benny = Goldmünze), ebenso Mimis 🐈.
+- **2 SL-⚙ als aufgeräumtes Menü** (`start.js slMenueHtml`, `render.js`):
+  gleiche `es-*`-Bausteine wie das Handy-Blatt, schwebt unter dem Zahnrad
+  (`#skinbar.einst-sl`). Rückseite für alle als 3 Kacheln (Standard / Grün /
+  Eigenes Bild), Aufdecken, Joker-Stile, Farben mit Namen, Mimi als Schalter
+  (klickt Mimis versteckten Knopf, damit mimi.js die einzige Stelle bleibt),
+  QR groß.
+- **3B Anfrage-Karte unten rechts über der Leiste**: oben mittig deckte sie
+  „Handys verbunden", „Voller Kampf" und ☰ ab.
+- **4 Bogen am Handy**: Name über dem Feld, Felder 46 px, zweispaltig.
+- **6 Handy-Anfragen**: Benny / Angeschlagen / Wunde / K.O. (`.req-haupt`)
+  als große Kacheln mit Symbol, Zustände schlichter darunter. Benny mit der
+  gemalten Münze statt 🪙.
+- Tests ebenfalls in `test_rundgang_fehler.py`. Bilder gebaut: `…/gebaut/`.
 
 ## (nächstes Release, 19.11.2026): Haptik-Runde – rollende Zahlen, Benny-Flug, Drücken fühlbar
 

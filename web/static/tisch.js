@@ -184,7 +184,7 @@ function playerQuickControls(c) {
   // Benny (nur Wild Cards mit Vorrat).
   if (funktionAn("bennies") && c.isWildCard && (c.bennies || 0) > 0) {
     // Gleicher Weg wie die Münzen oben: Rückfrage, dann sofort (kein ✓ des SL).
-    rows.push(`<button class="st-btn" data-act="benny-muenze">🪙 Benny ausgeben</button>`);
+    rows.push(`<button class="st-btn" data-act="benny-muenze"><span class="muenze" aria-hidden="true">✦</span>Benny ausgeben</button>`);
   }
   if (funktionAn("wunden")) {
     // Angeschlagen setzen/aufheben.
@@ -199,6 +199,10 @@ function playerQuickControls(c) {
       ? reqBtn("☠ Nicht mehr K.O.", "status", { out: false })
       : reqBtn("☠ K.O.", "status", { out: true }));
   }
+  // Hauptwege (Benny, Angeschlagen, Wunde, K.O.) als große Kacheln mit Symbol
+  // (Kalle, Durchleuchtung 19.11.2026, Vorschlag 6): vorher waren alle Knöpfe
+  // gleich, „Benny ausgeben" brach als einziger zweizeilig um.
+  rows.forEach((r, i) => { rows[i] = r.replace('class="', 'class="req-haupt '); });
   // Alle weiteren Zustände (Verwundbar, Abgelenkt, Am Boden, Betäubt …).
   Object.keys(conds).forEach((k) => rows.push(st[k]
     ? reqBtn(conds[k] + " aufheben", "status", { [k]: false })
