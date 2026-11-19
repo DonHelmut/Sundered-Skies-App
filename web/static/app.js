@@ -372,6 +372,156 @@ function rundenBanner() {
   setTimeout(() => n.remove(), 1600);
 }
 
+// --- Haptik-Runde (Kalle, 19.11.2026: Vorschläge 4, 5, 6) --------------------
+// Wer „weniger Bewegung" im System eingestellt hat, bekommt die Zahl einfach neu.
+function wenigBewegung() {
+  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
+}
+
+// 4 Rollende Zahlen: Bennies, Wunden, Runde, Geld springen nicht mehr, sie
+// rollen wie ein Zählwerk (alte Zahl raus, neue rein) und leuchten kurz golden.
+// Der Wert steht im Attribut (data-wert), nicht im Text - sonst läse der
+// Vergleich während des Rollens die alte und die neue Zahl zusammen.
+// Fester Platz: die alte Zahl liegt absolut darüber (::after), nichts rückt.
+function rollZahl(key, text) {
+  const t = String(text);
+  return `<span class="rollzahl" data-roll="${esc(key)}" data-wert="${esc(t)}"><span class="rz-neu">${esc(t)}</span></span>`;
+}
+function _zahlWert(t) {
+  const n = parseFloat(String(t).replace(/\./g, "").replace(",", ".").replace("−", "-").replace(/[^\d.-]/g, ""));
+  return isNaN(n) ? null : n;
+}
+function zahlenRollen(root) {
+  const gemerkt = App._rollWerte || (App._rollWerte = new Map());
+  const jeKey = new Map();
+  (root || document).querySelectorAll("[data-roll]").forEach((e) => {
+    const k = e.dataset.roll;
+    if (!jeKey.has(k)) jeKey.set(k, []);
+    jeKey.get(k).push(e);
+  });
+  const ruhig = wenigBewegung();
+  jeKey.forEach((els, k) => {
+    const wert = els[0].dataset.wert;
+    const alt = gemerkt.get(k);
+    gemerkt.set(k, wert);
+    // Erstes Auftauchen (Laden, Reiterwechsel, Zahl war vorher nicht zu sehen):
+    // nichts rollen, sonst „zählt" jede Ansicht beim Öffnen hoch.
+    if (alt === undefined || alt === wert || ruhig) return;
+    const a = _zahlWert(alt), n = _zahlWert(wert);
+    // Wunden stehen als „−2": mehr Wunden heißt trotzdem „nach oben" rollen.
+    const hoch = a == null || n == null ? true : Math.abs(n) >= Math.abs(a);
+    els.forEach((e) => {
+      e.classList.remove("roll-hoch", "roll-runter");
+      void e.offsetWidth;                         // Animation neu starten
+      // Die alte Zahl malt ::after aus data-alt - als echter Text stünde sie
+      // während des Rollens mit im Seitentext („Runde 21" statt „Runde 2").
+      e.dataset.alt = alt;
+      e.classList.add(hoch ? "roll-hoch" : "roll-runter");
+      clearTimeout(e._rollZeit);
+      e._rollZeit = setTimeout(() => { e.classList.remove("roll-hoch", "roll-runter"); delete e.dataset.alt; }, 800);
+    });
+  });
+}
+
+// 5 Benny-Flug (Handy): kommt ein Benny dazu, erscheint eine goldene Münze
+// über der eigenen Karte und fliegt mit Funkenspur in den Münz-Zähler oben,
+// dort ein Ring-Schein. Ausgeben: eine Münze steigt aus dem Zähler auf und
+// verglimmt. Schwebt über allem, fängt keine Tipps ab (pointer-events aus),
+// bewegt nur transform/opacity - nichts rückt, nichts wird neu gemalt.
+function bennyFlug() {
+  const s = App.state;
+  if (!s || App.role === "gm" || !App.joined) return;
+  const mine = myCombatant();
+  if (!mine || !mine.isWildCard) { App._bennyVorher = undefined; return; }
+  const n = mine.bennies || 0;
+  const vorher = App._bennyVorher && App._bennyVorher.id === mine.id ? App._bennyVorher.n : undefined;
+  App._bennyVorher = { id: mine.id, n };
+  if (vorher === undefined || vorher === n || wenigBewegung() || !funktionAn("bennies")) return;
+  const ziele = [...document.querySelectorAll(".handy-kopf .muenzen .muenze")]
+    .filter((m) => m.getBoundingClientRect().width > 0);
+  const zielEl = ziele[ziele.length - 1] || document.querySelector(".handy-kopf .muenzen");
+  if (!zielEl) return;
+  const z = zielEl.getBoundingClientRect();
+  const zx = z.left + z.width / 2, zy = z.top + z.height / 2;
+  const ebene = (cls, x, y) => {
+    const d = document.createElement("div");
+    d.className = cls;
+    d.setAttribute("aria-hidden", "true");
+    d.style.left = x + "px"; d.style.top = y + "px";
+    document.body.appendChild(d);
+    return d;
+  };
+  if (n > vorher) {
+    // Start: Mitte der eigenen Karte, sonst Bildschirmmitte.
+    const k = document.querySelector("#bigcard");
+    const kr = k && k.getBoundingClientRect();
+    const sichtbar = kr && kr.width && kr.bottom > 60 && kr.top < innerHeight - 60;
+    const sx = sichtbar ? kr.left + kr.width / 2 : innerWidth / 2;
+    const sy = sichtbar ? Math.min(Math.max(kr.top + kr.height * 0.55, 120), innerHeight - 120) : innerHeight * 0.45;
+    const dx = zx - sx, dy = zy - sy;
+    // Leichter Bogen statt gerader Linie: über einen Zwischenpunkt.
+    const bahn = (sk) => [
+      { transform: `translate(-50%,-50%) translate(0,0) scale(${0.3 * sk})`, opacity: 0, offset: 0 },
+      { transform: `translate(-50%,-50%) translate(0,-8px) scale(${1.25 * sk})`, opacity: 1, offset: 0.22 },
+      { transform: `translate(-50%,-50%) translate(0,0) scale(${1.15 * sk})`, opacity: 1, offset: 0.4 },
+      { transform: `translate(-50%,-50%) translate(${dx * 0.35}px,${dy * 0.6}px) scale(${0.85 * sk})`, opacity: 1, offset: 0.7 },
+      { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) scale(${0.32 * sk})`, opacity: 0.9, offset: 1 },
+    ];
+    const dauer = 1100;
+    const muenze = ebene("benny-flug", sx, sy);
+    muenze.textContent = "✦";
+    muenze.animate(bahn(1), { duration: dauer, easing: "cubic-bezier(.45,0,.3,1)", fill: "forwards" });
+    for (let i = 1; i <= 4; i++) {
+      const f = ebene("benny-funke", sx, sy);
+      f.animate(bahn(1).map((kf) => ({ ...kf, opacity: kf.opacity * (1 - i * 0.18) })),
+        { duration: dauer, delay: i * 45, easing: "cubic-bezier(.45,0,.3,1)", fill: "forwards" });
+      setTimeout(() => f.remove(), dauer + i * 45 + 50);
+    }
+    setTimeout(() => {
+      muenze.remove();
+      [0, 120].forEach((v, i) => {
+        const r = ebene("benny-ring" + (i ? " zwei" : ""), zx, zy);
+        r.animate([{ transform: "translate(-50%,-50%) scale(.4)", opacity: 0.95 },
+          { transform: `translate(-50%,-50%) scale(${i ? 2.4 : 1.7})`, opacity: 0 }],
+        { duration: 520, delay: v, easing: "ease-out", fill: "forwards" });
+        setTimeout(() => r.remove(), 700 + v);
+      });
+    }, dauer - 30);
+  } else {
+    const m = ebene("benny-flug klein", zx, zy);
+    m.textContent = "✦";
+    m.animate([{ transform: "translate(-50%,-50%) scale(.5)", opacity: 1 },
+      { transform: "translate(-50%,-50%) translate(0,22px) scale(1.1)", opacity: 1, offset: 0.35 },
+      { transform: "translate(-50%,-50%) translate(0,70px) scale(.7)", opacity: 0 }],
+    { duration: 750, easing: "cubic-bezier(.3,0,.3,1)", fill: "forwards" });
+    setTimeout(() => m.remove(), 800);
+  }
+}
+
+// 6 Drücken fühlbar: große Knöpfe sinken ein, unter dem Finger blüht ein
+// warmer Lichtfleck auf und verglimmt beim Loslassen. Nur opacity wird
+// übergeblendet (Lichtfleck liegt fest auf ::after), der Innenschatten
+// springt ohne Übergang - animierte Schatten ruckeln am Handy.
+const DRUECK_SEL = "button.big, button.primary, .g-zeile, .es-link";
+document.addEventListener("pointerdown", (e) => {
+  const b = e.target.closest && e.target.closest(DRUECK_SEL);
+  if (!b || b.disabled) return;
+  const r = b.getBoundingClientRect();
+  b.style.setProperty("--fx", (e.clientX - r.left) + "px");
+  b.style.setProperty("--fy", (e.clientY - r.top) + "px");
+  // ::after braucht einen Bezug; schon positionierte Knöpfe (fest/absolut)
+  // behalten ihre Lage.
+  if (getComputedStyle(b).position === "static") b.classList.add("drueck-rel");
+  clearTimeout(b._drueckZeit);
+  b.classList.add("drueck-licht", "gedrueckt");
+}, { capture: true, passive: true });
+["pointerup", "pointercancel"].forEach((ev) => document.addEventListener(ev, () => {
+  document.querySelectorAll(".gedrueckt").forEach((b) => {
+    b.classList.remove("gedrueckt");
+    b._drueckZeit = setTimeout(() => b.classList.remove("drueck-licht", "drueck-rel"), 450);
+  });
+}, { capture: true, passive: true }));
+
 function dranBlitz() {
   document.querySelectorAll(".dran-blitz").forEach((n) => n.remove());
   const n = el(`<div class="dran-blitz" aria-hidden="true"></div>`);
@@ -398,7 +548,7 @@ function rundenZaehler(s) {
   if (!s || !s.round) return "";
   const neu = App._gezeigteRunde !== undefined && App._gezeigteRunde !== s.round;
   App._gezeigteRunde = s.round;
-  return `<span class="runden-zaehler${neu ? " neu" : ""}" title="Aktuelle Kampfrunde">Runde <b>${s.round}</b></span>`;
+  return `<span class="runden-zaehler${neu ? " neu" : ""}" title="Aktuelle Kampfrunde">Runde <b>${rollZahl("runde", s.round)}</b></span>`;
 }
 
 // Wer kommt nach dem aktiven Akteur dran? Pausierte, ausgeschiedene, schon

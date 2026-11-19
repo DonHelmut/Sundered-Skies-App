@@ -3901,3 +3901,56 @@ body.sl-ansicht .grid2 details[data-sec="protokolle"]:not([open]) > .sec-head { 
 .g-sl-vl-wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 8px; font-size: .8rem; color: var(--muted); font-weight: 700; }
 /* !important: toast() setzt bottom inline (über der Aktionsleiste). */
 body.geld-offen .toast { top: calc(14px + env(safe-area-inset-top, 0px)); bottom: auto !important; z-index: 950; }
+
+/* --- Haptik-Runde 19.11.2026 (Kalle wählte 4, 5, 6) ------------------------ */
+/* 4 Rollende Zahlen: neue Zahl rollt herein, alte (::after aus data-alt) hinaus.
+   inline-block + gleich breite Ziffern immer - nicht erst beim Rollen, sonst
+   rückte die Zeile genau in dem Moment. clip-path schneidet nur oben/unten ab
+   und verändert kein Layout (overflow hätte die Grundlinie verschoben). */
+.rollzahl { display: inline-block; position: relative; font-variant-numeric: tabular-nums; }
+.rollzahl .rz-neu { display: inline-block; }
+.rollzahl.roll-hoch, .rollzahl.roll-runter { clip-path: inset(-0.05em -1em); }
+.rollzahl.roll-hoch::after, .rollzahl.roll-runter::after {
+  content: attr(data-alt); position: absolute; left: 0; top: 0; white-space: nowrap; pointer-events: none; }
+.rollzahl.roll-hoch .rz-neu { animation: rz-rein-hoch .5s cubic-bezier(.3,.7,.3,1) both; }
+.rollzahl.roll-hoch::after { animation: rz-raus-hoch .5s cubic-bezier(.3,.7,.3,1) both; }
+.rollzahl.roll-runter .rz-neu { animation: rz-rein-runter .5s cubic-bezier(.3,.7,.3,1) both; }
+.rollzahl.roll-runter::after { animation: rz-raus-runter .5s cubic-bezier(.3,.7,.3,1) both; }
+@keyframes rz-rein-hoch { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rz-raus-hoch { from { transform: none; opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
+@keyframes rz-rein-runter { from { transform: translateY(-100%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rz-raus-runter { from { transform: none; opacity: 1; } to { transform: translateY(100%); opacity: 0; } }
+/* Kurzer goldener Schein: fest gemalt auf ::before, nur opacity blendet
+   (Farbe/text-shadow zu animieren malte jedes Frame neu). */
+.rollzahl.roll-hoch::before, .rollzahl.roll-runter::before { content: ""; position: absolute; inset: -0.1em -0.35em;
+  border-radius: 0.6em; pointer-events: none; opacity: 0;
+  background: radial-gradient(closest-side, rgba(255, 205, 90, .85), rgba(255, 205, 90, .3) 60%, rgba(255, 205, 90, 0));
+  animation: rz-schein .9s ease-out both; }
+@keyframes rz-schein { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+
+/* 5 Benny-Flug: schwebt über allem, fängt keine Tipps ab. Lage per transform
+   aus app.js (Web Animations), Schein fest gemalt - nur opacity/transform. */
+.benny-flug, .benny-funke, .benny-ring { position: fixed; z-index: 400; pointer-events: none; will-change: transform, opacity;
+  transform: translate(-50%, -50%); opacity: 0; }
+.benny-flug { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 30px; line-height: 1; color: #5a3b00;
+  background: radial-gradient(circle at 35% 30%, #fff6d0, #f2c860 35%, #c48a20 75%, #8a5a10);
+  box-shadow: 0 0 0 3px #f7e2a0 inset, 0 6px 18px rgba(120, 80, 0, .45), 0 0 34px rgba(255, 200, 80, .6); }
+.benny-flug.klein { width: 30px; height: 30px; font-size: 16px; }
+.benny-funke { width: 9px; height: 9px; border-radius: 50%; background: #f7d27a; box-shadow: 0 0 10px rgba(255, 200, 80, .9); }
+.benny-ring { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(242, 200, 96, .95);
+  box-shadow: 0 0 16px rgba(255, 200, 80, .8); }
+.benny-ring.zwei { border-width: 2px; }
+
+/* 6 Drücken fühlbar: Knopf sinkt ein (Innenschatten springt, ohne Übergang),
+   Lichtfleck unter dem Finger blüht auf und verglimmt - nur opacity blendet. */
+.drueck-rel { position: relative; }
+.drueck-licht::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(circle at var(--fx, 50%) var(--fy, 50%), rgba(255, 246, 220, .6), rgba(255, 214, 130, .28) 28%, rgba(214, 162, 74, 0) 62%);
+  opacity: 0; transition: opacity .42s ease-out; }
+.drueck-licht.gedrueckt::after { opacity: 1; transition: opacity .06s; }
+.drueck-licht.gedrueckt { box-shadow: inset 0 2px 9px rgba(60, 35, 5, .32) !important; }
+@media (prefers-reduced-motion: reduce) {
+  .rollzahl .rz-neu, .rollzahl::after, .rollzahl::before { animation: none !important; }
+  .benny-flug, .benny-funke, .benny-ring { display: none; }
+}

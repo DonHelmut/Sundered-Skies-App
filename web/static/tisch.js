@@ -116,7 +116,7 @@ function zustandZelle(c) {
     const punkte = Array.from({ length: Math.max(max, w) }, (_, i) =>
       `<i class="z-punkt${i < w ? " voll" : ""}"></i>`).join("");
     inhalt = `<span class="z-shaken${st.shaken ? " an" : ""}">😵</span>`
-      + `<span class="z-wunden">${punkte}</span>${w ? `<b class="z-abzug">−${w}</b>` : ""}`;
+      + `<span class="z-wunden">${punkte}</span>${w ? `<b class="z-abzug">${rollZahl("zw-" + c.id, "−" + w)}</b>` : ""}`;
   }
   const titel = st.out ? "Ausgeschaltet" : [st.shaken ? "Angeschlagen" : "nicht angeschlagen",
     w ? `${w} Wunde${w > 1 ? "n" : ""} (−${w} auf Würfe)` : "keine Wunden", `hält ${max} Wunde${max === 1 ? "" : "n"} aus`].join(" · ");
@@ -232,7 +232,7 @@ function kopfZustand(c) {
     if (st.shaken) b.push(`<span class="kz kz-shaken">😵 Angeschlagen</span>`);
     if (st.wounds > 0) {
       const pips = Array.from({ length: Math.max(3, st.wounds) }, (_, i) => `<i class="pip${i < st.wounds ? " voll" : ""}"></i>`).join("");
-      b.push(`<span class="kz kz-wunden" title="${st.wounds} Wunde${st.wounds > 1 ? "n" : ""}"><span class="pips">${pips}</span> −${st.wounds}</span>`);
+      b.push(`<span class="kz kz-wunden" title="${st.wounds} Wunde${st.wounds > 1 ? "n" : ""}"><span class="pips">${pips}</span> ${rollZahl("wund-" + c.id, "−" + st.wounds)}</span>`);
     }
     Object.keys(conds).forEach((k) => { if (st[k]) b.push(`<span class="kz kz-cond">${esc(conds[k])}</span>`); });
   }
@@ -252,7 +252,7 @@ function muenzenKopf(c) {
     ? `<button type="button" class="muenze" data-act="benny-muenze" title="Benny ausgeben">✦</button>`
     : `<span class="muenze" title="Bennies">✦</span>`;
   // Mehr als vier passen neben „Runde" nicht - dann eine Münze mit Zahl.
-  const kurz = `${muenze}<span class="muenzen-zahl">×${n}</span>`;
+  const kurz = `${muenze}<span class="muenzen-zahl">${rollZahl("benny-" + c.id, "×" + n)}</span>`;
   // Ab drei Münzen auf schmalen Handys (360 px, das häufigste Android) beide
   // Formen mitgeben, CSS zeigt dort die kurze: sonst wurde im Kampf (wenn
   // „Runde 1" dazukommt) der eigene Name zu „Branni…" bzw. „Ko…" gekürzt.

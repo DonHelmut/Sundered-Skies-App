@@ -130,7 +130,7 @@ function geldReiterLabel() { return `${faterSvg(18)} Geld`; }
 
 function geldTruheHtml(stand, act, ziel) {
   const zeile = (art, bild, zahl, name, unter) => `<button type="button" class="g-zeile" data-act="${act}" data-art="${art}"${ziel ? ` data-ziel="${esc(ziel)}"` : ""}>
-      <span class="g-bild${Number(String(zahl).replace(/\D/g, "")) ? "" : " null"}">${bild}</span><span class="g-txt"><b>${zahl}<em>${esc(name)}</em></b><small>${esc(unter)}</small></span><span class="g-pf" aria-hidden="true">›</span></button>`;
+      <span class="g-bild${Number(String(zahl).replace(/\D/g, "")) ? "" : " null"}">${bild}</span><span class="g-txt"><b>${rollZahl(`g-${act}-${ziel || App.geld.konto || "ich"}-${art}`, zahl)}<em>${esc(name)}</em></b><small>${esc(unter)}</small></span><span class="g-pf" aria-hidden="true">›</span></button>`;
   const lose = loseListe(stand);
   const zahl = loseZusammen(stand);
   return `<div class="g-truhe">
@@ -306,9 +306,9 @@ function renderGeldPanel() {
     const lose = loseListe(st);
     return `<button type="button" class="g-sl-zeile${gr ? " gr" : ""}" data-act="geld-sl-auf" data-ziel="${esc(id)}" title="Geben oder abziehen, Verlauf">
       <span class="g-ini">${gr ? "👥" : esc(zoneInitials(name))}</span><span class="g-sl-name">${esc(name)}</span>
-      <span class="g-sl-werte"><span>${faterSvg(gr ? 24 : 20)} ${st.fater || 0}</span>
+      <span class="g-sl-werte"><span>${faterSvg(gr ? 24 : 20)} ${rollZahl(`gsl-${id}-f`, st.fater || 0)}</span>
       ${lose.slice(0, 3).map(([k, a]) => `<span>${a > 1 ? `${a}×` : ""}${losHtml(k, "klein")}</span>`).join("")}${lose.length > 3 ? `<span class="muted">+${lose.length - 3}</span>` : ""}
-      <span>${muenzeSvg(gr ? 20 : 16)} ${(st.muenzen || 0).toLocaleString("de-DE")}</span></span></button>`;
+      <span>${muenzeSvg(gr ? 20 : 16)} ${rollZahl(`gsl-${id}-m`, (st.muenzen || 0).toLocaleString("de-DE"))}</span></span></button>`;
   };
   const offen = App.geld.slVerlauf;
   const vl = offen ? geldKonto(offen) : null;

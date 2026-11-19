@@ -190,6 +190,9 @@ function render() {
     runReveals();
     playFlip(prevRects);
     playTokens(prevTokens);
+    // Haptik-Runde 19.11.2026: 4 Rollende Zahlen, 5 Benny-Flug (app.js).
+    if (typeof zahlenRollen === "function") zahlenRollen(root);
+    if (typeof bennyFlug === "function") bennyFlug();
   }
 
   protokollKnopfAuffrischen();
