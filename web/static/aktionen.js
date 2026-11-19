@@ -186,11 +186,11 @@ function rueckseiteWahlHtml(mine, immerOffen) {
   const prof = mine.image
     ? `<button type="button" class="rs-kachel${gilt === "profil" ? " on" : ""}" data-act="figur-rueckseite" data-wert="profil">
         ${karte(Cards.renderBackSVG(mine.image, "profil"))}<span>Profil</span></button>`
-    : `<label class="rs-kachel">${leer("📷<br>Bild<br>wählen")}<span>Profil</span>${datei(true)}</label>`;
+    : `<label class="rs-kachel">${leer("📷<br>Foto<br>wählen")}<span>Profil</span>${datei(true)}</label>`;
   const eig = eigen
     ? `<button type="button" class="rs-kachel${gilt === "eigen" ? " on" : ""}" data-act="figur-rueckseite" data-wert="${esc(eigen)}">
         ${karte(Cards.renderBackSVG(null, eigen))}<span>Eigenes</span></button>`
-    : `<label class="rs-kachel">${leer("🖼<br>Bild<br>hochladen")}<span>Eigenes</span>${datei(false)}</label>`;
+    : `<label class="rs-kachel">${leer("🖼<br>Bild<br>wählen")}<span>Eigenes</span>${datei(false)}</label>`;
   const neu = eigen ? `<label class="ghost small rs-neu">🖼 anderes Bild${datei(false)}</label>` : "";
   return `<div class="rs-wahl offen">${immerOffen ? "" : kopf}<div class="rs-kacheln">${std}${prof}${eig}</div>${neu}</div>`;
 }

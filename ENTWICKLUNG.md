@@ -77,6 +77,32 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## (nächstes Release, 19.11.2026): Durchleuchtung – Fehler aus dem Rundgang
+
+Kalle: „Durchleuchte alles bis es wirklich komplett auf Entwicklerstudio-Niveau
+ist." Ganze App per Playwright fotografiert (SL 1024/1366/1400/1920, Handy
+320/390, alle Reiter, Panels, Menüs, Blätter) und vermessen (Tippflächen,
+abgeschnittener Text, Seitwärts-Scrollen). Bilder im Projektordner
+`screenshots/durchleuchtung-2026-11-19/`. Gefundene Fehler sofort behoben:
+
+- **SL-⚙ sprang beim Öffnen ~150 px nach unten** (`#skinbar` `align-items:
+  center` im hohen Menü) → `flex-start`, das Zahnrad bleibt unter der Maus.
+- **Handy-Tippflächen:** ⚙ und Protokolle-Knopf (30 px) und das
+  Erledigt-Kästchen der Notizen (24 px) bekommen eine unsichtbare ~44-px-Fläche
+  (`::before`/`::after`) – sehen gleich aus, trifft man aber mit dem Daumen.
+  Beim Protokolle-Knopf `::before`, weil `::after` der Neu-Punkt ist.
+- **Rückseiten-Kachel:** „Bild hochladen" lief aus der gestrichelten Kachel →
+  „Foto wählen" / „Bild wählen".
+- **Bogen, Rennen:** Platzhalter „6 oder 6+2" am Handy zu „6 oder"
+  abgeschnitten → eigener Platzhalter „z. B. 6", gleiche Breite wie die
+  anderen Felder (`wuerfelWahl(…, platz)`).
+- Test: `tests/browser/test_durchleuchtung.py`.
+
+Vorschläge (Wahl offen): 1 letzte bunte Emoji → Linien-Symbole, 2 SL-⚙ als
+aufgeräumtes Menü, 3 Anfrage-Karte deckt Kopfleiste nicht mehr (A unter der
+Kopfleiste / B unten rechts), 4 Bogen-Felder am Handy groß, 6 Handy-Anfragen:
+4 Hauptwege als große Kacheln.
+
 ## (nächstes Release, 19.11.2026): Haptik-Runde – rollende Zahlen, Benny-Flug, Drücken fühlbar
 
 Kalle wollte die App „haptischer und hochwertiger“. Sechs Vorschläge mit Bildern
