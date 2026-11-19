@@ -1670,7 +1670,7 @@ function kontextMenueHtml() {
   const zustaende = Object.keys(conds).length ? `<div class="km-zeile km-klein">${Object.keys(conds).map((key) =>
       `<button class="km-btn km-bleibt${st[key] ? " on" : ""}" data-act="st-cond" data-id="${c.id}" data-cond="${key}">${esc(conds[key])}</button>`).join("")}</div>` : "";
   const bennies = c.isWildCard && funktionAn("bennies") ? `<div class="km-zeile"><span class="km-label">🪙 Bennies</span>
-      ${b("benny-minus", "–", "km-bleibt")}<span class="km-zahl">${c.bennies || 0}</span>${b("benny-plus", "+", "km-bleibt")}</div>` : "";
+      ${b("benny-minus", "–", "km-bleibt")}<span class="km-zahl">${rollZahl("kmb-" + c.id, c.bennies || 0)}</span>${b("benny-plus", "+", "km-bleibt")}</div>` : "";
   const zug = `<div class="km-zeile">
       ${c.id === App.state.activeId ? "" : b("set-active", "▶ Aktiv setzen")}
       ${c.card && !st.out ? b(c.held ? "intervene" : "hold", c.held ? "⚡ Eingreifen" : "⏸ Abwarten") : ""}

@@ -77,6 +77,33 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## (nächstes Release, 19.11.2026): Haptik-Runde – rollende Zahlen, Benny-Flug, Drücken fühlbar
+
+Kalle wollte die App „haptischer und hochwertiger“. Sechs Vorschläge mit Bildern
+(`screenshots/haptik-2026-11-19/` im Projektordner), gewählt: **4, 5, 6**.
+Nicht gewählt (nicht neu vorschlagen): 1 Vibrations-Muster je Moment + Tick je
+Knopf, 2 synthetische Tisch-Klänge, 3 Folien-Glanz der Karte beim Neigen.
+
+- **4 Rollende Zahlen** (`rollZahl`/`zahlenRollen` in app.js, läuft nach jedem
+  `render()`): Bennies im Handy-Kopf, Wunden (Handy-Kopf, SL-Zustandszelle),
+  Runde, Bennies im SL-Kontextmenü, Geld (Handy-Truhe, SL-Panel „Vermögen“).
+  Wert steht in `data-wert`; ändert er sich, rollt die neue Zahl herein, die alte
+  malt `::after` aus `data-alt` hinaus (als echter Text stand sie sonst im
+  Seitentext: „Runde 21“). Erstes Auftauchen rollt nicht. Schein = festes
+  `::before`, nur opacity (Regel-Test verbietet animierte Farbe/Schatten).
+- **5 Benny-Flug** (`bennyFlug`, nur Handy): +Benny → goldene Münze über der
+  eigenen Karte, fliegt im Bogen mit Funkenspur in den Münz-Zähler, Ring-Schein.
+  −Benny → Münze steigt aus dem Zähler und verglimmt. Web Animations, nur
+  transform/opacity, `pointer-events: none`. Läuft eine Kartenaufdeckung, kommt
+  der Flug danach (render wartet dann ohnehin).
+- **6 Drücken fühlbar**: `button.big`, `button.primary`, Geld-Zeilen,
+  Einstellungs-Links. Beim Drücken Innenschatten (springt, ohne Übergang) +
+  Lichtfleck genau unter dem Finger (`--fx/--fy`, `::after`, nur opacity
+  blendet). Schon positionierte Knöpfe behalten ihre Lage (`drueck-rel` nur bei
+  `position: static`).
+- „Weniger Bewegung“ im System: kein Rollen, kein Flug.
+- Test: `tests/browser/test_haptik.py`.
+
 ## 2.0.17 (18.11.2026): Geld: Börse + Gruppenkasse
 
 Kalle: „Jeder Char einzeln eine Geldbörse, einzahlen, auszahlen, automatisch.
