@@ -29,8 +29,9 @@ function bogenIstLeer(b) {
     && !Object.values(b.attribute).some(Boolean) && !b.talente.length && !b.handicaps.length && !b.ausruestung.length
     && !b.foto;
 }
-const wuerfelWahl = (pfad, wert, breite) =>
-  `<input class="wuerfel-feld" list="wuerfel-vorschlaege" data-bogen="${pfad}" value="${esc(wert || "")}" placeholder="6 oder 6+2" inputmode="text"${breite ? ` style="width:${breite}"` : ""}>`;
+// platz: Rennen ist nur ein Würfel - „6 oder 6+2" wurde dort am Handy zu „6 oder" abgeschnitten.
+const wuerfelWahl = (pfad, wert, breite, platz) =>
+  `<input class="wuerfel-feld" list="wuerfel-vorschlaege" data-bogen="${pfad}" value="${esc(wert || "")}" placeholder="${platz || "6 oder 6+2"}" inputmode="text"${breite ? ` style="width:${breite}"` : ""}>`;
 const bogenFeld = (pfad, wert, platz, breite) =>
   `<input data-bogen="${pfad}" value="${esc(wert || "")}" placeholder="${esc(platz || "")}"${breite ? ` style="width:${breite}"` : ""}>`;
 
@@ -78,7 +79,7 @@ function renderBogen(mine) {
            <label title="Leer lassen: 2 + halbe Konstitution + Panzer">Robustheit ${bogenFeld("robustheit", b.robustheit, autoRobustheit(b) !== null ? `auto ${autoRobustheit(b)}` : "z. B. 8", "4.5em")}</label>
            <label>davon Panzer ${bogenFeld("panzer", b.panzer, "z. B. 2", "4.5em")}</label>
            <label>Tempo ${bogenFeld("tempo", b.tempo, "z. B. 6", "4.5em")}</label>
-           <label>Rennen ${wuerfelWahl("rennen", b.rennen)}</label>
+           <label>Rennen ${wuerfelWahl("rennen", b.rennen, "4.5em", "z. B. 6")}</label>
          </div>
          <div class="muted small">Parade und Robustheit rechnet die App aus Kämpfen bzw. Konstitution + Panzer, solange du die Felder leer lässt.</div>
          <div class="bogen-titel">Waffen</div>

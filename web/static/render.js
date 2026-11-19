@@ -172,10 +172,11 @@ function render() {
     if (sm) {
       // Ganzes Blatt neu nur, wenn sich etwas geändert hat: sonst sprang bei
       // jedem Stand vom Server die Scroll-Lage im offenen Blatt.
-      const neu = meine ? spielerMenueHtml(meine) : "";
+      const sl = App.role === "gm" && !document.body.classList.contains("tv");
+      const neu = meine ? spielerMenueHtml(meine) : sl ? symboleEinsetzen(slMenueHtml()) : "";
       if (sm._html !== neu) { sm._html = neu; sm.innerHTML = neu; }
       const bar = $("skinbar");
-      if (bar) bar.classList.toggle("einst-blatt", !!meine);
+      if (bar) { bar.classList.toggle("einst-blatt", !!meine); bar.classList.toggle("einst-sl", sl); }
     }
     // Platz für die fixierte Steuerleiste schaffen - über eine Klasse statt über
     // den CSS-Selektor :has(), damit es auch in älteren Browsern greift.
