@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## (nächstes Release, 19.11.2026): Durchleuchtung – Fehler aus dem Rundgang
+## 2.0.18 (19.11.2026): Durchleuchtung – Fehler aus dem Rundgang
 
 Kalle: „Durchleuchte alles bis es wirklich komplett auf Entwicklerstudio-Niveau
 ist." Ganze App per Playwright fotografiert (SL 1024/1366/1400/1920, Handy
@@ -118,7 +118,7 @@ Vorschläge mit Bildern, Kalle wählte **alles** (bei 3 Variante B):
   gemalten Münze statt 🪙.
 - Tests ebenfalls in `test_rundgang_fehler.py`. Bilder gebaut: `…/gebaut/`.
 
-## (nächstes Release, 19.11.2026): Haptik-Runde – rollende Zahlen, Benny-Flug, Drücken fühlbar
+## 2.0.18 (19.11.2026): Haptik-Runde – rollende Zahlen, Benny-Flug, Drücken fühlbar
 
 Kalle wollte die App „haptischer und hochwertiger“. Sechs Vorschläge mit Bildern
 (`screenshots/haptik-2026-11-19/` im Projektordner), gewählt: **4, 5, 6**.
