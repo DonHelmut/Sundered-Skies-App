@@ -96,7 +96,7 @@ abgeschnittener Text, Seitwärts-Scrollen). Bilder im Projektordner
 - **Bogen, Rennen:** Platzhalter „6 oder 6+2" am Handy zu „6 oder"
   abgeschnitten → eigener Platzhalter „z. B. 6", gleiche Breite wie die
   anderen Felder (`wuerfelWahl(…, platz)`).
-- Test: `tests/browser/test_durchleuchtung.py`.
+- Test: `tests/browser/test_rundgang_fehler.py`.
 
 Vorschläge (Wahl offen): 1 letzte bunte Emoji → Linien-Symbole, 2 SL-⚙ als
 aufgeräumtes Menü, 3 Anfrage-Karte deckt Kopfleiste nicht mehr (A unter der
