@@ -2729,6 +2729,21 @@ button.notiz-erl-kopf { display: flex; justify-content: space-between; align-ite
   background: transparent; border: 1px dashed var(--line); border-radius: 10px; padding: 7px 12px;
   color: var(--muted); font-size: 0.88rem; }
 .zeilen.erledigt { margin-top: 6px; }
+/* Auswahl zum Löschen (Kalle 20.11.2026, Variante D). Leiste immer gleich hoch
+   (Auswählen ↔ „N ausgewählt · Fertig"), damit beim Umschalten nichts springt. */
+.notiz-wahl-leiste { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px;
+  min-height: 40px; color: var(--muted); font-size: 0.9rem; }
+.notiz-wahl-leiste button { min-height: 40px; }
+.zeile.wahl .zt { cursor: pointer; text-decoration: none; }
+.zeile.erl.wahl button.haken.wahl { border-radius: 50%; background: transparent; border-color: var(--line); display: grid; place-items: center; }
+button.haken.wahl svg { width: 15px; height: 15px; }
+.zeile.wahl.an button.haken.wahl { background: var(--bad); border-color: var(--bad); color: #fff; }
+.zeile.wahl.an .zt { color: var(--text); }
+button.notiz-wahl-weg { display: flex; gap: 8px; align-items: center; justify-content: center; width: 100%; min-height: 50px;
+  margin-top: 10px; border-radius: 12px; border: none; font-weight: 800;
+  background: color-mix(in srgb, var(--bad) 14%, var(--panel2)); color: var(--bad); }
+button.notiz-wahl-weg svg { width: 18px; height: 18px; }
+button.notiz-wahl-weg:disabled { opacity: .45; }
 .notiz-undo { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px;
   padding: 6px 6px 6px 12px; border-radius: 10px; background: var(--panel2); font-size: 0.9rem; }
 .notizen-leer { margin-top: 12px; padding: 14px 12px; text-align: center; color: var(--muted);
