@@ -12,8 +12,12 @@
 // Eingabe ohne Tastatur, wo es geht (Bedienbarkeit zuerst): Münzen über einen
 // eigenen Zahlenblock (die Handy-Tastatur schob sonst das Blatt hoch), Lose
 // werden nur angetippt, nie als Bruch getippt, Fater mit − / +.
-// Wörter (Kalle: „Bekommen" klang falsch): Börse „Bezahlen / Einstecken",
-// Gruppenkasse „Herausnehmen / Einlegen", SL „Abziehen / Geben".
+// Wörter (Kalle: „Bekommen" klang falsch): Börse „Bezahlen", Gruppenkasse
+// „Herausnehmen / Einlegen", SL „Abziehen / Geben".
+// Neues Geld kommt NUR vom SL. Die Börse hatte anfangs „Einstecken" (+ aus dem
+// Nichts); Kalle 20.11.2026: „Spieler können sich selber Geld geben – macht
+// keinen Sinn." Spieler bewegen nur, was schon da ist (der Server prüft das
+// auch, Game.geld_spieler).
 
 const LOS_WERTE = [2, 5, 10, 100, 1000, 10000, 100000];
 const GELD_STEINTEXT = "Seelenstein – ändert ein Schicksal";
@@ -152,7 +156,7 @@ function geldSeiteHtml() {
       <button type="button" class="${konto === "gruppe" ? "on" : ""}" data-act="geld-konto" data-k="gruppe" role="tab" aria-selected="${konto === "gruppe"}">👥 Gruppenkasse</button>
     </div>
     ${geldTruheHtml(k.stand, "geld-auf")}
-    <div class="g-hinweis">${konto === "ich" ? "Antippen zum Bezahlen oder Einstecken" : "Antippen zum Herausnehmen oder Einlegen"}</div>
+    <div class="g-hinweis">${konto === "ich" ? "Antippen zum Bezahlen – neues Geld gibt der Spielleiter" : "Antippen zum Herausnehmen oder Einlegen"}</div>
     <div class="g-ueber">Verlauf</div>
     ${geldVerlaufHtml(k.verlauf, konto === "gruppe")}
   </div>`;
@@ -160,8 +164,8 @@ function geldSeiteHtml() {
 
 // --- Blatt (Handy + SL) -------------------------------------------------------------
 // App.geld.blatt = { art, betrag, anzahl, nenner, quelle, wofuer }
-//   quelle beim Los: "eigen" (aus der Börse/Kasse), "neu" (Wert aus dem Raster),
-//   "kasse" (Spieler, Gruppenkasse: Los in der Kasse)
+//   quelle beim Los: "eigen" (aus der Börse/Kasse), "neu" (Wert aus dem Raster,
+//   nur SL), "kasse" (Spieler, Gruppenkasse: Los in der Kasse)
 // SL: zusätzlich ziele (Set aus Charakter-IDs / "gruppe").
 function geldBlattAuf(art, ziel) {
   App.geld.blatt = { art, betrag: "", anzahl: 1, nenner: null, quelle: null, wofuer: "" };
@@ -237,7 +241,7 @@ function geldBlattHtml() {
           return `<button type="button" data-act="geld-los-anderer" aria-label="Anderer Wert">${eigenerWert ? losHtml(b.nenner, "gross wahl") : `<span class="g-los gross anderer">1⁄…</span>`}</button>`;
         })()}</div>`;
     if (sl) mitte = (hier ? ablage("Hat", "antippen zum Abziehen", hier, "eigen") : "") + raster(hier ? "Oder Wert wählen" : "Welches Los?");
-    else if (konto === "ich") mitte = ablage("Deine Lose", "antippen zum Bezahlen", eigen, "eigen") + raster("Neues Los einstecken");
+    else if (konto === "ich") mitte = ablage("Deine Lose", "antippen zum Bezahlen", eigen, "eigen");
     else mitte = ablage("In der Kasse", "antippen zum Herausnehmen", kasse, "kasse") + ablage("Aus deiner Börse einlegen", "antippen", eigen, "eigen");
     if (b.nenner) mitte += stepperHtml(b.anzahl);
   }
@@ -249,6 +253,8 @@ function geldBlattHtml() {
   const mengeText = b.art === "los" ? `${n > 1 ? `${n} × ` : ""}${los}` : "";
   const leer = !n || (b.art === "los" && !b.nenner);
   const zuwenig = (st) => leer ? "Erst Menge wählen" : "Nicht genug da";
+  // Spieler ohne Bestand: sagen, woher Geld kommt, statt nur grauer Knöpfe.
+  const vomSl = `<div class="g-tipp">Neues Geld gibt dir der Spielleiter.</div>`;
   let knoepfe = "";
   if (sl) {
     const ok = !leer && b.ziele.size;
@@ -259,10 +265,9 @@ function geldBlattHtml() {
       knoepfe = b.quelle === "eigen"
         ? `${knopf("bezahlen", `− ${mengeText} bezahlen`, "ab voll", reicht(eigen), zuwenig())}
            <button type="button" class="g-leicht" data-act="geld-buchen" data-was="einlegen"${reicht(eigen) ? "" : " disabled"}>↗ Stattdessen in die Gruppenkasse legen</button>`
-        : b.quelle === "neu" ? knopf("einstecken", `+ ${mengeText} einstecken`, "zu voll", !leer)
-        : `<div class="g-tipp">Los antippen – deins zum Bezahlen, einen Wert zum Einstecken.</div>`;
+        : loseZusammen(eigen) ? `<div class="g-tipp">Los antippen zum Bezahlen.</div>` : vomSl;
     } else {
-      knoepfe = `<div class="g-zwei">${knopf("bezahlen", "− Bezahlen", "ab", reicht(eigen), zuwenig())}${knopf("einstecken", "+ Einstecken", "zu", !leer)}</div>
+      knoepfe = `${geldBestand(eigen, b.art) ? "" : vomSl.replace("g-tipp", "g-tipp klein")}${knopf("bezahlen", "− Bezahlen", "ab voll", reicht(eigen), zuwenig())}
         <button type="button" class="g-leicht" data-act="geld-buchen" data-was="einlegen"${reicht(eigen) ? "" : " disabled"}>↗ In die Gruppenkasse legen</button>`;
     }
   } else if (b.art === "los") {
@@ -322,7 +327,7 @@ function renderGeldPanel() {
     <div class="g-sl-vl-wahl">Verlauf: ${[["gruppe", "👥 Kasse"], ...leute.map((r) => [r.id, esc(r.name)])].map(([id, t]) =>
       `<button type="button" class="g-chip klein${offen === id ? " on" : ""}" data-act="geld-sl-verlauf" data-ziel="${esc(id)}">${t}</button>`).join("")}</div>
     ${vl ? geldVerlaufHtml(vl.verlauf, true) : ""}
-    <p class="hilfe">Fater, Lose (Scheine von ½ bis 1/100.000) und ${esc(muenzName())} werden nicht umgerechnet – die App zählt nur. Spieler buchen selbst am Handy unter „Geld“.</p>`);
+    <p class="hilfe">Fater, Lose (Scheine von ½ bis 1/100.000) und ${esc(muenzName())} werden nicht umgerechnet – die App zählt nur. Neues Geld gibt nur der Spielleiter – Spieler bezahlen am Handy unter „Geld“ und legen in die Kasse.</p>`);
 }
 
 // --- Klicks ----------------------------------------------------------------------
@@ -341,7 +346,7 @@ function geldBuchen(was) {
     gmAction({ type: "geld", was, ...posten });
   }
   const name = b.art === "fater" ? (n === 1 ? "Fater" : "Fater") : b.art === "los" ? (n === 1 ? `Los 1/${nennerText(b.nenner)}` : `Lose 1/${nennerText(b.nenner)}`) : muenzName();
-  const verb = { bezahlen: "bezahlt", einstecken: "eingesteckt", einlegen: "in die Kasse gelegt", herausnehmen: "herausgenommen",
+  const verb = { bezahlen: "bezahlt", einlegen: "in die Kasse gelegt", herausnehmen: "herausgenommen",
     kasse_bezahlen: "aus der Kasse bezahlt", geben: "gegeben", nehmen: "abgezogen" }[was] || "gebucht";
   toast(`✓ ${n.toLocaleString("de-DE")} ${name} ${verb}`);
   App.geld.blatt = null;

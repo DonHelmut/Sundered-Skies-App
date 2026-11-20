@@ -15,16 +15,50 @@ def _zwei(g):
     return mira, korgo, fig("Mira"), fig("Korgo")
 
 
+def _gib(g, char, art, anzahl, nenner=None, wofuer=""):
+    """Neues Geld kommt nur vom SL (Spieler können sich nichts selbst geben)."""
+    a = {"type": "geld", "was": "geben", "ziele": [char], "art": art, "anzahl": anzahl, "wofuer": wofuer}
+    if nenner:
+        a["nenner"] = nenner
+    g.apply(a)
+
+
 def _stand(g, pid):
     return g.geld_fuer(pid)["stand"]
 
 
-def test_einstecken_bezahlen_und_nie_ins_minus(fresh_game):
+def test_spieler_kann_sich_kein_geld_geben(fresh_game):
+    """Kalle 20.11.2026: „Spieler können sich selber Geld geben - macht keinen
+    Sinn." Weder das alte „einstecken" noch SL-Aktionen gehen vom Handy."""
     g = fresh_game
     mira, korgo, m, k = _zwei(g)
-    assert g.geld_spieler(m, {"was": "einstecken", "art": "muenzen", "anzahl": 340, "wofuer": "Lohn"})
-    assert g.geld_spieler(m, {"was": "einstecken", "art": "los", "nenner": 1000, "anzahl": 3})
-    assert g.geld_spieler(m, {"was": "einstecken", "art": "fater", "anzahl": 1})
+    for a in ({"was": "einstecken", "art": "muenzen", "anzahl": 340},
+              {"was": "einstecken", "art": "los", "nenner": 1000, "anzahl": 3},
+              {"was": "einstecken", "art": "fater", "anzahl": 1},
+              {"was": "geben", "ziele": ["char_mira"], "art": "fater", "anzahl": 1},
+              {"was": "herausnehmen", "art": "muenzen", "anzahl": 5},   # Kasse leer
+              {"was": "einlegen", "art": "muenzen", "anzahl": -5}):     # „negativ einlegen"
+        assert not g.geld_spieler(m, a), a
+    assert _stand(g, mira["id"]) == G.leerer_stand()
+    assert g.gruppenkasse["stand"] == G.leerer_stand()
+
+
+def test_spieler_aktion_geld_geht_nicht_an_geld_sl():
+    """Über den WebSocket landet „type: geld" vom Handy nur in geld_spieler,
+    nie in Game.apply (dort wäre es das SL-„geben")."""
+    import inspect
+    from server import app
+    quelle = inspect.getsource(app)
+    block = quelle[quelle.index('if atype == "geld":'):][:400]
+    assert "game.geld_spieler(" in block and "game.apply(" not in block
+
+
+def test_bezahlen_und_nie_ins_minus(fresh_game):
+    g = fresh_game
+    mira, korgo, m, k = _zwei(g)
+    _gib(g, "char_mira", "muenzen", 340, wofuer="Lohn")
+    _gib(g, "char_mira", "los", 3, nenner=1000)
+    _gib(g, "char_mira", "fater", 1)
     assert g.geld_spieler(m, {"was": "bezahlen", "art": "los", "nenner": 1000, "anzahl": 2, "wofuer": "Ersatzsegel"})
     assert g.geld_spieler(m, {"was": "bezahlen", "art": "muenzen", "anzahl": 54, "wofuer": "Tanken"})
     s = _stand(g, mira["id"])
@@ -46,22 +80,25 @@ def test_einstecken_bezahlen_und_nie_ins_minus(fresh_game):
 def test_unsinn_wird_abgelehnt(fresh_game):
     g = fresh_game
     mira, korgo, m, k = _zwei(g)
-    for a in ({"was": "einstecken", "art": "gold", "anzahl": 1},
-              {"was": "einstecken", "art": "muenzen", "anzahl": 0},
-              {"was": "einstecken", "art": "muenzen", "anzahl": -5},
-              {"was": "einstecken", "art": "muenzen", "anzahl": 1.5},
-              {"was": "einstecken", "art": "muenzen", "anzahl": True},
-              {"was": "einstecken", "art": "los", "nenner": 1, "anzahl": 1},
-              {"was": "einstecken", "art": "los", "anzahl": 1},
+    _gib(g, "char_mira", "muenzen", 10)
+    _gib(g, "char_mira", "los", 1, nenner=2)
+    for a in ({"was": "bezahlen", "art": "gold", "anzahl": 1},
+              {"was": "bezahlen", "art": "muenzen", "anzahl": 0},
+              {"was": "bezahlen", "art": "muenzen", "anzahl": -5},
+              {"was": "bezahlen", "art": "muenzen", "anzahl": 1.5},
+              {"was": "bezahlen", "art": "muenzen", "anzahl": True},
+              {"was": "bezahlen", "art": "los", "nenner": 1, "anzahl": 1},
+              {"was": "bezahlen", "art": "los", "anzahl": 1},
               {"was": "zaubern", "art": "muenzen", "anzahl": 1}):
         assert not g.geld_spieler(m, a), a
-    assert not g.geld_spieler("gibtsnicht", {"was": "einstecken", "art": "muenzen", "anzahl": 1})
+    assert not g.geld_spieler("gibtsnicht", {"was": "bezahlen", "art": "muenzen", "anzahl": 1})
+    assert _stand(g, mira["id"]) == {"fater": 0, "lose": {"2": 1}, "muenzen": 10}
 
 
 def test_gruppenkasse_einlegen_herausnehmen_bezahlen(fresh_game):
     g = fresh_game
     mira, korgo, m, k = _zwei(g)
-    g.geld_spieler(m, {"was": "einstecken", "art": "los", "nenner": 100000, "anzahl": 12})
+    _gib(g, "char_mira", "los", 12, nenner=100000)
     assert g.geld_spieler(m, {"was": "einlegen", "art": "los", "nenner": 100000, "anzahl": 10})
     assert not g.geld_spieler(m, {"was": "einlegen", "art": "los", "nenner": 100000, "anzahl": 3})
     assert g.gruppenkasse["stand"]["lose"] == {"100000": 10}
@@ -80,7 +117,7 @@ def test_gruppenkasse_einlegen_herausnehmen_bezahlen(fresh_game):
 def test_spieler_sieht_nur_eigene_boerse_sl_alle(fresh_game):
     g = fresh_game
     mira, korgo, m, k = _zwei(g)
-    g.geld_spieler(m, {"was": "einstecken", "art": "muenzen", "anzahl": 777, "wofuer": "Geheimversteck"})
+    _gib(g, "char_mira", "muenzen", 777, wofuer="Geheimversteck")
     snap_k = g.snapshot(fuer_spieler=True, player_id=korgo["id"])
     assert "Geheimversteck" not in json.dumps(snap_k, ensure_ascii=False)
     assert "777" not in json.dumps(snap_k["roster"])
@@ -110,8 +147,9 @@ def test_sl_gibt_an_jeden_und_nimmt_alles_oder_nichts(fresh_game):
 def test_undo_des_sl_laesst_geld_stehen(fresh_game):
     g = fresh_game
     mira, korgo, m, k = _zwei(g)
+    _gib(g, "char_mira", "fater", 2)
     g.apply({"type": "add_npc", "name": "Pirat"})          # ein echter Spielzug (Undo-Ziel)
-    g.geld_spieler(m, {"was": "einstecken", "art": "fater", "anzahl": 1})
+    g.geld_spieler(m, {"was": "bezahlen", "art": "fater", "anzahl": 1})
     g.apply({"type": "undo"})
     assert _stand(g, mira["id"])["fater"] == 1
     assert not any(c["name"] == "Pirat" for c in g.combatants)
@@ -120,7 +158,7 @@ def test_undo_des_sl_laesst_geld_stehen(fresh_game):
 def test_bleibt_nach_neustart_und_beim_bearbeiten(fresh_game):
     g = fresh_game
     mira, korgo, m, k = _zwei(g)
-    g.geld_spieler(m, {"was": "einstecken", "art": "muenzen", "anzahl": 5})
+    _gib(g, "char_mira", "muenzen", 5)
     g.geld_spieler(m, {"was": "einlegen", "art": "muenzen", "anzahl": 2})
     g.apply({"type": "set_muenz_name", "name": "  Kupferlinge "})
     g.apply({"type": "roster_upsert", "id": "char_mira", "name": "Mira die Flinke", "isWildCard": True})
@@ -135,7 +173,7 @@ def test_bleibt_nach_neustart_und_beim_bearbeiten(fresh_game):
 def test_sicherung_nimmt_geld_mit(fresh_game):
     g = fresh_game
     mira, korgo, m, k = _zwei(g)
-    g.geld_spieler(m, {"was": "einstecken", "art": "los", "nenner": 2, "anzahl": 1})
+    _gib(g, "char_mira", "los", 1, nenner=2)
     g.geld_spieler(m, {"was": "einlegen", "art": "los", "nenner": 2, "anzahl": 1})
     daten = json.loads(json.dumps(g.export_data()))
     g.gruppenkasse = G.kasse(None)

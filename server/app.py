@@ -1197,8 +1197,15 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             game.apply({"type": "talents_update", "id": own["id"], "talents": action.get("talents"),
                         "gluck": action.get("gluck"), "grosses_gluck": action.get("grosses_gluck")})
             await hub.broadcast_state()
-        elif atype in ("hold", "intervene") and action.get("id") == own["id"]:
-            game.apply({"type": atype, "id": own["id"]})
+        elif atype == "hold" and action.get("id") == own["id"] and game.active_id == own["id"]:
+            # Abwarten sagt man in SEINEM Zug an. Vorher ging es jederzeit -
+            # auch nach dem eigenen Zug: Abwarten, dann „Eingreifen" = zweiter
+            # Zug in derselben Runde (Rechte-Prüfung 20.11.2026). Das Handy
+            # zeigt den Knopf ohnehin nur, wenn man dran ist.
+            game.apply({"type": "hold", "id": own["id"]})
+            await hub.broadcast_state()
+        elif atype == "intervene" and action.get("id") == own["id"]:
+            game.apply({"type": "intervene", "id": own["id"]})
             await hub.broadcast_state()
         elif atype == "timer_halt":
             # Spieler hat „Angreifen" getippt: eigene Uhr anhalten (nur wenn dran).

@@ -365,7 +365,19 @@ function notizenAlle() {
 function notizFinden(id, gruppe) {
   return (gruppe ? gruppenNotizen() : notizenListe()).find((e) => e.id === id);
 }
+// Platz wie am Server (MAX_NOTIZEN / MAX_NOTIZ_EINTRAEGE in game.py). Vorher
+// merkte niemand, wenn es voll war: eine neue 👥 Notiz kam still nicht an, und
+// bei den eigenen warf der Server die ÄLTESTEN Einträge hinten weg
+// (Rechte-Prüfung 20.11.2026).
+const NOTIZ_PLATZ = 8000, NOTIZ_MAX = 200;
+function notizenZuViel(liste) {
+  return liste.length > NOTIZ_MAX || liste.reduce((n, e) => n + String((e && e.text) || "").trim().length, 0) > NOTIZ_PLATZ;
+}
+function notizVollMelden(gruppe) {
+  hinweis(`${gruppe ? "Die Gruppen-Notizen sind" : "Deine Notizen sind"} voll. Erst alte oder erledigte Notizen löschen – dann passt die neue rein.`);
+}
 function notizenSpeichern(liste) {
+  if (notizenZuViel(liste)) { notizVollMelden(false); render(); return false; }
   App.notizenLokal = liste;
   gmAction({ type: "notizen_setzen", eintraege: liste });
   render();
@@ -458,11 +470,43 @@ function notizZeileHtml(e, mitThema, q) {
     mitThema && e.gruppe ? notizThemaHtml(NOTIZ_GRUPPE, "ttag nur-symbol") : ""].filter(Boolean);
   const wer = e.gruppe && e.von
     ? `<span class="wer"><span class="wer-av">${esc(zoneInitials(e.von))}</span>${esc(e.von)}${e.ts ? ` · ${zeitKurz(e.ts)}` : ""}</span>` : "";
+  // Auswahl zum Löschen (Variante D, Kalle 20.11.2026): Kreis statt Haken,
+  // und auch ein Tipp auf den Text wählt aus statt zu bearbeiten.
+  const wahl = App.notizWahl && e.erledigt;
+  const an = wahl && App.notizWahl.has(notizWahlKey(e));
+  if (wahl) {
+    return `<li class="zeile erl wahl${an ? " an" : ""}${e.gruppe ? " gruppe" : ""}" data-id="${id}">
+    <button type="button" class="haken wahl" data-act="notiz-wahl" ${daten} role="checkbox" aria-checked="${!!an}" aria-label="Zum Löschen auswählen">${an ? symbolSvg("check") : ""}</button>
+    <div class="zt" data-act="notiz-wahl" ${daten} role="button">${notizTextHtml(e.text, q)}${tags.length ? ` ${tags.join(" ")}` : ""}${wer}</div>
+  </li>`;
+  }
   return `<li class="zeile${e.erledigt ? " erl" : ""}${e.gruppe ? " gruppe" : ""}" data-id="${id}">
     <button type="button" class="haken" data-act="notiz-haken" ${daten} role="checkbox" aria-checked="${!!e.erledigt}" aria-label="Erledigt">${e.erledigt ? "✓" : ""}</button>
     <div class="zt" data-act="notiz-bearbeiten" ${daten} role="button" aria-label="Bearbeiten">${notizTextHtml(e.text, q)}${tags.length ? ` ${tags.join(" ")}` : ""}${wer}</div>
   </li>`;
 }
+// Leiste über der aufgeklappten Erledigt-Liste: immer gleich hoch (Auswählen
+// ↔ „N ausgewählt · Fertig"), damit beim Umschalten nichts springt.
+function notizWahlLeiste(erl, q) {
+  if (q) return "";
+  const w = App.notizWahl;
+  if (!w) return `<div class="notiz-wahl-leiste"><span></span><button type="button" class="ghost small" data-act="notiz-wahl-an">Auswählen</button></div>`;
+  const n = erl.filter((e) => w.has(notizWahlKey(e))).length;
+  return `<div class="notiz-wahl-leiste an"><span>${n ? `${n} ausgewählt` : "Antippen, was weg soll"}</span><button type="button" class="ghost small" data-act="notiz-wahl-aus">Fertig</button></div>`;
+}
+function notizWahlLoeschen() {
+  const w = App.notizWahl;
+  if (!w) return "";
+  const n = notizWahlEintraege().length;
+  return `<button type="button" class="notiz-wahl-weg" data-act="notiz-wahl-loeschen"${n ? "" : " disabled"}>${symbolSvg("trash-2")} ${n ? `${n} löschen` : "Löschen"}</button>`;
+}
+// Ausgewählte, die es noch gibt (Gruppennotizen kann ein anderes Handy
+// inzwischen gelöscht oder wieder geöffnet haben).
+function notizWahlEintraege() {
+  const w = App.notizWahl;
+  return w ? notizenAlle().filter((e) => e.erledigt && w.has(notizWahlKey(e))) : [];
+}
+function notizWahlKey(e) { return `${e.gruppe ? "g" : "e"}:${e.id}`; }
 function notizFilterJetzt() {
   const f = App.notizFilter !== undefined ? App.notizFilter : notizSpeicherLesen("notizFilter", null);
   return f === undefined ? null : f;
@@ -512,7 +556,7 @@ function notizenPanelHtml() {
         : `<div class="notizen-leer klein">Alles abgehakt ✓</div>`}
       ${erl.length ? `<button type="button" class="notiz-erl-kopf" data-act="notiz-erl" aria-expanded="${!!erlAuf}">
           <span>✓ ${erl.length} erledigt</span><span class="pfeil">${erlAuf ? "▾" : "▸"}</span></button>
-        ${erlAuf ? `<ul class="zeilen erledigt">${erl.map(zeile).join("")}</ul>` : ""}` : ""}`;
+        ${erlAuf ? `${notizWahlLeiste(erl, q)}<ul class="zeilen erledigt">${erl.map(zeile).join("")}</ul>${notizWahlLoeschen()}` : ""}` : ""}`;
   const weg = App.notizWeg;
   const zielGruppe = notizZielGruppe();
   const thema = filter === null || filter === NOTIZ_GRUPPE ? "" : filter;
@@ -541,7 +585,7 @@ function notizenPanelHtml() {
       ? `<div class="notiz-suche">🔍<input id="notiz-suche" type="text" enterkeyhint="search" value="${esc(App.notizSuche)}" placeholder="In allen Notizen suchen …" aria-label="Suchen" autocomplete="off">
           <button type="button" class="notiz-knopf" data-act="notiz-suche-zu" aria-label="Suche schließen">✕</button></div>`
       : `<div class="notiz-reiter-leiste">${reiterHtml}</div>`}
-    ${weg ? `<div class="notiz-undo"><span>Notiz gelöscht</span><button type="button" class="ghost small" data-act="notiz-zurueck">↶ Rückgängig</button></div>` : ""}
+    ${weg ? `<div class="notiz-undo"><span>${weg.teile.length > 1 ? `${weg.teile.length} Notizen gelöscht` : "Notiz gelöscht"}</span><button type="button" class="ghost small" data-act="notiz-zurueck">↶ Rückgängig</button></div>` : ""}
     ${alle.length ? inhalt
       : `<div class="notizen-leer">Noch nichts notiert.<br><span>NSC-Namen, Orte, Beute, offene Fragen. 🔒 nur du, 👥 alle Spieler.</span></div>`}
   </div>`;
@@ -560,6 +604,12 @@ function notizFeldHoehe(el) {
 function notizHinzu() {
   const text = (App.notizNeu || "").trim();
   if (!text) return;
+  // Voll? Dann bleibt der Text im Feld stehen, nichts geht verloren.
+  const gruppe = notizZielGruppe();
+  if (notizenZuViel(gruppe ? [...gruppenNotizen(), { text }] : [{ text }, ...notizenListe()])) {
+    notizVollMelden(gruppe);
+    return;
+  }
   App.notizNeu = "";
   const feld = $("notiz-neu");
   if (feld) { feld.value = ""; notizFeldHoehe(feld); }
@@ -581,8 +631,11 @@ function notizHinzu() {
 function notizFertig() {
   const ed = App.notizEdit;
   if (!ed) return;
-  App.notizEdit = null;
   const text = ed.text.trim();
+  // Länger geschrieben, und es passt nicht mehr: Bearbeiten bleibt offen.
+  const probe = (ed.gruppe ? gruppenNotizen() : notizenListe()).map((e) => e.id === ed.id ? { ...e, text } : e);
+  if (text && notizenZuViel(probe)) { notizVollMelden(ed.gruppe); return; }
+  App.notizEdit = null;
   const alt = notizFinden(ed.id, ed.gruppe);
   if (!alt) { render(); return; }
   if (!text) { notizLoeschen(ed.id, ed.gruppe); return; }      // leer gespeichert = löschen (mit Rückfrage)
@@ -606,10 +659,30 @@ async function notizLoeschen(id, gruppe) {
   if (i < 0) { render(); return; }
   if (App.notizEdit && App.notizEdit.id === id) App.notizEdit = null;
   clearTimeout(App.notizWegTimer);
-  App.notizWeg = { eintrag: liste[i], i, gruppe };
+  App.notizWeg = { teile: [{ eintrag: liste[i], i, gruppe }] };
   App.notizWegTimer = setTimeout(() => { App.notizWeg = null; render(); }, 7000);
   if (gruppe) { gruppenNotizSchicken({ op: "loeschen", id }); render(); return; }
   notizenSpeichern(liste.filter((e) => e.id !== id));
+}
+// Mehrere auf einmal weg (Variante D): ohne Rückfrage - man hat sie ja
+// einzeln angetippt und sieht die Zahl auf dem Knopf -, dafür ↶ Rückgängig.
+function notizWahlLoeschenJetzt() {
+  const weg = notizWahlEintraege();
+  if (!weg.length) return;
+  const eigeneListe = notizenListe(), gruppenListe = gruppenNotizen();
+  const teile = weg.map((e) => {
+    const liste = e.gruppe ? gruppenListe : eigeneListe;
+    const i = liste.findIndex((x) => x.id === e.id);
+    return { eintrag: liste[i], i, gruppe: e.gruppe };
+  }).filter((x) => x.i >= 0);
+  App.notizWahl = null;
+  clearTimeout(App.notizWegTimer);
+  App.notizWeg = { teile };
+  App.notizWegTimer = setTimeout(() => { App.notizWeg = null; render(); }, 7000);
+  teile.filter((x) => x.gruppe).forEach((x) => gruppenNotizSchicken({ op: "loeschen", id: x.eintrag.id }));
+  const eigeneIds = new Set(teile.filter((x) => !x.gruppe).map((x) => x.eintrag.id));
+  if (eigeneIds.size) notizenSpeichern(eigeneListe.filter((e) => !eigeneIds.has(e.id)));
+  else render();
 }
 // 💬 SL-Nachricht als eigene Notiz merken (Thema „Offen").
 function notizAusNachricht(msgId) {
@@ -702,6 +775,7 @@ document.addEventListener("click", async (e) => {
     case "notiz-suche-zu": App.notizSuche = null; render(); break;
     case "notiz-erl":
       App.notizErlAuf = !App.notizErlAuf;
+      App.notizWahl = null;     // zugeklappt = Auswahl vorbei
       render();
       break;
     case "notiz-haken": {
@@ -748,12 +822,32 @@ document.addEventListener("click", async (e) => {
       if (!weg) break;
       clearTimeout(App.notizWegTimer);
       App.notizWeg = null;
-      if (weg.gruppe) { gruppenNotizSchicken({ op: "neu", eintrag: weg.eintrag, index: weg.i }); render(); break; }
-      const liste = notizenListe().slice();
-      liste.splice(Math.min(weg.i, liste.length), 0, weg.eintrag);
-      notizenSpeichern(liste);
+      // Aufsteigend nach alter Stelle einsetzen, dann landet jede wieder dort.
+      const teile = weg.teile.slice().sort((a, b) => a.i - b.i);
+      teile.filter((x) => x.gruppe).forEach((x) => gruppenNotizSchicken({ op: "neu", eintrag: x.eintrag, index: x.i }));
+      const eigene = teile.filter((x) => !x.gruppe);
+      if (eigene.length) {
+        const liste = notizenListe().slice();
+        eigene.forEach((x) => liste.splice(Math.min(x.i, liste.length), 0, x.eintrag));
+        notizenSpeichern(liste);
+      } else render();
       break;
     }
+    case "notiz-wahl-an":
+      if (App.notizEdit) notizFertig();
+      App.notizWahl = new Set();
+      render();
+      break;
+    case "notiz-wahl-aus": App.notizWahl = null; render(); break;
+    case "notiz-wahl": {
+      const w = App.notizWahl;
+      if (!w) break;
+      const k = `${gruppe ? "g" : "e"}:${id}`;
+      if (w.has(k)) w.delete(k); else w.add(k);
+      render();
+      break;
+    }
+    case "notiz-wahl-loeschen": notizWahlLoeschenJetzt(); break;
   }
 });
 // --- Eigene Themen: Emoji + Name (Kalle 04.11.2026) -------------------------------

@@ -100,7 +100,11 @@ def test_notizen_grenzen(fresh_game):
     g = fresh_game
     mira, _ = _mira(g)
     from server.game import MAX_NOTIZ_LAENGE, MAX_NOTIZ_EINTRAEGE
-    g.notizen_setzen(_figur(g, "Mira")["id"], ["x" * 5000] + ["y"] * 500)
+    # Zu viele Einträge: abgelehnt statt still gekürzt (20.11.2026 - sonst
+    # fielen die ältesten weg). Ein zu langer Eintrag wird gekürzt.
+    assert not g.notizen_setzen(_figur(g, "Mira")["id"], ["x" * 5000] + ["y"] * 500)
+    assert g.notizen_fuer(mira["id"]) == []
+    assert g.notizen_setzen(_figur(g, "Mira")["id"], ["x" * 5000] + ["y"] * (MAX_NOTIZ_EINTRAEGE - 1))
     liste = g.notizen_fuer(mira["id"])
     assert len(liste[0]["text"]) == MAX_NOTIZ_LAENGE and len(liste) == MAX_NOTIZ_EINTRAEGE
 

@@ -161,8 +161,8 @@ Die App rechnet **nicht** um (Kurs unbekannt), zählt nur. Wechselgeld = zwei
 Buchungen.
 
 - Server `server/geld.py` (prüfen/buchen/Verlauf, nie ins Minus, alles oder
-  nichts), `Game.geld_spieler` (einstecken/bezahlen/einlegen/herausnehmen/
-  kasse_bezahlen) und `geld_sl` (geben/nehmen an mehrere Ziele). Börse am
+  nichts), `Game.geld_spieler` (bezahlen/einlegen/herausnehmen/kasse_bezahlen –
+  **kein „einstecken" mehr**, siehe unten) und `geld_sl` (geben/nehmen an mehrere Ziele). Börse am
   Charakter (`geld`, `geldVerlauf`), Kasse in `data/gruppenkasse.json`. Kein
   Undo-Ziel (wie Notizen), reist in der Sicherung mit. Eigene Börse nur ans
   eigene Handy (`meinGeld`, in `broadcast_state` je Handy), alle nur an den
@@ -170,12 +170,38 @@ Buchungen.
 - Client `web/static/geld.js`: Schatulle (dunkles Holz, 3 Zeilen), Blatt von
   unten: Münzen per eigenem Zahlenblock (keine Handy-Tastatur), Lose nur
   antippen (Scheine mit ×Anzahl, Raster der Werte, „1/…" für Sonderwerte),
-  Fater mit − / +. Wörter: Bezahlen/Einstecken, Kasse Herausnehmen/Einlegen,
+  Fater mit − / +. Wörter: Bezahlen, Kasse Herausnehmen/Einlegen,
   SL Abziehen/Geben. Fater-Symbol als SVG nach Kalles Bild (Verläufe einmal
   im Dokument, sonst änderte sich das HTML bei jedem Zeichnen).
 - Fünf Reiter: Symbol über Wort (`.handy-reiter.fuenf`), sonst passte es auf
   320 px nicht. Bei offenem Geld-Blatt steht die Bestätigung oben
   (`body.geld-offen`), unten lag sie über „Bezahlen".
+- **Neues Geld nur vom SL** (Kalle 20.11.2026: „Spieler können sich selber
+  Geld geben – macht keinen Sinn"). „Einstecken" + Los-Raster am Handy weg,
+  Server lehnt `einstecken` ab (alte Handys buchen nichts). Spieler bewegen
+  nur, was da ist: bezahlen, in die Kasse legen, aus der Kasse nehmen/bezahlen.
+  Ohne Bestand steht „Neues Geld gibt dir der Spielleiter".
+
+### Rechte-Prüfung Spieler-Aktionen (20.11.2026)
+
+Alle Handy-Aktionen in `app.handle_message` durchgesehen. Gefixt:
+- Geld aus dem Nichts (s. o.).
+- **Abwarten jederzeit** → nach dem eigenen Zug abwarten + „Eingreifen" =
+  zweiter Zug. Jetzt nur, wenn man dran ist (wie der Knopf am Handy).
+- **👥 Notiz-Schreiber fälschbar**: `von`/`vonId` kamen vom Handy. Jetzt setzt
+  der Server sie; Rückgängig nach Löschen holt den echten Schreiber aus
+  `_geloeschte_gruppen_notizen`.
+- **Notizen voll still**: 👥 Notiz kam bei vollen 8000 Zeichen nicht an,
+  bei eigenen warf der Server die ältesten weg. Jetzt Meldung am Handy (Text
+  bleibt im Feld), Server lehnt zu volle Listen ab statt zu kürzen.
+- **Erledigte Notizen gezielt löschen** (Kalle wählte D, 20.11.): in der
+  aufgeklappten Erledigt-Liste „Auswählen" → Kreise antippen (auch Text) →
+  „🗑 N löschen", ohne Rückfrage, dafür ↶ Rückgängig (7 s, mehrere auf
+  einmal, `App.notizWeg.teile`). Nicht gewählt: A alle Erledigten auf einmal,
+  B automatisch nach 30 Tagen, C 🗑 je Zeile.
+Von Kalle bestätigt, bleibt so (20.11.): Talente/Glück stellt jeder selbst (Glück =
+mehr Bennies), Erholen „Probe geschafft" ohne Benny auf Ehrenwort, jeder darf
+aus der Gruppenkasse nehmen, jeder darf 👥 Notizen anderer ändern/löschen.
 - Tests: `tests/test_geld.py`, `tests/browser/test_geld_browser.py`.
 
 ## 2.0.17 (17.11.2026): Update-Hinweis kommt zuverlässig

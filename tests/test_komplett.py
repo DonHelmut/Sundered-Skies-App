@@ -277,3 +277,58 @@ def test_kaputte_aktionen_vom_handy_brechen_nichts(zwei_handys):
         except Exception as e:  # noqa: BLE001
             pytest.fail(f"{kaputt!r} warf {e!r}")
     assert len(g.combatants) == 3
+
+
+# --- Rechte-Prüfung 20.11.2026 (Kalle: „Spieler können sich selber Geld geben") ---
+
+@pytest.mark.parametrize("aktion", [
+    {"type": "geld", "was": "einstecken", "art": "fater", "anzahl": 1},
+    {"type": "geld", "was": "geben", "ziele": ["gruppe"], "art": "fater", "anzahl": 1},
+    {"type": "geld", "was": "herausnehmen", "art": "fater", "anzahl": 1},
+    {"type": "set_muenz_name", "name": "Spielerkram"},
+])
+def test_handy_kann_sich_kein_geld_geben(zwei_handys, aktion):
+    g, tessa, korgo = zwei_handys
+    vorher = json.dumps(g.snapshot(), sort_keys=True, default=str)
+    _als_handy("p1", aktion)
+    weg = lambda s: {k: v for k, v in json.loads(s).items() if k != "serverNow"}  # noqa: E731
+    assert weg(json.dumps(g.snapshot(), sort_keys=True, default=str)) == weg(vorher)
+
+
+def test_abwarten_nur_im_eigenen_zug(zwei_handys):
+    """Vorher ging „Abwarten" jederzeit: nach dem eigenen Zug abwarten, dann
+    „Eingreifen" - zweiter Zug in derselben Runde."""
+    g, tessa, korgo = zwei_handys
+    g.apply({"type": "set_active", "id": korgo["id"]})
+    g.apply({"type": "release"})
+    _als_handy("p1", {"type": "hold", "id": tessa["id"]})
+    assert not g._combatant(tessa["id"]).get("held")
+    g.apply({"type": "set_active", "id": tessa["id"]})
+    g.apply({"type": "release"})
+    _als_handy("p1", {"type": "hold", "id": tessa["id"]})
+    assert g._combatant(tessa["id"])["held"] and g.active_id != tessa["id"]
+    _als_handy("p1", {"type": "intervene", "id": tessa["id"]})
+    assert g.active_id == tessa["id"] and not g._combatant(tessa["id"])["held"]
+
+
+def test_gruppen_notiz_schreiber_kann_man_nicht_faelschen(zwei_handys):
+    g, tessa, korgo = zwei_handys
+    _als_handy("p1", {"type": "gruppen_notiz", "op": "neu",
+                      "eintrag": {"id": "g1", "text": "Korgo schuldet mir 5 Fater", "von": "Korgo",
+                                  "vonId": korgo["characterId"], "ts": 1}})
+    e = g.gruppen_notizen[0]
+    assert e["von"] == "Tessa" and e["vonId"] == tessa["characterId"] and e["ts"] > 1
+    # Rückgängig nach Löschen (anderes Handy) bringt den ECHTEN Schreiber zurück.
+    _als_handy("p2", {"type": "gruppen_notiz", "op": "loeschen", "id": "g1"})
+    _als_handy("p2", {"type": "gruppen_notiz", "op": "neu", "eintrag": {**e, "von": "Korgo"}})
+    assert g.gruppen_notizen[0]["von"] == "Tessa" and g.gruppen_notizen[0]["ts"] == e["ts"]
+
+
+def test_eigene_notizen_voll_wird_abgelehnt_statt_alte_wegzuwerfen(zwei_handys):
+    """Vorher kürzte der Server still: die neue Notiz oben blieb, die ÄLTESTE
+    hinten fiel weg."""
+    g, tessa, korgo = zwei_handys
+    alt = [{"id": f"n{i}", "text": "x" * 1000} for i in range(8)]
+    assert g.notizen_setzen(tessa["id"], alt)
+    assert not g.notizen_setzen(tessa["id"], [{"id": "neu", "text": "noch eine"}, *alt])
+    assert [e["id"] for e in g.notizen_fuer("p1")] == [e["id"] for e in alt]
