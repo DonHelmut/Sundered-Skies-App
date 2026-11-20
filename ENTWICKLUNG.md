@@ -182,7 +182,7 @@ Buchungen.
   nur, was da ist: bezahlen, in die Kasse legen, aus der Kasse nehmen/bezahlen.
   Ohne Bestand steht „Neues Geld gibt dir der Spielleiter".
 
-### Rechte-Prüfung Spieler-Aktionen (20.11.2026)
+### 2.0.19 (20.11.2026): Rechte-Prüfung Spieler-Aktionen
 
 Alle Handy-Aktionen in `app.handle_message` durchgesehen. Gefixt:
 - Geld aus dem Nichts (s. o.).
