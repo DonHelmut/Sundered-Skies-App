@@ -3886,6 +3886,7 @@ body.sl-ansicht .grid2 details[data-sec="protokolle"]:not([open]) > .sec-head { 
   box-shadow: none; color: var(--accent2); font-weight: 700; font-size: .92rem; }
 .g-leicht:disabled { opacity: .35; }
 .g-tipp { margin-top: 12px; text-align: center; color: var(--muted); font-size: .9rem; min-height: 54px; display: grid; place-items: center; }
+.g-tipp.klein { min-height: 0; margin-top: 4px; font-size: .85rem; }
 .g-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
 .g-chip { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text);
   font: inherit; font-weight: 700; font-size: .88rem; }

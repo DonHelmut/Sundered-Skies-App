@@ -239,7 +239,8 @@ abschalten** – dann sehen die Spieler den Knopf gar nicht erst.
 Am Handy im Reiter **Geld**: eigene Börse und 👥 Gruppenkasse mit **Fater**,
 **Losen** (Scheine von ½ bis 1/100.000) und **Münzen** (Name stellt der SL ein).
 Zeile antippen → Münzen über den Zahlenblock, Lose antippen, Fater mit − / +;
-„Bezahlen / Einstecken", in der Kasse „Herausnehmen / Einlegen". Jede Buchung
+„Bezahlen", in der Kasse „Herausnehmen / Einlegen". Neues Geld gibt nur der
+SL. Jede Buchung
 steht im Verlauf. Der SL sieht im Panel **Vermögen** alle Börsen und verteilt
 Beute („Jeden" + Kasse). Die App rechnet nicht um, sie zählt nur.
 

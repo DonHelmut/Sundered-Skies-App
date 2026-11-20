@@ -436,6 +436,9 @@ class Game:
         # 👥 Gruppen-Notizen: gehören keinem Charakter, sondern der Runde -
         # dauerhaft wie die Protokolle, ein „Verwerfen" beim Start kostet sie nicht.
         self.gruppen_notizen: list[dict] = _notizen_liste(_lade_liste(GRUPPEN_NOTIZEN_FILE))
+        # Schreiber gelöschter 👥 Notizen (ID -> von/vonId/ts), damit Rückgängig
+        # den echten Schreiber zurückbringt - nur im Speicher, wenige Einträge.
+        self._geloeschte_gruppen_notizen: dict[str, dict] = {}
         # 👥 Gruppenkasse: wie die Gruppen-Notizen dauerhaft und kein Teil der
         # Sitzung - ein „Verwerfen" beim Start darf kein Geld kosten.
         self.gruppenkasse: dict = geld.kasse(_read_json(GRUPPENKASSE_FILE))
@@ -2398,8 +2401,16 @@ class Game:
                 return False
             if sum(len(x["text"]) for x in liste) + len(e["text"]) > MAX_NOTIZEN:
                 return False
-            # Rückgängig nach Löschen bringt den alten Schreiber mit, sonst der Neue.
-            if not e.get("vonId"):
+            # Schreiber setzt der SERVER: vorher galt, was das Handy schickte,
+            # und jeder konnte eine Notiz als „Korgo" anlegen (Rechte-Prüfung
+            # 20.11.2026). Rückgängig nach Löschen bringt den alten Schreiber
+            # zurück - aber nur den, den der Server sich beim Löschen gemerkt hat.
+            alt = self._geloeschte_gruppen_notizen.pop(e["id"], None)
+            for feld in ("von", "vonId", "ts"):
+                e.pop(feld, None)
+            if alt is not None:
+                e.update(alt)
+            else:
                 e["von"], e["vonId"] = c.get("name", "")[:60], c.get("characterId") or c["id"]
             e.setdefault("ts", now_ms())
             pos = a.get("index")
@@ -2410,7 +2421,11 @@ class Game:
             if i is None:
                 return False
             if op == "loeschen":
-                liste.pop(i)
+                weg = liste.pop(i)
+                merk = self._geloeschte_gruppen_notizen
+                merk[weg["id"]] = {k: weg[k] for k in ("von", "vonId", "ts") if k in weg}
+                while len(merk) > 30:
+                    merk.pop(next(iter(merk)))
             elif op == "aendern":
                 neu = dict(liste[i])
                 for feld in ("text", "thema", "erledigt"):
@@ -2454,8 +2469,12 @@ class Game:
     def geld_spieler(self, cid: Optional[str], a: dict) -> bool:
         """Handy bucht in der eigenen Börse bzw. mit der Gruppenkasse.
 
-        was: einstecken | bezahlen (eigene Börse), einlegen | herausnehmen
-        (eigene Börse ↔ Kasse), kasse_bezahlen (direkt aus der Kasse).
+        was: bezahlen (eigene Börse), einlegen | herausnehmen (eigene Börse ↔
+        Kasse), kasse_bezahlen (direkt aus der Kasse).
+        Spieler bewegen nur Geld, das schon da ist - neues Geld kommt allein
+        vom SL (geld_sl). Früher gab es hier „einstecken" (Börse +n aus dem
+        Nichts); Kalle 20.11.2026: „Spieler können sich selber Geld geben -
+        macht keinen Sinn." Ein altes Handy, das es noch schickt, bucht nichts.
         Alles oder nichts: geht eine Seite ins Minus, passiert gar nichts."""
         char = self._char_von_figur(cid)
         p = geld.posten(a) if isinstance(a, dict) else None
@@ -2466,11 +2485,10 @@ class Game:
         name, cid_char = char.get("name", ""), char.get("id", "")
         kasse_s, kasse_v = self.gruppenkasse["stand"], self.gruppenkasse["verlauf"]
         eigen_s, eigen_v = self._boerse(char)
-        if was in ("einstecken", "bezahlen"):
-            d = n if was == "einstecken" else -n
-            if not geld.geht(eigen_s, art, nenner, d):
+        if was == "bezahlen":
+            if not geld.geht(eigen_s, art, nenner, -n):
                 return False
-            geld.buchen(eigen_s, eigen_v, art, nenner, d, name, text, cid_char)
+            geld.buchen(eigen_s, eigen_v, art, nenner, -n, name, text, cid_char)
             self.save_roster()
             return True
         if was in ("einlegen", "herausnehmen"):

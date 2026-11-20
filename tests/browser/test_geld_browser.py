@@ -10,12 +10,30 @@ def test_boerse_kasse_und_beute(tisch):
     sl = tisch.sl()
     h = tisch.handy("Tessa")
     h.reiter("geld")
-    # Münzen über den Zahlenblock einstecken, dann einen Teil bezahlen.
+    # Spieler kann sich kein Geld geben (Kalle 20.11.2026): kein „Einstecken",
+    # kein Los-Raster - nur der Hinweis, woher Geld kommt.
     h.klick("[data-act=geld-auf][data-art=muenzen]")
+    assert h.page.locator("[data-was=einstecken]").count() == 0
+    assert "Neues Geld gibt dir der Spielleiter" in h.text()
+    h.klick(".g-x")
+    h.klick("[data-act=geld-auf][data-art=los]")
+    assert h.page.locator("[data-quelle=neu]").count() == 0
+    assert h.page.locator("[data-was=einstecken]").count() == 0
+    h.klick(".g-x")
+    # SL gibt Tessa Münzen und Lose (über die echten Knöpfe).
+    sl.klick("[data-act=geld-sl-beute]")
+    sl.klick("[data-act=geld-sl-art][data-art=muenzen]")
     for t in "340":
-        h.klick(f"[data-act=geld-taste][data-t='{t}']")
-    h.klick("[data-act=geld-buchen][data-was=einstecken]")
+        sl.klick(f"[data-act=geld-taste][data-t='{t}']")
+    sl.klick("[data-act=geld-buchen][data-was=geben]")
     h.warte_bis("() => App.state.meinGeld.stand.muenzen === 340")
+    sl.klick("[data-act=geld-sl-beute]")
+    sl.klick("[data-act=geld-los][data-quelle=neu][data-n='1000']")
+    sl.klick("[data-act=geld-anzahl][data-d='1']")
+    sl.klick("[data-act=geld-anzahl][data-d='1']")
+    sl.klick("[data-act=geld-buchen][data-was=geben]")
+    h.warte_bis("() => App.state.meinGeld.stand.lose['1000'] === 3")
+    # Handy bezahlt einen Teil der Münzen.
     h.klick("[data-act=geld-auf][data-art=muenzen]")
     for t in "54":
         h.klick(f"[data-act=geld-taste][data-t='{t}']")
@@ -29,13 +47,7 @@ def test_boerse_kasse_und_beute(tisch):
         h.klick(f"[data-act=geld-taste][data-t='{t}']")
     assert h.page.locator("[data-act=geld-buchen][data-was=bezahlen]").is_disabled()
     h.klick(".g-x")
-    # Lose: Wert antippen, 3 Stück einstecken, 2 davon bezahlen.
-    h.klick("[data-act=geld-auf][data-art=los]")
-    h.klick("[data-act=geld-los][data-quelle=neu][data-n='1000']")
-    h.klick("[data-act=geld-anzahl][data-d='1']")
-    h.klick("[data-act=geld-anzahl][data-d='1']")
-    h.klick("[data-act=geld-buchen][data-was=einstecken]")
-    h.warte_bis("() => App.state.meinGeld.stand.lose['1000'] === 3")
+    # Lose: eigenes Los antippen, 2 davon bezahlen.
     h.klick("[data-act=geld-auf][data-art=los]")
     h.klick("[data-act=geld-los][data-quelle=eigen][data-n='1000']")
     for _ in range(4):   # bleibt bei 3 stehen (mehr hat sie nicht)
@@ -74,8 +86,10 @@ def test_geld_passt_aufs_kleine_handy(tisch):
     h.klick("[data-act=geld-auf][data-art=los]")
     h.kein_waagrechtes_scrollen("Lose-Blatt")
     # Unterster Knopf im Blatt erreichbar (Blatt scrollt notfalls selbst).
-    h.klick("[data-act=geld-los][data-quelle=neu][data-n='100000']")
-    h.page.locator("[data-act=geld-buchen][data-was=einstecken]").scroll_into_view_if_needed()
-    h.klick("[data-act=geld-buchen][data-was=einstecken]")
-    h.warte_bis("() => App.state.meinGeld.stand.lose['100000'] === 1")
+    h.klick(".g-x")
+    h.klick("[data-act=geld-konto][data-k=gruppe]")
+    h.klick("[data-act=geld-auf][data-art=muenzen]")
+    knopf = h.page.locator("button.g-leicht[data-was=kasse_bezahlen]")
+    knopf.scroll_into_view_if_needed()
+    assert knopf.is_visible()
     assert not tisch.alle_fehler()
