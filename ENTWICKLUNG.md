@@ -191,7 +191,10 @@ Alle Handy-Aktionen in `app.handle_message` durchgesehen. Gefixt:
 - **👥 Notiz-Schreiber fälschbar**: `von`/`vonId` kamen vom Handy. Jetzt setzt
   der Server sie; Rückgängig nach Löschen holt den echten Schreiber aus
   `_geloeschte_gruppen_notizen`.
-Bewusst offen (Frage an Kalle): Talente/Glück stellt jeder selbst (Glück =
+- **Notizen voll still**: 👥 Notiz kam bei vollen 8000 Zeichen nicht an,
+  bei eigenen warf der Server die ältesten weg. Jetzt Meldung am Handy (Text
+  bleibt im Feld), Server lehnt zu volle Listen ab statt zu kürzen.
+Von Kalle bestätigt, bleibt so (20.11.): Talente/Glück stellt jeder selbst (Glück =
 mehr Bennies), Erholen „Probe geschafft" ohne Benny auf Ehrenwort, jeder darf
 aus der Gruppenkasse nehmen, jeder darf 👥 Notizen anderer ändern/löschen.
 - Tests: `tests/test_geld.py`, `tests/browser/test_geld_browser.py`.

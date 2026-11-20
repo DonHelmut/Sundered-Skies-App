@@ -365,7 +365,19 @@ function notizenAlle() {
 function notizFinden(id, gruppe) {
   return (gruppe ? gruppenNotizen() : notizenListe()).find((e) => e.id === id);
 }
+// Platz wie am Server (MAX_NOTIZEN / MAX_NOTIZ_EINTRAEGE in game.py). Vorher
+// merkte niemand, wenn es voll war: eine neue 👥 Notiz kam still nicht an, und
+// bei den eigenen warf der Server die ÄLTESTEN Einträge hinten weg
+// (Rechte-Prüfung 20.11.2026).
+const NOTIZ_PLATZ = 8000, NOTIZ_MAX = 200;
+function notizenZuViel(liste) {
+  return liste.length > NOTIZ_MAX || liste.reduce((n, e) => n + String((e && e.text) || "").trim().length, 0) > NOTIZ_PLATZ;
+}
+function notizVollMelden(gruppe) {
+  hinweis(`${gruppe ? "Die Gruppen-Notizen sind" : "Deine Notizen sind"} voll. Erst alte oder erledigte Notizen löschen – dann passt die neue rein.`);
+}
 function notizenSpeichern(liste) {
+  if (notizenZuViel(liste)) { notizVollMelden(false); render(); return false; }
   App.notizenLokal = liste;
   gmAction({ type: "notizen_setzen", eintraege: liste });
   render();
@@ -560,6 +572,12 @@ function notizFeldHoehe(el) {
 function notizHinzu() {
   const text = (App.notizNeu || "").trim();
   if (!text) return;
+  // Voll? Dann bleibt der Text im Feld stehen, nichts geht verloren.
+  const gruppe = notizZielGruppe();
+  if (notizenZuViel(gruppe ? [...gruppenNotizen(), { text }] : [{ text }, ...notizenListe()])) {
+    notizVollMelden(gruppe);
+    return;
+  }
   App.notizNeu = "";
   const feld = $("notiz-neu");
   if (feld) { feld.value = ""; notizFeldHoehe(feld); }
@@ -581,8 +599,11 @@ function notizHinzu() {
 function notizFertig() {
   const ed = App.notizEdit;
   if (!ed) return;
-  App.notizEdit = null;
   const text = ed.text.trim();
+  // Länger geschrieben, und es passt nicht mehr: Bearbeiten bleibt offen.
+  const probe = (ed.gruppe ? gruppenNotizen() : notizenListe()).map((e) => e.id === ed.id ? { ...e, text } : e);
+  if (text && notizenZuViel(probe)) { notizVollMelden(ed.gruppe); return; }
+  App.notizEdit = null;
   const alt = notizFinden(ed.id, ed.gruppe);
   if (!alt) { render(); return; }
   if (!text) { notizLoeschen(ed.id, ed.gruppe); return; }      // leer gespeichert = löschen (mit Rückfrage)

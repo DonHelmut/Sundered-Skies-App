@@ -2373,6 +2373,13 @@ class Game:
         if char is None:
             return False
         liste = _notizen_liste(eintraege)
+        # Passt nicht alles hinein: ablehnen statt still kürzen - sonst fielen
+        # die ältesten Einträge hinten weg (Rechte-Prüfung 20.11.2026). Das
+        # Handy meldet „voll" schon vorher; das hier fängt alte Handys ab.
+        if isinstance(eintraege, list):
+            gueltig = sum(1 for i, e in enumerate(eintraege[:MAX_NOTIZ_EINTRAEGE * 2]) if _notiz_eintrag(e, i))
+            if len(liste) < gueltig:
+                return False
         if char.get("notizen") == liste:
             return False
         char["notizen"] = liste

@@ -322,3 +322,13 @@ def test_gruppen_notiz_schreiber_kann_man_nicht_faelschen(zwei_handys):
     _als_handy("p2", {"type": "gruppen_notiz", "op": "loeschen", "id": "g1"})
     _als_handy("p2", {"type": "gruppen_notiz", "op": "neu", "eintrag": {**e, "von": "Korgo"}})
     assert g.gruppen_notizen[0]["von"] == "Tessa" and g.gruppen_notizen[0]["ts"] == e["ts"]
+
+
+def test_eigene_notizen_voll_wird_abgelehnt_statt_alte_wegzuwerfen(zwei_handys):
+    """Vorher kürzte der Server still: die neue Notiz oben blieb, die ÄLTESTE
+    hinten fiel weg."""
+    g, tessa, korgo = zwei_handys
+    alt = [{"id": f"n{i}", "text": "x" * 1000} for i in range(8)]
+    assert g.notizen_setzen(tessa["id"], alt)
+    assert not g.notizen_setzen(tessa["id"], [{"id": "neu", "text": "noch eine"}, *alt])
+    assert [e["id"] for e in g.notizen_fuer("p1")] == [e["id"] for e in alt]
