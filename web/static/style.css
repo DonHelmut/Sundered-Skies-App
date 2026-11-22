@@ -4032,3 +4032,137 @@ body.player .bogen-raster input { width: 100% !important; min-height: 46px; font
 .sl-rs-k.leer .ic { width: 20px; height: 20px; }
 #skinbar.einst-sl .es-farbe span { font-size: 0.68rem; }
 @media (prefers-reduced-motion: reduce) { #skinbar.einst-sl.open .skin-menu { animation: none; } }
+
+/* =============================================================================
+   Abenteuerbuch (Kalle, 22.11.2026: Design-Runde „mehr Pen & Paper / Sundered
+   Skies", Stil 1 als Standard – Bilder im Projektordner screenshots/
+   pen-paper-design/). Gilt für den Standard-Skin Pergament; die anderen Skins
+   bleiben, wie sie sind.
+   Papier mit Körnung, Doppelrahmen in Tinte + Eckzier, Buchschrift, Kopf als
+   Lederrücken, Hauptknopf als Siegellack, Initiative als Register.
+   Regeln dabei: nur Farben/Rahmen/Schrift – Maße, Abstände und Trefferflächen
+   bleiben, nichts rückt. Bauteile mit :where() auf Grund-Gewicht halten, damit
+   Zustände (dran, erreichbar, gehalten …) weiter über dem Grundlook liegen –
+   sonst hätte z. B. „Zone erreichbar" seinen Schein verloren.
+   ========================================================================== */
+@font-face { font-family: "IM Fell English"; src: url(/static/schrift/im-fell-english-latin-400-normal.woff2) format("woff2"); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: "IM Fell English"; font-style: italic; src: url(/static/schrift/im-fell-english-latin-400-italic.woff2) format("woff2"); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: "EB Garamond"; src: url(/static/schrift/eb-garamond-latin-400-normal.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "EB Garamond"; src: url(/static/schrift/eb-garamond-latin-500-normal.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "EB Garamond"; src: url(/static/schrift/eb-garamond-latin-600-normal.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "EB Garamond"; src: url(/static/schrift/eb-garamond-latin-700-normal.woff2) format("woff2"); font-weight: 700 900; font-display: swap; }
+
+body.theme-pergament {
+  --bg: #cdb48a; --bg2: #e9dcbc; --panel: #f1e6c9; --panel2: #e8d9b4; --line: #8c6a3c;
+  --text: #2a1c0c; --muted: #6a5232; --accent: #7a2a14; --accent2: #6b2410; --gold: #8a5a10;
+  --flaeche: #f3e9cf; --tinte: #7a2a14; --leder: #4f2411; --messing: #b8893c;
+  --schrift: "EB Garamond", Georgia, "Times New Roman", serif;
+  --schrift-titel: "IM Fell English", Georgia, serif;
+  /* Garamond ist bei gleicher Größe deutlich kleiner als Inter – 17 px liest
+     sich wie vorher 15 px. Überall in rem angegebene Größen bleiben. */
+  font-size: 17px;
+  /* Pergament: feine Körnung (einmal gemaltes SVG-Rauschen, keine Animation)
+     über einem warmen Verlauf, zum Rand hin dunkler. */
+  background-color: var(--bg);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .18 0 0 0 0 .05 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 40%, #e2cfa4 0%, #c9ab78 70%, #a8854f 100%);
+  background-repeat: repeat, no-repeat;
+  background-attachment: scroll, fixed;
+}
+/* Buchschrift ohne „cv11" (gibt es nur bei Inter), gleich breite Ziffern bleiben. */
+body.theme-pergament { font-feature-settings: "tnum" 1, "lnum" 1; }
+
+/* Tafeln: Papier + Doppelrahmen in Tinte, unten zwei kleine Eckzier-Winkel
+   (klein und in der Ecke – größer lagen sie über „Gruppen:"/„Verlauf:"). */
+body.theme-pergament .panel, body.theme-pergament.sl-ansicht .grid2 .panel {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26'%3E%3Cpath d='M2 2 V18 Q2 24 8 24 H24' fill='none' stroke='%237a2a14' stroke-width='1.2'/%3E%3Cpath d='M6 2 V15 Q6 20 11 20 H24' fill='none' stroke='%237a2a14' stroke-width='.6'/%3E%3Ccircle cx='9' cy='17' r='1.6' fill='%237a2a14'/%3E%3C/svg%3E") bottom 3px left 3px / 16px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26'%3E%3Cg transform='scale(-1 1) translate(-26 0)'%3E%3Cpath d='M2 2 V18 Q2 24 8 24 H24' fill='none' stroke='%237a2a14' stroke-width='1.2'/%3E%3Cpath d='M6 2 V15 Q6 20 11 20 H24' fill='none' stroke='%237a2a14' stroke-width='.6'/%3E%3Ccircle cx='9' cy='17' r='1.6' fill='%237a2a14'/%3E%3C/g%3E%3C/svg%3E") bottom 3px right 3px / 16px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .22 0 0 0 0 .08 0 0 0 .13 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 30%, #f7eed6, #ead9b0 85%, #dcc391);
+  border: 1px solid #7a5a30; border-radius: 4px;
+  box-shadow: inset 0 0 0 4px #f3e9cf, inset 0 0 0 5px rgba(122, 42, 20, 0.55),
+    0 14px 26px -16px rgba(60, 30, 5, 0.7), 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+/* Panel-Titel: Buchschrift in Kapitälchen, darunter eine Zierlinie mit Raute. */
+body.theme-pergament details.section > .sec-head .sec-title,
+body.theme-pergament.sl-ansicht .grid2 details.section > .sec-head .sec-title {
+  font-family: var(--schrift-titel); font-weight: 400; font-size: 1.12rem; letter-spacing: 0.04em;
+  text-transform: none; font-variant: small-caps; color: #5a1c0a; }
+body.theme-pergament.sl-ansicht .grid2 details.section > .sec-head { position: relative; border-bottom-color: transparent; }
+body.theme-pergament.sl-ansicht .grid2 details.section[open] > .sec-head::after {
+  content: ""; position: absolute; left: 14px; right: 14px; bottom: 0; height: 9px; pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='9'%3E%3Cpath d='M0 4.5 H52 M68 4.5 H120' stroke='%237a2a14' stroke-width='.8'/%3E%3Cpath d='M60 0.5 L64 4.5 L60 8.5 L56 4.5Z' fill='%237a2a14'/%3E%3C/svg%3E") center / 120px 9px no-repeat,
+    linear-gradient(90deg, transparent, rgba(122, 42, 20, 0.5) 15%, rgba(122, 42, 20, 0.5) 85%, transparent) center / 100% 1px no-repeat; }
+body.theme-pergament .hk-name { font-family: var(--schrift-titel); }
+
+/* Kopf als Lederrücken mit Messinglinie (SL: über ::before verlängert). */
+body.theme-pergament.sl-ansicht .sl-kopf { background: transparent; box-shadow: none; border-bottom: 0; }
+body.theme-pergament.sl-ansicht .sl-kopf::before, body.theme-pergament .handy-kopf {
+  background: linear-gradient(180deg, #5a2a14, #46200e); box-shadow: 0 1px 0 #2a1206, 0 8px 20px -10px rgba(40, 15, 0, 0.8); }
+body.theme-pergament.sl-ansicht .sl-kopf::after { background: var(--messing); }
+body.theme-pergament .handy-kopf { border-bottom: 2px solid var(--messing); color: #f1e2bd; }
+body.theme-pergament .sl-kopf .wortmarke, body.theme-pergament .handy-kopf .hk-name { color: #e8c674; letter-spacing: 0.12em; }
+body.theme-pergament .sl-kopf .kopf-rolle, body.theme-pergament .sl-kopf .kopf-handys { color: #e2cfa4; }
+body.theme-pergament .sl-kopf .kopf-rolle { border-left-color: rgba(232, 198, 116, 0.35); }
+body.theme-pergament.sl-ansicht .sl-kopf .kopf-gruppe { background: rgba(0, 0, 0, 0.2); border-color: rgba(232, 198, 116, 0.35); }
+body.theme-pergament.sl-ansicht .sl-kopf .kopf-gruppe > button,
+body.theme-pergament.sl-ansicht .sl-kopf .kopf-gruppe .kopf-menue > summary,
+body.theme-pergament.sl-ansicht .sl-kopf > button,
+body.theme-pergament.sl-ansicht .sl-kopf > * > button.ghost { color: #f1e2bd; }
+body.theme-pergament.sl-ansicht .sl-kopf .kopf-gruppe > button:hover,
+body.theme-pergament.sl-ansicht .sl-kopf .kopf-gruppe .kopf-menue > summary:hover,
+body.theme-pergament.sl-ansicht .sl-kopf .kopf-gruppe .kopf-menue[open] > summary { background: rgba(232, 198, 116, 0.16); }
+body.theme-pergament .handy-kopf button, body.theme-pergament .handy-kopf .runden-zaehler {
+  color: #f1e2bd; border-color: rgba(232, 198, 116, 0.45); background-color: rgba(0, 0, 0, 0.2); }
+body.theme-pergament .handy-kopf .muenzen-zahl { color: #e8c674; }
+body.theme-pergament .handy-kopf .avatar { background: #f1e2bd; color: var(--leder); }
+
+/* Knöpfe: Papier mit Tintenrand; Hauptknopf = Siegellack. Nur der schlichte
+   Grundknopf – Knöpfe mit eigener Klasse behalten ihren Look. */
+:where(body.theme-pergament) button { border-radius: 5px; border-color: rgba(90, 50, 20, 0.55);
+  background: linear-gradient(180deg, #f6ecd2, #e6d4a8); color: #3a2310; }
+:where(body.theme-pergament) button:hover { background: #fbf3dd; border-color: var(--tinte); }
+:where(body.theme-pergament) button.primary {
+  background: radial-gradient(ellipse at 40% 30%, #a83a20, #7a1f0c 70%, #5c1406); color: #fbe9c8;
+  border: 1px solid #4a1004; font-family: var(--schrift-titel); letter-spacing: 0.03em;
+  box-shadow: inset 0 1px 0 rgba(255, 210, 170, 0.35), 0 2px 0 #3a0c02, 0 6px 12px -6px rgba(60, 10, 0, 0.7); }
+:where(body.theme-pergament) button.primary:hover { background: radial-gradient(ellipse at 40% 30%, #b8442a, #86240f 70%, #641708); }
+:where(body.theme-pergament) button.ghost { background: transparent; }
+
+/* Initiative als Register: Zeilen statt Kästen, Platz-Nummer kursiv in Tinte. */
+:where(body.theme-pergament) .order { gap: 2px; }
+:where(body.theme-pergament) .combatant { background: rgba(255, 250, 235, 0.45); border-color: transparent;
+  border-bottom-color: rgba(122, 90, 48, 0.45); border-radius: 2px; }
+:where(body.theme-pergament) .combatant.active { background: linear-gradient(90deg, rgba(184, 137, 60, 0.32), rgba(184, 137, 60, 0.08));
+  box-shadow: inset 3px 0 0 var(--tinte), 0 0 0 1px var(--messing); }
+:where(body.theme-pergament) .combatant .idx { font-family: var(--schrift-titel); font-style: italic; color: var(--tinte); }
+:where(body.theme-pergament) .combatant .name { font-weight: 600; }
+:where(body.theme-pergament) .tag, :where(body.theme-pergament) .zone-chip { background: transparent; border-color: rgba(122, 42, 20, 0.5);
+  color: var(--accent2); border-radius: 2px; font-variant: small-caps; letter-spacing: 0.03em; }
+
+/* Kampfzonen: gezeichnete Felder, Seiten mit doppelter Linie. */
+:where(body.theme-pergament) .zone-band { border-radius: 2px; background: rgba(255, 250, 235, 0.35); border-color: rgba(122, 90, 48, 0.35); }
+:where(body.theme-pergament) .zone-band.empty { background: transparent; border-style: dotted; }
+:where(body.theme-pergament) .zone-band.band-npc { border-left: 4px double #8a2a14; }
+:where(body.theme-pergament) .zone-band.band-player { border-left: 4px double #2f4a6a; }
+:where(body.theme-pergament) .zone-band .zb-name { font-family: var(--schrift-titel); font-weight: 400; font-size: 0.95rem; color: #4a3218; }
+:where(body.theme-pergament) .zone-token { border-radius: 3px; background: #fbf3dd; }
+
+/* Untere Leiste wie ein Buchfuß; Name des Handelnden in Buchschrift. */
+body.theme-pergament.sl-ansicht .aktionsleiste { background: linear-gradient(180deg, #efe2c0, #e4d1a4); border-top: 0;
+  box-shadow: inset 0 3px 0 -1px #f3e9cf, inset 0 4px 0 -1px rgba(122, 42, 20, 0.6), 0 -10px 24px -14px rgba(60, 30, 5, 0.6); }
+:where(body.theme-pergament) .al-name { font-family: var(--schrift-titel); font-weight: 400; }
+
+/* Handy: Reiter wie Lesezeichen-Bänder, Dran-Hinweis in Buchschrift. */
+:where(body.theme-pergament) .handy-reiter { background: #e9d9b2; border-color: var(--line); }
+:where(body.theme-pergament) .handy-reiter button { background: transparent; border: 0; }
+:where(body.theme-pergament) .handy-reiter button.an { background: linear-gradient(180deg, #8a2a14, #6b1f0c); color: #fbe9c8;
+  border-radius: 2px 2px 8px 8px; box-shadow: 0 3px 0 #4a1004; }
+:where(body.theme-pergament) .dran-leiste { font-family: var(--schrift-titel); background: #f3e9cf; border-color: var(--line); border-radius: 3px; }
+
+/* Schwebende Anfrage beim SL: gleiches Papier wie die Tafeln. */
+:where(body.theme-pergament) .anfragen-schweb { background: #f6ecd2; border: 1px solid #7a5a30; border-radius: 4px;
+  box-shadow: inset 0 0 0 3px #f6ecd2, inset 0 0 0 4px rgba(122, 42, 20, 0.5), 0 18px 30px -12px rgba(60, 30, 5, 0.7); }

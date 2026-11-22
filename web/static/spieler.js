@@ -294,14 +294,16 @@ function ruhePanelHtml(s, mine) {
 // zurückmeldet, gilt die eigene Fassung (sonst blitzte nach dem Löschen kurz
 // der alte Stand auf). Gruppe: einzelne Schritte (gruppen_notiz), weil dort
 // mehrere Handys gleichzeitig schreiben.
-const NOTIZ_THEMEN = [["NSC", "👤"], ["Orte", "🗺"], ["Beute", "💰"], ["Offen", "❓"]];
+// „Leute" hieß bis 2.0.19 „NSC" – Kalle (22.11.2026): klang zu technisch, eher
+// etwas Menschliches. Alte Einträge benennt der Server beim Lesen um.
+const NOTIZ_THEMEN = [["Leute", "👤"], ["Orte", "🗺"], ["Beute", "💰"], ["Offen", "❓"]];
 const NOTIZ_GRUPPE = "\u0001gruppe";   // Reiter „👥 Gruppe" (kein echtes Thema)
 const NOTIZ_SUCHE_AB = 4;              // ab so vielen Notizen gibt es die 🔎 (oben im Kopf)
 // Feste Themen als Linien-Symbol mit leisem Farbton (Studio-Runde Notizen,
 // Kalle 16.11.2026, Vorschlag 2): die bunten Emoji sahen je nach Handy anders
 // aus und bissen sich mit den Linien-Symbolen vom Rest der App. Eigene Themen
 // behalten ihr Emoji (das wählen die Spieler selbst).
-const NOTIZ_THEMA_SYMBOL = { NSC: ["user", "#b0652a"], Orte: ["map-pin", "#4f8a5b"], Beute: ["gem", "#b8901a"],
+const NOTIZ_THEMA_SYMBOL = { Leute: ["user", "#b0652a"], Orte: ["map-pin", "#4f8a5b"], Beute: ["gem", "#b8901a"],
   Offen: ["circle-help", "#8f6cc4"], "\u0001gruppe": ["users", "#2f7f9a"], "": ["tag", "#8a7a60"] };
 // Eigene Themen tragen ihr Emoji vorne im Namen („💎 Seelensteine") - so kommt
 // es mit jeder Notiz mit, auch bei Gruppen-Notizen auf fremden Handys, ohne
@@ -388,7 +390,7 @@ function notizNeueId() { return `n${Date.now().toString(36)}${Math.random().toSt
 // angelegte - die merkt sich das Handy, sonst wäre ein neues Thema ohne
 // Eintrag beim nächsten Neuzeichnen wieder weg).
 function notizThemenAlle(liste) {
-  const eigene = notizSpeicherLesen("notizEigeneThemen", []);
+  const eigene = notizSpeicherLesen("notizEigeneThemen", []).filter((t) => t !== "NSC");
   const namen = NOTIZ_THEMEN.map(([n]) => n);
   [...eigene, ...liste.map((e) => e.thema)].forEach((t) => { if (t && !namen.includes(t)) namen.push(t); });
   return namen;
@@ -509,6 +511,9 @@ function notizWahlEintraege() {
 function notizWahlKey(e) { return `${e.gruppe ? "g" : "e"}:${e.id}`; }
 function notizFilterJetzt() {
   const f = App.notizFilter !== undefined ? App.notizFilter : notizSpeicherLesen("notizFilter", null);
+  // Gemerkter Reiter von vor der Umbenennung (2.0.19): sonst stand er auf
+  // einem Thema, das es nicht mehr gibt, und die Liste war leer.
+  if (f === "NSC") return "Leute";
   return f === undefined ? null : f;
 }
 function notizZielGruppe() {
@@ -587,7 +592,7 @@ function notizenPanelHtml() {
       : `<div class="notiz-reiter-leiste">${reiterHtml}</div>`}
     ${weg ? `<div class="notiz-undo"><span>${weg.teile.length > 1 ? `${weg.teile.length} Notizen gelöscht` : "Notiz gelöscht"}</span><button type="button" class="ghost small" data-act="notiz-zurueck">↶ Rückgängig</button></div>` : ""}
     ${alle.length ? inhalt
-      : `<div class="notizen-leer">Noch nichts notiert.<br><span>NSC-Namen, Orte, Beute, offene Fragen. 🔒 nur du, 👥 alle Spieler.</span></div>`}
+      : `<div class="notizen-leer">Noch nichts notiert.<br><span>Leute, Orte, Beute, offene Fragen. 🔒 nur du, 👥 alle Spieler.</span></div>`}
   </div>`;
 }
 // Feld wächst mit dem Text (rows="1" sah sonst nach einer Zeile aus, auch wenn

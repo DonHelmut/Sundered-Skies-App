@@ -77,6 +77,29 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.19 (22.11.2026): Abenteuerbuch-Stil + Notiz-Thema „Leute"
+
+Kalle: „mehr nach Pen and Paper oder Sundered Skies". 4 Gesamt-Stile als Bilder
+(Projektordner `screenshots/pen-paper-design/`, Mockup-CSS in `mockup-css/`):
+1 Abenteuerbuch, 2 Luftschiff-Brücke (Messing/Mahagoni), 3 Jenseits der
+Barriere (Nachthimmel/Rauchglas/Fater-Glut), 4 Navigator-Karte. Kalle wählte
+**1 als Standard** (2–4 nicht gewählt, liegen als Mockup-CSS bereit, falls je
+weitere Skins gewünscht sind).
+
+- **Abenteuerbuch** (Block am Ende von `style.css`, nur Skin Pergament =
+  Standard): Papierkörnung (SVG-Rauschen als Bild, statisch), Doppelrahmen in
+  Tinte + kleine Eckzier unten, Panel-Titel in IM Fell English (Kapitälchen) mit
+  Zierlinie, Text in EB Garamond (17 px ≈ vorher Inter 15 px), Kopf als
+  Lederrücken mit Messinglinie, Hauptknopf als Siegellack, Initiative als
+  Register-Zeilen, Zonen mit Doppellinie, Reiter am Handy als Lesezeichen.
+  Schriften offline in `web/static/schrift/` (OFL, siehe LIZENZ.txt).
+  Bauteile über `:where(body.theme-pergament)` auf Grund-Gewicht, damit
+  Zustände (dran, Zone erreichbar, gehalten …) weiter darüber liegen.
+  Maße/Abstände unverändert – nichts rückt.
+- **Notizen: „NSC" heißt „Leute"** (Kalle: zu technisch). Server benennt alte
+  Einträge beim Lesen um (`_notiz_eintrag`), am Handy wird ein gemerkter
+  Reiter „NSC" auf „Leute" umgelenkt.
+
 ## 2.0.18 (19.11.2026): Durchleuchtung – Fehler aus dem Rundgang
 
 Kalle: „Durchleuchte alles bis es wirklich komplett auf Entwicklerstudio-Niveau
@@ -305,7 +328,7 @@ Kalle wählte **alles**:
   Zeile. Tipp auf den Text = bearbeiten; „🗑 Löschen" steht im Bearbeiten-Modus
   links (rot, weit weg von „Fertig"), Rückfrage + ↶ bleiben.
 - **2 Themen als Linien-Symbol mit Farbton** (`NOTIZ_THEMA_SYMBOL`,
-  `notizThemaHtml`): NSC/Orte/Beute/Offen/Gruppe/Sonstiges; eigene Themen
+  `notizThemaHtml`): NSC (seit 22.11. „Leute")/Orte/Beute/Offen/Gruppe/Sonstiges; eigene Themen
   behalten ihr Emoji (Klasse `th-roh`, in `SYMBOL_ROH`).
 - **3 Komposer**: Feld + „🔒 Nur ich | 👥 Für alle" in Worten + runder ↑.
   🔍 oben rechts im Notizen-Kopf (schon ab 4 Notizen statt 8).
