@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (22.11.2026): Geld-Verlauf eingeklappt
+## 2.0.21 (22.11.2026): Geld-Verlauf eingeklappt
 
 Kalle: „Der Verlauf wird zu lang." Jetzt zeigt jeder Geld-Verlauf (Handy: Börse
 + Gruppenkasse, SL-Panel „Vermögen") nur die letzten 3 Buchungen. Schalter
