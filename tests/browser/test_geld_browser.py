@@ -93,3 +93,33 @@ def test_geld_passt_aufs_kleine_handy(tisch):
     knopf.scroll_into_view_if_needed()
     assert knopf.is_visible()
     assert not tisch.alle_fehler()
+
+
+def test_verlauf_eingeklappt(tisch):
+    """Kalle 22.11.2026: Verlauf wird zu lang → eingeklappt nur die letzten 3,
+    Schalter in der Überschrift bleibt beim Aufklappen stehen (nichts springt)."""
+    sl = tisch.sl()
+    h = tisch.handy("Tessa")
+    for i in range(6):
+        tisch.gm({"type": "geld", "was": "geben", "ziele": ["gruppe"], "art": "muenzen",
+                  "anzahl": i + 1, "wofuer": f"Posten {i}"})
+    h.warte_bis("() => App.state.gruppenkasse.verlauf.length === 6")
+    h.reiter("geld")
+    h.klick("[data-act=geld-konto][data-k=gruppe]")
+    assert h.page.locator(".g-verlauf li").count() == 3
+    leiste = h.page.locator("[data-act=geld-vl]")
+    assert "Alle 6" in leiste.inner_text()
+    y = leiste.bounding_box()["y"]
+    leiste.click()
+    assert h.page.locator(".g-verlauf li").count() == 6
+    assert "Weniger" in leiste.inner_text()
+    assert abs(leiste.bounding_box()["y"] - y) < 1
+    assert "Posten 5" in h.page.locator(".g-verlauf li").first.inner_text()
+    leiste.click()
+    assert h.page.locator(".g-verlauf li").count() == 3
+    # Meine Börse hat ihren eigenen Zustand; SL-Panel ebenso.
+    sl.klick("[data-act=geld-sl-verlauf][data-ziel=gruppe]")
+    assert sl.page.locator(".g-verlauf li").count() == 3
+    sl.klick("[data-act=geld-vl]")
+    assert sl.page.locator(".g-verlauf li").count() == 6
+    assert not tisch.alle_fehler()

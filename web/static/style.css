@@ -3841,6 +3841,11 @@ body.sl-ansicht .grid2 details[data-sec="protokolle"]:not([open]) > .sec-head { 
 .g-menge { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .g-menge.plus { color: var(--good); } .g-menge.minus { color: var(--bad); }
 .g-leer { color: var(--muted); font-size: .9rem; padding: 8px 4px; }
+/* Auf-/Zuklappen des Verlaufs: klein in der Überschrift, aber mit großer
+   unsichtbarer Trefferfläche (Padding + negativer Rand), sonst trifft man
+   den Text am Handy kaum. */
+.g-vl-knopf { margin: -12px -8px -12px auto; padding: 12px 8px; min-height: 0; border: 0; background: none; box-shadow: none;
+  font: 700 .8rem/1 inherit; letter-spacing: 0; text-transform: none; color: var(--accent); cursor: pointer; }
 
 /* Blatt von unten (Handy) bzw. Fenster in der Mitte (SL). Nur transform/
    opacity animiert; die Höhe bleibt beim Antippen gleich, nichts springt. */

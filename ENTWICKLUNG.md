@@ -77,6 +77,17 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (22.11.2026): Geld-Verlauf eingeklappt
+
+Kalle: „Der Verlauf wird zu lang." Jetzt zeigt jeder Geld-Verlauf (Handy: Börse
++ Gruppenkasse, SL-Panel „Vermögen") nur die letzten 3 Buchungen. Schalter
+„Alle N ▾" / „Weniger ▴" rechts in der Überschrift (Handy) bzw. in der
+Verlauf-Zeile (SL). Kalle hat **A** gewählt (Schalter in der Überschrift). Nicht
+gewählt: B breite Leiste unter den 3 Einträgen, C nach Tagen gruppiert. Offen/zu
+gilt je Konto, nur im Browser (nicht gespeichert). Ausgeklappt jetzt alle
+Buchungen (Server hält max. 200), vorher fest 40. Bilder:
+Projektordner screenshots/kassen-verlauf/. Test: test_verlauf_eingeklappt.
+
 ## 2.0.20 (22.11.2026): Abenteuerbuch-Stil + Notiz-Thema „Leute"
 
 Kalle: „mehr nach Pen and Paper oder Sundered Skies". 4 Gesamt-Stile als Bilder

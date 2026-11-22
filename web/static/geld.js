@@ -22,7 +22,7 @@
 const LOS_WERTE = [2, 5, 10, 100, 1000, 10000, 100000];
 const GELD_STEINTEXT = "Seelenstein – ändert ein Schicksal";
 
-App.geld = { konto: "ich", blatt: null };
+App.geld = { konto: "ich", blatt: null, vlOffen: new Set() };
 
 function muenzName() { return (App.state && App.state.muenzName) || "Münzen"; }
 function nennerText(n) { return n >= 1000 ? Number(n).toLocaleString("de-DE") : String(n); }
@@ -119,9 +119,21 @@ function geldZeit(ts) {
   const tage = Math.round((new Date(h.toDateString()) - new Date(d.toDateString())) / 864e5);
   return tage === 0 ? `heute ${uhr}` : tage === 1 ? `gestern ${uhr}` : d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 }
-function geldVerlaufHtml(liste, mitWem) {
-  const zeilen = [...(liste || [])].reverse().slice(0, 40);
-  if (!zeilen.length) return `<div class="g-leer">Noch keine Buchung.</div>`;
+// Eingeklappt nur die letzten 3 (Kalle 22.11.2026: „Verlauf wird zu lang").
+// Der Schalter sitzt in der Überschrift ÜBER der Liste (Kalles Wahl A): beim
+// Aufklappen wächst die Liste nach unten, der Schalter bleibt unter dem Finger.
+// key: welches Konto (Handy „ich"/„gruppe", SL „sl-<id>"), offen gilt je Konto.
+const GELD_VL_KURZ = 3;
+function geldVlKnopf(liste, key) {
+  const n = (liste || []).length;
+  if (n <= GELD_VL_KURZ) return "";
+  const offen = App.geld.vlOffen.has(key);
+  return `<button type="button" class="g-vl-knopf" data-act="geld-vl" data-k="${esc(key)}" aria-expanded="${offen}">${offen ? "Weniger ▴" : `Alle ${n} ▾`}</button>`;
+}
+function geldVerlaufHtml(liste, mitWem, key) {
+  const alle = [...(liste || [])].reverse();
+  if (!alle.length) return `<div class="g-leer">Noch keine Buchung.</div>`;
+  const zeilen = App.geld.vlOffen.has(key) ? alle : alle.slice(0, GELD_VL_KURZ);
   return `<ul class="g-verlauf">${zeilen.map((e) => {
     const text = e.wofuer || (e.n > 0 ? "Eingesteckt" : "Bezahlt");
     const wer = e.vonId === "sl" ? "SL" : zoneInitials(e.von || "?");
@@ -157,8 +169,8 @@ function geldSeiteHtml() {
     </div>
     ${geldTruheHtml(k.stand, "geld-auf")}
     <div class="g-hinweis">${konto === "ich" ? "Antippen zum Bezahlen – neues Geld gibt der Spielleiter" : "Antippen zum Herausnehmen oder Einlegen"}</div>
-    <div class="g-ueber">Verlauf</div>
-    ${geldVerlaufHtml(k.verlauf, konto === "gruppe")}
+    <div class="g-ueber">Verlauf${geldVlKnopf(k.verlauf, konto)}</div>
+    ${geldVerlaufHtml(k.verlauf, konto === "gruppe", konto)}
   </div>`;
 }
 
@@ -325,8 +337,8 @@ function renderGeldPanel() {
     <div class="g-sl-liste">${zeile("gruppe", "Gruppenkasse", geldKonto("gruppe").stand, true)}
       ${leute.map((r) => zeile(r.id, r.name, geldKonto(r.id).stand)).join("")}</div>
     <div class="g-sl-vl-wahl">Verlauf: ${[["gruppe", "👥 Kasse"], ...leute.map((r) => [r.id, esc(r.name)])].map(([id, t]) =>
-      `<button type="button" class="g-chip klein${offen === id ? " on" : ""}" data-act="geld-sl-verlauf" data-ziel="${esc(id)}">${t}</button>`).join("")}</div>
-    ${vl ? geldVerlaufHtml(vl.verlauf, true) : ""}
+      `<button type="button" class="g-chip klein${offen === id ? " on" : ""}" data-act="geld-sl-verlauf" data-ziel="${esc(id)}">${t}</button>`).join("")}${vl ? geldVlKnopf(vl.verlauf, `sl-${offen}`) : ""}</div>
+    ${vl ? geldVerlaufHtml(vl.verlauf, true, `sl-${offen}`) : ""}
     <p class="hilfe">Fater, Lose (Scheine von ½ bis 1/100.000) und ${esc(muenzName())} werden nicht umgerechnet – die App zählt nur. Neues Geld gibt nur der Spielleiter – Spieler bezahlen am Handy unter „Geld“ und legen in die Kasse.</p>`);
 }
 
@@ -442,6 +454,12 @@ document.addEventListener("click", async (e) => {
     }
     case "geld-sl-art": if (b) { b.art = t.dataset.art; b.quelle = null; b.nenner = null; b.anzahl = 1; b.betrag = ""; render(); } break;
     case "geld-sl-verlauf": App.geld.slVerlauf = App.geld.slVerlauf === t.dataset.ziel ? null : t.dataset.ziel; render(); break;
+    case "geld-vl": {
+      const k = t.dataset.k;
+      if (App.geld.vlOffen.has(k)) App.geld.vlOffen.delete(k); else App.geld.vlOffen.add(k);
+      render();
+      break;
+    }
     case "geld-muenzname": {
       const neu = await eingabe("Wie heißt das Kleingeld?", muenzName(), "Übernehmen");
       if (neu != null) gmAction({ type: "set_muenz_name", name: neu });
