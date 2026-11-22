@@ -1,6 +1,8 @@
 Mitgelieferte Schriften (offline, kein Internet am Spieltisch nötig).
-Inter (Rasmus Andersson) und Cinzel (Natanael Gama), beide SIL Open Font License 1.1.
-Quelle: fontsource (npm @fontsource/inter 5.3.0, @fontsource/cinzel 5.3.0), Teil 'latin'.
+Inter (Rasmus Andersson), Cinzel (Natanael Gama), IM Fell English (Igino Marini)
+und EB Garamond (Georg Duffner, Octavio Pardo), alle SIL Open Font License 1.1.
+Quelle: fontsource (npm @fontsource/inter, cinzel, im-fell-english, eb-garamond,
+jeweils 5.3.0), Teil 'latin'.
 
 ===== Inter =====
 Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) Inter-Italic[opsz,wght].ttf: Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
@@ -191,3 +193,12 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+
+
+===== IM Fell English =====
+Copyright (c) 2010, Igino Marini (mail@iginomarini.com), Google Inc.
+SIL Open Font License 1.1 (Text siehe oben).
+
+===== EB Garamond =====
+Copyright 2017 The EB Garamond Project Authors (https://github.com/octaviopardo/EBGaramond12)
+SIL Open Font License 1.1 (Text siehe oben).

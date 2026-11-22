@@ -368,6 +368,11 @@ def _notiz_eintrag(e, i: int) -> Optional[dict]:
     nid = nid[:40] if isinstance(nid, str) and nid.strip() else f"alt{i}"
     thema = e.get("thema")
     thema = " ".join(thema.split())[:30] if isinstance(thema, str) else ""
+    # Festes Thema „NSC" heißt seit 2.0.20 „Leute" (Kalle 22.11.2026: zu
+    # technisch). Alte Einträge hier umbenennen - sonst stünden am Handy zwei
+    # Reiter für dasselbe da.
+    if thema.lower() == "nsc":
+        thema = "Leute"
     eintrag = {"id": nid, "text": text, "thema": thema, "erledigt": bool(e.get("erledigt"))}
     # Woher (z. B. SL-Nachricht, „📝 Merken") - damit dort „✓ In Notizen" steht.
     if isinstance(e.get("quelle"), str) and e["quelle"]:

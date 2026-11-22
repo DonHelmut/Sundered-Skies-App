@@ -55,7 +55,7 @@ def _texte(liste):
 def test_notizen_nur_fuer_das_eigene_handy(fresh_game):
     g = fresh_game
     mira, korgo = _mira(g)
-    eintrag = {"id": "n1", "text": "Rask schuldet uns 50 Gold", "thema": "NSC", "erledigt": False}
+    eintrag = {"id": "n1", "text": "Rask schuldet uns 50 Gold", "thema": "Leute", "erledigt": False}
     assert g.notizen_setzen(_figur(g, "Mira")["id"], [eintrag])
     assert g.notizen_fuer(mira["id"]) == [eintrag]
     assert g.notizen_fuer(korgo["id"]) == []
@@ -77,7 +77,7 @@ def test_notizen_thema_haken_und_bereinigen(fresh_game):
         {"id": "b", "text": "  "}, 7, {"text": "ohne id"}, {"id": "a", "text": "doppelte id"},
     ])
     liste = g.notizen_fuer(mira["id"])
-    assert liste[0] == {"id": "a", "text": "Rask\nschuldet 50 Gold", "thema": "NSC", "erledigt": True}
+    assert liste[0] == {"id": "a", "text": "Rask\nschuldet 50 Gold", "thema": "Leute", "erledigt": True}
     assert _texte(liste) == ["Rask\nschuldet 50 Gold", "ohne id", "doppelte id"]
     assert len({e["id"] for e in liste}) == 3                     # IDs eindeutig
     assert not g.notizen_setzen(cid, {"kaputt": 1})

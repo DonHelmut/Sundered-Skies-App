@@ -308,7 +308,9 @@ def test_studio_optik_schrift_symbole_startflaeche(tisch):
     Emoji (Notiz-Themen bleiben roh), Startfläche bei leerem Tisch, ☰-Menü in
     Gruppen, Handy-Punkt statt Pille."""
     sl = tisch.sl()
-    sl.warte_bis("() => document.fonts.check('16px Inter') && document.fonts.check('16px Cinzel')")
+    # Seit 22.11.2026 (Abenteuerbuch) nutzt der Standard-Skin Buchschriften;
+    # Inter/Cinzel bleiben für die anderen Skins.
+    sl.warte_bis("() => document.fonts.check('16px \"EB Garamond\"') && document.fonts.check('16px \"IM Fell English\"')")
     assert sl.page.locator(".startflaeche .sf-zeile").count() == 3
     assert "Noch kein Handy" in sl.js("() => document.querySelector('.kopf-handys').textContent")
     sl.klick(".kopf-menue > summary")
@@ -422,10 +424,11 @@ def test_handy_kopf_name_ganz_und_thema_ohne_doppel(tisch):
         return !!(e && e.closest('button.muenze')); })()""")
     assert treffer, "Münze im Kopf: Trefferfläche zu klein"
     h.reiter("notizen")
-    h.js("() => notizThemaWaehlen('nsc')")
+    h.js("() => notizThemaWaehlen('leute')")
     h.wait_for_timeout(200)
     reiter = h.js("[...document.querySelectorAll('.notiz-reiter')].map(e => e.textContent.trim().toLowerCase())")
-    assert not any(r.endswith(" nsc") and not r.startswith("👤") for r in reiter), reiter
+    assert sum(r.endswith("leute") for r in reiter) == 1, reiter
+    assert not any("nsc" in r for r in reiter), reiter
 
 
 def test_bedienbarkeit_runde_2026_11_15(tisch):
@@ -508,7 +511,7 @@ def test_notizen_studio_runde_2026_11_16(tisch):
         "👥 gilt nur für die eine Notiz"
     # Zeile ohne ✎/🗑; Themen-Reiter mit Linien-Symbol.
     assert not h.js("!!document.querySelector('li.zeile:not(.bearbeiten) [data-act=notiz-loeschen]')")
-    assert h.js("!!document.querySelector('.notiz-reiter[data-thema=NSC] svg.ic')")
+    assert h.js("!!document.querySelector('.notiz-reiter[data-thema=Leute] svg.ic')")
     h.kein_waagrechtes_scrollen("Notizen")
     # Post: Lesezeichen merkt die Nachricht als Notiz, dann „In Notizen".
     h.reiter("msgs")
