@@ -965,3 +965,19 @@ setInterval(() => {
     gmAction({ type: "timeout", fuer: s.activeId, endsAt: s.timerEndsAt });
   }
 }, 250);
+
+// ⏳ Countdown für alle (Kalle, 23.11.2026): „Schiff bricht · noch 3". Der SL
+// setzt ihn, der Server zählt bei jeder neuen Runde runter. Steht beim SL im
+// Kopf der Initiative, am Handy in der Dran-Leiste - beides Stellen, die es
+// immer gibt, damit beim Auftauchen nichts verrutscht. Bei 0 bleibt „jetzt!"
+// stehen, bis der SL ihn wegnimmt.
+function countdownRest(cd, kurz) {
+  if (!cd) return "";
+  if (!cd.runden) return "jetzt!";
+  return kurz ? `noch ${cd.runden}` : `noch ${cd.runden} ${cd.runden === 1 ? "Runde" : "Runden"}`;
+}
+function countdownPille(cd, kurz) {
+  if (!cd) return "";
+  return `<span class="cd-pille${cd.runden ? "" : " null"}" title="Countdown: ${esc(cd.text)} – ${countdownRest(cd)}">`
+    + `${symbolSvg("hourglass")}<span class="cd-text">${esc(cd.text)}</span><b>· ${countdownRest(cd, kurz)}</b></span>`;
+}

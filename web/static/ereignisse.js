@@ -27,6 +27,7 @@ document.addEventListener("click", (e) => {
     // SL – Kampf
     "new-round": () => gmAction({ type: "new_round", runde: S.round }),
     "alle-wieder-rein": () => gmAction({ type: "unbench_all" }),
+    "countdown": () => countdownDialog(),
     "kampf-beenden": async () => {
       if (await frage("🏁 Kampf beenden?\n\nGegner und Verbündete verschwinden, die Karten werden eingesammelt. Die Handys zeigen sofort „Gerade kein Kampf“. Wunden und Bennies bleiben.\n\nRückgängig geht mit ↶.", "🏁 Kampf beenden")) gmAction({ type: "end_combat" });
     },

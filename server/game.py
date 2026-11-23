@@ -76,6 +76,25 @@ MAX_NOTIZ_LAENGE = 1000  # Zeichen je Eintrag
 MAX_PROTOKOLL = 60000   # Zeichen je Protokoll (1–2 Seiten sind ~6000; Schutz vor Versehen)
 
 
+COUNTDOWN_MAX = 99
+
+
+def _countdown_sauber(roh) -> Optional[dict]:
+    """⏳ Countdown prüfen: kurzer Text (Pille am Handy hat wenig Platz) und
+    1..99 Runden. Unbrauchbares -> None (aus alten/kaputten Sitzungen)."""
+    if not isinstance(roh, dict):
+        return None
+    text = roh.get("text")
+    text = " ".join(text.split())[:40] if isinstance(text, str) else ""
+    try:
+        runden = int(roh.get("runden"))
+    except (TypeError, ValueError):
+        return None
+    if isinstance(roh.get("runden"), bool) or not 0 <= runden <= COUNTDOWN_MAX:
+        return None
+    return {"text": text or "Countdown", "runden": runden}
+
+
 def _rueckseite_gueltig(wert) -> bool:
     """Rückseite: eigenes hochgeladenes Bild oder „gruen" (schlicht). Alles
     andere (fremde Adressen) wird verworfen -> Standardbild."""
@@ -465,6 +484,11 @@ class Game:
         self.sound_enabled: bool = True
         self.benny_start: int = 3          # Standard-Startwert je Wild Card
         self.sl_bennies: int = 0           # Benny-Pool des Spielleiters
+        # ⏳ Countdown für alle (Kalle, 23.11.2026): „Schiff bricht · noch 3".
+        # {"text": str, "runden": int} oder None. Zählt bei „Neue Runde" selbst
+        # runter, bleibt bei 0 als „jetzt!" stehen, bis der SL ihn wegnimmt -
+        # sonst verschwände der wichtigste Moment, bevor jemand ihn sieht.
+        self.countdown: Optional[dict] = None
         self.auto_incap: bool = True       # zu viele Wunden -> automatisch K.O.
         self.statisten_ko: int = 3         # Statisten raus bei dieser Wunde (1-3)
         self.conditions_enabled: bool = True   # Zusatz-Zustaende ueberhaupt verwenden?
@@ -543,7 +567,7 @@ class Game:
         "roster", "bestiary", "allies", "encounters", "groups",
         "phase", "active_id", "timer_seconds", "timer_ends_at", "joker_active",
         "sound_enabled", "benny_start", "sl_bennies", "reshuffle_next",
-        "requests", "tv_image",
+        "requests", "tv_image", "countdown",
     )
 
     def _capture(self) -> dict:
@@ -834,6 +858,7 @@ class Game:
             "bennyStart": self.benny_start,
             "slBennies": self.sl_bennies,
             "groups": self.groups,
+            "countdown": self.countdown,
         })
 
     def resume_session(self) -> bool:
@@ -893,6 +918,7 @@ class Game:
         # (Ton kommt aus den Einstellungen, nicht aus der alten Sitzung.)
         self.benny_start = data.get("bennyStart", 3)
         self.sl_bennies = data.get("slBennies", 0)
+        self.countdown = _countdown_sauber(data.get("countdown"))
         self.resume_available = False
         for c in self.combatants:
             c.setdefault("bennies", self.benny_start if c.get("isWildCard") else 0)
@@ -1118,6 +1144,7 @@ class Game:
             "soundEnabled": self.sound_enabled,
             "bennyStart": self.benny_start,
             "slBennies": self.sl_bennies,
+            "countdown": self.countdown,
             "autoIncap": self.auto_incap,
             "statistenKo": self.statisten_ko,
             "bennyToGm": self.benny_to_gm,
@@ -2338,6 +2365,8 @@ class Game:
         if new_round:
             self.round += 1
             self._effekte_runterzaehlen()
+            if self.countdown and self.countdown["runden"] > 0:
+                self.countdown["runden"] -= 1
         elif self.round == 0:
             self.round = 1
         self._resort()
@@ -2673,6 +2702,26 @@ class Game:
             self.reshuffle_next = True
         self._resort()
 
+    # ⏳ Countdown -------------------------------------------------------------
+
+    def _do_countdown_setzen(self, a: dict) -> None:
+        cd = _countdown_sauber({"text": a.get("text"), "runden": a.get("runden")})
+        if cd and cd["runden"] >= 1:
+            self.countdown = cd
+
+    def _do_countdown_stellen(self, a: dict) -> None:
+        """+/-1 von Hand (Spieler haben Zeit gewonnen / verloren)."""
+        if not self.countdown:
+            return
+        try:
+            d = int(a.get("delta", 0))
+        except (TypeError, ValueError):
+            return
+        self.countdown["runden"] = max(0, min(COUNTDOWN_MAX, self.countdown["runden"] + d))
+
+    def _do_countdown_weg(self, a: dict) -> None:
+        self.countdown = None
+
     def _do_reshuffle(self, a: dict) -> None:
         self.deck = engine.shuffle(self.deck + self.discard)
         self.discard = []
@@ -2688,6 +2737,9 @@ class Game:
         self.joker_active = False
         self.reshuffle_next = False
         self.requests = []   # Anfragen aus dem alten Kampf verwerfen
+        # Runden gibt es nur im Kampf - ein Countdown aus dem alten Kampf
+        # liefe sonst im nächsten weiter („Schiff bricht" im Wirtshaus).
+        self.countdown = None
 
     # Zug-/Timer-Steuerung ----------------------------------------------------
 
