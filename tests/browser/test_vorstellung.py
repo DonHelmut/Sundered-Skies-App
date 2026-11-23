@@ -18,7 +18,9 @@ def test_vorstellungsrunde_mit_gast_bis_feste_plaetze(tisch):
     sl.warte_bis("() => Aufn.rec && Aufn.rec.state === 'recording'")
     sl.warte_bis("() => !!document.querySelector('.aufn-stimmen[open]')")
     text = sl.page.locator(".aufn-stimmen").inner_text()
-    assert "Noch vorstellen: Spielleiter, Tessa, Korgo" in text, text
+    # Reihenfolge wie in der Initiative (je nach gezogenen Karten).
+    fehlt = text.split("Noch vorstellen: ")[1].split(".")[0]
+    assert sorted(fehlt.split(", ")) == ["Korgo", "Spielleiter", "Tessa"], text
     if BILD:
         sl.page.locator("details[data-sec=aufnahme]").screenshot(path=BILD.replace(".png", "_fehlt.png"))
 
