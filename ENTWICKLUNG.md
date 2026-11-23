@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.21 (23.11.2026): 🎙 Vorstellungsrunde = feste Plätze
+## Nach 2.0.22 (23.11.2026): 🎙 Vorstellungsrunde = feste Plätze
 
 Kalle: „Die Sprach-Erkennung mag ich nicht, das sollten feste Slots sein, die
 per Knopfdruck an und aus gehen." Gezeigt: A SL drückt, wer spricht; B jeder
@@ -118,7 +118,7 @@ Gruppe). Schneller: TitaNet klein statt ERes2Net (~13 s statt ~80 s je
 Stimmen schwanken mehr (Erkältung, anderer Platz); dafür das Anpassen an heute.
 Wenn es an einem Abend nicht passt: Name nochmal tippen und kurz sprechen.
 
-## Nach 2.0.21 (23.11.2026): ⏳ Countdown für alle
+## 2.0.22 (23.11.2026): ⏳ Countdown für alle
 
 Kalle wählte aus der Vorschlagsrunde 23.11. (Bilder: Projektordner
 `screenshots/vorschlaege-2026-11-23/`) den **Countdown**. Gemerkt für später:
