@@ -77,6 +77,24 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.21 (23.11.2026): ⏳ Countdown für alle
+
+Kalle wählte aus der Vorschlagsrunde 23.11. (Bilder: Projektordner
+`screenshots/vorschlaege-2026-11-23/`) den **Countdown**. Gemerkt für später:
+3 Händler/Kaufen, 4 „Unser Schiff". Nicht gewählt: 1 Dem SL schreiben.
+
+- SL: Knopf ⏳ in der Kampf-Knopfzeile (nur im Kampf oder solange einer
+  läuft) → „Was passiert?" + „In wie vielen Runden?" (1–99). Läuft er, zeigt
+  der Knopf die Zahl; Antippen bietet −1, +1, Ändern …, Wegnehmen.
+- Server (`countdown` = {text, runden}): zählt bei jeder neuen Runde eins
+  runter, bleibt bei 0 als „jetzt!" stehen, bis der SL ihn wegnimmt. Weg bei
+  Karten einsammeln/Kampf beenden (`_do_reset`). Mit ↶, in der Sitzung
+  gespeichert, Handys sehen ihn (Spieler dürfen ihn nicht setzen - Whitelist).
+- Anzeige: rote Pille im Titel „Kampf & Initiative" (SL) und rechts in der
+  Dran-Leiste am Handy (feste Höhe 40 px - nichts rückt, Test prüft das).
+- Tests: `tests/test_countdown.py`, `tests/browser/test_countdown_browser.py`.
+  Bilder: Projektordner `screenshots/countdown/`.
+
 ## 2.0.21 (22.11.2026): Geld-Verlauf eingeklappt
 
 Kalle: „Der Verlauf wird zu lang." Jetzt zeigt jeder Geld-Verlauf (Handy: Börse

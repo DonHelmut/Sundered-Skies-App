@@ -803,6 +803,7 @@ function renderControlBody() {
       <span class="kampf-knoepfe-rest">
         <button class="ghost small symbol" data-act="undo" ${s.canUndo ? "" : "disabled"} title="Letzte Aktion rückgängig">↶</button>
         ${cleanupRow}${heilRow()}
+        ${zeigeBeenden || s.countdown ? `<button class="ghost small${s.countdown ? " cd-knopf an" : " symbol"}" data-act="countdown" title="${s.countdown ? "Countdown ändern oder wegnehmen" : "Countdown für alle: zählt bei jeder neuen Runde selbst runter (z. B. „Schiff bricht“)"}">⏳${s.countdown ? ` ${s.countdown.runden}` : ""}</button>` : ""}
         ${zeigeBeenden ? `<button class="ghost small" data-act="kampf-beenden" title="Gegner und Verbündete entfernen, Karten einsammeln – die Handys zeigen sofort „Gerade kein Kampf“. Wunden und Bennies bleiben.">🏁 Kampf beenden</button>` : ""}
       </span>
     </div>
@@ -1438,7 +1439,7 @@ function renderOrderPanel(isGM, gesperrt = false) {
   if (s.combatants.length === 0) {
     // SL: Kampf-Steuerung trotzdem zeigen (Austeilen etc.), Initiative noch leer.
     if (isGM) {
-      return section("combat", `Kampf & Initiative · Runde ${s.round}`,
+      return section("combat", `Kampf & Initiative · Runde ${s.round}${countdownPille(s.countdown)}`,
         `${renderControlBody()}<hr class="combat-sep">${startflaecheHtml()}`);
     }
     return section("order", "Reihenfolge", `<div class="muted">Noch keine Teilnehmer. Spieler treten per QR-Code bei.</div>`);
@@ -1484,7 +1485,7 @@ function renderOrderPanel(isGM, gesperrt = false) {
       zeilenZahl += 1;
       return combatantRow(e.c, i + 1, true, true);
     }).join("");
-    return section("combat", `Kampf & Initiative · Runde ${s.round}`,
+    return section("combat", `Kampf & Initiative · Runde ${s.round}${countdownPille(s.countdown)}`,
       `${renderControlBody()}<hr class="combat-sep">
        <div class="order-heading row spread"><span>Initiative-Reihenfolge</span>${filter}</div>
        <div class="order"><div class="order-raster" style="--zeilen:${Math.max(1, Math.ceil(zeilenZahl / 2))}">${rows}</div>${benchRows}</div>
@@ -2465,4 +2466,31 @@ function renderMessagePanel() {
     ${s.tvImage ? `<div class="row" style="margin-top:8px"><span class="pill good">📺 TV zeigt gerade ein Bild</span><button class="ghost small" data-act="clear-tv">TV-Bild entfernen</button></div>` : ""}
     ${mitNachricht && log ? `<div class="msg-log">${log}<button class="msg-log-leeren" data-act="clear-messages">Verlauf leeren</button></div>` : ""}
     ${mitNachricht ? archivHtml : ""}`, false);
+}
+
+// ⏳ Countdown setzen/ändern (Kalle, 23.11.2026). Läuft einer, zuerst die
+// schnellen Wege (−1/+1/weg) - „Ändern" erst im zweiten Schritt.
+async function countdownDialog() {
+  const cd = App.state.countdown;
+  if (cd) {
+    const w = await dialog({
+      text: `⏳ ${cd.text} · ${countdownRest(cd)}\nZählt bei jeder neuen Runde selbst eins runter. Alle Handys sehen ihn.`,
+      knoepfe: [{ text: "Wegnehmen", wert: "weg", art: "bad" },
+                { text: "−1", wert: -1 }, { text: "+1", wert: 1 },
+                { text: "Ändern …", wert: "aendern" },
+                { text: "Fertig", wert: null, art: "primary", standard: true, abbruch: true }] });
+    if (w === "weg") gmAction({ type: "countdown_weg" });
+    else if (w === 1 || w === -1) gmAction({ type: "countdown_stellen", delta: w });
+    if (w !== "aendern") return;
+  }
+  const w = await dialog({
+    text: "⏳ Countdown für alle\nZählt bei jeder neuen Runde selbst runter. Am Handy steht er oben bei „… ist dran“.",
+    inhalt: `<label class="cd-feld">Was passiert?<input class="cd-was" maxlength="40" placeholder="z. B. Schiff bricht" value="${esc(cd ? cd.text : "")}"></label>
+      <label class="cd-feld">In wie vielen Runden?<input class="cd-runden" type="number" inputmode="numeric" min="1" max="99" value="${cd && cd.runden ? cd.runden : 3}"></label>`,
+    knoepfe: [{ text: "Abbrechen", wert: null, abbruch: true }, { text: cd ? "Übernehmen" : "⏳ Starten", art: "primary", standard: true }],
+    lesen: (box) => ({ text: box.querySelector(".cd-was").value.trim(), runden: parseInt(box.querySelector(".cd-runden").value, 10) }),
+  });
+  if (!w) return;
+  if (!(w.runden >= 1 && w.runden <= 99)) { toast("Runden: 1 bis 99"); return; }
+  gmAction({ type: "countdown_setzen", text: w.text || "Countdown", runden: w.runden });
 }

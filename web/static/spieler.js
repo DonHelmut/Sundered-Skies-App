@@ -180,7 +180,7 @@ function renderPlayer() {
   // „Gleich bist du dran" → „Du bist dran!" die Karte um 20 px (Messung 15.11.).
   const dranLeiste = s.round && (leisteText || !ruhe)
     ? `<div class="dran-leiste${isMyTurn ? " ich" : binNaechster ? " gleich" : ""}">${isMyTurn ? "▶ Du bist dran!"
-        : binNaechster ? `⏳ Gleich bist du dran <span class="dl-wer">· ${esc(werDran)}</span>` : esc(leisteText) || "&nbsp;"}</div>`
+        : binNaechster ? `⏳ Gleich bist du dran <span class="dl-wer">· ${esc(werDran)}</span>` : esc(leisteText) || "&nbsp;"}${countdownPille(s.countdown, true)}</div>`
     : "";
 
   // Der Daumen-Knopf: EIN großer Knopf unten, immer an derselben Stelle, der
