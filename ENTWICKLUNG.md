@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.21 (23.11.2026): ⏳ Countdown für alle
+## 2.0.22 (23.11.2026): ⏳ Countdown für alle
 
 Kalle wählte aus der Vorschlagsrunde 23.11. (Bilder: Projektordner
 `screenshots/vorschlaege-2026-11-23/`) den **Countdown**. Gemerkt für später:
