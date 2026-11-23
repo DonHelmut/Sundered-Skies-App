@@ -389,3 +389,45 @@ def test_ohne_pause_wie_bisher(tmp_path):
     meta = a.starten("audio/webm")
     a.stueck(meta["name"], b"a")
     assert "PAUSEN" not in a.prompt(meta["name"], "[00:00:01] S00: Hallo.")
+
+
+# --- Vorstellungsrunde / feste Plätze (Kalle 23.11.2026) ----------------------------
+
+def test_feste_plaetze_nur_wenn_alle_vorgestellt(tmp_path):
+    a = A.Aufnahmen(tmp_path)
+    a._profile_schreiben({A.SPIELLEITER: {"v": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "n": 1},
+                          "Korgo": {"v": [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "n": 1}})
+    meta = a.starten("audio/webm")
+    a.aktiv["personen"] = {"Korgo": "Tim", "Tessa": "Anna"}
+    # Tessa hat keine Stimme -> frei sortieren (sonst landete sie stumm bei Korgo).
+    plaetze, _ = a.feste_plaetze(meta["name"])
+    assert plaetze is None
+    # Heute vorgestellt (auch ein Gast) -> feste Plätze.
+    a.stimme("Tessa")
+    a.stimme("Gast Lena")
+    a.stimme("Vertippt")
+    st = [e for e in a.aktiv["ereignisse"] if e["art"] == "stimme"]
+    st[1]["t"], st[2]["t"] = st[0]["t"] + 15_000, st[0]["t"] + 30_000
+    st.append({"t": st[2]["t"] + 1000, "art": "stimme", "figur": "Korgo"})
+    a.aktiv["ereignisse"].append(st[-1])
+    plaetze, anm = a.feste_plaetze(meta["name"])
+    assert list(plaetze) == [A.SPIELLEITER, "Korgo", "Tessa", "Gast Lena"]
+    assert plaetze["Korgo"][1] == 1.0 and plaetze["Tessa"] is None
+    # „Vertippt" nach 1 s überschrieben -> kein Platz, keine Vorstellung.
+    assert [w for _, _, w in anm] == ["Tessa", "Gast Lena", "Korgo"]
+    assert anm[0][1] - anm[0][0] == 15
+
+
+def test_feste_namen_kommen_ohne_raten_in_den_prompt(tmp_path):
+    a = A.Aufnahmen(tmp_path)
+    meta = a.starten("audio/webm")
+    a.stueck(meta["name"], b"x")
+    a.aktiv["personen"] = dict(PERSONEN)
+    a.stoppen()
+    (tmp_path / f"{meta['name']}-transkript.txt").write_text(TISCH, encoding="utf-8")
+    assert a.sprecher_fest(meta["name"], {"S00": A.SPIELLEITER, "S01": "Mira", "S02": "Gast Lena"})
+    d = a.sprecher(meta["name"], "genau")
+    assert d["namen"] == {"S00": A.SPIELLEITER, "S01": "Mira (Jo)", "S02": "Gast Lena"}
+    assert d["fest"] and "nach der Stimme zugeordnet" in a.prompt_aus(meta["name"])
+    assert "Mira (Jo)" in a.prompt_aus(meta["name"])
+    assert not a.sprecher_automatisch(meta["name"])     # steht schon fest

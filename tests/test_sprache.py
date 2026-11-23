@@ -491,3 +491,30 @@ def test_neues_sortieren_nur_mit_modell_sonst_der_alte_weg(tmp_path):
     stuecke = [(float(i * 3), float(i * 3 + 2.5)) for i in range(20)]
     assert SP.sprecher_sortieren(None, stuecke, tmp_path) is None
     assert SP.sprecher_sortieren(None, [(0.0, 1.0)], tmp_path) is None     # kaum Sprache
+
+
+# --- Feste Plätze / Vorstellungsrunde (23.11.2026) -----------------------------------
+
+def test_feste_plaetze_jeder_satz_an_eine_vorgestellte_stimme():
+    # Kalle: „feste Plätze statt Erkennung". Gespeicherte Stimmen sind von
+    # einem anderen Abend (leicht verschoben) - trotzdem landet jedes Fenster
+    # bei der richtigen Person, und es entsteht nie ein siebter Sprecher.
+    np = pytest.importorskip("numpy")
+    rng = np.random.default_rng(5)
+    v, wer = _stimmen(np, 6, [240, 60, 50, 40, 40, 20], 0.35, seed=5)
+    mitten = np.stack([v[wer == i].mean(0) for i in range(6)])
+    alt = mitten + 0.25 * rng.normal(size=mitten.shape) / np.sqrt(mitten.shape[1])
+    lab = np.array(SP.fest_zuordnen(v, alt))
+    assert set(lab.tolist()) <= set(range(6))
+    assert (lab == wer).mean() > 0.97          # Nummer = Platz, nicht nur Gruppe
+
+
+def test_vorstellung_von_heute_reicht_ohne_gespeicherte_stimme():
+    np = pytest.importorskip("numpy")
+    v, wer = _stimmen(np, 2, [60, 60], 0.3, seed=6)
+    reihe = np.argsort(wer, kind="stable")          # erst Person 0, dann Person 1
+    v, wer = v[reihe], wer[reihe]
+    fenster = [(i * 0.5, i * 0.5 + 1.5) for i in range(len(v))]
+    heute = SP.anmeldung_abdruck(fenster, v, 30.0, 45.0)   # Fenster 60-89: Person 1
+    assert heute is not None and float(heute @ v[wer == 1].mean(0)) > float(heute @ v[wer == 0].mean(0))
+    assert SP.anmeldung_abdruck(fenster, v, 500.0, 520.0) is None

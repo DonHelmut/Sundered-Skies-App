@@ -77,6 +77,47 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.21 (23.11.2026): 🎙 Vorstellungsrunde = feste Plätze
+
+Kalle: „Die Sprach-Erkennung mag ich nicht, das sollten feste Slots sein, die
+per Knopfdruck an und aus gehen." Gezeigt: A SL drückt, wer spricht; B jeder
+drückt am Handy „Ich rede"; C beides + Erkennung füllt Lücken (Bilder:
+Projektordner `screenshots/sprecher-slots/`). Kalle fragte dann: „Nur ne Art
+Vorstellungsrunde – reicht einmal über mehrere Sessions?" → **D gewählt**:
+keine Knöpfe während des Spiels, die vorhandene Stimm-Anmeldung wird zur
+Vorstellungsrunde, und wer vorgestellt ist, ist ein **fester Platz**.
+
+- **Mitschrift** (`sprache.plaetze_sortieren`, `fest_zuordnen`): Sind alle
+  bekannt (SL + Figuren der Aufnahme + heute vorgestellte Gäste, je mit
+  gespeicherter Stimme oder Vorstellung von heute), sortiert der genaue
+  Durchgang nicht mehr frei. Jedes 1,5-s-Fenster geht an die ähnlichste
+  vorgestellte Stimme; die Stimmen passen sich in 4 Runden an heute an
+  (halb gespeichert, halb heute), die Zahl der Plätze bleibt. Vorstellung von
+  heute zählt doppelt (gleiches Mikro/Raum), die unähnlichere Hälfte ihrer
+  Fenster fliegt raus (jemand redet dazwischen). Sitzplatz (Connex) zählt mit.
+- **Namen stehen fest** (`Aufnahmen.sprecher_fest`): kein Raten mehr; „Wer ist
+  wer?" ist vorausgefüllt („nach der Vorstellungsrunde"), der Prompt sagt
+  „nach der Stimme zugeordnet". Fehlt jemand → frei wie bisher (sonst landete
+  diese Person stumm bei einer anderen).
+- **Panel**: Klappe heißt „🎙 Vorstellungsrunde", zeigt „noch N" + wer fehlt
+  bzw. „✓ feste Plätze". Neu „+ Gast" (Name eintippen, Gast spricht). Gleich
+  danach ein anderer Name (< 3 s, vertippt) zählt nicht.
+
+**Gemessen** (nachgebaute Runden wie 15.11., je Runde ein 5-min-„Abend davor"
+für die gespeicherten Stimmen, dann 12 min; `recherche/sprecher-2026-11-15/fest_mess.py`):
+
+| Runde | frei sortiert (bisher) | fest, Stimmen vom letzten Abend | fest, nur heute vorgestellt |
+|---|---|---|---|
+| gemischt, 6 | 89,7 % (7 Sprecher) | 98,0 % | 98,0 % |
+| 5 Männer + 1 Frau | 91,7 % (7 Sprecher) | 97,7 % | 97,3 % |
+| mit 2 Gästen, 8 | 87,9 % | 92,6 % | 98,1 % |
+
+Bei „fest" ist auch der **Name** in diesen Anteilen richtig (frei: nur die
+Gruppe). Schneller: TitaNet klein statt ERes2Net (~13 s statt ~80 s je
+12 min). Grenze der Messung: dieselbe Kunststimme an beiden Abenden – echte
+Stimmen schwanken mehr (Erkältung, anderer Platz); dafür das Anpassen an heute.
+Wenn es an einem Abend nicht passt: Name nochmal tippen und kurz sprechen.
+
 ## Nach 2.0.21 (23.11.2026): ⏳ Countdown für alle
 
 Kalle wählte aus der Vorschlagsrunde 23.11. (Bilder: Projektordner

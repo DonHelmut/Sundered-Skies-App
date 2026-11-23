@@ -592,39 +592,53 @@ setInterval(() => {
 }, 1000);
 
 // --- Stimm-Anmeldung ---------------------------------------------------------------
-// Zu Beginn der Aufnahme sagt jeder ein, zwei Sätze, der SL tippt vorher den
-// Namen. Danach weiß der genaue Durchgang SICHER, welche Stimme wer ist -
-// statt es aus „Korgo, was machst du?" und Kampfzügen zu raten. Wer fehlt,
-// wird wie bisher geraten; zuklappbar, sobald alle durch sind.
+// Vorstellungsrunde: jeder sagt einmal ein, zwei Sätze, der SL tippt vorher
+// den Namen. Die Stimme bleibt gespeichert (Stimmprofile) - beim nächsten
+// Abend ist sie 👂 bekannt. Sind alle bekannt, arbeitet die Mitschrift mit
+// FESTEN PLÄTZEN (Kalle 23.11.2026, Variante D): jeder Satz geht an eine der
+// vorgestellten Stimmen, keine erfundenen „S03" mehr, nichts zu raten. Fehlt
+// jemand, sortiert sie frei wie bisher - darum steht hier, wer noch fehlt.
 function aufnStimmenHtml(st) {
   const figuren = ((App.state && App.state.combatants) || [])
     .filter((c) => c.kind === "player" && !c.benched).map((c) => c.name);
-  const namen = ["Spielleiter", ...new Set(figuren)];
   const schon = new Set(((st.aktiv || {}).stimmen) || []);
-  // Stimmen von früheren Abenden erkennt die App von selbst (Stimmprofile) -
-  // anmelden nur noch, wer neu ist (oder wenn es letztes Mal nicht passte).
+  // Gäste (stehen nicht in der Initiative): heute per „+ Gast" vorgestellt.
+  const gaeste = [...schon].filter((n) => n !== "Spielleiter" && !figuren.includes(n));
+  const namen = ["Spielleiter", ...new Set(figuren), ...gaeste];
   const bekannt = new Set(st.stimmenBekannt || []);
-  const alleDurch = namen.every((n) => schon.has(n) || bekannt.has(n));
+  const fehlt = namen.filter((n) => !schon.has(n) && !bekannt.has(n));
   const knoepfe = namen.map((n) => {
     const c = ((App.state && App.state.combatants) || []).find((x) => x.name === n);
     const wer = c && c.playerName && c.playerName !== n ? ` <span class="muted small">(${esc(c.playerName)})</span>` : "";
     const zeichen = schon.has(n) ? "✓ " : bekannt.has(n) ? "👂 " : "🎙 ";
-    const titel = !schon.has(n) && bekannt.has(n) ? ` title="Stimme von früher bekannt – nur anmelden, wenn es letztes Mal nicht passte"` : "";
+    const titel = !schon.has(n) && bekannt.has(n) ? ` title="Stimme von früher bekannt – nur nochmal vorstellen, wenn es letztes Mal nicht passte"` : "";
     return `<button type="button" class="${schon.has(n) ? "ghost on" : "ghost"} small${bekannt.has(n) && !schon.has(n) ? " bekannt" : ""}" data-act="aufn-stimme" data-figur="${esc(n)}"${titel}>${zeichen}${esc(n)}${wer}</button>`;
   }).join("");
-  const nBekannt = namen.filter((n) => bekannt.has(n) && !schon.has(n)).length;
-  // Bei jeder neuen Aufnahme einmal aufgeklappt, danach merkt sich die Klappe
-  // den Zustand wie alle anderen (data-merk).
+  // Bei jeder neuen Aufnahme einmal aufgeklappt, wenn noch jemand fehlt,
+  // danach merkt sich die Klappe den Zustand wie alle anderen (data-merk).
   if (App._stimmenAufnahme !== Aufn.start) {
     App._stimmenAufnahme = Aufn.start;
-    if (!alleDurch) App.offeneUnter.add("aufn-stimmen");
+    if (fehlt.length) App.offeneUnter.add("aufn-stimmen");
   }
+  const stand = fehlt.length
+    ? `<span class="muted small">· noch ${fehlt.length}</span>`
+    : `<span class="small aufn-fest">· ✓ feste Plätze</span>`;
+  const erklaerung = fehlt.length
+    ? `Noch vorstellen: <strong>${fehlt.map(esc).join(", ")}</strong>. Name tippen, dann sagt die Person ein, zwei Sätze
+      („Ich bin Tim und spiele Korgo …“). Einmal reicht, auch für die nächsten Abende. Solange jemand fehlt, rät die Mitschrift selbst, wer spricht.`
+    : `Alle Stimmen bekannt: Die Mitschrift ordnet jeden Satz einem dieser Plätze zu, es gibt keine fremden Sprecher.
+      👂 = Stimme von früher. Passte es letztes Mal nicht, Name nochmal tippen und kurz sprechen.`;
   return `<details class="aufn-stimmen" data-merk="aufn-stimmen"${App.offeneUnter.has("aufn-stimmen") ? " open" : ""}>
-    <summary>🎙 Stimmen anmelden${schon.size || nBekannt ? ` <span class="muted small">· ${[schon.size ? `${schon.size} von ${namen.length}` : "", nBekannt ? `👂 ${nBekannt} bekannt` : ""].filter(Boolean).join(" · ")}</span>` : ""}</summary>
-    <div class="muted small" style="margin:4px 0 6px">Name tippen, dann sagt die Person ein, zwei Sätze („Ich bin Tim und spiele Korgo …“).
-      So weiß die Mitschrift danach sicher, wer wer ist. 👂 = Stimme vom letzten Mal bekannt, nicht nötig.</div>
-    <div class="row" style="gap:6px; flex-wrap:wrap">${knoepfe}</div>
+    <summary>🎙 Vorstellungsrunde ${stand}</summary>
+    <div class="muted small" style="margin:4px 0 6px">${erklaerung}</div>
+    <div class="row" style="gap:6px; flex-wrap:wrap">${knoepfe}<button type="button" class="ghost small" data-act="aufn-gast" title="Jemand, der nicht in der Initiative steht">+ Gast</button></div>
   </details>`;
+}
+
+async function aufnGast() {
+  if (!Aufn.rec) return;
+  const name = await eingabe("Name des Gastes? (Danach spricht der Gast ein, zwei Sätze.)", "", "Vorstellen");
+  if (name && name.trim()) aufnStimme(name.trim());
 }
 
 async function aufnStimme(figur) {
@@ -848,7 +862,7 @@ async function aufnSprecherDialog(name, quelle, nur = null) {
     </div>`;
   }).join("");
   const namen = await dialog({
-    text: nur ? "Wer ist das?" : `${d.automatisch ? "Von der App vorausgefüllt (wer am meisten erzählt, wer seine Figur ansagt, wessen Zug war) – nur korrigieren, wenn was nicht stimmt. " : ""}Der Prompt nennt dann Namen statt S00, S01 … NSC-Stimme vom SL: einfach auch „Spielleiter“ wählen.`,
+    text: nur ? "Wer ist das?" : `${d.fest ? "Nach der Vorstellungsrunde zugeordnet (feste Plätze) – nur korrigieren, wenn was nicht stimmt. " : d.automatisch ? "Von der App vorausgefüllt (wer am meisten erzählt, wer seine Figur ansagt, wessen Zug war) – nur korrigieren, wenn was nicht stimmt. " : ""}Der Prompt nennt dann Namen statt S00, S01 … NSC-Stimme vom SL: einfach auch „Spielleiter“ wählen.`,
     inhalt: `<div class="aufn-wer-liste">${zeilen}</div>`,
     lesen: (box) => {
       const erg = { ...d.namen };
@@ -955,6 +969,7 @@ document.addEventListener("click", async (e) => {
   else if (act === "aufn-pause") { e.preventDefault(); aufnPause(); }
   else if (act === "aufn-weiter") { e.preventDefault(); aufnWeiter(); }
   else if (act === "aufn-stimme") { e.preventDefault(); aufnStimme(t.dataset.figur); }
+  else if (act === "aufn-gast") { e.preventDefault(); aufnGast(); }
   else if (act === "aufn-prompt") { e.preventDefault(); aufnPromptAus(t.dataset.name, t.dataset.quelle); }
   else if (act === "aufn-sitz-treiber") { e.preventDefault(); aufnSitzTreiber(); }
   else if (act === "aufn-sitz-anleitung") { e.preventDefault(); aufnSitzAnleitung(); }
