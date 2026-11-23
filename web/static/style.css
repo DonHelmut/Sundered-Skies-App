@@ -2672,6 +2672,7 @@ button.aufn-sprecher.benannt { opacity: .9; font-weight: 600; }
 .aufn-stimmen { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
 .aufn-stimmen summary { cursor: pointer; font-weight: 700; }
 .aufn-stimmen button.on { border-color: var(--good); color: var(--good); }
+.aufn-stimmen .aufn-fest { color: var(--good); font-weight: 700; }
 
 /* Zwischen den Kämpfen (Handy): ruhige Ansicht statt Kartenrückseite */
 .panel.ruhe { padding: 12px; }

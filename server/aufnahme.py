@@ -498,7 +498,8 @@ class Aufnahmen:
                                        for figur, sp in sorted((meta.get("personen") or {}).items())]
         return {"sprecher": liste, "namen": (meta.get("sprecher") or {}).get(quelle) or {},
                 "vorschlaege": vorschlaege,
-                "automatisch": quelle == "genau" and bool(meta.get("sprecherAuto"))}
+                "automatisch": quelle == "genau" and bool(meta.get("sprecherAuto")),
+                "fest": quelle == "genau" and bool(meta.get("sprecherAuto") and meta.get("sprecherFest"))}
 
     def sprecher_benennen(self, name: str, quelle: str, namen: dict) -> bool:
         if quelle not in ("genau", "live") or not isinstance(namen, dict):
@@ -646,6 +647,53 @@ class Aufnahmen:
         self.stimmen_lernen(name, {sp: namen[sp] for sp in angemeldet if sp in namen}, meta)
         meta.setdefault("sprecher", {})["genau"] = namen
         meta["sprecherAuto"] = True
+        self._meta_schreiben(meta)
+        return True
+
+    def feste_plaetze(self, name: str) -> tuple[Optional[dict], list]:
+        """Vorstellungsrunde (Kalle 23.11.2026, Variante D): wer heute dabei
+        ist (SL, die Figuren aus der App, heute angemeldete Gäste) und deren
+        Stimme - gespeichert von früher und/oder heute angemeldet. Rückgabe
+        ({Name: Abdruck oder None}, [(ab_s, bis_s, Name)]). Fehlt jemandem
+        beides, (None, …): dann sortiert die Mitschrift frei wie bisher -
+        sonst landete diese Person stumm bei einer anderen."""
+        meta = self._meta(name) or {}
+        marken = [(e["t"] / 1000, profil_schluessel(e.get("figur"))) for e in meta.get("ereignisse", [])
+                  if e.get("art") == "stimme" and e.get("figur")]
+        anmeldungen = []
+        for k, (ab, wer) in enumerate(marken):
+            bis = min(ab + STIMM_FENSTER_S, marken[k + 1][0] if k + 1 < len(marken) else ab + STIMM_FENSTER_S)
+            # Gleich danach ein anderer Name getippt (vertippt): zählt nicht.
+            if bis - ab >= STIMM_MIN_S:
+                anmeldungen.append((ab, bis, wer))
+        leute = [SPIELLEITER] + sorted(f for f in (meta.get("personen") or {}) if f)
+        leute += [w for _, _, w in anmeldungen if w and w not in leute]
+        profile = self.stimmprofile()
+        heute = {w for _, _, w in anmeldungen}
+        plaetze = {}
+        for wer in dict.fromkeys(leute):
+            v = _einheit(((profile.get(wer) or {}).get("v")) or [])
+            if not v and wer not in heute:
+                return None, anmeldungen
+            plaetze[wer] = v or None
+        return plaetze, anmeldungen
+
+    def sprecher_fest(self, name: str, zuordnung: dict) -> bool:
+        """Nach dem genauen Durchgang mit festen Plätzen: die Namen stehen
+        schon fest (S00 -> „Korgo"), nichts raten. Gelernt wird wie bisher
+        nur, was die Vorstellung von heute sicher macht."""
+        meta = self._meta(name)
+        text = self._text(name, "genau")
+        if not meta or text is None or not zuordnung or (meta.get("sprecher") or {}).get("genau"):
+            return False
+        personen = meta.get("personen") or {}
+        namen = {sp: figur_label(wer, personen.get(wer) or "") if wer in personen else wer
+                 for sp, wer in zuordnung.items() if _SPRECHER_MUSTER.match(sp) and wer}
+        angemeldet = stimmen_zuordnen(_transkript_zeilen(text), meta)
+        self.stimmen_lernen(name, {sp: namen[sp] for sp in angemeldet if sp in namen}, meta)
+        meta.setdefault("sprecher", {})["genau"] = namen
+        meta["sprecherAuto"] = True
+        meta["sprecherFest"] = True
         self._meta_schreiben(meta)
         return True
 
@@ -849,6 +897,7 @@ def sprecher_raten(transkript: str, meta: dict, bekannt: Optional[dict] = None) 
 
 
 STIMM_FENSTER_S = 20
+STIMM_MIN_S = 3          # kürzer vorgestellt (gleich der nächste Name) zählt nicht
 
 
 def stimmen_zuordnen(zeilen: list[tuple], meta: dict) -> dict:
@@ -939,7 +988,10 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
         "",
         "ZUM TRANSKRIPT:",
         "- Es ist automatisch erkannt und enthält Hörfehler. Namen und Begriffe sinnvoll korrigieren.",
-        (("- Die Sprecher hat die App automatisch zugeordnet (wer am meisten erzählt, wer seine Figur "
+        (("- Die Sprecher hat die App nach der Stimme zugeordnet (jeder hat sich vorher vorgestellt) – "
+          "einzelne Sätze können beim Falschen stehen, im Zweifel zählt der Inhalt. "
+          if meta.get("sprecherAuto") and meta.get("sprecherFest") else
+          "- Die Sprecher hat die App automatisch zugeordnet (wer am meisten erzählt, wer seine Figur "
           "ansagt, wessen Zug es war) – das kann falsch sein, im Zweifel zählt der Inhalt. "
           if meta.get("sprecherAuto") else "- Die Sprecher hat der Spielleiter zugeordnet. ")
          + "Wer noch S00, S01 … heißt, ordne über den Inhalt zu."

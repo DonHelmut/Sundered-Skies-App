@@ -931,6 +931,120 @@ def sprecher_sortieren(ton, stuecke: list[tuple[float, float]], modelle: Path, t
     return nachschaerfen(fenster, vektoren, _fenster_teile(fenster, lab), richtung=r)
 
 
+# --- Feste Plätze (Vorstellungsrunde, Kalle 23.11.2026) -------------------------------
+#
+# Kalle: „Die Sprach-Erkennung mag ich nicht, das sollten feste Plätze sein."
+# Gewählt (Variante D): einmal vorstellen („🎙 Vorstellungsrunde"), danach gilt
+# die Runde als fest. Statt frei zu sortieren (wie viele Leute? wer ist wer?)
+# geht jedes Fenster an die ähnlichste der angemeldeten Stimmen - es gibt
+# keine erfundenen Sprecher mehr, und die Namen stehen von Anfang an fest.
+# Die gespeicherte Stimme ist von einem anderen Abend (anderer Platz, anderes
+# Mikro, Erkältung): darum wird jede Stimme ein paar Runden an heute angepasst
+# - die Zahl der Plätze bleibt dabei gleich.
+FEST_RUNDEN = 4
+FEST_HEUTE = 0.5         # Gewicht des heutigen Mittels gegen die gespeicherte Stimme
+FEST_MIN_FENSTER = 6     # so viele Fenster braucht ein Platz, um sich anzupassen
+
+
+def fest_zuordnen(vektoren, profile: list, richtung=None, runden: int = FEST_RUNDEN) -> list[int]:
+    """Fenster-Abdrücke (Länge 1) -> Platz-Nummer (Index in profile) je Fenster.
+    profile: je Platz ein Stimmabdruck. richtung wie bei sortieren."""
+    import numpy as np
+    v = np.asarray(vektoren, dtype=np.float64)
+    p = np.asarray(profile, dtype=np.float64)
+    p = p / (np.linalg.norm(p, axis=1, keepdims=True) + 1e-9)
+    f = np.asarray(richtung[0], dtype=np.float64) if richtung is not None else None
+    lab = np.argmax(v @ p.T, axis=1)
+    for _ in range(runden):
+        neu_mitten = p.copy()
+        for j in range(len(p)):
+            m = v[lab == j]
+            if len(m) >= FEST_MIN_FENSTER:
+                z = m.mean(0)
+                z /= np.linalg.norm(z) + 1e-9
+                x = (1 - FEST_HEUTE) * p[j] + FEST_HEUTE * z
+                neu_mitten[j] = x / (np.linalg.norm(x) + 1e-9)
+        nah = v @ neu_mitten.T
+        if f is not None:
+            # Sitzplatz zählt mit - nur für Plätze, die heute schon genug haben.
+            da = [j for j in range(len(p)) if (lab == j).sum() >= FEST_MIN_FENSTER]
+            if da:
+                ecken = np.stack([np.median(f[lab == j], axis=0) for j in da])
+                nah[:, da] = nah[:, da] + RICHT_NACH * _richt_naehe(f, ecken)
+        neu = np.argmax(nah, axis=1)
+        if (neu == lab).all():
+            break
+        lab = neu
+    return [int(x) for x in lab]
+
+
+def anmeldung_abdruck(fenster: list[tuple[float, float]], vektoren, ab: float, bis: float):
+    """Die Vorstellung von heute (SL tippt den Namen, die Person redet):
+    Mittel der Fenster in [ab, bis], ohne die unähnlichere Hälfte - redet
+    jemand dazwischen („Lauter!"), zieht das den Abdruck nicht weg."""
+    import numpy as np
+    v = np.asarray(vektoren, dtype=np.float64)
+    drin = [i for i, (a, b) in enumerate(fenster) if a >= ab - 0.5 and b <= bis + 0.5]
+    if len(drin) < 3:
+        return None
+    m = v[drin]
+    z = m.mean(0)
+    z /= np.linalg.norm(z) + 1e-9
+    aehnlich = m @ z
+    m = m[aehnlich >= np.median(aehnlich)]
+    z = m.mean(0)
+    return z / (np.linalg.norm(z) + 1e-9)
+
+
+def plaetze_sortieren(ton, stuecke: list[tuple[float, float]], modelle: Path, plaetze: dict,
+                      anmeldungen: list, threads: int = 1, stopp: Optional[threading.Event] = None,
+                      melden: Callable[[float], None] = lambda a: None,
+                      richtung: Optional[Callable] = None) -> Optional[tuple[list, list[str]]]:
+    """Feste Plätze statt freiem Sortieren. plaetze: {Name: gespeicherter
+    Abdruck oder None}; anmeldungen: [(ab_s, bis_s, Name)] von heute. Jeder
+    Platz braucht eins von beiden. Rückgabe (teile, namen) - Sprecher-Nummer
+    in teile = Index in namen - oder None (dann frei wie bisher)."""
+    if not plaetze:
+        return None
+    fenster = nach_fenster(stuecke)
+    if len(fenster) < 8:
+        return None
+    # Gleiches Modell wie die gespeicherten Stimmen (stimm_abdruecke).
+    modell = modelle / MODELLE["stimme"][1]
+    if not modell.exists():
+        return None
+    r = None
+    if richtung is not None:
+        try:
+            r = richtung(fenster)
+        except Exception:   # noqa: BLE001 - dann eben nur nach Stimme
+            r = None
+    vektoren = fenster_abdruecke(ton, fenster, modell, threads, stopp, melden)
+    dim = len(vektoren[0])
+    namen, profile = [], []
+    for wer, alt in plaetze.items():
+        heute = [anmeldung_abdruck(fenster, vektoren, ab, bis) for ab, bis, n in anmeldungen if n == wer]
+        heute = [h for h in heute if h is not None]
+        alt = alt if alt is not None and len(alt) == dim else None
+        if heute:
+            import numpy as np
+            h = np.mean(heute, axis=0)
+            # Heute gehört (gleiches Mikro, gleicher Raum) zählt doppelt.
+            x = h * 2 + (np.asarray(alt) if alt is not None else 0)
+            profile.append(x / (np.linalg.norm(x) + 1e-9))
+        elif alt is not None:
+            profile.append(alt)
+        else:
+            return None       # jemand ohne Stimme -> nicht fest, sonst landet er bei anderen
+        namen.append(wer)
+    lab = fest_zuordnen(vektoren, profile, r)
+    # Einzelne Ausreißer zwischen zwei gleichen Nachbarn glätten (wie nachschaerfen).
+    for i in range(1, len(lab) - 1):
+        if lab[i - 1] == lab[i + 1] != lab[i] and fenster[i + 1][0] - fenster[i - 1][1] < 0.1:
+            lab[i] = lab[i - 1]
+    return _fenster_teile(fenster, lab), namen
+
+
 def stueck_zuordnen(s: float, e: float, tokens: list[str], zeiten: list[float],
                     teile: list[tuple[float, float, int]]) -> list[Abschnitt]:
     """Erkannter Text eines VAD-Stücks [s, e] -> Abschnitte je Sprecher. teile:
@@ -1210,13 +1324,16 @@ def stimm_abdruecke(ton, abschnitte: list[Abschnitt], modelle: Path, threads: in
 def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
                    fortschritt: Optional[Callable[[float, str], None]] = None,
                    stopp: Optional[threading.Event] = None, namen=(),
-                   abdruecke: Optional[dict] = None, richtung: Optional[Callable] = None) -> str:
+                   abdruecke: Optional[dict] = None, richtung: Optional[Callable] = None,
+                   plaetze: Optional[dict] = None, anmeldungen=(), zuordnung: Optional[dict] = None) -> str:
     """Ganze Aufnahme -> Transkript „[hh:mm:ss] S00: …". fortschritt(0..1, Schritt).
     personen: höchstens so viele Sprecher (0 = bis zu 8).
     namen: Eigennamen der Runde (server/namen.py).
     abdruecke: wird (falls gegeben) mit den Stimmabdrücken je Sprecher gefüllt.
     richtung(ton, fenster): Sitzplatz-Merkmale des Tischmikros (server/richtung.py)
-    oder None."""
+    oder None.
+    plaetze/anmeldungen: feste Plätze (plaetze_sortieren). Klappt das, steht
+    in zuordnung {S00: Name} - die Namen sind dann sicher, nicht geraten."""
     stopp = stopp or threading.Event()
     melden = fortschritt or (lambda a, s: None)
     threads = _threads()
@@ -1233,14 +1350,27 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
     # Spielerinnen zusammen. Und Gäste, die nicht in der App stehen, fehlen
     # sonst.
     teile = None
-    try:
-        teile = sprecher_sortieren(ton, stuecke, modelle, threads, stopp,
-                                   lambda a: melden(0.02 + 0.23 * a, "Stimmen sortieren"),
-                                   (lambda fenster: richtung(ton, fenster)) if richtung else None)
-    except InterruptedError:
-        raise
-    except Exception:   # noqa: BLE001 - dann der alte Weg
-        teile = None
+    fest_namen: Optional[list[str]] = None
+    if plaetze:
+        try:
+            erg = plaetze_sortieren(ton, stuecke, modelle, plaetze, list(anmeldungen), threads, stopp,
+                                    lambda a: melden(0.02 + 0.23 * a, "Stimmen zuordnen"),
+                                    (lambda fenster: richtung(ton, fenster)) if richtung else None)
+        except InterruptedError:
+            raise
+        except Exception:   # noqa: BLE001 - dann frei sortieren wie bisher
+            erg = None
+        if erg is not None:
+            teile, fest_namen = erg
+    if teile is None:
+        try:
+            teile = sprecher_sortieren(ton, stuecke, modelle, threads, stopp,
+                                       lambda a: melden(0.02 + 0.23 * a, "Stimmen sortieren"),
+                                       (lambda fenster: richtung(ton, fenster)) if richtung else None)
+        except InterruptedError:
+            raise
+        except Exception:   # noqa: BLE001 - dann der alte Weg
+            teile = None
     if teile is None:
         # Alter Weg (bis 2.0.10; bleibt für alle, denen das neue Stimm-Modell
         # noch fehlt - kein Internet beim Update).
@@ -1283,7 +1413,11 @@ def transkribieren(pfad: Path, modelle: Path, personen: int = 0,
             abschnitte.append(a)
         erledigt += e - s
         melden(0.25 + 0.75 * erledigt / sprach_s, "Text erkennen")
-    fertig = beitraege(kleine_sprecher_weg(abschnitte, personen or MAX_LEUTE_UNBEKANNT))
+    fertig = beitraege(kleine_sprecher_weg(abschnitte, len(fest_namen) if fest_namen else
+                                           personen or MAX_LEUTE_UNBEKANNT))
+    if fest_namen and zuordnung is not None and fertig:
+        nummer = sprecher_nummern(fertig)
+        zuordnung.update({f"S{nr:02d}": fest_namen[sp] for sp, nr in nummer.items()})
     if abdruecke is not None and fertig:
         melden(1.0, "Stimmen merken")
         try:
@@ -1748,15 +1882,20 @@ class Sprache:
                 abdruecke: dict = {}
                 meta = self.aufnahmen._meta(name) or {}
                 rpfad = richtung_mod.pfad_fuer(self.aufnahmen.ordner, name)
+                plaetze, anmeldungen = self.aufnahmen.feste_plaetze(name)
+                zuordnung: dict = {}
                 text = transkribieren(pfad, self.modelle, self.hoechstens(name), melden, stopp, namen=namen,
                                       abdruecke=abdruecke,
                                       richtung=(lambda ton, fenster: richtung_mod.fuer_ton(rpfad, meta, ton, SR, fenster))
-                                      if rpfad.exists() else None)
+                                      if rpfad.exists() else None,
+                                      plaetze=plaetze, anmeldungen=anmeldungen, zuordnung=zuordnung)
                 if text.strip():
                     (self.aufnahmen.ordner / f"{name}-transkript.txt").write_text(text, encoding="utf-8")
                     self.aufnahmen.abdruecke_speichern(name, abdruecke)
-                    # Wer ist wer - aus dem Kontext, ohne dass der SL wählen muss.
-                    self.aufnahmen.sprecher_automatisch(name)
+                    # Feste Plätze (alle vorgestellt): Namen stehen fest. Sonst
+                    # wer ist wer aus dem Kontext, ohne dass der SL wählen muss.
+                    if not (zuordnung and self.aufnahmen.sprecher_fest(name, zuordnung)):
+                        self.aufnahmen.sprecher_automatisch(name)
                 self.job = None
             except InterruptedError:
                 self.job = None
