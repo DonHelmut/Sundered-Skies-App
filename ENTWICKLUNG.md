@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.22 (23.11.2026): 🎙 Vorstellungsrunde = feste Plätze
+## 2.0.23 (24.11.2026): 🎙 Vorstellungsrunde = feste Plätze
 
 Kalle: „Die Sprach-Erkennung mag ich nicht, das sollten feste Slots sein, die
 per Knopfdruck an und aus gehen." Gezeigt: A SL drückt, wer spricht; B jeder
