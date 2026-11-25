@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nächste Version (25.11.2026): Uhr wartet auf die Erholungs-Probe
+## 2.0.25 (25.11.2026): Uhr wartet auf die Erholungs-Probe
 
 Kalle: Ist ein Spieler zu Zugbeginn **angeschlagen**, darf die Zug-Uhr erst
 laufen, wenn die Probe entschieden ist – geschafft, Benny oder nicht geschafft.
@@ -101,6 +101,27 @@ Vorher lief sie ab „Freigeben", und wer erst würfelte, verlor die Zeit.
   gewählt: A Wirbel, B X-Augen, D Herz mit Riss, E Schild mit Riss.
 - Tests: `test_game.py` (Uhr wartet, drei Wege, vor Freigabe verpatzt),
   `tests/browser/test_angeschlagen_uhr.py` (Handy + SL, nichts rutscht).
+
+## Release automatisch nach dem Merge (25.11.2026)
+
+Kalle: „braucht es wirklich immer mein go? Will dass es auch ohne geht.“ Bisher
+hat Claude auf dem Jonsbo gebaut und per Admin-Bypass auf main gepusht; die
+Sicherheitsprüfung ließ das nur mit Kalles „go“ im Thread durch.
+
+Jetzt macht es GitHub (`.github/workflows/release.yml`): bei jedem Push auf
+main schaut der Workflow, ob es den Tag `v<APP_VERSION>` schon gibt. Wenn
+nicht, prüft er alle Versionsstellen + `RELEASE.md`, lässt die Server-Tests
+laufen, baut beide .spec (Python 3.14, PyInstaller 6.22.3 wie am Jonsbo),
+packt das Zip, startet die gepackte exe als Rauchtest und legt Tag + Release an.
+Helfer: `.github/release/release.py` (pruefen / paket / rauch).
+
+**Neuer Ablauf für ein Release:** Der PR selbst zählt die Version hoch
+(paths.py, app.js, ?v= in index.html + tv.html, START-HIER.txt) und schreibt
+`RELEASE.md` (erste Zeile `# X.Y.Z – Titel`, darunter die Notizen). Merge =
+Release. Kein Direkt-Push auf main mehr. PRs ohne Versionssprung lösen nichts
+aus. Der Knopf-Update-Test (alte Version → neue über „Jetzt aktualisieren“)
+läuft dabei NICHT automatisch; der Updater ändert sich selten – wenn doch,
+vorher von Hand testen.
 
 ## 2.0.24 (25.11.2026): Aufgeräumt – Erklärtexte raus
 
