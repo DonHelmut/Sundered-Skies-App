@@ -144,12 +144,15 @@ function geldVerlaufHtml(liste, mitWem, key) {
 // --- Handy: Reiter „Geld" ---------------------------------------------------------
 function geldReiterLabel() { return `${faterSvg(18)} Geld`; }
 
-function geldTruheHtml(stand, act, ziel) {
+function geldTruheHtml(stand, act, ziel, kasse = false) {
   const zeile = (art, bild, zahl, name, unter) => `<button type="button" class="g-zeile" data-act="${act}" data-art="${art}"${ziel ? ` data-ziel="${esc(ziel)}"` : ""}>
       <span class="g-bild${Number(String(zahl).replace(/\D/g, "")) ? "" : " null"}">${bild}</span><span class="g-txt"><b>${rollZahl(`g-${act}-${ziel || App.geld.konto || "ich"}-${art}`, zahl)}<em>${esc(name)}</em></b><small>${esc(unter)}</small></span><span class="g-pf" aria-hidden="true">›</span></button>`;
   const lose = loseListe(stand);
   const zahl = loseZusammen(stand);
-  return `<div class="g-truhe">
+  // Gruppenkasse sichtbar anders (Bedienbarkeit 25.11.2026): Börse und Kasse
+  // sahen gleich aus - man verwechselte leicht, wessen Geld man ausgibt.
+  return `<div class="g-truhe${kasse ? " g-kasse" : ""}">
+    ${kasse ? `<div class="g-kasse-kopf">👥 Gruppenkasse · gehört allen</div>` : ""}
     ${zeile("fater", faterSvg(62), stand.fater || 0, "Fater", GELD_STEINTEXT)}
     ${zeile("los", losFacher(lose.map(([k]) => k)), zahl, zahl === 1 ? "Los" : "Lose", loseKurz(stand))}
     ${zeile("muenzen", muenzStapel(), (stand.muenzen || 0).toLocaleString("de-DE"), muenzName(), "Kleingeld")}
@@ -167,8 +170,8 @@ function geldSeiteHtml() {
       <button type="button" class="${konto === "ich" ? "on" : ""}" data-act="geld-konto" data-k="ich" role="tab" aria-selected="${konto === "ich"}">Meine Börse</button>
       <button type="button" class="${konto === "gruppe" ? "on" : ""}" data-act="geld-konto" data-k="gruppe" role="tab" aria-selected="${konto === "gruppe"}">👥 Gruppenkasse</button>
     </div>
-    ${geldTruheHtml(k.stand, "geld-auf")}
-    <div class="g-hinweis">${konto === "ich" ? "Antippen zum Bezahlen – neues Geld gibt der Spielleiter" : "Antippen zum Herausnehmen oder Einlegen"}</div>
+    ${geldTruheHtml(k.stand, "geld-auf", undefined, konto === "gruppe")}
+    <div class="g-hinweis">${konto === "ich" ? "Antippen zum Bezahlen – neues Geld gibt der Spielleiter" : "Antippen: Geld herausnehmen (in deine Börse) oder einlegen"}</div>
     <div class="g-ueber">Verlauf${geldVlKnopf(k.verlauf, konto)}</div>
     ${geldVerlaufHtml(k.verlauf, konto === "gruppe", konto)}
   </div>`;
@@ -316,7 +319,7 @@ function zielName(id) {
   return r ? r.name : "?";
 }
 
-// --- SL: Panel „Vermögen" -----------------------------------------------------------
+// --- SL: Panel „Geld" (hieß bis 25.11.2026 „Vermögen" – am Handy hieß es schon Geld) -----------------------------------------------------------
 function renderGeldPanel() {
   const leute = slZiele();
   const zeile = (id, name, st, gr) => {
@@ -329,7 +332,7 @@ function renderGeldPanel() {
   };
   const offen = App.geld.slVerlauf;
   const vl = offen ? geldKonto(offen) : null;
-  return section("geld", `${faterSvg(20)} Vermögen`, `
+  return section("geld", `${faterSvg(20)} Geld`, `
     <div class="g-sl-kopf">
       <button type="button" class="primary small" data-act="geld-sl-beute">＋ Beute verteilen</button>
       <button type="button" class="ghost small" data-act="geld-muenzname" title="Name des Kleingelds ändern">✎ ${esc(muenzName())} umbenennen</button>

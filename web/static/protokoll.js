@@ -106,7 +106,7 @@ const protKnopf = document.createElement("button");
 protKnopf.id = "protokoll-knopf";
 protKnopf.type = "button";
 protKnopf.innerHTML = symbolSvg("scroll-text");   // Linien-Symbol wie überall (symbole.js)
-protKnopf.title = "Protokolle der Spielabende";
+protKnopf.title = "Chronik der Abende";
 protKnopf.hidden = true;
 protKnopf.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -218,7 +218,7 @@ function protokollLeseHtml() {
   }).join("");
   return `<div class="protokoll-hg" data-act="prot-zu">
     <div class="protokoll-fenster panel" data-act="" data-scroll-merk="protokoll" style="--pt-gr:${PROT_SCHRIFT[protSchrift()]}rem">
-      <div class="pt-titelzeile"><strong>📜 ${Prot.wasBisher ? "Was bisher geschah" : "Protokolle"}</strong>
+      <div class="pt-titelzeile"><strong>📜 ${Prot.wasBisher ? "Was bisher geschah" : "Chronik der Abende"}</strong>
         <span class="row tight chr-knoepfe">${protSchriftKnoepfe()}<button class="ghost small" data-act="prot-zu">Schließen</button></span></div>
       ${protokollListe().length > 1 ? `<div class="row tight chr-einstieg"><button class="primary small" data-act="prot-chronik">📖 Alles am Stück lesen</button>
         <span class="muted small">${protokollListe().length} Abende</span></div>` : ""}
@@ -251,7 +251,7 @@ function renderProtokollPanel() {
         <div class="km-trenner"></div>
         <button type="button" class="km-zeile bib-loeschen" data-act="prot-loeschen" data-id="${esc(p.id)}">🗑 Löschen …</button></div>` : ""}
     </div>`).join("");
-  return section("protokolle", "📜 Protokolle", `
+  return section("protokolle", "📜 Chronik der Abende", `
     <div class="row tight" style="flex-wrap:wrap; gap:6px">
       <button class="primary" data-act="prot-neu">＋ Protokoll einfügen</button>
       ${protokollListe().length ? `<button class="ghost" data-act="prot-chronik" title="Alle Abende am Stück lesen, drucken oder als PDF sichern">📖 Chronik</button>` : ""}

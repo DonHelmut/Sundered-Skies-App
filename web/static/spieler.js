@@ -1175,7 +1175,7 @@ function renderJoin() {
   // Ohne Charakterliste (erster Abend) gleich das Namensfeld.
   let modus = !s.roster.length ? "neu" : (E.modus || (letzter ? "weiter" : "liste"));
   if (modus === "weiter" && !letzter) modus = "liste";
-  const spielerFeld = `<label class="field join-spieler"><span>Dein Name <small class="muted">(optional)</small></span>
+  const spielerFeld = `<label class="field join-spieler"><span>Wie heißt du? <small class="muted">(optional – damit der SL weiß, wer spielt)</small></span>
       <input id="joinname" value="${esc(E.spielerName)}" placeholder="z. B. Stefan" maxlength="40" autocomplete="off"></label>`;
 
   // Neuen Charakter erstellen: ein eigener, großer Knopf unter der Auswahl -
@@ -1196,12 +1196,14 @@ function renderJoin() {
       : `<button class="join-char${letzter && letzter.id === r.id ? " zuletzt" : ""}" data-act="join-als" data-id="${r.id}">
         ${joinAvatar(r)}<span class="join-char-name">${esc(r.name)}</span></button>`).join("");
     const frei = s.roster.some((r) => !charakterBelegt(r.id));
+    // Name ZUERST (Bedienbarkeit 25.11.2026): unter der Liste kam er zu spät -
+    // wer einen Charakter antippt, ist sofort drin, und das Feld blieb leer.
     inhalt = `
+      ${spielerFeld}
       <div class="join-titel">Charakter wählen</div>
       <div class="muted small" style="margin-bottom:8px">${frei ? "Antippen – schon bist du drin." : "Alle Charaktere sind vergeben – erstell dir einen neuen."}</div>
       <div class="join-liste">${knoepfe}</div>
       ${neuKnopf}
-      ${spielerFeld}
       ${letzter ? `<div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="weiter">← zurück</button></div>` : ""}`;
     // „Nur zuschauen" gibt es nicht mehr: der „Gast" landete als Figur in
     // Reihenfolge und Zonen (Kalle). Zuschauen geht über die TV-Ansicht.

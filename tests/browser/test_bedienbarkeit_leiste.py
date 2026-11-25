@@ -65,3 +65,34 @@ def test_leiste_feste_plaetze_und_woerter(tisch):
     assert sl.page.locator(".kontext-menue .km-weg [data-act=remove-combatant]").count() == 1
     _bild(sl, "3_zeile.png")
     assert tisch.alle_fehler() == []
+
+
+def test_beitritt_name_zuerst_kasse_anders_gleiche_woerter(tisch):
+    """4 Beitritt fragt den Namen vor der Charakterwahl, 5 Gruppenkasse sieht
+    anders aus als die Börse, 6 SL-Panels heißen wie am Handy."""
+    sl, hs = voller_tisch(tisch)
+    neu = tisch.handy_offen("se", "Neu")
+    neu.warte_bis("() => !!document.querySelector('.join-titel')")
+    assert neu.js("""() => !!(document.querySelector('.join-spieler').compareDocumentPosition(
+        document.querySelector('.join-titel')) & Node.DOCUMENT_POSITION_FOLLOWING)""")
+    assert "Wie heißt du?" in neu.page.locator(".join-spieler").inner_text()
+    _bild(neu, "4_beitritt.png", full_page=True)
+
+    h = hs[0]
+    for _ in range(3):
+        if h.page.locator("[data-act=dismiss-msg]").count():
+            h.klick("[data-act=dismiss-msg]")
+            h.page.wait_for_timeout(300)
+    h.reiter("geld")
+    assert h.page.locator(".g-kasse").count() == 0
+    h.klick("[data-act=geld-konto][data-k=gruppe]")
+    h.warte_bis("() => !!document.querySelector('.g-truhe.g-kasse')")
+    assert "gehört allen" in h.page.locator(".g-kasse-kopf").inner_text().lower()
+    h.kein_waagrechtes_scrollen("Gruppenkasse")
+    _bild(h, "5_kasse.png")
+
+    titel = sl.js("() => [...document.querySelectorAll('details.section > summary')].map(s => s.textContent).join(' | ')")
+    for wort in ("Geld", "Aufnahme", "Chronik der Abende"):
+        assert wort in titel, titel
+    assert "Vermögen" not in titel and "Aufnahme & Protokoll" not in titel
+    assert tisch.alle_fehler() == []

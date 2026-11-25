@@ -99,9 +99,12 @@ Details stehen in den einzelnen Abschnitten darunter.
   ✕ Entfernen abgesetzt unten rechts.
   Test: `tests/browser/test_bedienbarkeit_leiste.py` (Bilder mit
   `SWI_BEDIENBARKEIT_BILDER=<ordner>`).
-- Neue Vorschläge (nur Bilder): 4 Beitritt „Wie heißt du?" zuerst, 5
-  Gruppenkasse sichtbar anders als die Börse, 6 gleiche Wörter (Vermögen →
-  Geld, Protokolle → Chronik der Abende). Bilder + Skripte:
+- **Auch gebaut (Kalle „Alles gut. go"):** 4 Beitritt fragt „Wie heißt du?"
+  VOR der Charakterwahl (vorher darunter – wer antippte, war schon drin, das
+  Feld blieb leer). 5 Gruppenkasse grün getönt mit Kopf „Gruppenkasse ·
+  gehört allen" (`.g-kasse`), Börse bleibt braun. 6 SL-Panels: „Vermögen" →
+  „Geld", „Aufnahme & Protokoll" → „Aufnahme", „Protokolle" → „Chronik der
+  Abende" (auch Handy-Knopf und Anleitungstexte). Bilder + Skripte:
   `/mnt/project-files/screenshots/bedienbarkeit-2026-11-25/`.
 
 ## 2.0.23 (24.11.2026): 🎙 Vorstellungsrunde = feste Plätze
