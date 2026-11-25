@@ -148,7 +148,7 @@ function renderPlayer() {
     ? `<div class="panel benched-note" style="padding:16px; text-align:center">
          <div style="font-size:1.6rem">⏸</div>
          <div style="font-weight:600; margin-top:4px">Du bist gerade nicht im Kampf.</div>
-         <div class="muted small" style="margin-top:4px">Der Spielleiter nimmt dich wieder rein (z. B. zum Rundenende). Solange bekommst du keine Karten.</div>
+         <div class="muted small" style="margin-top:4px">Der Spielleiter nimmt dich wieder rein.</div>
        </div>`
     : `<div class="panel" style="padding:12px">
       <div class="karten-buehne"><div class="big-card tilt3d" id="bigcard" style="max-width:250px">${cardSlot(mine.id, mine.card, mine.status, "", { open: !!mine.revealed, tappable: !mine.revealed })}</div>
@@ -874,8 +874,7 @@ function notizThemaDialog(alt) {
       <input id="tm-name" maxlength="24" value="${esc(alt ? altName : "")}" placeholder="Name, z. B. Seelensteine" aria-label="Name" autocomplete="off">
     </div>
     <div class="tm-emojis">${NOTIZ_EMOJIS.map((emo) =>
-      `<button type="button" class="${emo === altEmoji ? "on" : ""}" data-act="notiz-tm-emoji" data-emoji="${emo}">${emo}</button>`).join("")}</div>
-    <div class="tm-hinweis">Eigenes Emoji: kleines Feld antippen, Emoji-Tastatur.</div>`;
+      `<button type="button" class="${emo === altEmoji ? "on" : ""}" data-act="notiz-tm-emoji" data-emoji="${emo}">${emo}</button>`).join("")}</div>`;
   const knoepfe = [{ text: "Abbrechen", wert: null, abbruch: true },
     // „abbruch", damit der Knopf seinen Wert liefert statt lesen() - Esc nimmt
     // trotzdem den ersten (Abbrechen).
@@ -1175,7 +1174,7 @@ function renderJoin() {
   // Ohne Charakterliste (erster Abend) gleich das Namensfeld.
   let modus = !s.roster.length ? "neu" : (E.modus || (letzter ? "weiter" : "liste"));
   if (modus === "weiter" && !letzter) modus = "liste";
-  const spielerFeld = `<label class="field join-spieler"><span>Wie heißt du? <small class="muted">(optional – damit der SL weiß, wer spielt)</small></span>
+  const spielerFeld = `<label class="field join-spieler"><span>Wie heißt du? <small class="muted">(optional)</small></span>
       <input id="joinname" value="${esc(E.spielerName)}" placeholder="z. B. Stefan" maxlength="40" autocomplete="off"></label>`;
 
   // Neuen Charakter erstellen: ein eigener, großer Knopf unter der Auswahl -
@@ -1201,7 +1200,7 @@ function renderJoin() {
     inhalt = `
       ${spielerFeld}
       <div class="join-titel">Charakter wählen</div>
-      <div class="muted small" style="margin-bottom:8px">${frei ? "Antippen – schon bist du drin." : "Alle Charaktere sind vergeben – erstell dir einen neuen."}</div>
+      ${frei ? "" : `<div class="muted small" style="margin-bottom:8px">Alle Charaktere sind vergeben.</div>`}
       <div class="join-liste">${knoepfe}</div>
       ${neuKnopf}
       ${letzter ? `<div class="join-links"><button class="ghost small" data-act="join-modus" data-modus="weiter">← zurück</button></div>` : ""}`;
@@ -1212,7 +1211,6 @@ function renderJoin() {
     // sich beim ersten Start, als fehle die Charakterwahl (Stefan).
     inhalt = `
       <div class="join-titel">Neuen Charakter erstellen</div>
-      ${s.roster.length ? "" : `<div class="muted small" style="margin-bottom:8px">Noch keine Charaktere da – leg deinen an. Werte trägst du danach im Charakterbogen ein.</div>`}
       <label class="field"><span>Name des Charakters</span>
         <input id="joinneu" value="${esc(E.neuName)}" placeholder="z. B. Tessa" maxlength="40" autocomplete="off" enterkeyhint="go"></label>
       ${spielerFeld}
@@ -1235,8 +1233,6 @@ function renderJoin() {
       ${inhalt}
     </div>
     ${handyTipp()}
-    <div class="join-fuss">Nichts zu installieren – läuft direkt im Browser.<br>
-      Inoffizielles Fanprojekt für Savage Worlds: Sundered Skies.</div>
   `;
 }
 
@@ -1250,6 +1246,6 @@ function handyTipp() {
   // Eine Zeile statt eigenem Kasten (Studio-Runde 3A); die Begründung steht
   // im title und in der SL-Anleitung.
   return `<div class="verbindungs-tipp" title="Sonst springt das Handy bei Internet-Aussetzern im WLAN still auf Mobilfunk und verliert den Spieltisch.">
-      <span>📶</span><span><b>Flugmodus an, dann nur WLAN</b> – oder mobile Daten aus. So bleibt die Verbindung stabil.</span>
+      <span>📶</span><span><b>Flugmodus an, dann nur WLAN</b></span>
     </div>`;
 }

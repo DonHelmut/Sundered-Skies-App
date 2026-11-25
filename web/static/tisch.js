@@ -211,7 +211,6 @@ function playerQuickControls(c) {
   return `<div class="req-knopf-huelle">
     ${toggle}
     <div class="req-box">
-      <div class="center muted small">Der Spielleiter bestätigt deine Anfrage.</div>
       <div class="status-ctrl req-raster">${rows.join("")}</div>
     </div>
     ${pendingRequestLine(c)}
@@ -559,16 +558,10 @@ function renderZonesPanel() {
          <button class="ghost small" data-act="auswahl-leeren">Auswahl aufheben</button>
        </div>`
     : "";
-  const controls = mine
-    ? `<div class="zone-hint">${mine.moved
-        ? "Diesen Zug schon bewegt – warte auf die nächste Runde."
-        : (App.pendingMove
-            ? "Zum Bestätigen die markierte Bahn nochmal tippen (oder daneben zum Abbrechen)."
-            : "Erreichbare Bahn tippen (1 = gratis · 2 = 🏃 Rennen) – dann nochmal tippen zum Bestätigen.")}</div>`
-    : (isGM
-        ? `<div class="zone-hint hilfe">Figur auf eine Bahn <b>ziehen</b> zum Umsetzen – gehört sie zu einer Gruppe, rückt die ganze Gruppe mit.
-             Mit <b>Strg-Klick</b> mehrere sammeln und gemeinsam ziehen.</div>`
-        : `<div class="zone-hint">Tippe ein Token für Infos.</div>`);
+  // Keine Gebrauchsanweisung unter dem Board (Kalle 25.11.2026: „over
+  // explaining") - die Bahnen selbst sagen „→ hierher" / „🏃 Rennen" /
+  // „✓ nochmal tippen". Nur „schon bewegt" erklärt, warum nichts geht.
+  const controls = mine && mine.moved ? `<div class="zone-hint">Diesen Zug schon bewegt.</div>` : "";
   // Am Handy ist das Board mit 20+ Figuren riesig. Es startet dort darum
   // eingeklappt (ein Tipp oeffnet es, die Wahl wird wie ueberall gemerkt);
   // beim SL bleibt es offen, er arbeitet staendig damit.
@@ -639,7 +632,7 @@ function renderTokenPopupOverlay() {
 
   // Eigene Figur (Spieler): Hinweis statt Knöpfe – bewegt wird über die Bahnen.
   const moveHtml = (isOwn && !isGM)
-    ? `<div class="zone-hint">${c.moved ? "Diesen Zug schon bewegt." : "Zum Bewegen eine erreichbare Bahn antippen und bestätigen."}</div>`
+    ? (c.moved ? `<div class="zone-hint">Diesen Zug schon bewegt.</div>` : "")
     : "";
   // SL: Standort direkt setzen (Aufstellung) – 5 Zonen-Knöpfe, aktuelle markiert.
   const zoneList = (App.state && App.state.zones) || (window.Zones && Zones.LABELS) || [];

@@ -44,8 +44,7 @@ function alsAppAnleitung(geraet) {
     `<button type="button" class="pill als-app-reiter${k === g ? " aktiv" : ""}" data-geraet="${k}">${k === "ios" ? "iPhone" : "Android"}</button>`).join("");
   const inhalt = `<div class="als-app-reiterzeile">${reiter}</div>
     <ol class="als-app-schritte">${a.schritte.map((s) => `<li>${s}</li>`).join("")}</ol>
-    <p class="muted small als-app-fuss">${esc(a.fuss)}</p>
-    <p class="muted small als-app-fuss">Das Symbol merkt sich die Adresse dieses Laptops. Klappt also im selben WLAN mit demselben Laptop – woanders neu scannen.</p>`;
+    <p class="muted small als-app-fuss">${esc(a.fuss)}</p>`;
   dialog({ text: a.titel, inhalt, knoepfe: [{ text: "OK", art: "primary", standard: true, abbruch: true, wert: true }] });
   // Umschalten iPhone/Android: Dialog mit dem anderen Gerät neu aufmachen.
   const alle = document.querySelectorAll(".app-dialog-hg");

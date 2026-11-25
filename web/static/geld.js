@@ -171,7 +171,6 @@ function geldSeiteHtml() {
       <button type="button" class="${konto === "gruppe" ? "on" : ""}" data-act="geld-konto" data-k="gruppe" role="tab" aria-selected="${konto === "gruppe"}">👥 Gruppenkasse</button>
     </div>
     ${geldTruheHtml(k.stand, "geld-auf", undefined, konto === "gruppe")}
-    <div class="g-hinweis">${konto === "ich" ? "Antippen zum Bezahlen – neues Geld gibt der Spielleiter" : "Antippen: Geld herausnehmen (in deine Börse) oder einlegen"}</div>
     <div class="g-ueber">Verlauf${geldVlKnopf(k.verlauf, konto)}</div>
     ${geldVerlaufHtml(k.verlauf, konto === "gruppe", konto)}
   </div>`;
@@ -341,8 +340,7 @@ function renderGeldPanel() {
       ${leute.map((r) => zeile(r.id, r.name, geldKonto(r.id).stand)).join("")}</div>
     <div class="g-sl-vl-wahl">Verlauf: ${[["gruppe", "👥 Kasse"], ...leute.map((r) => [r.id, esc(r.name)])].map(([id, t]) =>
       `<button type="button" class="g-chip klein${offen === id ? " on" : ""}" data-act="geld-sl-verlauf" data-ziel="${esc(id)}">${t}</button>`).join("")}${vl ? geldVlKnopf(vl.verlauf, `sl-${offen}`) : ""}</div>
-    ${vl ? geldVerlaufHtml(vl.verlauf, true, `sl-${offen}`) : ""}
-    <p class="hilfe">Fater, Lose (Scheine von ½ bis 1/100.000) und ${esc(muenzName())} werden nicht umgerechnet – die App zählt nur. Neues Geld gibt nur der Spielleiter – Spieler bezahlen am Handy unter „Geld“ und legen in die Kasse.</p>`);
+    ${vl ? geldVerlaufHtml(vl.verlauf, true, `sl-${offen}`) : ""}`);
 }
 
 // --- Klicks ----------------------------------------------------------------------

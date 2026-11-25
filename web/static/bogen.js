@@ -60,7 +60,7 @@ function renderBogen(mine) {
     return `<div class="panel bogen-leer">
       <div class="leer-sym">${symbolSvg("scroll-text")}</div>
       <div class="leer-titel">Dein Charakterbogen</div>
-      <div class="leer-text">Noch leer. Trag deine Werte ein – oder fotografier einfach deinen Papierbogen.</div>
+      <div class="leer-text">Noch leer.</div>
       <div class="leer-knoepfe">
         <button class="primary" data-act="bogen-bearbeiten">✏ Werte eintragen</button>
         <button class="ghost" data-act="bogen-bearbeiten" data-reiter="foto">📷 Foto vom Papierbogen</button>
@@ -81,7 +81,6 @@ function renderBogen(mine) {
            <label>Tempo ${bogenFeld("tempo", b.tempo, "z. B. 6", "4.5em")}</label>
            <label>Rennen ${wuerfelWahl("rennen", b.rennen, "4.5em", "z. B. 6")}</label>
          </div>
-         <div class="muted small">Parade und Robustheit rechnet die App aus Kämpfen bzw. Konstitution + Panzer, solange du die Felder leer lässt.</div>
          <div class="bogen-titel">Waffen</div>
          ${b.waffen.map((w, i) => `<div class="waffe-block">
            <div class="bogen-reihe">
@@ -206,14 +205,12 @@ function bogenFotoWahl(text, klasse) {
 function bogenFotoBildHtml(b) {
   if (!b.foto) return "";
   return `<button type="button" class="bogen-foto" data-act="bfoto-gross" data-url="${esc(b.foto)}" title="Groß ansehen">
-    <img src="${esc(b.foto)}" alt="Foto vom Charakterbogen" loading="lazy"></button>
-    <div class="muted small" style="margin-top:4px">Antippen = groß, dort nochmal antippen = hineinzoomen.</div>`;
+    <img src="${esc(b.foto)}" alt="Foto vom Charakterbogen" loading="lazy"></button>`;
 }
 function bogenFotoEigenHtml(b) {
   if (App.bogenFotoLaedt) return `<div class="muted small" style="padding:10px 0">Foto wird hochgeladen …</div>`;
   if (!b.foto) {
-    return `<div class="muted small" style="padding:6px 0 10px">Bogen auf Papier? Einmal fotografieren – dann hast du ihn hier, und der SL kann nachschauen. Am besten gerade von oben, bei gutem Licht.</div>
-      ${bogenFotoWahl("📷 Foto aufnehmen oder auswählen", "primary")}`;
+    return `${bogenFotoWahl("📷 Foto aufnehmen oder auswählen", "primary")}`;
   }
   return `${bogenFotoBildHtml(b)}
     <div class="row tight" style="margin-top:8px; flex-wrap:wrap">
@@ -341,7 +338,7 @@ function bogenAnsichtHtml() {
   if (c.kind === "npc") {
     const werte = kampfwerteText(c);
     inhalt = `${werte ? `<div class="zeile2"><span>Kampfwerte</span><b>${esc(werte)}</b></div>` : ""}
-      <div class="spielwerte">${c.spielwerte ? spielwerteHtml(c.spielwerte) : `<div class="muted small">Keine Spielwerte eingetragen. In der Bibliothek beim Gegner-Typ unter „📜 Spielwerte" ergänzen.</div>`}</div>`;
+      <div class="spielwerte">${c.spielwerte ? spielwerteHtml(c.spielwerte) : `<div class="muted small">Keine Spielwerte eingetragen.</div>`}</div>`;
   } else {
     const b = bogenVon(c);
     // Hat jemand nur das Foto (Papierbogen, nichts abgetippt): gleich das zeigen.
@@ -417,7 +414,6 @@ function regelTipp(b) {
         <li><b>Wilder Angriff:</b> +2 aufs Treffen und den Schaden, dafür −2 Parade bis zum nächsten Zug.</li>
         <li><b>Benny für Wunden:</b> sofort nach dem Treffer Konstitution würfeln – Erfolg und jede Steigerung heben je eine Wunde auf.</li>
       </ul></div>
-    <div class="muted small">Im Zweifel entscheidet der Spielleiter.</div>
   </details>`;
 }
 

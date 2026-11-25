@@ -118,8 +118,7 @@ function renderAufnahmePanel() {
         <button class="primary" data-act="aufn-weiter">▶ Weiter aufnehmen</button>
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
         ${ABEND_ENDE_KNOPF}
-      </div>
-      <div class="muted small hilfe" style="margin-top:6px">In der Pause wird nichts aufgenommen. „Weiter“ hängt an dieselbe Aufnahme an – es bleibt eine Mitschrift.</div>`;
+      </div>`;
   } else if (Aufn.rec) {
     oben = `<div class="aufn-laeuft"><span class="aufn-punkt"></span> Aufnahme läuft
         <b class="aufn-zeit">${aufnZeit(aufnLaenge())}</b>

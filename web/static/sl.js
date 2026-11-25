@@ -715,9 +715,7 @@ function renderConnectPanel() {
     <div class="bt">
       <img class="bt-qr" src="/qr.png" alt="QR-Code" onerror="this.style.display='none'">
       <div class="bt-rechts">
-        <div class="muted small">Handy-Kamera drauf – oder im Browser eintippen:</div>
         ${beitrittAdresseHtml()}
-        <div class="muted small hilfe" style="margin-top:4px">Der Laptop hier ist automatisch Spielleiter. WhatsApp macht Zahlen-Adressen nicht antippbar – darum lieber das QR-Bild schicken.</div>
         <div class="bt-knoepfe">
           <button class="primary" data-act="einladung-bild" title="Bild mit QR-Code kopieren – in WhatsApp mit Strg+V einfügen">${symbolSvg("image")} QR-Bild kopieren</button>
           <button class="ghost" data-act="qr-gross" title="QR-Code bildschirmfüllend zum Scannen am Tisch">${symbolSvg("scan")} Groß zeigen</button>
@@ -807,7 +805,6 @@ function renderControlBody() {
         ${zeigeBeenden ? `<button class="ghost small" data-act="kampf-beenden" title="Gegner und Verbündete entfernen, Karten einsammeln – die Handys zeigen sofort „Gerade kein Kampf“. Wunden und Bennies bleiben.">🏁 Kampf beenden</button>` : ""}
       </span>
     </div>
-    ${rundeDran ? `<div class="muted small hilfe">Teilt allen Teilnehmern (Spieler & Gegner) gleichzeitig eine neue Karte aus. Einzeln nachziehen geht mit 🔄 in der Liste.</div>` : ""}
     ${renderRundenHinweis()}`;
   // Aktueller Akteur, Freigeben/Weiter, Timer und die Schalter sind BEWUSST
   // nicht mehr hier: sie saßen mitten im Panel und wanderten bei jeder
@@ -821,7 +818,7 @@ function renderRundenHinweis() {
   const active = s.combatants.find((c) => c.id === s.activeId);
   const anyCards = s.combatants.some((c) => c.card);
   if (!anyCards) {
-    return `<div class="muted small hilfe" style="margin-top:10px">Oben austeilen – danach steuerst du den Kampf über die Leiste am unteren Rand.</div>`;
+    return "";
   }
   // „Runde beendet" steht in der Leiste unten - die zweite Pille hier schob
   // am Rundenende die ganze Reihenfolge nach unten (Kalle, 11.11.2026).
@@ -978,8 +975,6 @@ function trefferWahlHtml(active) {
       ? gruppe("Spielerseite", freunde) + gruppe("Gegner", gegner)
       : gruppe("Gegner", gegner) + gruppe("Spielerseite", freunde)}
     ${ziele.length ? "" : `<div class="muted small">Niemand da.</div>`}
-    <div class="muted small" style="margin-top:6px">${heil ? "Auch im Kampfzonen-Board antippbar."
-      : `Im Kampfzonen-Board antippen = ${App.trefferSteigerung ? `+${App.trefferSteigerung} Steigerung` : "Erfolg"} (vorher Taste 0–3).`}</div>
   </div>`;
 }
 
@@ -1433,8 +1428,7 @@ function startflaecheHtml() {
       nimmtAuf ? "" : `<button class="ghost sf-knopf" data-act="aufn-abend">Abend starten ${symbolSvg("chevron-right")}</button>`, "", nimmtAuf) : "",
   ].join("");
   return `<div class="startflaeche">
-    <div class="sf-kopf"><div class="wortmarke sf-gruss">Willkommen am Tisch</div>
-      <div class="muted small">Ein paar Schritte, dann geht's los.</div></div>
+    <div class="sf-kopf"><div class="wortmarke sf-gruss">Willkommen am Tisch</div></div>
     ${zeilen}</div>`;
 }
 
@@ -1874,8 +1868,7 @@ function bibListeHtml(art, list) {
     <div id="${k.form}"></div>`;
 }
 function rosterInhalt() {
-  return `<div class="muted small hilfe">Bleibt gespeichert. Spieler wählen ihren Charakter beim Beitritt.</div>
-    ${bibListeHtml("roster", App.state.roster || [])}`;
+  return `${bibListeHtml("roster", App.state.roster || [])}`;
 }
 
 function talentChecklist(selected, prefix) {
@@ -1887,15 +1880,12 @@ function talentChecklist(selected, prefix) {
 
 // Gegner-Bibliothek: Standard-Gegner mit Bild, schnell in den Kampf (wie Roster).
 function bestiaryInhalt() {
-  return `<div class="muted small hilfe">Standard-Gegner (mit Bild) – bleiben gespeichert. „⚔ In den Kampf" setzt sie in die
-      gemerkte Startzone, ▾ daneben für Anzahl, Zone und verdeckt. Mehrere gleiche werden durchnummeriert (Ork 1, Ork 2 …).</div>
-    ${bibListeHtml("bestiary", (App.state && App.state.bestiary) || [])}`;
+  return `${bibListeHtml("bestiary", (App.state && App.state.bestiary) || [])}`;
 }
 
 // Verbündeten-Bibliothek – wie das Bestiarium, aber Figuren landen auf Spielerseite.
 function allyInhalt() {
-  return `<div class="muted small hilfe">NPCs auf Spielerseite (grün). Bleiben gespeichert, „⚔ In den Kampf" setzt sie in die gemerkte Startzone.</div>
-    ${bibListeHtml("allies", (App.state && App.state.allies) || [])}`;
+  return `${bibListeHtml("allies", (App.state && App.state.allies) || [])}`;
 }
 
 // Enter im Nachrichtenfeld schickt ab (vorher nur per Knopf).
@@ -1973,7 +1963,6 @@ function encounterInhalt() {
       <button class="ghost small bad" data-act="encounter-delete" data-id="${e.id}" title="Löschen">✕</button>
     </div>`).join("") || `<div class="muted small">Noch keine Kämpfe vorbereitet.</div>`;
   return `
-    <div class="muted small hilfe">Kämpfe vorab zusammenstellen (Charaktere mit Startzone, Gegner und Verbündete aus der Bibliothek) und im Spiel mit EINEM Klick starten. Fehlt ein Spieler, einfach per Rechtsklick entfernen.</div>
     <div class="row" style="margin:6px 0; gap:6px">
       <button class="primary" data-act="kb-neu">➕ Kampf vorbereiten</button>
       <button class="ghost" data-act="kampf-import" title="Kampf, den du unterwegs mit Gemini, ChatGPT & Co. geschrieben hast, einfügen">📋 Aus Text einfügen</button>
@@ -2490,7 +2479,7 @@ async function countdownDialog() {
   const cd = App.state.countdown;
   if (cd) {
     const w = await dialog({
-      text: `⏳ ${cd.text} · ${countdownRest(cd)}\nZählt bei jeder neuen Runde selbst eins runter. Alle Handys sehen ihn.`,
+      text: `⏳ ${cd.text} · ${countdownRest(cd)}`,
       knoepfe: [{ text: "Wegnehmen", wert: "weg", art: "bad" },
                 { text: "−1", wert: -1 }, { text: "+1", wert: 1 },
                 { text: "Ändern …", wert: "aendern" },
@@ -2500,7 +2489,7 @@ async function countdownDialog() {
     if (w !== "aendern") return;
   }
   const w = await dialog({
-    text: "⏳ Countdown für alle\nZählt bei jeder neuen Runde selbst runter. Am Handy steht er oben bei „… ist dran“.",
+    text: "⏳ Countdown für alle",
     inhalt: `<label class="cd-feld">Was passiert?<input class="cd-was" maxlength="40" placeholder="z. B. Schiff bricht" value="${esc(cd ? cd.text : "")}"></label>
       <label class="cd-feld">In wie vielen Runden?<input class="cd-runden" type="number" inputmode="numeric" min="1" max="99" value="${cd && cd.runden ? cd.runden : 3}"></label>`,
     knoepfe: [{ text: "Abbrechen", wert: null, abbruch: true }, { text: cd ? "Übernehmen" : "⏳ Starten", art: "primary", standard: true }],
