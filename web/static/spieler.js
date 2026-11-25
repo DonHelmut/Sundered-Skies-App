@@ -11,6 +11,7 @@ function renderPlayer() {
   const mine = s.combatants.find((c) => c.playerId === App.myPlayerId);
 
   if (!App.joined || !mine) return renderJoin();
+  kampfReiterPruefen(s, mine);
   // Für „Weiter als …" beim nächsten Beitritt (auch nach „Verlassen").
   if (mine.characterId && App._gemerkterChar !== mine.characterId) {
     App._gemerkterChar = mine.characterId;
@@ -58,7 +59,9 @@ function renderPlayer() {
   // ohne Angriff. Ohne Anfragen-System (SL hat es abgeschaltet) wie früher.
   const meinAngriff = (s.requests || []).find((r) => r.kind === "attack" && r.combatantId === mine.id);
   // Eigener Schalter (Kampf-Einstellungen), unabhängig vom Anfragen-System.
-  const angriffMoeglich = isMyTurn && s.spielerAngriff !== false && funktionAn("angriff");
+  // Angeschlagen (Probe verpatzt) darf man nicht angreifen, nur bewegen.
+  const angriffMoeglich = isMyTurn && s.spielerAngriff !== false && funktionAn("angriff")
+    && !(funktionAn("wunden") && (mine.status || {}).shaken);
   const angriffZiel = meinAngriff && s.combatants.find((c) => c.id === (meinAngriff.detail || {}).targetId);
   const angriffBtn = !angriffMoeglich ? ""
     : meinAngriff
@@ -77,7 +80,9 @@ function renderPlayer() {
   // oder Konstitution - Stefan: am Tisch geht beides).
   const binDran = s.activeId === mine.id;
   // Erholen ist keine Anfrage mehr (gilt sofort) - geht auch ohne Anfragen.
-  const canRecover = binDran && funktionAn("wunden") && mySt.shaken && !mySt.out;
+  // Nach „✗ Nicht geschafft" ist die Probe für diesen Zug entschieden: dann
+  // läuft die Uhr, und unten steht nur noch „Zug beenden".
+  const canRecover = binDran && funktionAn("wunden") && mySt.shaken && !mySt.out && s.probeVerpatzt !== mine.id;
   const recoverFreeBtn = canRecover
     ? `<button class="primary big" data-act="player-request" data-kind="status" data-detail='{"shaken":false}' data-label="ist nicht mehr angeschlagen">✓ Geschafft</button>`
     : "";
@@ -247,6 +252,51 @@ function renderPlayer() {
     ${inhalt}
     ${daumen}
   `;
+}
+
+// --- Kampfbeginn: alle Handys auf ⚔ Kampf (Kalle, 25.11.2026) ------------------
+// Teilt der SL aus (Runde 0 -> 1), springt jedes Handy einmal auf den Reiter
+// ⚔ Kampf - sonst saß einer noch im Bogen oder in den Notizen und merkte erst
+// am Goldrand, dass gekämpft wird. Einmal je Kampf: wer danach wieder in den
+// Bogen geht, bleibt dort, auch über Neuladen (der gemerkte Reiter gilt
+// weiter, 2C+5). Der Server zählt die Kämpfe (kampfNr); die zuletzt
+// gesehene Nummer merkt sich das Handy. Ein Handy, das neu beitritt, kennt
+// den laufenden Kampf noch nicht und landet darum auch auf ⚔ Kampf.
+// Tippt man gerade (Notiz, Bogen), ist ein Dialog offen oder liegt der Finger
+// auf dem Glas, wird NICHT umgesprungen - sonst wäre der Text weg oder der
+// Knopf unter dem Finger ausgetauscht. Dann erst danach.
+function handyBeschaeftigt() {
+  const a = document.activeElement;
+  if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return true;
+  if (document.querySelector(".app-dialog-hg")) return true;
+  return zeigerUnten || blattScrollt();
+}
+function kampfReiterPruefen(s, mine) {
+  if (!(s.round > 0) || mine.benched || !s.kampfNr) return;
+  const nr = String(s.kampfNr);
+  if (App._kampfReiterNr === undefined) {
+    try { App._kampfReiterNr = localStorage.getItem("kampfReiterNr"); } catch { App._kampfReiterNr = null; }
+  }
+  if (App._kampfReiterNr === nr) return;
+  if (handyBeschaeftigt()) {
+    // Nachholen, sobald frei: kein Server-Update muss dafür kommen. Neu
+    // gezeichnet wird erst, wenn wirklich frei - ein render() mitten im
+    // Tippen schriebe das Feld zurück.
+    const nachholen = () => {
+      if (handyBeschaeftigt()) { App._kampfReiterTimer = setTimeout(nachholen, 700); return; }
+      App._kampfReiterTimer = null;
+      render();
+    };
+    if (!App._kampfReiterTimer) App._kampfReiterTimer = setTimeout(nachholen, 700);
+    return;
+  }
+  App._kampfReiterNr = nr;
+  try { localStorage.setItem("kampfReiterNr", nr); } catch { /* privates Fenster */ }
+  if (App.handyReiter === "kampf") return;
+  App.handyReiter = "kampf";
+  try { localStorage.setItem("handyReiter", "kampf"); } catch { /* privates Fenster */ }
+  // Neuer Reiter fängt oben an, wie beim Antippen.
+  requestAnimationFrame(() => window.scrollTo(0, 0));
 }
 
 // --- Zwischen den Kämpfen -------------------------------------------------------
@@ -1100,8 +1150,9 @@ function daumenKnopf(o) {
     // kleiner Neben-Knopf war „Benny ausgeben" winzig und „Erholt" dreizeilig.
     // Dritter Weg „Nicht geschafft" (Bedienbarkeit 15.11.2026, Vorschlag 6):
     // vorher gab es keinen Knopf dafür - wer die Probe verpatzte, wusste nicht,
-    // was er tippen soll. Angeschlagen bleibt, der Zug ist vorbei.
-    const nicht = `<button class="ghost big" data-act="confirm-turn" title="Probe verpatzt: bleibt angeschlagen, Zug ist vorbei">✗ Nicht geschafft</button>`;
+    // was er tippen soll. Angeschlagen bleibt; seit 25.11.2026 endet damit
+    // nicht mehr der Zug, sondern die Uhr läuft los (bewegen darf man noch).
+    const nicht = `<button class="ghost big" data-act="probe-verpatzt" data-id="${mine.id}">✗ Nicht geschafft</button>`;
     haupt = `<span class="dl-drei">${o.recoverFreeBtn}${nicht}${o.recoverBennyBtn || ""}</span>`;
     frage = `😵 Willenskraft oder Konstitution geschafft?`;
   } else if (isMyTurn && meinAngriff) {

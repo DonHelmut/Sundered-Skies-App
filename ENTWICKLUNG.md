@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (25.11.2026): 🩹 Heilen-Runde nach dem Kampf
+## 2.0.26 (25.11.2026): 🩹 Heilen-Runde nach dem Kampf
 
 - Kalle: „Nach einem fertigen Kampf soll der SL die Heilen-Runde einleiten …
   gewürfelt, ob die Wunden weggehen oder eine dauerhafte Beeinträchtigung
@@ -103,6 +103,51 @@ Details stehen in den einzelnen Abschnitten darunter.
   „Bis alle Wunden heil" verschwindet von selbst, egal wie geheilt wurde.
 - Neue Datei `web/static/heilen.js`. Tests: `tests/test_heilrunde.py`,
   `tests/browser/test_heilrunde_tisch.py` (Bilder mit `SWI_HEILEN_BILDER=<ordner>`).
+
+
+## 2.0.25 (25.11.2026): Uhr wartet auf die Erholungs-Probe
+
+Kalle: Ist ein Spieler zu Zugbeginn **angeschlagen**, darf die Zug-Uhr erst
+laufen, wenn die Probe entschieden ist – geschafft, Benny oder nicht geschafft.
+Vorher lief sie ab „Freigeben", und wer erst würfelte, verlor die Zeit.
+
+- Server (`game.py`): `_zug_uhr_starten()` bei Freigabe / Auto-Freigabe /
+  Eingreifen – angeschlagen (und 🩸-Funktion an) → `timer_ends_at = None`,
+  Merker `probe_wartet_id`. `_probe_pruefen()` läuft nach jeder Aktion: nicht
+  mehr angeschlagen (egal über welchen Weg) oder verpatzt → Uhr ab jetzt.
+- Neue Aktion `probe_verpatzt` (SL und Spieler, nur der Aktive): bleibt
+  angeschlagen, Uhr läuft, Zug geht weiter (bewegen). **„✗ Nicht geschafft"
+  am Handy beendet den Zug nicht mehr**, danach steht dort „Zug bestätigen";
+  Angreifen gibt es angeschlagen nicht.
+- SL-Leiste: neben „✓ erholt" ein „✗"; bleibt nach dem Tippen gesperrt stehen
+  (sonst rutschten 🪙/Treffer).
+- Erholen am Handy hielt die Uhr bisher ganz an (`_timer_anhalten`) – jetzt
+  startet sie stattdessen.
+- Zeichen „angeschlagen" (😵 → Linien-Symbol) neu: **Sterne, benommen**
+  (`benommen` in `symbole.js`, Kalle wählte C von A–E; Bild
+  `screenshots/angeschlagen-zeichen/vorschlaege.png` im Projekt). Nicht
+  gewählt: A Wirbel, B X-Augen, D Herz mit Riss, E Schild mit Riss.
+- Tests: `test_game.py` (Uhr wartet, drei Wege, vor Freigabe verpatzt),
+  `tests/browser/test_angeschlagen_uhr.py` (Handy + SL, nichts rutscht).
+## 2.0.25 (25.11.2026): Kampfbeginn → alle Handys auf ⚔ Kampf
+
+Kalle: „Wenn ein Kampf beginnt, sollen alle Handys auf den Reiter Kampf
+umspringen." Teilt der SL aus (Runde 0 → 1), springt jedes Handy **einmal je
+Kampf** auf ⚔ Kampf (`kampfReiterPruefen` in `spieler.js`). Wer danach wieder
+in Bogen/Notizen geht, bleibt dort – auch über Neuladen (gemerkter Reiter,
+Entscheidung 2C+5, bleibt gültig). Ein Handy, das diesen Kampf noch nicht
+kannte (neu beigetreten, beim Austeilen aus), landet beim Laden auf ⚔ Kampf.
+
+- Server zählt Kämpfe: `kampfNr` (+1 bei Runde 0 → 1, in der Sitzung
+  gespeichert). Handy merkt sich die zuletzt gesehene Nummer in
+  `localStorage.kampfReiterNr`. Vorher war ein Merker „Runde 0 gesehen" im
+  Client – der ging verloren, wenn `render()` gerade wegen einer
+  Aufdeck-Animation ausfiel (Test fand das).
+- Nicht ins Tippen hinein: Fokus in einem Feld, offener Dialog, Finger auf dem
+  Glas oder Schwung in der Zielwahl → erst danach umspringen (Timer prüft alle
+  0,7 s, zeichnet erst neu, wenn frei). Notiz-Entwurf bleibt erhalten.
+- Pausierte Spieler springen nicht; wer mitten im Kampf wieder reinkommt, schon.
+- Tests: `tests/test_kampf_nr.py`, `tests/browser/test_kampf_reiter.py`.
 
 
 ## Release automatisch nach dem Merge (25.11.2026)

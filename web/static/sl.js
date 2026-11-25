@@ -862,6 +862,10 @@ function renderAktionsleiste() {
   const mitWunden = funktionAn("wunden"), mitAngriff = funktionAn("angriff");
   const erholen = mitWunden && st.shaken && !st.out && gruppe.length === 1 ? `
       <button class="st-btn erholt-knopf" data-act="recover" data-id="${active.id}" data-benny="0" title="Probe geschafft (Willenskraft oder Konstitution): nicht mehr angeschlagen">✓ erholt</button>
+      ${/* Bleibt nach dem Tippen stehen (nur gesperrt) - sonst rutschten 🪙 und
+          Treffer nach links (Kalle: nichts darf springen). */ ""}
+      <button class="st-btn" data-act="probe-verpatzt" data-id="${active.id}" ${s.probeVerpatzt === active.id ? "disabled" : ""}
+        title="Probe verpatzt: bleibt angeschlagen, die Uhr läuft los">✗</button>
       ${bq ? `<button class="st-btn" data-act="recover" data-id="${active.id}" data-benny="1" ${bq.n > 0 ? "" : "disabled"}
         title="${bq.feind ? `Benny aus dem SL-Pool (${bq.n})` : `Eigenen Benny ausgeben (${bq.n})`} – sofort erholt">🪙</button>` : ""}` : "";
   const istNsc = active.kind === "npc";
