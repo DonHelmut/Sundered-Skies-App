@@ -112,6 +112,24 @@ def _figur_rueckseite(wert) -> Optional[str]:
     return None
 
 
+
+# Verletzungstabelle (SWADE): 2W6, bei Bauch und Kopf entscheidet ein W6.
+VERLETZUNG_DAUER = {"immer": "bleibt für immer", "wunden": "bis alle Wunden heil",
+                    "24h": "24 Stunden"}
+
+
+def verletzung_aus(summe: int, w6: int, seite: str = "rechter") -> tuple[str, str]:
+    """(Ort, Folge) zur Summe der 2W6 - menschliche Wörter statt Fachbegriffe."""
+    if summe <= 2:
+        return "Unterleib", "Schmerzhaft, sonst ohne Folgen"
+    if summe <= 4:
+        return "Arm", f"{seite.capitalize()} Arm nicht nutzbar"
+    if summe <= 9:
+        return "Bauch", ("Geschicklichkeit" if w6 <= 2 else "Konstitution" if w6 <= 4 else "Stärke") + " −1 Würfel"
+    if summe == 10:
+        return "Bein", "Humpelt: langsamer"
+    return "Kopf", ("Hässliche Narbe" if w6 <= 2 else "Ein Auge blind" if w6 <= 4 else "Verstand −1 Würfel")
+
 def default_status() -> dict:
     """Kampfzustand eines Teilnehmers: Angeschlagen / Wunden / Ausgeschaltet
     plus schnelle Zusatz-Zustände."""
@@ -499,6 +517,10 @@ class Game:
         # runter, bleibt bei 0 als „jetzt!" stehen, bis der SL ihn wegnimmt -
         # sonst verschwände der wichtigste Moment, bevor jemand ihn sieht.
         self.countdown: Optional[dict] = None
+        # 🩹 Heilen-Runde nach dem Kampf (Kalle, 25.11.2026, Variante A): der SL
+        # trägt K.O.-Probe, Heilen und Rast je Verletztem ein, die App würfelt
+        # die Verletzungstabelle. None = keine Heilen-Runde offen.
+        self.heilrunde: Optional[dict] = None
         self.auto_incap: bool = True       # zu viele Wunden -> automatisch K.O.
         self.statisten_ko: int = 3         # Statisten raus bei dieser Wunde (1-3)
         self.conditions_enabled: bool = True   # Zusatz-Zustaende ueberhaupt verwenden?
@@ -577,7 +599,7 @@ class Game:
         "roster", "bestiary", "allies", "encounters", "groups",
         "phase", "active_id", "timer_seconds", "timer_ends_at", "joker_active",
         "sound_enabled", "benny_start", "sl_bennies", "reshuffle_next",
-        "requests", "tv_image", "countdown", "probe_wartet_id", "probe_verpatzt_id",
+        "requests", "tv_image", "countdown", "probe_wartet_id", "probe_verpatzt_id", "heilrunde",
     )
 
     def _capture(self) -> dict:
@@ -870,6 +892,7 @@ class Game:
             "slBennies": self.sl_bennies,
             "groups": self.groups,
             "countdown": self.countdown,
+            "heilrunde": self.heilrunde,
         })
 
     def resume_session(self) -> bool:
@@ -931,6 +954,8 @@ class Game:
         self.benny_start = data.get("bennyStart", 3)
         self.sl_bennies = data.get("slBennies", 0)
         self.countdown = _countdown_sauber(data.get("countdown"))
+        hr = data.get("heilrunde")
+        self.heilrunde = hr if isinstance(hr, dict) and isinstance(hr.get("e"), dict) else None
         self.resume_available = False
         for c in self.combatants:
             c.setdefault("bennies", self.benny_start if c.get("isWildCard") else 0)
@@ -1160,6 +1185,7 @@ class Game:
             "bennyStart": self.benny_start,
             "slBennies": self.sl_bennies,
             "countdown": self.countdown,
+            "heilrunde": self.heilrunde,
             "autoIncap": self.auto_incap,
             "statistenKo": self.statisten_ko,
             "bennyToGm": self.benny_to_gm,
@@ -1316,7 +1342,7 @@ class Game:
             handler(action)
             self._probe_pruefen()
             self._offline_aufdecken()
-            if self._bennies_merken() or t == "benny_refresh":
+            if self._verletzungen_pruefen() or self._bennies_merken() or t == "benny_refresh":
                 self.save_roster()
             self.save_session()
 
@@ -1756,6 +1782,7 @@ class Game:
             "bennies": (int(char["bennies"]) if "bennies" in char else self._starting_bennies(char)) if is_wc else 0,
             "characterId": char.get("id"),
             "bogen": char.get("bogen"),
+            "verletzungen": list(char.get("verletzungen") or []),
             "playerId": player_id,
             "card": None,
             "held": False,
@@ -2222,6 +2249,194 @@ class Game:
             if c.get("playerId"):
                 self._do_message({"target": c["playerId"], "sender": "kampf", "art": "geheilt",
                                   "text": "🩹 Der Spielleiter heilt euch\nKeine Wunden mehr – du bist wieder fit"})
+
+    # 🩹 Heilen-Runde ------------------------------------------------------------
+    # Nach dem Kampf (Kalle, 25.11.2026, aus Varianten A gewählt): eine Karte je
+    # verletztem Spieler. Regeln nach SWADE: Heilen nur in der Goldenen Stunde,
+    # jeder Heiler EINMAL pro Patient, Erfolg −1 Wunde, Steigerung −2, ein K.O.
+    # wird zuerst aufgeweckt. Wer außer Gefecht ist, würfelt Konstitution: danach
+    # kommt die Verletzungstabelle, und das Ergebnis der Probe sagt, wie lange
+    # sie bleibt. Später alle 5 Tage Rast: Konstitution, Patzer = +1 Wunde.
+    # Gewürfelt wird am Tisch mit echten Würfeln - nur die Verletzungstabelle
+    # würfelt die App (der Moment soll für alle gleich ablaufen).
+
+    def _heil_eintrag(self, cid) -> Optional[dict]:
+        hr = self.heilrunde
+        return hr["e"].get(cid) if hr and cid in hr.get("e", {}) else None
+
+    def _heil_log(self, e: dict, text: str) -> None:
+        e.setdefault("log", []).append(text)
+        del e["log"][:-6]
+
+    def _verletzung_meldung(self, c: dict, text: str) -> None:
+        if c.get("kind") == "player" and c.get("playerId"):
+            self._do_message({"target": c["playerId"], "sender": "kampf", "art": "geheilt", "text": text})
+
+    def _wunden_text(self, st: dict) -> str:
+        w = st.get("wounds", 0)
+        if st.get("out"):
+            return "Noch außer Gefecht"
+        return f"Noch {w} Wunde{'n' if w > 1 else ''} · −{min(w, 3)} auf Proben" if w else "Keine Wunden mehr"
+
+    def _verletzungen_setzen(self, c: dict, liste: list) -> None:
+        """Verletzungen an Figur UND Charakter: sie sollen den Abend überstehen
+        (Neustart, Neu-Beitritt) - wie der Charakterbogen."""
+        c["verletzungen"] = liste
+        char = next((r for r in self.roster if r.get("id") == c.get("characterId")), None)
+        if char is not None:
+            char["verletzungen"] = copy.deepcopy(liste)
+            self.save_roster()
+
+    def _verletzungen_pruefen(self) -> bool:
+        """„Bis alle Wunden heil": sind alle Wunden weg (und die Figur wach),
+        verschwindet die Verletzung von selbst - egal auf welchem Weg geheilt
+        wurde (Heilen-Runde, 🩹 Heilung, Alle heilen, ⋯-Feld)."""
+        geaendert = False
+        for c in self.combatants:
+            liste = c.get("verletzungen") or []
+            st = c.get("status") or {}
+            if not liste or st.get("wounds", 0) or st.get("out"):
+                continue
+            bleibt = [v for v in liste if v.get("dauer") != "wunden"]
+            if len(bleibt) != len(liste):
+                weg = [v for v in liste if v.get("dauer") == "wunden"]
+                self._verletzungen_setzen(c, bleibt)
+                for v in weg:
+                    self._verletzung_meldung(c, f"✨ {v.get('ort')} ist verheilt")
+                geaendert = True
+        return geaendert
+
+    def _do_heilrunde_start(self, a: dict) -> None:
+        ids = [c["id"] for c in self.combatants if c.get("kind") == "player" and not c.get("benched")
+               and ((c.get("status") or {}).get("out") or (c.get("status") or {}).get("wounds", 0))]
+        # Der Kampf ist vorbei: „Angeschlagen" hat keine Bedeutung mehr.
+        for c in self.combatants:
+            if c.get("kind") == "player":
+                c.setdefault("status", default_status())["shaken"] = False
+        if not ids:
+            return
+        self.heilrunde = {"goldene": True, "rast": 0, "ids": ids,
+                          "e": {cid: {"heiler": [], "ko": None, "verl": False, "blutet": False,
+                                      "rastErg": None, "log": []} for cid in ids}}
+
+    def _do_heilrunde_ende(self, a: dict) -> None:
+        self.heilrunde = None
+
+    def _do_heilrunde_goldene(self, a: dict) -> None:
+        if self.heilrunde:
+            self.heilrunde["goldene"] = not self.heilrunde.get("goldene")
+
+    def _do_heil_ko(self, a: dict) -> None:
+        """Konstitution-Probe für den Außer-Gefecht (am Tisch gewürfelt)."""
+        c = self._combatant(a.get("id"))
+        e = self._heil_eintrag(a.get("id"))
+        erg = a.get("erg")
+        if not c or not e or e.get("ko") or erg not in ("patzer", "nein", "ja", "steig"):
+            return
+        e["ko"] = erg
+        if erg == "nein":
+            e["blutet"] = True   # SWADE: Fehlschlag = verblutet, bis jemand heilt
+        self._heil_log(e, {"patzer": "☠ Patzer bei der Konstitution", "nein": "Konstitution nicht geschafft",
+                           "ja": "Konstitution geschafft", "steig": "Konstitution mit Steigerung"}[erg])
+
+    def _do_heil_verletzung(self, a: dict) -> None:
+        """Verletzungstabelle (2W6, bei Bauch/Kopf noch ein W6) - würfelt die App."""
+        c = self._combatant(a.get("id"))
+        e = self._heil_eintrag(a.get("id"))
+        if not c or not e or e.get("verl") or e.get("ko") not in ("nein", "ja", "steig"):
+            return
+        import random
+        w = [random.randint(1, 6), random.randint(1, 6)]
+        zusatz = random.randint(1, 6)
+        ort, folge = verletzung_aus(w[0] + w[1], zusatz, random.choice(("linker", "rechter")))
+        dauer = {"nein": "immer", "ja": "wunden", "steig": "24h"}[e["ko"]]
+        v = {"id": _new_id("verl"), "ort": ort, "folge": folge, "dauer": dauer,
+             "wurf": w, "zusatz": zusatz if w[0] + w[1] in (5, 6, 7, 8, 9, 11, 12) else None,
+             "seit": now_ms()}
+        e["verl"] = True
+        e["verletzung"] = v
+        self._verletzungen_setzen(c, list(c.get("verletzungen") or []) + [v])
+        self._heil_log(e, f"🦴 {ort}")
+        self._verletzung_meldung(c, f"🦴 Verletzung: {ort}\n{folge} · {VERLETZUNG_DAUER[dauer]}")
+
+    def _do_heil_wurf(self, a: dict) -> None:
+        """Heilen-Probe eines Heilers (Goldene Stunde, je Heiler einmal)."""
+        c = self._combatant(a.get("id"))
+        h = self._combatant(a.get("heiler"))
+        e = self._heil_eintrag(a.get("id"))
+        erg = a.get("erg")
+        if (not c or not h or not e or not self.heilrunde.get("goldene")
+                or h["id"] in e["heiler"] or erg not in ("nein", "1", "2")):
+            return
+        e["heiler"].append(h["id"])
+        st = c.setdefault("status", default_status())
+        if erg == "nein":
+            self._heil_log(e, f"{h['name']}: nicht geschafft")
+            return
+        e["blutet"] = False
+        if st.get("out"):
+            st["out"] = False
+            text = f"🩹 {h['name']} holt dich zurück\n{self._wunden_text(st)}"
+            self._heil_log(e, f"✓ {h['name']} hat dich geweckt")
+        else:
+            st["wounds"] = max(0, st.get("wounds", 0) - int(erg))
+            text = f"🩹 {h['name']} hat dich geheilt\n{self._wunden_text(st)}"
+            self._heil_log(e, f"✓ {h['name']} hat geheilt")
+        self._verletzung_meldung(c, text)
+
+    def _do_heil_rast(self, a: dict) -> None:
+        """🌙 5 Tage Rast: Goldene Stunde vorbei, neue Konstitution-Runde, und
+        Verletzungen „24 Stunden" sind sicher weg."""
+        hr = self.heilrunde
+        if not hr:
+            return
+        hr["goldene"] = False
+        hr["rast"] = int(hr.get("rast", 0)) + 1
+        for cid, e in hr["e"].items():
+            e["rastErg"] = None
+            c = self._combatant(cid)
+            if c and any(v.get("dauer") == "24h" for v in c.get("verletzungen") or []):
+                self._verletzungen_setzen(c, [v for v in c["verletzungen"] if v.get("dauer") != "24h"])
+                self._verletzung_meldung(c, "✨ Deine Verletzung ist verheilt")
+
+    def _do_heil_rast_wurf(self, a: dict) -> None:
+        """Natürliche Heilung (Konstitution): Steigerung zwei Stufen, Erfolg
+        eine (Wunde oder K.O.), Patzer eine Wunde mehr."""
+        c = self._combatant(a.get("id"))
+        e = self._heil_eintrag(a.get("id"))
+        erg = a.get("erg")
+        if not c or not e or not self.heilrunde.get("rast") or e.get("rastErg") or erg not in ("patzer", "nein", "1", "2"):
+            return
+        e["rastErg"] = erg
+        st = c.setdefault("status", default_status())
+        if erg == "patzer":
+            if st.get("wounds", 0) >= max_wounds(c, self.statisten_ko):
+                st["out"] = True
+            else:
+                st["wounds"] = st.get("wounds", 0) + 1
+            self._heil_log(e, "Rast: Patzer, +1 Wunde")
+            self._verletzung_meldung(c, f"🌙 Rast: schlechter geworden\n{self._wunden_text(st)}")
+            return
+        if erg == "nein":
+            self._heil_log(e, "Rast: keine Besserung")
+            return
+        for _ in range(int(erg)):
+            if st.get("out"):
+                st["out"] = False
+            elif st.get("wounds", 0):
+                st["wounds"] -= 1
+        self._heil_log(e, "✓ Rast hat geholfen")
+        self._verletzung_meldung(c, f"🌙 Die Rast tut gut\n{self._wunden_text(st)}")
+
+    def _do_verletzung_weg(self, a: dict) -> None:
+        """SL nimmt eine Verletzung von Hand weg (z. B. Wunderheilung)."""
+        c = self._combatant(a.get("id"))
+        if not c:
+            return
+        liste = c.get("verletzungen") or []
+        bleibt = [v for v in liste if v.get("id") != a.get("vid")]
+        if len(bleibt) != len(liste):
+            self._verletzungen_setzen(c, bleibt)
 
     def _do_recover(self, a: dict) -> None:
         """Erholung von „Angeschlagen": entweder frei (bestandene Probe am Tisch -

@@ -4226,3 +4226,49 @@ body.sl-ansicht .al-haupt [data-act=release], body.sl-ansicht .al-haupt [data-ac
   letter-spacing: .06em; text-transform: uppercase; }
 .join-form > .join-spieler:first-child, .join-form .join-spieler + .join-titel { margin-top: 4px; }
 .join-form .join-spieler + .join-titel { margin-top: 16px; }
+
+/* 🩹 Heilen-Runde (Kalle, 25.11.2026, Variante A) – heilen.js.
+   Karten in fester Reihenfolge, Ergebnisse als große Knöpfe: der SL tippt nur,
+   was am Tisch gewürfelt wurde. Farben aus den Skin-Variablen. */
+.hr { display: grid; gap: 10px; }
+.hr-kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hr-titel { font-family: var(--schrift-titel); font-weight: 700; font-size: 1.15rem; color: var(--accent); letter-spacing: .04em; }
+.hr-spacer { flex: 1; }
+.hr-uhr { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-weight: 700; font-size: .85rem;
+  border: 1px solid var(--gold); color: var(--gold);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 22%, transparent), color-mix(in srgb, var(--gold) 8%, transparent)); }
+.hr-uhr.aus { border-color: var(--line); color: var(--muted); background: transparent; }
+.hr-karte { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 70%, white 30%), var(--panel)); }
+.hr-karte.ko { border-color: var(--bad); box-shadow: inset 4px 0 0 var(--bad); }
+.hr-karte.fertig { opacity: .72; }
+.hr-name { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.02rem; }
+.hr-bild { width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center; font-size: .75rem; object-fit: cover;
+  background: var(--bg2); color: var(--text); border: 2px solid var(--accent); }
+.hr-pips { display: inline-flex; gap: 4px; margin-left: 2px; }
+.hr-pips b { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--bad); }
+.hr-pips b.v { background: var(--bad); }
+.hr-ko { color: var(--bad); font-weight: 800; font-size: .85rem; }
+.hr-schritt { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hr-was { min-width: 150px; font-weight: 700; font-size: .92rem; }
+.hr-was small { color: var(--muted); font-weight: 700; margin-left: 4px; }
+.hr-erg { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.hr-erg button { min-height: 38px; padding: 6px 12px; border-radius: 10px; font-weight: 700; font-size: .88rem;
+  border: 1px solid var(--line); background: var(--input-bg); color: var(--text); }
+.hr-erg button.patzer { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); }
+.hr-erg button.gut { color: var(--good); border-color: color-mix(in srgb, var(--good) 55%, var(--line)); }
+.hr-erg button.top { background: var(--good); color: #fff; border-color: var(--good); }
+.hr-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: .82rem; font-weight: 700;
+  border: 1px solid var(--line); background: var(--input-bg); color: var(--text); min-height: 30px; }
+button.hr-chip.heiler { cursor: pointer; }
+button.hr-chip.heiler.an { border-color: var(--good); color: var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+button.hr-chip.heiler.weg { opacity: .45; text-decoration: line-through; }
+button.hr-chip.heiler:disabled { cursor: default; }
+.hr-chip.verl { border-color: var(--bad); color: var(--bad); }
+.hr-chip.tot { border-color: var(--bad); color: #fff; background: var(--bad); }
+.hr-chip.ok { border-color: var(--good); color: var(--good); }
+.hr-x { border: 0; background: transparent; color: inherit; padding: 0 0 0 4px; font-weight: 800; cursor: pointer; min-height: 0; }
+.hr-wurf { font-weight: 800; font-size: .95rem; color: var(--text); padding: 3px 10px; border-radius: 8px; border: 1px dashed var(--line); }
+.hr-grau { color: var(--muted); font-size: .85rem; font-weight: 600; }
+.hr-marken { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.tag.verl-tag { color: var(--bad); border-color: var(--bad); }

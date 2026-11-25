@@ -515,6 +515,7 @@ document.addEventListener("click", (e) => {
     "sl-benny-minus": () => gmAction({ type: "sl_benny_adjust", delta: -1 }),
   };
   if (handlers[act]) { e.preventDefault(); handlers[act](); }
+  else if (typeof heilKlick === "function" && heilKlick(act, target)) e.preventDefault();
   // Rechtsklick-Menü: nach der Aktion zu (außer „bleibt"-Knöpfe).
   if (App.kontextMenue && target.closest(".kontext-menue") && !target.classList.contains("km-bleibt")) kontextMenueZu();
 });
