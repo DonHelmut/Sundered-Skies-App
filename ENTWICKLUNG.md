@@ -77,6 +77,26 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nach 2.0.24 (25.11.2026): Kampfbeginn → alle Handys auf ⚔ Kampf
+
+Kalle: „Wenn ein Kampf beginnt, sollen alle Handys auf den Reiter Kampf
+umspringen." Teilt der SL aus (Runde 0 → 1), springt jedes Handy **einmal je
+Kampf** auf ⚔ Kampf (`kampfReiterPruefen` in `spieler.js`). Wer danach wieder
+in Bogen/Notizen geht, bleibt dort – auch über Neuladen (gemerkter Reiter,
+Entscheidung 2C+5, bleibt gültig). Ein Handy, das diesen Kampf noch nicht
+kannte (neu beigetreten, beim Austeilen aus), landet beim Laden auf ⚔ Kampf.
+
+- Server zählt Kämpfe: `kampfNr` (+1 bei Runde 0 → 1, in der Sitzung
+  gespeichert). Handy merkt sich die zuletzt gesehene Nummer in
+  `localStorage.kampfReiterNr`. Vorher war ein Merker „Runde 0 gesehen" im
+  Client – der ging verloren, wenn `render()` gerade wegen einer
+  Aufdeck-Animation ausfiel (Test fand das).
+- Nicht ins Tippen hinein: Fokus in einem Feld, offener Dialog, Finger auf dem
+  Glas oder Schwung in der Zielwahl → erst danach umspringen (Timer prüft alle
+  0,7 s, zeichnet erst neu, wenn frei). Notiz-Entwurf bleibt erhalten.
+- Pausierte Spieler springen nicht; wer mitten im Kampf wieder reinkommt, schon.
+- Tests: `tests/test_kampf_nr.py`, `tests/browser/test_kampf_reiter.py`.
+
 ## 2.0.24 (25.11.2026): Aufgeräumt – Erklärtexte raus
 
 - Kalle: „unnötiger AI Slop – braucht niemand so unnötige Erklärungen …

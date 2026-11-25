@@ -472,6 +472,10 @@ class Game:
         self.requests: list[dict] = []      # Spieler-Anfragen an den SL
         self.tv_image: Optional[dict] = None  # Bild großflächig auf dem TV/Beamer
         self.round: int = 0
+        # Zählt jeden Kampfbeginn (Runde 0 -> 1). Die Handys springen damit
+        # einmal je Kampf auf ⚔ Kampf und erkennen auch nach Neuladen, ob sie
+        # diesen Kampf schon kannten (Kalle, 25.11.2026).
+        self.kampf_nr: int = 0
         self.deck: list[dict] = engine.shuffle(engine.full_deck())
         self.discard: list[dict] = []
         self.phase: str = "idle"           # idle | running | gate
@@ -847,6 +851,7 @@ class Game:
             "requests": self.requests,
             "tvImage": self.tv_image,
             "round": self.round,
+            "kampfNr": self.kampf_nr,
             "deck": self.deck,
             "discard": self.discard,
             "phase": self.phase,
@@ -907,6 +912,7 @@ class Game:
         self.tv_image = data.get("tvImage")
         self.messages = data.get("messages", [])
         self.round = data.get("round", 0)
+        self.kampf_nr = data.get("kampfNr", 0)
         self.deck = data.get("deck") or engine.shuffle(engine.full_deck())
         self.discard = data.get("discard", [])
         self.phase = "gate" if data.get("phase") == "running" else data.get("phase", "idle")
@@ -1135,6 +1141,7 @@ class Game:
         return {
             "serverNow": now_ms(),   # zum Ausgleich von Uhren-Versatz der Clients
             "round": self.round,
+            "kampfNr": self.kampf_nr,
             "phase": self.phase,
             "activeId": self.active_id,
             "timerSeconds": self.timer_seconds,
@@ -2362,6 +2369,8 @@ class Game:
         if dm.joker_drawn:
             self.joker_flash += 1
             self.reshuffle_next = True
+        if self.round == 0:
+            self.kampf_nr += 1
         if new_round:
             self.round += 1
             self._effekte_runterzaehlen()
