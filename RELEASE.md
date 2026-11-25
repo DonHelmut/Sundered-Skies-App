@@ -9,7 +9,7 @@
 **Kampf**
 - Beginnt ein Kampf, springen alle Handys einmal auf ⚔ Kampf. Wer danach zu Bogen oder Notizen wechselt, bleibt dort. Wer gerade tippt, wird nicht unterbrochen.
 - Angeschlagen zu Zugbeginn: Die Zug-Uhr läuft erst, wenn die Erholungs-Probe entschieden ist (geschafft, Benny oder nicht geschafft).
-- „Nicht geschafft“ beendet den Zug nicht mehr: bewegen geht, angreifen nicht.
+- „Nicht geschafft“ beendet den Zug nicht mehr: bewegen geht, angreifen nicht. Der Spielleiter hat dafür neben „✓ erholt“ ein „✗“.
 - Neues Zeichen für „angeschlagen“: Sterne.
 
 **Aktualisieren:** In der App auf „Jetzt aktualisieren“ tippen. Deine Daten (Charaktere, Bibliotheken, Spielstand) bleiben erhalten.
