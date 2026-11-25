@@ -480,13 +480,14 @@ def test_bedienbarkeit_runde_2026_11_15(tisch):
     assert "Übernehmen" in sl.page.inner_text(".anfragen-schweb .req-ja")
     sl.locator(".anfragen-schweb .req-ja").click()
     sl.warte_bis("(id) => App.state.combatants.find(c => c.id === id).status.wounds === 1", tessa["id"])
-    # Handy angeschlagen am Zug: „Nicht geschafft" beendet den Zug.
+    # Handy angeschlagen am Zug: „Nicht geschafft" startet die Uhr (seit
+    # 25.11.2026 - vorher beendete es den Zug), der Zug bleibt beim Spieler.
     tisch.gm({"type": "set_active", "id": tessa["id"]})
     tisch.gm({"type": "release"})
-    h.warte_bis("() => !!document.querySelector('.dl-drei [data-act=confirm-turn]')", frist=8000)
+    h.warte_bis("() => !!document.querySelector('.dl-drei [data-act=probe-verpatzt]')", frist=8000)
     h.wait_for_timeout(750)
-    h.locator(".dl-drei [data-act=confirm-turn]").click()
-    sl.warte_bis("(id) => App.state.activeId !== id", tessa["id"])
+    h.locator(".dl-drei [data-act=probe-verpatzt]").click()
+    sl.warte_bis("(id) => App.state.probeVerpatzt === id && App.state.activeId === id", tessa["id"])
 
 
 def test_notizen_studio_runde_2026_11_16(tisch):

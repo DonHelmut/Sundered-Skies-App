@@ -58,7 +58,9 @@ function renderPlayer() {
   // ohne Angriff. Ohne Anfragen-System (SL hat es abgeschaltet) wie früher.
   const meinAngriff = (s.requests || []).find((r) => r.kind === "attack" && r.combatantId === mine.id);
   // Eigener Schalter (Kampf-Einstellungen), unabhängig vom Anfragen-System.
-  const angriffMoeglich = isMyTurn && s.spielerAngriff !== false && funktionAn("angriff");
+  // Angeschlagen (Probe verpatzt) darf man nicht angreifen, nur bewegen.
+  const angriffMoeglich = isMyTurn && s.spielerAngriff !== false && funktionAn("angriff")
+    && !(funktionAn("wunden") && (mine.status || {}).shaken);
   const angriffZiel = meinAngriff && s.combatants.find((c) => c.id === (meinAngriff.detail || {}).targetId);
   const angriffBtn = !angriffMoeglich ? ""
     : meinAngriff
@@ -77,7 +79,9 @@ function renderPlayer() {
   // oder Konstitution - Stefan: am Tisch geht beides).
   const binDran = s.activeId === mine.id;
   // Erholen ist keine Anfrage mehr (gilt sofort) - geht auch ohne Anfragen.
-  const canRecover = binDran && funktionAn("wunden") && mySt.shaken && !mySt.out;
+  // Nach „✗ Nicht geschafft" ist die Probe für diesen Zug entschieden: dann
+  // läuft die Uhr, und unten steht nur noch „Zug beenden".
+  const canRecover = binDran && funktionAn("wunden") && mySt.shaken && !mySt.out && s.probeVerpatzt !== mine.id;
   const recoverFreeBtn = canRecover
     ? `<button class="primary big" data-act="player-request" data-kind="status" data-detail='{"shaken":false}' data-label="ist nicht mehr angeschlagen">✓ Geschafft</button>`
     : "";
@@ -1100,8 +1104,9 @@ function daumenKnopf(o) {
     // kleiner Neben-Knopf war „Benny ausgeben" winzig und „Erholt" dreizeilig.
     // Dritter Weg „Nicht geschafft" (Bedienbarkeit 15.11.2026, Vorschlag 6):
     // vorher gab es keinen Knopf dafür - wer die Probe verpatzte, wusste nicht,
-    // was er tippen soll. Angeschlagen bleibt, der Zug ist vorbei.
-    const nicht = `<button class="ghost big" data-act="confirm-turn" title="Probe verpatzt: bleibt angeschlagen, Zug ist vorbei">✗ Nicht geschafft</button>`;
+    // was er tippen soll. Angeschlagen bleibt; seit 25.11.2026 endet damit
+    // nicht mehr der Zug, sondern die Uhr läuft los (bewegen darf man noch).
+    const nicht = `<button class="ghost big" data-act="probe-verpatzt" data-id="${mine.id}">✗ Nicht geschafft</button>`;
     haupt = `<span class="dl-drei">${o.recoverFreeBtn}${nicht}${o.recoverBennyBtn || ""}</span>`;
     frage = `😵 Willenskraft oder Konstitution geschafft?`;
   } else if (isMyTurn && meinAngriff) {

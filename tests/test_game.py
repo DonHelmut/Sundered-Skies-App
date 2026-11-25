@@ -653,8 +653,9 @@ def test_erholen_vom_handy_gilt_sofort(fresh_game):
     assert c["status"]["shaken"] is True and len(fresh_game.effekt_meldungen) == anzahl
 
 
-def test_timer_haelt_bei_angriff_und_erholen(fresh_game):
-    """Wer angreift oder sich erholt, muss würfeln - die Zug-Uhr hält an."""
+def test_timer_haelt_bei_angriff(fresh_game):
+    """Wer angreift, muss würfeln - die Zug-Uhr hält an. (Erholen: siehe
+    test_angeschlagen_uhr_wartet_auf_probe.)"""
     fresh_game.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
     fresh_game.apply({"type": "add_from_roster", "id": fresh_game.roster[-1]["id"]})
     held = fresh_game.combatants[-1]
@@ -675,15 +676,87 @@ def test_timer_haelt_bei_angriff_und_erholen(fresh_game):
                       "detail": {"targetId": feind["id"]}})
     assert fresh_game.timer_ends_at is None
 
-    dran_mit_uhr()
-    fresh_game.apply({"type": "set_status", "id": held["id"], "shaken": True})
-    fresh_game.apply({"type": "request", "combatantId": held["id"], "kind": "status", "detail": {"shaken": False}})
-    assert fresh_game.timer_ends_at is None
-
     # Wer NICHT dran ist, hält fremde Uhren nicht an.
     dran_mit_uhr()
     fresh_game.apply({"type": "timer_halt", "id": feind["id"]})
     assert fresh_game.timer_ends_at is not None
+
+
+def _angeschlagen_dran(g):
+    g.apply({"type": "roster_upsert", "name": "Held", "isWildCard": True})
+    g.apply({"type": "add_from_roster", "id": g.roster[-1]["id"]})
+    held = g.combatants[-1]
+    held["bennies"] = 2
+    feind = _add_npc(g, "Feind")
+    g.apply({"type": "new_round"})
+
+    def dran():
+        g.apply({"type": "set_status", "id": held["id"], "shaken": True})
+        g.apply({"type": "set_active", "id": held["id"]})
+        g.apply({"type": "release"})
+    return held, feind, dran
+
+
+def test_angeschlagen_uhr_wartet_auf_probe(fresh_game):
+    """Kalle, 25.11.2026: Angeschlagen zu Zugbeginn - die Uhr startet erst,
+    wenn die Probe entschieden ist (geschafft, Benny oder verpatzt)."""
+    g = fresh_game
+    held, _, dran = _angeschlagen_dran(g)
+
+    # Geschafft (vom Handy)
+    dran()
+    assert g.phase == "running" and g.timer_ends_at is None
+    assert g.snapshot()["probeWartet"] == held["id"]
+    g.apply({"type": "request", "combatantId": held["id"], "kind": "status", "detail": {"shaken": False}})
+    assert g.timer_ends_at is not None and g.probe_wartet_id is None
+
+    # Benny (vom Handy)
+    dran()
+    assert g.timer_ends_at is None
+    g.apply({"type": "request", "combatantId": held["id"], "kind": "recover", "detail": {"benny": True}})
+    assert g.timer_ends_at is not None and held["bennies"] == 1
+
+    # Erholt per SL-Leiste
+    dran()
+    g.apply({"type": "recover", "id": held["id"]})
+    assert g.timer_ends_at is not None
+
+    # Verpatzt: bleibt angeschlagen, Uhr läuft, Zug geht weiter
+    dran()
+    g.apply({"type": "probe_verpatzt", "id": held["id"]})
+    assert held["status"]["shaken"] is True
+    assert g.timer_ends_at is not None and g.active_id == held["id"] and g.phase == "running"
+    assert g.snapshot()["probeVerpatzt"] == held["id"]
+
+
+def test_probe_verpatzt_vor_freigabe_und_naechster_zug(fresh_game):
+    g = fresh_game
+    held, feind, dran = _angeschlagen_dran(g)
+    # Schon vor der Freigabe verpatzt -> Freigabe startet die Uhr sofort.
+    g.apply({"type": "set_status", "id": held["id"], "shaken": True})
+    g.apply({"type": "set_active", "id": held["id"]})
+    g.apply({"type": "probe_verpatzt", "id": held["id"]})
+    g.apply({"type": "release"})
+    assert g.timer_ends_at is not None
+    # Nächster Zug räumt den Merker ab; wer nicht dran ist, kann nicht verpatzen.
+    g.apply({"type": "confirm_turn"})
+    assert g.probe_verpatzt_id is None
+    g.apply({"type": "probe_verpatzt", "id": held["id"]})
+    assert g.probe_verpatzt_id is None
+
+
+def test_nicht_angeschlagen_uhr_wie_immer(fresh_game):
+    g = fresh_game
+    held, _, _ = _angeschlagen_dran(g)
+    g.apply({"type": "set_active", "id": held["id"]})
+    g.apply({"type": "release"})
+    assert g.timer_ends_at is not None and g.probe_wartet_id is None
+    # Wunden-Funktion aus: kein Warten, auch wenn angeschlagen.
+    g.apply({"type": "set_status", "id": held["id"], "shaken": True})
+    g.funktionen["wunden"] = False
+    g.apply({"type": "set_active", "id": held["id"]})
+    g.apply({"type": "release"})
+    assert g.timer_ends_at is not None
 
 
 def test_spieler_angriff_eigener_schalter(fresh_game):

@@ -77,6 +77,27 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nächste Version (25.11.2026): Uhr wartet auf die Erholungs-Probe
+
+Kalle: Ist ein Spieler zu Zugbeginn **angeschlagen**, darf die Zug-Uhr erst
+laufen, wenn die Probe entschieden ist – geschafft, Benny oder nicht geschafft.
+Vorher lief sie ab „Freigeben", und wer erst würfelte, verlor die Zeit.
+
+- Server (`game.py`): `_zug_uhr_starten()` bei Freigabe / Auto-Freigabe /
+  Eingreifen – angeschlagen (und 🩸-Funktion an) → `timer_ends_at = None`,
+  Merker `probe_wartet_id`. `_probe_pruefen()` läuft nach jeder Aktion: nicht
+  mehr angeschlagen (egal über welchen Weg) oder verpatzt → Uhr ab jetzt.
+- Neue Aktion `probe_verpatzt` (SL und Spieler, nur der Aktive): bleibt
+  angeschlagen, Uhr läuft, Zug geht weiter (bewegen). **„✗ Nicht geschafft"
+  am Handy beendet den Zug nicht mehr**, danach steht dort „Zug bestätigen";
+  Angreifen gibt es angeschlagen nicht.
+- SL-Leiste: neben „✓ erholt" ein „✗"; bleibt nach dem Tippen gesperrt stehen
+  (sonst rutschten 🪙/Treffer).
+- Erholen am Handy hielt die Uhr bisher ganz an (`_timer_anhalten`) – jetzt
+  startet sie stattdessen.
+- Tests: `test_game.py` (Uhr wartet, drei Wege, vor Freigabe verpatzt),
+  `tests/browser/test_angeschlagen_uhr.py` (Handy + SL, nichts rutscht).
+
 ## 2.0.24 (25.11.2026): Aufgeräumt – Erklärtexte raus
 
 - Kalle: „unnötiger AI Slop – braucht niemand so unnötige Erklärungen …

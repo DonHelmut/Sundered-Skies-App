@@ -1207,6 +1207,10 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
         elif atype == "intervene" and action.get("id") == own["id"]:
             game.apply({"type": "intervene", "id": own["id"]})
             await hub.broadcast_state()
+        elif atype == "probe_verpatzt" and game.active_id == own["id"]:
+            # „✗ Nicht geschafft": nur die eigene Probe, nur wenn man dran ist.
+            game.apply({"type": "probe_verpatzt", "id": own["id"]})
+            await hub.broadcast_state()
         elif atype == "timer_halt":
             # Spieler hat „Angreifen" getippt: eigene Uhr anhalten (nur wenn dran).
             game.apply({"type": "timer_halt", "id": own["id"]})

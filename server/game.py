@@ -478,6 +478,12 @@ class Game:
         self.active_id: Optional[str] = None
         self.timer_seconds: int = 6        # wird gleich aus Einstellungen überschrieben
         self.timer_ends_at: Optional[int] = None
+        # Angeschlagen zu Zugbeginn (Kalle, 25.11.2026): die Uhr startet erst,
+        # wenn die Erholungs-Probe entschieden ist - geschafft, Benny oder
+        # verpatzt. Vorher lief sie ab der Freigabe, und wer erst würfelte,
+        # hatte für den eigentlichen Zug kaum noch Zeit.
+        self.probe_wartet_id: Optional[str] = None    # wessen Uhr auf die Probe wartet
+        self.probe_verpatzt_id: Optional[str] = None  # wer sie in diesem Zug verpatzt hat
         self.joker_active: bool = False
         self.joker_flash: int = 0          # zählt bei jedem Joker-Zug hoch (für Effekt)
         self.reshuffle_next: bool = False  # nach Joker: vor nächster Runde komplett mischen
@@ -567,7 +573,7 @@ class Game:
         "roster", "bestiary", "allies", "encounters", "groups",
         "phase", "active_id", "timer_seconds", "timer_ends_at", "joker_active",
         "sound_enabled", "benny_start", "sl_bennies", "reshuffle_next",
-        "requests", "tv_image", "countdown",
+        "requests", "tv_image", "countdown", "probe_wartet_id", "probe_verpatzt_id",
     )
 
     def _capture(self) -> dict:
@@ -1139,6 +1145,8 @@ class Game:
             "activeId": self.active_id,
             "timerSeconds": self.timer_seconds,
             "timerEndsAt": self.timer_ends_at,
+            "probeWartet": self.probe_wartet_id,
+            "probeVerpatzt": self.probe_verpatzt_id,
             "jokerActive": self.joker_active,
             "jokerFlash": self.joker_flash,
             "soundEnabled": self.sound_enabled,
@@ -1299,6 +1307,7 @@ class Game:
                 # Zustand vor der Änderung sichern (für Rückgängig).
                 self._push_history()
             handler(action)
+            self._probe_pruefen()
             self._offline_aufdecken()
             if self._bennies_merken() or t == "benny_refresh":
                 self.save_roster()
@@ -2762,7 +2771,7 @@ class Game:
             if self.active_id is None:
                 return
         self.phase = "running"
-        self.timer_ends_at = self._uhr_ab_jetzt()
+        self._zug_uhr_starten()
 
     def _uhr_ab_jetzt(self) -> Optional[int]:
         """Ende der Zug-Uhr ab jetzt - oder keine Uhr, wenn der SL den Timer
@@ -2770,6 +2779,45 @@ class Game:
         if not self.funktionen.get("timer", True):
             return None
         return now_ms() + self.timer_seconds * 1000
+
+    def _zug_uhr_starten(self) -> None:
+        """Zug läuft los: Uhr ab jetzt - außer der Aktive ist angeschlagen und
+        muss erst die Erholungs-Probe würfeln. Dann wartet die Uhr, bis sie
+        entschieden ist (_probe_pruefen)."""
+        c = self._combatant(self.active_id) if self.active_id else None
+        st = (c or {}).get("status") or {}
+        if (c and self.funktion("wunden") and st.get("shaken") and not st.get("out")
+                and self.probe_verpatzt_id != c["id"]):
+            self.probe_wartet_id = c["id"]
+            self.timer_ends_at = None
+        else:
+            self.probe_wartet_id = None
+            self.timer_ends_at = self._uhr_ab_jetzt()
+
+    def _probe_pruefen(self) -> None:
+        """Nach jeder Aktion: ist die Probe des Aktiven entschieden (nicht mehr
+        angeschlagen - egal ob per Probe, Benny oder SL-Menü - oder verpatzt),
+        startet seine Uhr. Ein anderer Zug räumt beide Merker ab."""
+        if self.probe_verpatzt_id and self.probe_verpatzt_id != self.active_id:
+            self.probe_verpatzt_id = None
+        pid = self.probe_wartet_id
+        if pid is None:
+            return
+        if self.phase != "running" or self.active_id != pid:
+            self.probe_wartet_id = None
+            return
+        st = (self._combatant(pid) or {}).get("status") or {}
+        if not st.get("shaken") or st.get("out") or self.probe_verpatzt_id == pid:
+            self.probe_wartet_id = None
+            self.timer_ends_at = self._uhr_ab_jetzt()
+
+    def _do_probe_verpatzt(self, a: dict) -> None:
+        """Erholungs-Probe verpatzt: bleibt angeschlagen (darf sich nur noch
+        bewegen), aber die Uhr läuft jetzt. Vorher beendete „Nicht geschafft"
+        gleich den Zug."""
+        c = self._combatant(a.get("id"))
+        if c and c["id"] == self.active_id and (c.get("status") or {}).get("shaken"):
+            self.probe_verpatzt_id = c["id"]
 
     def funktion(self, name: str) -> bool:
         return self.funktionen.get(name, True)
@@ -2788,7 +2836,7 @@ class Game:
         self._advance_active()
         if self.auto_release and self.active_id:
             self.phase = "running"
-            self.timer_ends_at = self._uhr_ab_jetzt()
+            self._zug_uhr_starten()
         else:
             self.phase = "gate"
             self.timer_ends_at = None
@@ -2888,6 +2936,7 @@ class Game:
         return next((c["id"] for c in self.combatants[start:] if self._kann_dran_sein(c)), None)
 
     def _advance_active(self) -> None:
+        self.probe_verpatzt_id = None
         order = [c["id"] for c in self.combatants]
         start = order.index(self.active_id) + 1 if self.active_id in order else 0
         self.active_id = self._naechster_ab(start)
@@ -2921,7 +2970,7 @@ class Game:
             c["done"] = False
             self.active_id = c["id"]
             self.phase = "running"
-            self.timer_ends_at = self._uhr_ab_jetzt()
+            self._zug_uhr_starten()
 
     # Nachrichten -------------------------------------------------------------
 
@@ -3122,7 +3171,7 @@ class Game:
             self._do_recover({"id": cid, "benny": mit_benny})
             if (c.get("status") or {}).get("shaken"):
                 return                  # Benny fehlte - nichts passiert
-            self._timer_anhalten(cid)
+            # Die Uhr startet jetzt (_probe_pruefen) - die Probe ist gewürfelt.
             self.effekt_meldungen.append({
                 "id": _new_id("em"), "icon": "🪙" if mit_benny else "✓",
                 "text": f"{c.get('name', '?')} gibt einen Benny aus und ist erholt" if mit_benny
