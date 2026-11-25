@@ -85,11 +85,24 @@ Details stehen in den einzelnen Abschnitten darunter.
   auf 96, solange Treffer-Wahl oder Kampf-Einstellungen offen sind – die
   Anfrage bleibt, wo sie ist (nichts springt). Test:
   `tests/browser/test_treffer_ueber_anfrage.py`.
-- Vorschläge (nur Bilder, Kalle entscheidet): `/mnt/project-files/screenshots/
-  bedienbarkeit-2026-11-25/` – 1 Freigeben/Weiter fester Platz + „ist dran"
-  statt doppelter Zahl, 2 Wörter statt Zeichen (⋯ schwebt statt Leiste zu
-  schieben, ↶ Zurück, ⏳ Countdown, „Wildcard" statt „WC"), 3 ⋯-Feld an der
-  Zeile mit Überschriften, Treffer-Stufen wie in der Treffer-Wahl.
+- **Gebaut (Kalle „alles gut" zu 1–3):**
+  1 Aktionsleiste: Freigeben links, Weiter rechts – immer, gleich breit; nur
+  die Farbe wechselt (vorher tauschten sie je nach Spieler/Gegner den Platz).
+  „Tessa ist dran" statt „1 · Tessa" (die Platz-Zahl las sich wie die Runde).
+  2 ⋯ der Leiste schwebt als Menü mit Wörtern (Angeschlagen, K.O., Neue Karte
+  ziehen, Kampf-Einstellungen) statt vier Zeichen in die Leiste zu klappen
+  und Treffer/Heilung wegzuschieben; Klick daneben schließt (über
+  composedPath – der Klick hat oft schon neu gezeichnet). „↶ Zurück",
+  „⏳ Countdown"/„⏳ noch 3", „★ Wildcard" statt „WC" (auch Bibliothek).
+  3 ⋯-Feld an der Zeile: Überschriften Treffer/Zustand/Bennies/Reihenfolge/
+  Effekt/Figur, Treffer-Stufen wie in der Treffer-Wahl (😵 bzw. 1 🩸, +1 🩸 …),
+  ✕ Entfernen abgesetzt unten rechts.
+  Test: `tests/browser/test_bedienbarkeit_leiste.py` (Bilder mit
+  `SWI_BEDIENBARKEIT_BILDER=<ordner>`).
+- Neue Vorschläge (nur Bilder): 4 Beitritt „Wie heißt du?" zuerst, 5
+  Gruppenkasse sichtbar anders als die Börse, 6 gleiche Wörter (Vermögen →
+  Geld, Protokolle → Chronik der Abende). Bilder + Skripte:
+  `/mnt/project-files/screenshots/bedienbarkeit-2026-11-25/`.
 
 ## 2.0.23 (24.11.2026): 🎙 Vorstellungsrunde = feste Plätze
 

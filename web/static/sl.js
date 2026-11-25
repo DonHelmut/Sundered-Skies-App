@@ -801,9 +801,9 @@ function renderControlBody() {
       <button class="${rundeDran ? "primary" : "ghost small"}" data-act="new-round" title="Allen Teilnehmern (Spieler & Gegner) gleichzeitig eine neue Karte austeilen">🃏 ${s.round === 0 ? (schnellstart ? "Austeilen" : "Karten austeilen") : rundeDran ? "Neue Runde austeilen" : "Neue Runde"}</button>
       ${schnellstart || phasePill}
       <span class="kampf-knoepfe-rest">
-        <button class="ghost small symbol" data-act="undo" ${s.canUndo ? "" : "disabled"} title="Letzte Aktion rückgängig">↶</button>
+        <button class="ghost small" data-act="undo" ${s.canUndo ? "" : "disabled"} title="Letzte Aktion rückgängig">↶ Zurück</button>
         ${cleanupRow}${heilRow()}
-        ${zeigeBeenden || s.countdown ? `<button class="ghost small${s.countdown ? " cd-knopf an" : " symbol"}" data-act="countdown" title="${s.countdown ? "Countdown ändern oder wegnehmen" : "Countdown für alle: zählt bei jeder neuen Runde selbst runter (z. B. „Schiff bricht“)"}">⏳${s.countdown ? ` ${s.countdown.runden}` : ""}</button>` : ""}
+        ${zeigeBeenden || s.countdown ? `<button class="ghost small${s.countdown ? " cd-knopf an" : ""}" data-act="countdown" title="${s.countdown ? "Countdown ändern oder wegnehmen" : "Countdown für alle: zählt bei jeder neuen Runde selbst runter (z. B. „Schiff bricht“)"}">⏳ ${s.countdown ? `noch ${s.countdown.runden}` : "Countdown"}</button>` : ""}
         ${zeigeBeenden ? `<button class="ghost small" data-act="kampf-beenden" title="Gegner und Verbündete entfernen, Karten einsammeln – die Handys zeigen sofort „Gerade kein Kampf“. Wunden und Bennies bleiben.">🏁 Kampf beenden</button>` : ""}
       </span>
     </div>
@@ -853,7 +853,6 @@ function renderAktionsleiste() {
     </div>`;
   }
 
-  const platz = s.combatants.findIndex((c) => c.id === active.id) + 1;
   const st = active.status || {};
   const gruppe = kartenGruppeVon(active);
   const anzeigeName = gruppe.length > 1 ? `${grundname(active.name)} ×${gruppe.length}` : active.name;
@@ -869,13 +868,13 @@ function renderAktionsleiste() {
   // ansagen muss - pausierte und ausgeschiedene Figuren überspringen wir.
   const naechster = naechsterAkteur(s);
 
+  // Freigeben links, Weiter rechts - IMMER (Bedienbarkeit 25.11.2026). Vorher
+  // tauschten die beiden je nach Spieler/Gegner den Platz, und wer im Takt auf
+  // dieselbe Stelle klickte, erwischte den falschen. Jetzt wechselt nur die Farbe.
   const haupt = s.phase === "running"
     ? `<button class="good big" data-act="confirm-turn">Zug bestätigen ✓</button>`
-    : (istNsc
-        ? `<button class="primary big" data-act="skip-turn" title="Ohne Timer sofort zum nächsten">Weiter ⏭</button>
-           <button class="ghost" data-act="release">Freigeben ▶</button>`
-        : `<button class="primary big" data-act="release">Freigeben ▶</button>
-           <button class="ghost" data-act="skip-turn" title="Ohne Timer sofort zum nächsten">Weiter ⏭</button>`);
+    : `<button class="${istNsc ? "ghost" : "primary big"}" data-act="release">Freigeben ▶</button>
+       <button class="${istNsc ? "primary big" : "ghost"}" data-act="skip-turn" title="Ohne Timer sofort zum nächsten">Weiter ⏭</button>`;
 
   // Countdown kompakt in der Leiste - er saß vorher im Panel, das jetzt schlank ist.
   const uhr = s.phase === "running" && s.timerEndsAt
@@ -893,8 +892,7 @@ function renderAktionsleiste() {
     ${!mitAngriff ? "" : App.trefferWahl ? trefferWahlHtml(active) : ""}
     <div class="al-wer">
       ${rundenZaehler(s)}
-      <span class="al-platz">${platz}</span>
-      <button class="al-name${istNsc && !active.ally ? " feind" : ""}" data-act="zur-aktiven-zeile" title="Zur Zeile springen">${esc(anzeigeName)}</button>
+      <button class="al-name${istNsc && !active.ally ? " feind" : ""}" data-act="zur-aktiven-zeile" title="Zur Zeile springen">${esc(anzeigeName)}</button><span class="al-ist-dran">ist dran</span>
       <span class="al-zustand">${!mitWunden ? "" : st.shaken ? `<span class="tag" style="color:var(--warn);border-color:var(--warn)">😵</span>` : ""}${st.wounds ? `<span class="tag" style="color:var(--bad);border-color:var(--bad)">${st.wounds} 🩸</span>` : ""}</span>
       ${uhr}
       ${naechster
@@ -906,12 +904,18 @@ function renderAktionsleiste() {
       ${erholen}
       ${mitAngriff ? `<button class="st-btn treffer-knopf${App.trefferWahl === "treffer" ? " on" : ""}" data-act="treffer-wahl" title="${esc(active.name)} trifft jemanden: Ziel und Stärke wählen (Taste Z)">🎯<span class="tk-text"> Treffer</span></button>
       <button class="st-btn treffer-knopf${App.trefferWahl === "heil" ? " on" : ""}" data-act="heil-wahl" title="Jemand wird geheilt: Ziel wählen">🩹<span class="tk-text"> Heilung</span></button>` : ""}
-      <button class="st-btn${App.leisteMehr ? " on" : ""}" data-act="leiste-mehr" title="Mehr: Angeschlagen, K.O., neue Karte, Kampf-Einstellungen">⋯</button>
-      ${App.leisteMehr ? `${mitWunden ? `
-      <button class="st-btn ${st.shaken ? "on-shaken" : ""}" data-act="st-shaken" data-id="${active.id}" title="Angeschlagen">😵</button>
-      <button class="st-btn ${st.out ? "on-out" : ""}" data-act="st-out" data-id="${active.id}" title="K.O.">☠</button>` : ""}
-      <button class="st-btn" data-act="redraw" data-id="${active.id}" title="Neue Karte">🔄</button>
-      <button class="st-btn ${App.leisteEinstellungen ? "on" : ""}" data-act="leiste-einstellungen" title="Kampf-Einstellungen">⚙</button>` : ""}
+      <span class="al-mehr-huelle"><button class="st-btn${App.leisteMehr ? " on" : ""}" data-act="leiste-mehr" title="Mehr: Angeschlagen, K.O., neue Karte, Kampf-Einstellungen">⋯</button>
+      ${/* Schwebt über der Leiste (Bedienbarkeit 25.11.2026): vorher klappten
+          hier vier Zeichen ohne Wort (😵 ☠ 🔄 ⚙) IN die Leiste und schoben
+          Treffer/Heilung unter der Maus nach links. */ ""}
+      ${App.leisteMehr ? `<div class="al-mehr-menue" role="menu">
+        <div class="km-kopf"><b>${esc(anzeigeName)}</b></div>
+        ${mitWunden ? `
+        <button class="km-btn${st.shaken ? " on" : ""}" data-act="st-shaken" data-id="${active.id}">😵 Angeschlagen</button>
+        <button class="km-btn${st.out ? " on" : ""}" data-act="st-out" data-id="${active.id}">${st.out ? "☠ Wieder wach" : "☠ K.O."}</button>` : ""}
+        <button class="km-btn" data-act="redraw" data-id="${active.id}">🔄 Neue Karte ziehen</button>
+        <button class="km-btn${App.leisteEinstellungen ? " on" : ""}" data-act="leiste-einstellungen">⚙ Kampf-Einstellungen</button>
+      </div>` : ""}</span>
     </div>
     <div class="al-haupt">${haupt}</div>
   </div>`;
@@ -1625,7 +1629,7 @@ function combatantRow(c, num, isGM, isOpen) {
           : funktionAn("zonen") && !handy ? `<span class="tag zone-chip z${Zones.zoneOf(c)}">${esc(zoneLabel(Zones.zoneOf(c)))}</span>` : ""}
         ${c.ally && !handy ? `<span class="tag" style="color:var(--good);border-color:var(--good)">🤝 Verbündet</span>` : ""}
         ${duTag}${naechsterTag}${jokerBadge}
-        ${c.isWildCard && !handy ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card">WC</span>' : ""}
+        ${c.isWildCard && !handy ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card: hält 3 Wunden aus, hat Bennies">★ Wildcard</span>' : ""}
         ${showCard ? (isGM ? talentKurz(c.talents) : talentBadges(c.talents)) : ""}${showCard ? talentTrail(c) : ""} ${hints}
         ${handy ? "" : bennyBadge(c)}
       </div>
@@ -1660,38 +1664,42 @@ function kontextMenueHtml() {
   const b = (act, text, extra = "", titel = "") =>
     `<button class="km-btn${extra ? " " + extra : ""}" data-act="${act}" data-id="${c.id}"${titel ? ` title="${esc(titel)}"` : ""}>${text}</button>`;
   const mitWunden = funktionAn("wunden");
-  const treffer = st.out || !mitWunden ? "" : `<div class="km-zeile"><span class="km-label">💥 Treffer</span>
+  // Überschriften statt Symbol-Etiketten (Bedienbarkeit 25.11.2026): vorher
+  // 17 Knöpfe ohne Ordnung, „Erfolg" hieß in der Treffer-Wahl 😵. Jetzt gleiche
+  // Wörter wie dort, und ✕ Entfernen steht abgesetzt, damit es keiner streift.
+  const ueber = (t) => `<div class="km-ueber">${t}</div>`;
+  const treffer = st.out || !mitWunden ? "" : `${ueber("Treffer – wie schlimm?")}<div class="km-zeile">
       ${[0, 1, 2, 3].map((n) => `<button class="km-btn km-treffer" data-act="km-treffer" data-id="${c.id}" data-n="${n}"
-        title="${n ? `Angeschlagen + ${n} Wunde${n > 1 ? "n" : ""}` : "Angeschlagen (bzw. +1 Wunde, wenn schon angeschlagen)"}">${n ? `+${n}` : "Erfolg"}</button>`).join("")}</div>`;
-  const zustand = !mitWunden ? "" : `<div class="km-zeile">
+        title="${n ? `Angeschlagen + ${n} Wunde${n > 1 ? "n" : ""}` : "Angeschlagen (bzw. +1 Wunde, wenn schon angeschlagen)"}">${n ? `+${n} 🩸` : st.shaken ? "1 🩸" : "😵"}</button>`).join("")}</div>`;
+  const zustand = !mitWunden ? "" : `${ueber("Zustand")}<div class="km-zeile">
       ${b("apply-heal", "🩹 Heilen")}
       ${b("st-shaken", "😵 Angeschlagen", (st.shaken ? "on " : "") + "km-bleibt")}
       ${b("st-out", st.out ? "☠ Wieder wach" : "☠ K.O.", st.out ? "on" : "")}
     </div>`;
   const zustaende = Object.keys(conds).length ? `<div class="km-zeile km-klein">${Object.keys(conds).map((key) =>
       `<button class="km-btn km-bleibt${st[key] ? " on" : ""}" data-act="st-cond" data-id="${c.id}" data-cond="${key}">${esc(conds[key])}</button>`).join("")}</div>` : "";
-  const bennies = c.isWildCard && funktionAn("bennies") ? `<div class="km-zeile"><span class="km-label">🪙 Bennies</span>
+  const bennies = c.isWildCard && funktionAn("bennies") ? `${ueber("Bennies")}<div class="km-zeile"><span class="km-label">🪙</span>
       ${b("benny-minus", "–", "km-bleibt")}<span class="km-zahl">${rollZahl("kmb-" + c.id, c.bennies || 0)}</span>${b("benny-plus", "+", "km-bleibt")}</div>` : "";
-  const zug = `<div class="km-zeile">
+  const zug = `${ueber("Reihenfolge")}<div class="km-zeile">
       ${c.id === App.state.activeId ? "" : b("set-active", "▶ Aktiv setzen")}
       ${c.card && !st.out ? b(c.held ? "intervene" : "hold", c.held ? "⚡ Eingreifen" : "⏸ Abwarten") : ""}
       ${b("redraw", "🔄 Neu ziehen")}
     </div>`;
-  const verwalten = `<div class="km-zeile km-klein">
+  const verwalten = `${ueber("Figur")}<div class="km-zeile km-klein">
       ${hatBogen(c) || hatSpielwerte(c) ? b("bogen-ansicht", c.kind === "npc" ? "📜 Spielwerte" : "📜 Bogen") : ""}
       ${b("edit-combatant", "✎ Bearbeiten")}
       ${c.kind === "npc" && !c.ally ? `<button class="km-btn${c.anon ? " on" : ""}" data-act="set-anon" data-id="${c.id}" data-on="${c.anon ? 0 : 1}">${c.anon ? "🫥 Aufdecken" : "👁 Verdecken"}</button>` : ""}
       ${c.kind === "npc" ? b("npc-verstaerkung", "➕ Noch einer", "km-bleibt", "Noch eine Figur wie diese in dieselbe Zone (Werte, Bild, verdeckt) – Verstärkung mitten im Kampf") : ""}
       <button class="km-btn" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}">${c.benched ? "▶️ Wieder rein" : "⏸ Pausieren"}</button>
-      ${b("remove-combatant", "✕ Entfernen", "bad")}
-    </div>`;
+    </div>
+    <div class="km-weg">${b("remove-combatant", "✕ Entfernen", "bad")}</div>`;
   const werte = kampfwerteText(c);
   return `<div class="kontext-menue" style="left:${k.x}px; top:${k.y}px" role="menu">
     <div class="km-kopf"><b class="${c.kind === "npc" && !c.ally ? "km-feind" : ""}">${esc(c.name)}</b>${
       werte ? `<span class="km-werte">${esc(werte)}</span>` : ""}${
       st.wounds && mitWunden ? `<span class="km-werte">🩸 ${st.wounds}</span>` : ""}</div>
     ${treffer}${zustand}${zustaende}${bennies}${zug}
-    <div class="km-zeile km-effekt">${effektSteuerung(c)}</div>
+    ${ueber("Effekt mit Runden")}<div class="km-zeile km-effekt">${effektSteuerung(c)}</div>
     ${verwalten}
   </div>`;
 }
@@ -1850,7 +1858,7 @@ function bibListeHtml(art, list) {
     return `<div class="bib-zeile roster-item${offen ? " pop-offen" : ""}" data-bib-id="${r.id}">
       ${av}
       <button type="button" class="bib-t" data-act="${k.edit}" data-id="${r.id}" title="Bearbeiten">
-        <span class="bib-name">${esc(r.name)}${r.isWildCard ? '<span class="bib-chip wc">WC</span>' : ""}${talentBadges(r.talents)}</span>
+        <span class="bib-name">${esc(r.name)}${r.isWildCard ? '<span class="bib-chip wc">Wildcard</span>' : ""}${talentBadges(r.talents)}</span>
         ${werte ? `<small>${esc(werte)}</small>` : ""}</button>
       <span class="bib-split">
         <button type="button" class="bib-kampf" data-act="${k.kampf}" data-id="${r.id}" title="In den Kampf (gemerkte Startzone)">${symbolSvg("swords")} In den Kampf</button><button type="button" class="bib-pfeil${offen && App.bibPop.art === "kampf" ? " on" : ""}" data-act="bib-pop" data-art="kampf" data-id="${r.id}" title="${k.anzahl ? "Anzahl, " : ""}Startzone${k.anon ? ", verdeckt" : ""}" aria-label="Optionen für In den Kampf">▾</button></span>
@@ -1906,6 +1914,14 @@ function bibFormZeigen(hostId) {
 }
 // Schwebendes Fenster der Bibliothek: Tippen daneben / Esc schließt.
 document.addEventListener("click", (e) => {
+  // ⋯ der Aktionsleiste: Klick daneben klappt das schwebende Menü zu (es läge
+  // sonst über der Reihenfolge). Klicks IM Menü lassen es offen - 😵 an/aus.
+  // Über composedPath statt closest: der Klick hat oft schon neu gezeichnet,
+  // dann hängt e.target nicht mehr im Dokument (Zonen, Anfrage-Karte).
+  if (App.leisteMehr && !e.composedPath().some((n) => n.classList
+      && (n.classList.contains("al-mehr-huelle") || n.classList.contains("al-einstellungen")))) {
+    setTimeout(() => { App.leisteMehr = false; render(); }, 0);
+  }
   if (!e.target.isConnected) return;
   // ⋯ im Beitritt-Panel: nach dem Teilen/WhatsApp oder Klick daneben zu.
   // Erst nach dem Klick zuklappen - sonst verschwände der Menüpunkt, bevor
