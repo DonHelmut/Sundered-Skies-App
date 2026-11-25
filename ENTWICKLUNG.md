@@ -97,6 +97,27 @@ kannte (neu beigetreten, beim Austeilen aus), landet beim Laden auf ⚔ Kampf.
 - Pausierte Spieler springen nicht; wer mitten im Kampf wieder reinkommt, schon.
 - Tests: `tests/test_kampf_nr.py`, `tests/browser/test_kampf_reiter.py`.
 
+## Release automatisch nach dem Merge (25.11.2026)
+
+Kalle: „braucht es wirklich immer mein go? Will dass es auch ohne geht.“ Bisher
+hat Claude auf dem Jonsbo gebaut und per Admin-Bypass auf main gepusht; die
+Sicherheitsprüfung ließ das nur mit Kalles „go“ im Thread durch.
+
+Jetzt macht es GitHub (`.github/workflows/release.yml`): bei jedem Push auf
+main schaut der Workflow, ob es den Tag `v<APP_VERSION>` schon gibt. Wenn
+nicht, prüft er alle Versionsstellen + `RELEASE.md`, lässt die Server-Tests
+laufen, baut beide .spec (Python 3.14, PyInstaller 6.22.3 wie am Jonsbo),
+packt das Zip, startet die gepackte exe als Rauchtest und legt Tag + Release an.
+Helfer: `.github/release/release.py` (pruefen / paket / rauch).
+
+**Neuer Ablauf für ein Release:** Der PR selbst zählt die Version hoch
+(paths.py, app.js, ?v= in index.html + tv.html, START-HIER.txt) und schreibt
+`RELEASE.md` (erste Zeile `# X.Y.Z – Titel`, darunter die Notizen). Merge =
+Release. Kein Direkt-Push auf main mehr. PRs ohne Versionssprung lösen nichts
+aus. Der Knopf-Update-Test (alte Version → neue über „Jetzt aktualisieren“)
+läuft dabei NICHT automatisch; der Updater ändert sich selten – wenn doch,
+vorher von Hand testen.
+
 ## 2.0.24 (25.11.2026): Aufgeräumt – Erklärtexte raus
 
 - Kalle: „unnötiger AI Slop – braucht niemand so unnötige Erklärungen …
