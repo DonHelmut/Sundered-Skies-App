@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nach 2.0.24 (25.11.2026): Kampfbeginn → alle Handys auf ⚔ Kampf
+## 2.0.25 (25.11.2026): Kampfbeginn → alle Handys auf ⚔ Kampf
 
 Kalle: „Wenn ein Kampf beginnt, sollen alle Handys auf den Reiter Kampf
 umspringen." Teilt der SL aus (Runde 0 → 1), springt jedes Handy **einmal je
