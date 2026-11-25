@@ -294,6 +294,8 @@ document.addEventListener("click", (e) => {
       render();
     },
     "recover": () => gmAction({ type: "recover", id, benny: target.getAttribute("data-benny") === "1" }),
+    // Erholungs-Probe verpatzt: bleibt angeschlagen, die Zug-Uhr läuft jetzt los.
+    "probe-verpatzt": () => gmActionOrPlayer({ type: "probe_verpatzt", id }),
     // Ausgeschaltete Gegner aufräumen (SL) – nur Gegner, nicht Verbündete/Spieler
     "clear-defeated": async () => {
       const n = target.getAttribute("data-n") || "";

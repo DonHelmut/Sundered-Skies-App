@@ -121,7 +121,11 @@ def test_joker_bringt_bennies_und_mischt(tisch):
         tisch.gm({"type": "redraw", "id": tessa["id"]})
     assert sl.state()["jokerActive"], "In 60 Zügen kein Joker"
     assert _figur(sl, "Tessa")["bennies"] >= vorher
-    tisch.gm({"type": "new_round", "runde": sl.state()["round"]})
+    runde = sl.state()["round"]
+    tisch.gm({"type": "new_round", "runde": runde})
+    # tisch.gm wartet nur auf IRGENDEINEN neuen Stand - ein später Stand vom
+    # letzten redraw reichte schon (CI 25.11.: deckCount 35, Runde noch alt).
+    sl.warte_bis("(r) => App.state.round === r + 1", runde)
     # Nach einer Joker-Runde wird neu gemischt: wieder volles Deck minus Karten.
     st = sl.state()
     assert st["deckCount"] >= 54 - len(st["combatants"]) - 2
