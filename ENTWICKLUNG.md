@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Unveröffentlicht (25.11.2026): Aufgeräumt – Erklärtexte raus
+## 2.0.24 (25.11.2026): Aufgeräumt – Erklärtexte raus
 
 - Kalle: „unnötiger AI Slop – braucht niemand so unnötige Erklärungen …
   Alles soll recht clean und aufgeräumt sein." **Regel ab jetzt: keine
@@ -95,7 +95,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Hinweis; Chronik „Tippen zum Lesen"; Countdown-/Benny-/Kampf-beenden-
   Rückfragen gekürzt.
 
-## Unveröffentlicht (25.11.2026): Bedienbarkeit – Treffer-Wahl über der Anfrage
+## 2.0.24 (25.11.2026): Bedienbarkeit – Treffer-Wahl über der Anfrage
 
 - **Fehler:** Bei 1366×768 lag die schwebende Anfrage-Karte (unten rechts,
   z-index 95) über der offenen 🎯 Treffer-/🩹 Heilungs-Wahl der Aktionsleiste
