@@ -20,7 +20,7 @@ const MODUS_SCHALTER = {
     ["anfragen", "🙋 Spieler-Anfragen", "Handy fragt beim SL an (Benny, Wunde …)"],
   ],
   abend: [
-    ["aufnahme", "🎙 Aufnahme & Protokoll", "Mitschrift und Nacherzählung des Abends"],
+    ["aufnahme", "🎙 Aufnahme", "Mitschrift und Nacherzählung des Abends"],
     ["notizen", "📝 Notizen", "Eigene und Gruppen-Notizen am Handy"],
     ["geld", "Geld", "Börse je Charakter und Gruppenkasse (Fater, Lose, Münzen)"],
     ["nachrichten", "✉ Nachrichten & Bilder", "SL flüstert, zeigt Bilder, TV-Bild"],
@@ -97,7 +97,7 @@ const ANLEITUNG = [
     ["<b>Spieler holen:</b> Panel „Beitritt für Spieler“ – Handys scannen den QR-Code. „🖼 QR-Bild kopieren“ schickt ihn per WhatsApp. Jeder wählt seinen Charakter."],
     ["<b>Nach einem Neustart</b> fragt die App „Letzte Sitzung fortsetzen?“. Erst <b>Fortsetzen</b> drücken – die erste andere Aktion verwirft den gespeicherten Kampf."],
     ["<b>🎛 oben</b>: festlegen, was ihr heute nutzt – z. B. <i>Nur Reihenfolge</i>, wenn ihr am Tisch würfelt."],
-    ["<b>🌅 Abend starten</b> (Panel „Aufnahme & Protokoll“): Bennies auffüllen, Aufnahme starten und das letzte Protokoll an die Handys – ein Klick.", "aufnahme"],
+    ["<b>🌅 Abend starten</b> (Panel „Aufnahme“): Bennies auffüllen, Aufnahme starten und das letzte Protokoll an die Handys – ein Klick.", "aufnahme"],
     ["<b>TV / Beamer:</b> ☰ Mehr → 📺 TV-Modus öffnen und auf den zweiten Bildschirm ziehen."],
   ], tipp: "Alles, was du nur vorbereitest (Bibliothek, Beitritt, Aufnahme), startet zugeklappt. „▣ Fokus auf den Kampf“ klappt den Rest weg." },
   { k: "runde", titel: "🃏 Runde & Karten", schritte: [
@@ -142,11 +142,11 @@ const ANLEITUNG = [
     ["<b>📋 Aus Text einfügen</b> (Bibliothek → Kämpfe): Text aus Gemini & Co. oder Kurzform „pirat 3, chefpirat 1 verdeckt“. Eine .txt lässt sich auch hineinziehen."],
     ["<b>Verdeckte Gegner:</b> ⋯ → 👁 Verdecken – Handys sehen nur einen Tarnnamen."],
   ] },
-  { k: "aufnahme", titel: "🎙 Aufnahme & Protokoll", f: "aufnahme", schritte: [
-    ["<b>● Aufnehmen</b> im Panel „Aufnahme & Protokoll“. Oben laufen dann Zeit, ⏸ Pause und 📌 Merken für wichtige Momente."],
+  { k: "aufnahme", titel: "🎙 Aufnahme", f: "aufnahme", schritte: [
+    ["<b>● Aufnehmen</b> im Panel „Aufnahme“. Oben laufen dann Zeit, ⏸ Pause und 📌 Merken für wichtige Momente."],
     ["<b>■ Beenden</b> – die genaue Mitschrift läuft danach von selbst. <b>🌙 Abend beenden</b> macht alles auf einmal: Aufnahme beenden, Kampf beenden, Sicherung anlegen."],
-    ["<b>Protokoll:</b> Prompt kopieren, von Claude die Nacherzählung schreiben lassen, im Panel „Protokolle“ einfügen und freigeben – die Handys sehen sie unter „Was bisher geschah“."],
-    ["<b>📖 Chronik</b> (Panel „Protokolle“): alle Abende am Stück, der neueste zuerst – auch zum Drucken oder als PDF. Am Handy: 📜 → „Alles am Stück lesen“."],
+    ["<b>Protokoll:</b> Prompt kopieren, von Claude die Nacherzählung schreiben lassen, im Panel „Chronik der Abende“ einfügen und freigeben – die Handys sehen sie unter „Was bisher geschah“."],
+    ["<b>📖 Chronik</b> (Panel „Chronik der Abende“): alle Abende am Stück, der neueste zuerst – auch zum Drucken oder als PDF. Am Handy: 📜 → „Alles am Stück lesen“."],
     ["<b>Wer hat was gesagt?</b> Ordnet die Mitschrift selbst zu. Mit dem SSL Connex noch sicherer: „Immersive“ einschalten (im Setup-Menü das Logo 5 s halten, es wird gelb) und den SSL-Treiber installieren – dann zählt auch der Sitzplatz, und im Panel steht „Sitzplatz-Erkennung an“. Mikro während des Abends nicht verschieben."],
   ], tipp: "Das Mikro mittig auf den Tisch – das bringt mehr als jede Einstellung." },
   { k: "handy", titel: "📱 Am Handy der Spieler", f: ["boegen", "notizen", "geld", "regeln"], schritte: [
@@ -154,7 +154,7 @@ const ANLEITUNG = [
     ["<b>📷 Foto vom Papierbogen</b>: wer auf Papier spielt, fotografiert den Bogen im Reiter „📷 Foto“ – du siehst ihn über 📜 an der Figur.", "boegen"],
     ["<b>☀ Bildschirm bleibt an</b>, solange gekämpft wird (abschaltbar im ⚙ am Handy)."],
     ["<b>📝 Notizen</b>: eigene (nur man selbst sieht sie) und 👥 Gruppen-Notizen für alle.", "notizen"],
-    ["<b>Geld</b>: Börse je Charakter + 👥 Gruppenkasse (Fater, Lose, Münzen). Handy-Reiter „Geld“; Beute verteilen im Panel „Vermögen“.", "geld"],
+    ["<b>Geld</b>: Börse je Charakter + 👥 Gruppenkasse (Fater, Lose, Münzen). Handy-Reiter „Geld“; Beute verteilen im Panel „Geld“.", "geld"],
     ["<b>📖 Regeln</b>: Spickzettel für den eigenen Zug.", "regeln"],
   ] },
   { k: "sichern", titel: "🛟 Sichern & Netzwerk", schritte: [

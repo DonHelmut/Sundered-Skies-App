@@ -1463,10 +1463,9 @@ button.ghost.small.on { border-color: var(--accent2); color: var(--accent2); }
 body.hat-leiste .wrap { padding-bottom: 96px; }
 
 .al-wer { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.al-platz {
-  font-size: 1.25rem; font-weight: 800; color: var(--muted);
-  min-width: 26px; text-align: center;
-}
+/* „ist dran" statt der Platz-Zahl (Bedienbarkeit 25.11.2026): „Runde 1 · 6 ·
+   Tessa" las sich wie zwei Rundenzahlen. */
+.al-ist-dran { color: var(--muted); font-size: 0.95rem; margin-left: 6px; }
 .al-name {
   font-size: 1.15rem; font-weight: 800; color: var(--gold);
   background: none; border: none; padding: 0; cursor: pointer;
@@ -4192,3 +4191,42 @@ body.sl-ansicht .sec-title .cd-pille { max-width: 300px; font-size: 0.78rem; }
 .cd-feld { display: block; margin: 0 0 10px; font-weight: 600; }
 .cd-feld input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; font: inherit; }
 .cd-feld .cd-runden { width: 7em; }
+
+/* Offene Treffer-/Heilungs-Wahl und Kampf-Einstellungen über der schwebenden
+   Anfrage: die saß (z-index 95) über der Leiste (90) und verdeckte bei
+   1366×768 die untersten Ziele samt „+3" - genau die Spielerseite. Die Anfrage
+   bleibt, wo sie ist (nichts springt), und ist nach dem Tipp wieder frei. */
+body.sl-ansicht .aktionsleiste:has(.al-treffer, .al-einstellungen) { z-index: 96; }
+
+/* ⋯ der Aktionsleiste als schwebendes Menü mit Wörtern (Bedienbarkeit
+   25.11.2026) - es klappt nach oben auf und schiebt nichts in der Leiste. */
+.al-mehr-huelle { position: relative; display: inline-flex; }
+.al-mehr-menue {
+  position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 5;
+  display: grid; gap: 6px; width: 230px; padding: 10px 12px 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+.al-mehr-menue .km-btn { text-align: left; font-size: 0.95rem; padding: 7px 10px; white-space: nowrap; }
+.al-mehr-menue .km-kopf { margin-bottom: 2px; }
+.aktionsleiste:has(.al-mehr-menue) { z-index: 96; }
+
+/* ⋯-Feld an der Zeile: Überschriften je Gruppe, Entfernen abgesetzt. */
+.km-ueber { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 6px 0 1px; }
+.km-kopf + .km-ueber { margin-top: 2px; }
+.km-ueber + .km-zeile .km-label { min-width: 0; }
+.km-weg { border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 6px; display: flex; justify-content: flex-end; }
+/* Freigeben und Weiter gleich breit: sonst rückte Freigeben beim Wechsel
+   Spieler ↔ Gegner um ein paar Pixel (der Hauptknopf ist größer). */
+body.sl-ansicht .al-haupt [data-act=release], body.sl-ansicht .al-haupt [data-act=skip-turn] {
+  width: 142px; justify-content: center; text-align: center; }
+
+/* Gruppenkasse grün getönt mit Kopfzeile, damit sie keiner für die eigene
+   Börse hält (Bedienbarkeit 25.11.2026). */
+.g-truhe.g-kasse { background: radial-gradient(130% 70% at 50% 0%, #245650 0%, #15342f 55%, #0b1f1c 100%);
+  box-shadow: inset 0 0 0 1px rgba(110,190,175,.6), inset 0 0 0 4px rgba(5,18,16,.55), inset 0 0 0 5px rgba(110,190,175,.16), 0 12px 30px rgba(10,40,35,.35); }
+.g-kasse-kopf { padding: 10px 2px 2px; color: #cfe9e4; font-weight: 800; font-size: .8rem;
+  letter-spacing: .06em; text-transform: uppercase; }
+.join-form > .join-spieler:first-child, .join-form .join-spieler + .join-titel { margin-top: 4px; }
+.join-form .join-spieler + .join-titel { margin-top: 16px; }

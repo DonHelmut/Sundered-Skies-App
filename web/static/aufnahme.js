@@ -156,7 +156,7 @@ function renderAufnahmePanel() {
   }
   const liste = (st.liste || []).filter((x) => !(x.laeuft && Aufn.rec));
   const zeilen = liste.map((x) => aufnZeileHtml(x, sp)).join("");
-  return section("aufnahme", "🎙 Aufnahme &amp; Protokoll", `
+  return section("aufnahme", "🎙 Aufnahme", `
     ${oben}
     ${aufnMitschriftHtml(sp)}
     ${aufnSitzHtml(sp)}

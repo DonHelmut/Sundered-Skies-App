@@ -77,6 +77,36 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (25.11.2026): Bedienbarkeit – Treffer-Wahl über der Anfrage
+
+- **Fehler:** Bei 1366×768 lag die schwebende Anfrage-Karte (unten rechts,
+  z-index 95) über der offenen 🎯 Treffer-/🩹 Heilungs-Wahl der Aktionsleiste
+  (90) und verdeckte die untersten Ziele samt „+3". Jetzt hebt sich die Leiste
+  auf 96, solange Treffer-Wahl oder Kampf-Einstellungen offen sind – die
+  Anfrage bleibt, wo sie ist (nichts springt). Test:
+  `tests/browser/test_treffer_ueber_anfrage.py`.
+- **Gebaut (Kalle „alles gut" zu 1–3):**
+  1 Aktionsleiste: Freigeben links, Weiter rechts – immer, gleich breit; nur
+  die Farbe wechselt (vorher tauschten sie je nach Spieler/Gegner den Platz).
+  „Tessa ist dran" statt „1 · Tessa" (die Platz-Zahl las sich wie die Runde).
+  2 ⋯ der Leiste schwebt als Menü mit Wörtern (Angeschlagen, K.O., Neue Karte
+  ziehen, Kampf-Einstellungen) statt vier Zeichen in die Leiste zu klappen
+  und Treffer/Heilung wegzuschieben; Klick daneben schließt (über
+  composedPath – der Klick hat oft schon neu gezeichnet). „↶ Zurück",
+  „⏳ Countdown"/„⏳ noch 3", „★ Wildcard" statt „WC" (auch Bibliothek).
+  3 ⋯-Feld an der Zeile: Überschriften Treffer/Zustand/Bennies/Reihenfolge/
+  Effekt/Figur, Treffer-Stufen wie in der Treffer-Wahl (😵 bzw. 1 🩸, +1 🩸 …),
+  ✕ Entfernen abgesetzt unten rechts.
+  Test: `tests/browser/test_bedienbarkeit_leiste.py` (Bilder mit
+  `SWI_BEDIENBARKEIT_BILDER=<ordner>`).
+- **Auch gebaut (Kalle „Alles gut. go"):** 4 Beitritt fragt „Wie heißt du?"
+  VOR der Charakterwahl (vorher darunter – wer antippte, war schon drin, das
+  Feld blieb leer). 5 Gruppenkasse grün getönt mit Kopf „Gruppenkasse ·
+  gehört allen" (`.g-kasse`), Börse bleibt braun. 6 SL-Panels: „Vermögen" →
+  „Geld", „Aufnahme & Protokoll" → „Aufnahme", „Protokolle" → „Chronik der
+  Abende" (auch Handy-Knopf und Anleitungstexte). Bilder + Skripte:
+  `/mnt/project-files/screenshots/bedienbarkeit-2026-11-25/`.
+
 ## 2.0.23 (24.11.2026): 🎙 Vorstellungsrunde = feste Plätze
 
 Kalle: „Die Sprach-Erkennung mag ich nicht, das sollten feste Slots sein, die
