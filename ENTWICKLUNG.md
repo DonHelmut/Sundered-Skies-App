@@ -77,6 +77,33 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (25.11.2026): 🩹 Heilen-Runde nach dem Kampf
+
+- Kalle: „Nach einem fertigen Kampf soll der SL die Heilen-Runde einleiten …
+  gewürfelt, ob die Wunden weggehen oder eine dauerhafte Beeinträchtigung
+  bleibt." Aus Varianten **A (SL trägt ein)** gewählt; nicht gewählt: B
+  (Handys würfeln selbst mit, Heiler wählt am Handy). Bilder:
+  `screenshots/heilen-runde/` im Projektordner.
+- Knopf „🩹 Heilen-Runde" steht, wo „Alle heilen" stand (Kampfende/ohne
+  Kampf). „Alle Spieler ganz heilen" gibt es weiter in der 🩹 Heilung-Wahl.
+- Panel statt Reihenfolge, eine Karte je Verletztem, feste Reihenfolge (auch
+  Geheilte bleiben stehen, nur blass): K.O.-Probe Konstitution (mit
+  Wundabzug) → „🎲 Würfeln" (Verletzungstabelle 2W6 + W6 würfelt die App),
+  „Wer heilt?" + Ergebnis (je Heiler einmal pro Patient), ⏳ Goldene Stunde
+  (Knopf schaltet um), 🌙 5 Tage Rast (natürliche Heilung, Patzer +1 Wunde),
+  ↶, ✓ Fertig. Am Tisch wird mit echten Würfeln gewürfelt, der SL tippt das
+  Ergebnis.
+- Regeln (SWADE): Fehlschlag der K.O.-Probe = Verletzung für immer (+
+  verblutet, bis jemand heilt), Erfolg = bis alle Wunden heil, Steigerung =
+  24 Stunden (fällt bei Rast weg). Patzer = ☠ markiert, der SL entscheidet.
+  Die Einträge der Verletzungstabelle stammen aus dem Gedächtnis – mit dem
+  Buch abgleichen (`verletzung_aus` in `server/game.py`).
+- Verletzungen hängen an Figur UND Charakter (überstehen Neustart), stehen als
+  🦴-Marke in der SL-Zeile, unter dem Wund-Abzug am Handy und mit ✕ im ⋯-Feld.
+  „Bis alle Wunden heil" verschwindet von selbst, egal wie geheilt wurde.
+- Neue Datei `web/static/heilen.js`. Tests: `tests/test_heilrunde.py`,
+  `tests/browser/test_heilrunde.py` (Bilder mit `SWI_HEILEN_BILDER=<ordner>`).
+
 ## 2.0.24 (25.11.2026): Aufgeräumt – Erklärtexte raus
 
 - Kalle: „unnötiger AI Slop – braucht niemand so unnötige Erklärungen …

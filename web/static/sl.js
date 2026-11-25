@@ -761,10 +761,14 @@ function renderControlBody() {
   // Außerhalb des Kampfes steht der Knopf IMMER da (Kalle, 11.11.2026) - ist
   // niemand verletzt, nur ausgegraut: so kommt und geht nichts in der Zeile.
   const ohneKampf = !s.combatants.some((c) => c.kind === "npc");
+  // Seit 25.11.2026 startet derselbe Platz die 🩹 Heilen-Runde (Kalle,
+  // Variante A) statt alle auf einmal heil zu machen: nach dem Kampf wird
+  // gewürfelt, ob Wunden weggehen oder eine Verletzung bleibt.
+  const wund = verletzt.filter((c) => !c.benched && ((c.status || {}).out || (c.status || {}).wounds));
   const heilRow = () => (ohneKampf && s.combatants.length) || (verletzt.length && !gegnerSteht)
-    ? `<button class="ghost small good" data-act="alle-heilen" ${verletzt.length ? "" : "disabled"} title="${verletzt.length
-      ? `Alle Spieler ganz heil (${verletzt.length} verletzt): wach, keine Wunden, nicht angeschlagen. Rückgängig mit ↶`
-      : "Gerade ist niemand verletzt"}">🩹 Alle heilen</button>`
+    ? `<button class="ghost small good" data-act="heilrunde-start" ${wund.length ? "" : "disabled"} title="${wund.length
+      ? `Heilen-Runde: ${wund.length} verletzt`
+      : "Gerade ist niemand verletzt"}">🩹 Heilen-Runde</button>`
     : "";
   // Alles in EINER Zeile: Austeilen (am Rundenende gross), dahinter kleine
   // Symbol-Knoepfe. Vorher zwei Zeilen mit breiten Text-Knoepfen - rund 80 px,
@@ -1434,6 +1438,10 @@ function startflaecheHtml() {
 
 function renderOrderPanel(isGM, gesperrt = false) {
   const s = App.state;
+  // 🩹 Heilen-Runde ersetzt Steuerung + Reihenfolge, bis der SL „Fertig" tippt.
+  if (isGM && s.heilrunde) {
+    return section("combat", `Kampf & Initiative · Runde ${s.round}${countdownPille(s.countdown)}`, heilrundeHtml());
+  }
   if (s.combatants.length === 0) {
     // SL: Kampf-Steuerung trotzdem zeigen (Austeilen etc.), Initiative noch leer.
     if (isGM) {
@@ -1589,7 +1597,7 @@ function combatantRow(c, num, isGM, isOpen) {
         : ""}
       <button class="ghost small" data-act="bench" data-id="${c.id}" data-on="${c.benched ? 0 : 1}" title="${c.benched ? "Wieder in den Kampf" : "Aus dem Kampf (pausieren)"}">${c.benched ? "▶️ Wieder rein" : "⏸ Pausieren"}</button>
       <button class="ghost small bad" data-act="remove-combatant" data-id="${c.id}" title="${c.playerId ? "Spieler entfernen (Kick)" : "Entfernen"}">✕ Entfernen</button>
-    </div>` : "";
+    </div>${(c.verletzungen || []).length ? `<div class="row tight" style="margin-bottom:8px; gap:6px">${c.verletzungen.map((v) => verletzungChip(c, v, true)).join("")}</div>` : ""}` : "";
   // Eigene Zeile am Handy schlank (Kalle, 25.10.2026): „Du", „WC", Bennies und
   // Wunden stehen schon im Kopf über der Karte; die goldene Kante reicht zum Finden.
   const duTag = "";
@@ -1625,7 +1633,7 @@ function combatantRow(c, num, isGM, isOpen) {
         ${duTag}${naechsterTag}${jokerBadge}
         ${c.isWildCard && !handy ? '<span class="tag" style="color:var(--gold);border-color:var(--gold)" title="Wild Card: hält 3 Wunden aus, hat Bennies">★ Wildcard</span>' : ""}
         ${showCard ? (isGM ? talentKurz(c.talents) : talentBadges(c.talents)) : ""}${showCard ? talentTrail(c) : ""} ${hints}
-        ${handy ? "" : bennyBadge(c)}
+        ${handy ? "" : bennyBadge(c)}${isGM ? verletzungTags(c) : ""}
       </div>
       ${/* „✓ erholt"/🪙 stehen nur noch in der Leiste unten: in der Zeile
             machten sie die aktive Figur eine Zeile höher, und alles darunter

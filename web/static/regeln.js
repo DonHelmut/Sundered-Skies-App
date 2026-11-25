@@ -122,7 +122,8 @@ function wundAbzugHtml(mine) {
   if (!funktionAn("wunden")) return "";
   const st = mine.status || {};
   const wundAbzug = Math.min(3, st.wounds || 0);
-  return wundAbzug ? `<div class="zk-abzug">−${wundAbzug} auf alle Würfe <span class="muted small">(${st.wounds} Wunde${st.wounds > 1 ? "n" : ""})</span></div>` : "";
+  return (wundAbzug ? `<div class="zk-abzug">−${wundAbzug} auf alle Würfe <span class="muted small">(${st.wounds} Wunde${st.wounds > 1 ? "n" : ""})</span></div>` : "")
+    + (typeof verletzungenHandyHtml === "function" ? verletzungenHandyHtml(mine) : "");
 }
 
 function zugPanelHtml(mine, extras) {
