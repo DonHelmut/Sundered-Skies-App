@@ -4192,3 +4192,9 @@ body.sl-ansicht .sec-title .cd-pille { max-width: 300px; font-size: 0.78rem; }
 .cd-feld { display: block; margin: 0 0 10px; font-weight: 600; }
 .cd-feld input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; font: inherit; }
 .cd-feld .cd-runden { width: 7em; }
+
+/* Offene Treffer-/Heilungs-Wahl und Kampf-Einstellungen über der schwebenden
+   Anfrage: die saß (z-index 95) über der Leiste (90) und verdeckte bei
+   1366×768 die untersten Ziele samt „+3" - genau die Spielerseite. Die Anfrage
+   bleibt, wo sie ist (nichts springt), und ist nach dem Tipp wieder frei. */
+body.sl-ansicht .aktionsleiste:has(.al-treffer, .al-einstellungen) { z-index: 96; }

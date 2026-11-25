@@ -77,6 +77,20 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (25.11.2026): Bedienbarkeit – Treffer-Wahl über der Anfrage
+
+- **Fehler:** Bei 1366×768 lag die schwebende Anfrage-Karte (unten rechts,
+  z-index 95) über der offenen 🎯 Treffer-/🩹 Heilungs-Wahl der Aktionsleiste
+  (90) und verdeckte die untersten Ziele samt „+3". Jetzt hebt sich die Leiste
+  auf 96, solange Treffer-Wahl oder Kampf-Einstellungen offen sind – die
+  Anfrage bleibt, wo sie ist (nichts springt). Test:
+  `tests/browser/test_treffer_ueber_anfrage.py`.
+- Vorschläge (nur Bilder, Kalle entscheidet): `/mnt/project-files/screenshots/
+  bedienbarkeit-2026-11-25/` – 1 Freigeben/Weiter fester Platz + „ist dran"
+  statt doppelter Zahl, 2 Wörter statt Zeichen (⋯ schwebt statt Leiste zu
+  schieben, ↶ Zurück, ⏳ Countdown, „Wildcard" statt „WC"), 3 ⋯-Feld an der
+  Zeile mit Überschriften, Treffer-Stufen wie in der Treffer-Wahl.
+
 ## 2.0.23 (24.11.2026): 🎙 Vorstellungsrunde = feste Plätze
 
 Kalle: „Die Sprach-Erkennung mag ich nicht, das sollten feste Slots sein, die
