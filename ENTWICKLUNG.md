@@ -95,6 +95,10 @@ Vorher lief sie ab „Freigeben", und wer erst würfelte, verlor die Zeit.
   (sonst rutschten 🪙/Treffer).
 - Erholen am Handy hielt die Uhr bisher ganz an (`_timer_anhalten`) – jetzt
   startet sie stattdessen.
+- Zeichen „angeschlagen" (😵 → Linien-Symbol) neu: **Sterne, benommen**
+  (`benommen` in `symbole.js`, Kalle wählte C von A–E; Bild
+  `screenshots/angeschlagen-zeichen/vorschlaege.png` im Projekt). Nicht
+  gewählt: A Wirbel, B X-Augen, D Herz mit Riss, E Schild mit Riss.
 - Tests: `test_game.py` (Uhr wartet, drei Wege, vor Freigabe verpatzt),
   `tests/browser/test_angeschlagen_uhr.py` (Handy + SL, nichts rutscht).
 
