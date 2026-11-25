@@ -102,7 +102,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   🦴-Marke in der SL-Zeile, unter dem Wund-Abzug am Handy und mit ✕ im ⋯-Feld.
   „Bis alle Wunden heil" verschwindet von selbst, egal wie geheilt wurde.
 - Neue Datei `web/static/heilen.js`. Tests: `tests/test_heilrunde.py`,
-  `tests/browser/test_heilrunde.py` (Bilder mit `SWI_HEILEN_BILDER=<ordner>`).
+  `tests/browser/test_heilrunde_tisch.py` (Bilder mit `SWI_HEILEN_BILDER=<ordner>`).
 
 
 ## Release automatisch nach dem Merge (25.11.2026)
