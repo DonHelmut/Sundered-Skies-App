@@ -52,6 +52,10 @@ LAN-Adresse.
 - Release: Version an drei Stellen erhöhen (`server/paths.py`,
   `web/static/app.js`, `?v=` in `web/index.html` + `web/tv.html`) plus
   `paket/START-HIER.txt`; Details in `paket/LIESMICH-ENTWICKLER.txt`.
+  **Das macht der Release-PR selbst**, dazu `RELEASE.md` (erste Zeile
+  `# X.Y.Z – Titel`, darunter Notizen). Nach dem Merge baut GitHub Paket,
+  Rauchtest, Tag und Release (`.github/workflows/release.yml`). Nicht mehr
+  von Hand bauen und nicht direkt auf main pushen.
 - `data/` ist echter Spielstand und nicht im Git – beim Testen nicht
   versehentlich die gespeicherte Sitzung verwerfen (erste Aktion nach dem Start
   tut das).

@@ -11,6 +11,7 @@ function renderPlayer() {
   const mine = s.combatants.find((c) => c.playerId === App.myPlayerId);
 
   if (!App.joined || !mine) return renderJoin();
+  kampfReiterPruefen(s, mine);
   // Für „Weiter als …" beim nächsten Beitritt (auch nach „Verlassen").
   if (mine.characterId && App._gemerkterChar !== mine.characterId) {
     App._gemerkterChar = mine.characterId;
@@ -251,6 +252,51 @@ function renderPlayer() {
     ${inhalt}
     ${daumen}
   `;
+}
+
+// --- Kampfbeginn: alle Handys auf ⚔ Kampf (Kalle, 25.11.2026) ------------------
+// Teilt der SL aus (Runde 0 -> 1), springt jedes Handy einmal auf den Reiter
+// ⚔ Kampf - sonst saß einer noch im Bogen oder in den Notizen und merkte erst
+// am Goldrand, dass gekämpft wird. Einmal je Kampf: wer danach wieder in den
+// Bogen geht, bleibt dort, auch über Neuladen (der gemerkte Reiter gilt
+// weiter, 2C+5). Der Server zählt die Kämpfe (kampfNr); die zuletzt
+// gesehene Nummer merkt sich das Handy. Ein Handy, das neu beitritt, kennt
+// den laufenden Kampf noch nicht und landet darum auch auf ⚔ Kampf.
+// Tippt man gerade (Notiz, Bogen), ist ein Dialog offen oder liegt der Finger
+// auf dem Glas, wird NICHT umgesprungen - sonst wäre der Text weg oder der
+// Knopf unter dem Finger ausgetauscht. Dann erst danach.
+function handyBeschaeftigt() {
+  const a = document.activeElement;
+  if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return true;
+  if (document.querySelector(".app-dialog-hg")) return true;
+  return zeigerUnten || blattScrollt();
+}
+function kampfReiterPruefen(s, mine) {
+  if (!(s.round > 0) || mine.benched || !s.kampfNr) return;
+  const nr = String(s.kampfNr);
+  if (App._kampfReiterNr === undefined) {
+    try { App._kampfReiterNr = localStorage.getItem("kampfReiterNr"); } catch { App._kampfReiterNr = null; }
+  }
+  if (App._kampfReiterNr === nr) return;
+  if (handyBeschaeftigt()) {
+    // Nachholen, sobald frei: kein Server-Update muss dafür kommen. Neu
+    // gezeichnet wird erst, wenn wirklich frei - ein render() mitten im
+    // Tippen schriebe das Feld zurück.
+    const nachholen = () => {
+      if (handyBeschaeftigt()) { App._kampfReiterTimer = setTimeout(nachholen, 700); return; }
+      App._kampfReiterTimer = null;
+      render();
+    };
+    if (!App._kampfReiterTimer) App._kampfReiterTimer = setTimeout(nachholen, 700);
+    return;
+  }
+  App._kampfReiterNr = nr;
+  try { localStorage.setItem("kampfReiterNr", nr); } catch { /* privates Fenster */ }
+  if (App.handyReiter === "kampf") return;
+  App.handyReiter = "kampf";
+  try { localStorage.setItem("handyReiter", "kampf"); } catch { /* privates Fenster */ }
+  // Neuer Reiter fängt oben an, wie beim Antippen.
+  requestAnimationFrame(() => window.scrollTo(0, 0));
 }
 
 // --- Zwischen den Kämpfen -------------------------------------------------------

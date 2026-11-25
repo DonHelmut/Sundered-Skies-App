@@ -5,7 +5,11 @@ Seit v95 gibt es nur noch EIN Paket: die Ordnerversion (laeuft auch auf
 Firmen-Laptops, startet schneller). Die Einzeldatei-Spec
 (SunderedSkiesInitiative.spec) wird nicht mehr ausgeliefert.
 
-Paket bauen:
+SEIT 25.11.2026 BAUT GITHUB DAS RELEASE SELBST (.github/workflows/release.yml):
+Version im PR hochzaehlen (siehe unten) und RELEASE.md schreiben, mergen -
+fertig. Der Weg von Hand unten bleibt als Rueckfall.
+
+Paket bauen (von Hand):
   1. .venv\Scripts\python.exe -m PyInstaller SunderedSkiesInitiative-Ordner.spec --noconfirm --clean
      .venv\Scripts\python.exe -m PyInstaller Aktualisieren.spec --noconfirm --clean
   2. Inhalt von dist\SunderedSkies-Ordnerversion (exe + _internal) UND von
