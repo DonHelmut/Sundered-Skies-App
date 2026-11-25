@@ -2779,7 +2779,6 @@ button.notiz-reiter.such { padding: 5px 10px; }
 .tm-emojis button { padding: 0; height: 36px; font-size: 1.15rem; border-radius: 9px; background: transparent; }
 .tm-emojis button.on { border: 2px solid var(--accent); background: rgba(214, 162, 74, 0.18); }
 button.tm-loeschen { color: var(--bad); border-color: var(--bad); margin-right: auto; }
-.tm-hinweis { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
 /* 💬 SL-Nachricht merken */
 .msg .msg-merk { display: block; width: fit-content; margin-top: 8px; padding: 3px 10px; font-size: 0.82rem; border-radius: 8px; background: transparent; }
 .msg span.msg-merk.ok { border: 1px solid var(--good); color: var(--good); }
@@ -2799,7 +2798,6 @@ button.tm-loeschen { color: var(--bad); border-color: var(--bad); margin-right: 
 .modus-fenster { max-width: 780px; width: 100%; max-height: calc(100vh - 32px); overflow: auto;
   padding: 18px 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.45); }
 .modus-titel { margin: 0; font-size: 1.15rem; }
-.modus-unter { margin: 4px 0 12px; }
 .modus-kopf { white-space: nowrap; }
 .modus-kacheln { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 6px; }
 .modus-kachel { text-align: left; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px;
@@ -3177,7 +3175,6 @@ body.sl-ansicht .aktionsleiste {
   font-size: 0.84rem; line-height: 1.45; color: var(--muted);
   background: color-mix(in srgb, var(--panel) 50%, transparent); border: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
 .verbindungs-tipp b { color: var(--text); font-weight: 600; }
-.join-fuss { text-align: center; font-size: 0.72rem; color: var(--muted); opacity: 0.85; margin-top: 18px; line-height: 1.6; }
 .sf-knopf { font-size: 0.88rem; padding: 8px 14px; }
 /* Beitritt: die „Verbunden"-Pille stand mitten in der Kartenkunst. Solange die
    Verbindung steht, sagt sie nichts – Getrennt bleibt sichtbar. */
@@ -3826,7 +3823,6 @@ body.sl-ansicht .grid2 details[data-sec="protokolle"]:not([open]) > .sec-head { 
 .g-txt b em { font-style: normal; font-size: .95rem; color: #e2c27d; letter-spacing: .06em; margin-left: 6px; font-weight: 600; }
 .g-txt small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: .76rem; color: #bfa271; margin-top: 3px; }
 .g-pf { color: #c9a866; font-size: 1.4rem; opacity: .8; }
-.g-hinweis { text-align: center; font-size: .78rem; color: var(--muted); margin: 8px 0 2px; }
 .g-ueber { display: flex; justify-content: space-between; gap: 8px; font-size: .7rem; font-weight: 800; letter-spacing: .12em;
   text-transform: uppercase; color: var(--muted); margin: 14px 2px 6px; }
 .g-ueber i { font-style: normal; letter-spacing: 0; text-transform: none; font-weight: 600; }

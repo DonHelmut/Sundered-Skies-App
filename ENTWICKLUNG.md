@@ -77,6 +77,24 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Unveröffentlicht (25.11.2026): Aufgeräumt – Erklärtexte raus
+
+- Kalle: „unnötiger AI Slop – braucht niemand so unnötige Erklärungen …
+  Alles soll recht clean und aufgeräumt sein." **Regel ab jetzt: keine
+  Hinweiszeilen, die erklären, was ein Knopf tut.** Tooltips sind ok.
+- Raus: Beitritt-Fußzeile (Fanprojekt-Hinweis bleibt in „Über"), „Antippen –
+  schon bist du drin", Erklärung beim Namen (nur „(optional)"), WLAN-Tipp auf
+  „Flugmodus an, dann nur WLAN" gekürzt; Geld-Hinweise (Handy + SL-Panel);
+  Bibliothek-Hilfen (Charaktere, Gegner, Verbündete, Kämpfe); Hinweise unter
+  „Neue Runde", „Oben austeilen …", Treffer-Wahl-Fuß, Start „Ein paar
+  Schritte …", Beitritt „Handy-Kamera drauf …" und „WhatsApp …"; Kampfzonen
+  „Erreichbare Bahn tippen …"/„Tippe ein Token …"/Ziehen-Hilfe (nur „Diesen
+  Zug schon bewegt." bleibt); Anfrage „Der Spielleiter bestätigt …"; Bogen
+  (Leer-Text, Parade/Robustheit, Foto-Tipps), Regeln „Im Zweifel …";
+  Aufnahme-Pause-Erklärung; Modus-/Anleitung-Untertitel; Als-App-Fuß; Emoji-
+  Hinweis; Chronik „Tippen zum Lesen"; Countdown-/Benny-/Kampf-beenden-
+  Rückfragen gekürzt.
+
 ## Unveröffentlicht (25.11.2026): Bedienbarkeit – Treffer-Wahl über der Anfrage
 
 - **Fehler:** Bei 1366×768 lag die schwebende Anfrage-Karte (unten rechts,

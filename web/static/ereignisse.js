@@ -29,7 +29,7 @@ document.addEventListener("click", (e) => {
     "alle-wieder-rein": () => gmAction({ type: "unbench_all" }),
     "countdown": () => countdownDialog(),
     "kampf-beenden": async () => {
-      if (await frage("🏁 Kampf beenden?\n\nGegner und Verbündete verschwinden, die Karten werden eingesammelt. Die Handys zeigen sofort „Gerade kein Kampf“. Wunden und Bennies bleiben.\n\nRückgängig geht mit ↶.", "🏁 Kampf beenden")) gmAction({ type: "end_combat" });
+      if (await frage("🏁 Kampf beenden?\n\nGegner und Verbündete verschwinden, Karten werden eingesammelt. Wunden und Bennies bleiben.", "🏁 Kampf beenden")) gmAction({ type: "end_combat" });
     },
     "reset": async () => { if (await frage("Alle Karten einsammeln und neu mischen?\n\nRunde zurück auf 0, Gegner bleiben stehen. Rückgängig geht mit ↶.", "Karten einsammeln", true)) gmAction({ type: "reset" }); },
     "release": () => gmAction({ type: "release" }),
@@ -177,7 +177,7 @@ document.addEventListener("click", (e) => {
       // Geht sofort, ohne ✓ des SL (Kalle, 11.11.2026) - er sieht eine Einblendung.
       const m = myCombatant();
       const n = (m && m.bennies) || 0;
-      if (await frage(`Einen Benny ausgeben?\n\nDu hast ${n}. Geht sofort – der Spielleiter sieht es.`, "🪙 Ausgeben")) {
+      if (await frage(`Einen Benny ausgeben?\n\nDu hast ${n}.`, "🪙 Ausgeben")) {
         gmActionOrPlayer({ type: "request", kind: "benny", detail: { delta: -1 }, label: "🪙 Benny ausgeben" });
       }
     },

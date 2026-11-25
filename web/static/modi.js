@@ -69,7 +69,6 @@ function modusFensterHtml() {
         <h3 class="modus-titel">🎛 Was nutzen wir heute?</h3>
         <button class="ghost small" data-act="modus-zu">Schließen</button>
       </div>
-      <div class="muted small modus-unter">Gilt für Laptop, Handys und TV. Bleibt gespeichert und lässt sich jederzeit umschalten – auch mitten im Abend.</div>
       <div class="modus-kacheln">
         ${Object.entries(MODUS_VORLAGEN).map(([k, v]) => kachel(k, v.titel, v.text)).join("")}
         ${kachel("eigen", "✎ Eigene Auswahl", "Die Schalter unten einzeln setzen.")}
@@ -81,7 +80,7 @@ function modusFensterHtml() {
         <div><div class="modus-gruppe">Rund um den Abend</div>${MODUS_SCHALTER.abend.map(zeile).join("")}</div>
       </div>
       <div class="row spread modus-fuss">
-        <span class="muted small">Ausgeschaltetes verschwindet nur – Wunden, Bennies, Notizen, Geld bleiben gespeichert.</span>
+        <span></span>
         <button class="primary" data-act="modus-zu">Fertig</button>
       </div>
     </div>
@@ -189,7 +188,6 @@ function anleitungHtml() {
         <h3 class="modus-titel">📖 Anleitung für den Spielleiter</h3>
         <button class="ghost small" data-act="anleitung-zu">Schließen</button>
       </div>
-      <div class="muted small modus-unter">Was geht und wo es steckt. Was unter 🎛 ausgeschaltet ist, fehlt hier auch.</div>
       <div class="anl-raster">
         <nav class="anl-nav">${kapitel.map((k) =>
           `<button type="button" class="${k === akt ? "on" : ""}" data-act="anleitung-kapitel" data-k="${k.k}">${k.titel}</button>`).join("")}</nav>

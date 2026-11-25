@@ -241,7 +241,7 @@ function renderProtokollPanel() {
   const zeilen = liste.map((p) => `<div class="pt-zeile pz${App.ptMenue === p.id ? " pop-offen" : ""}">
       <button type="button" class="pz-haupt" data-act="prot-ansehen" data-id="${esc(p.id)}" title="Lesen – so sehen es die Spieler">
         <span class="pz-buch" aria-hidden="true">${nr.get(p.id)}</span>
-        <span class="pz-t"><b>${esc(p.name)}</b><small>${protokollDatum(p.datum)} · Tippen zum Lesen</small></span></button>
+        <span class="pz-t"><b>${esc(p.name)}</b><small>${protokollDatum(p.datum)}</small></span></button>
       ${p.freigegeben
         ? `<button type="button" class="pz-sicht an" data-act="prot-frei" data-id="${esc(p.id)}" data-an="0" title="Die Spieler sehen es unter 📜 – klicken zum Zurückziehen">${symbolSvg("check")} Spieler sehen es</button>`
         : `<span class="pz-nurdu">nur du</span><button type="button" class="primary small pz-frei" data-act="prot-frei" data-id="${esc(p.id)}" data-an="1" title="Am Handy unter 📜 zeigen">Freigeben</button>`}
