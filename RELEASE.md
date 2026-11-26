@@ -1,10 +1,14 @@
-# 2.0.27 – Fehler aus dem großen Durchspielen behoben
+# 2.0.27 – Abwarten bleibt, eigene Verletzungen & Fehler behoben
 <!--
   Steht hier eine NEUE Version (gleich APP_VERSION in server/paths.py), baut
   GitHub nach dem Merge auf main automatisch das Release
   (.github/workflows/release.yml). Erste Zeile = Titel, Rest = Release-Notizen
   für die Spieler. Bei jedem Release-PR neu schreiben.
 -->
+
+**Neu**
+- ⏸ Wer abwartet und nicht eingreift, bleibt auch in der nächsten Runde im Abwarten und behält seine Karte (wie im Regelbuch).
+- 🩹 Heilen-Runde: Verletzung „✎ Selbst eintragen“ statt würfeln – und jede Verletzung lässt sich mit ✎ umschreiben. Die Tabelle ist nur ein Vorschlag.
 
 **Behoben**
 - ⏳ Countdown, der vor dem ersten Austeilen gesetzt wird, verliert keine Runde mehr (vorher stand „3" in Runde 1 schon auf 2). Dauer-Effekte genauso.

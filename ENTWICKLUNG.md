@@ -100,6 +100,17 @@ Suite. Gefunden und behoben:
   (myPlayerId null passte auf Gegner) – Tests, die gleich neu luden, waren
   wackelig.
 
+Nachträge von Kalle im selben PR:
+- **V3 Abwarten bleibt** über den Rundenwechsel (SWADE): `_deal` sammelt bei
+  neuer Runde die Karte Abwartender nicht ein, sie bleiben `held`; der
+  Erste der neuen Runde ist ein Nicht-Abwartender. Nicht bei Gruppenkarten-Kopien.
+- **Verletzung selbst eintragen** („Verletzungen sind nur Vorschläge, was
+  eigenes eintragen"): `heil_verletzung` mit `text` würfelt nicht;
+  `verletzung_text` schreibt eine bestehende um (✎ in der Heilen-Karte).
+  Bild: `screenshots/pruefung-2026-11-26/verletzung_selbst.png`.
+- Vorschläge V1 (Nachricht als Leiste im eigenen Zug) und V2 (Overlays
+  nacheinander) mit Bildern gezeigt, noch nicht entschieden.
+
 Tests: `tests/browser/test_pruefung_1126.py`, `test_spielabend.py`, Ergänzungen
 in `test_countdown.py`, `test_heilrunde.py`, `test_kampf_nr.py`.
 Offen weiter: Verletzungstabelle mit dem Buch abgleichen (`verletzung_aus`).

@@ -130,3 +130,21 @@ def test_ko_probe_bleibt_wenn_zuerst_geweckt(fresh_game):
     g.apply({"type": "heil_ko", "id": korgo["id"], "erg": "steig"})
     g.apply({"type": "heil_verletzung", "id": korgo["id"]})
     assert _c(g, korgo)["verletzungen"][0]["dauer"] == "24h"
+
+
+def test_verletzung_selbst_eintragen_und_aendern(fresh_game):
+    """Kalle 26.11.2026: „Verletzungen sind nur Vorschläge, was eigenes eintragen"."""
+    g = fresh_game
+    _, pk, tessa, korgo, mira = _runde(g)
+    g.apply({"type": "heil_ko", "id": korgo["id"], "erg": "nein"})
+    g.apply({"type": "heil_verletzung", "id": korgo["id"], "text": "  Ohr  ab "})
+    v = _c(g, korgo)["verletzungen"][0]
+    assert (v["ort"], v["folge"], v["dauer"], v["wurf"]) == ("Ohr ab", "", "immer", None)
+    assert g.snapshot(fuer_spieler=True, player_id=pk["id"])["messages"][-1]["text"] == "🦴 Verletzung: Ohr ab\nbleibt für immer"
+    g.apply({"type": "verletzung_text", "id": korgo["id"], "vid": v["id"], "text": "Linkes Ohr ab"})
+    assert _c(g, korgo)["verletzungen"][0]["ort"] == "Linkes Ohr ab"
+    assert g.heilrunde["e"][korgo["id"]]["verletzung"]["ort"] == "Linkes Ohr ab"
+    char = next(r for r in g.roster if r["id"] == korgo["characterId"])
+    assert char["verletzungen"][0]["ort"] == "Linkes Ohr ab"
+    g.apply({"type": "verletzung_text", "id": korgo["id"], "vid": v["id"], "text": "   "})
+    assert _c(g, korgo)["verletzungen"][0]["ort"] == "Linkes Ohr ab"

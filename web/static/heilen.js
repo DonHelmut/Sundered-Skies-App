@@ -18,8 +18,12 @@ function heilPips(st) {
   return `<span class="hr-pips" title="${w} Wunde${w === 1 ? "" : "n"}">${[0, 1, 2].map((i) => `<b class="${i < w ? "v" : ""}"></b>`).join("")}</span>`;
 }
 
+// Selbst eingetragen (Kalle, 26.11.2026: „Verletzungen sind nur Vorschläge"):
+// nur der Text, keine Folge aus der Tabelle.
+const verlText = (v) => v.folge ? `${v.ort} · ${v.folge}` : v.ort;
+
 function verletzungChip(c, v, weg) {
-  return `<span class="hr-chip verl" title="${esc(v.folge)} · ${esc(VERL_DAUER[v.dauer] || "")}">🦴 ${esc(v.ort)} · ${esc(v.folge)}${
+  return `<span class="hr-chip verl" title="${esc(VERL_DAUER[v.dauer] || "")}">🦴 ${esc(verlText(v))}${
     weg ? ` <button type="button" class="hr-x" data-act="verletzung-weg" data-id="${c.id}" data-vid="${esc(v.id)}" title="Verletzung wegnehmen">✕</button>` : ""}</span>`;
 }
 
@@ -42,11 +46,13 @@ function heilKarteHtml(c, e, hr) {
     zeilen.push(`<div class="hr-schritt"><span class="hr-chip tot">☠ Patzer bei der Konstitution</span></div>`);
   } else if (e.ko && !e.verl) {
     zeilen.push(`<div class="hr-schritt"><span class="hr-was">Verletzung</span>
-      <button type="button" class="primary small" data-act="heil-verletzung" data-id="${c.id}">🎲 Würfeln</button></div>`);
+      <button type="button" class="primary small" data-act="heil-verletzung" data-id="${c.id}">🎲 Würfeln</button>
+      <button type="button" class="ghost small" data-act="heil-verletzung-selbst" data-id="${c.id}">✎ Selbst eintragen</button></div>`);
   } else if (e.verletzung) {
     const v = e.verletzung;
-    zeilen.push(`<div class="hr-schritt"><span class="hr-wurf" title="2W6${v.zusatz ? " + W6" : ""}">🎲 ${v.wurf.join(" + ")}${v.zusatz ? ` · ${v.zusatz}` : ""}</span>
-      <span class="hr-chip verl">🦴 ${esc(v.ort)} · ${esc(v.folge)}</span><span class="hr-grau">${esc(VERL_DAUER[v.dauer])}</span></div>`);
+    zeilen.push(`<div class="hr-schritt">${v.wurf ? `<span class="hr-wurf" title="2W6${v.zusatz ? " + W6" : ""}">🎲 ${v.wurf.join(" + ")}${v.zusatz ? ` · ${v.zusatz}` : ""}</span>` : ""}
+      <span class="hr-chip verl">🦴 ${esc(verlText(v))}</span><span class="hr-grau">${esc(VERL_DAUER[v.dauer])}</span>
+      <button type="button" class="ghost small" data-act="verletzung-text" data-id="${c.id}" data-vid="${esc(v.id)}" title="Verletzung ändern">✎</button></div>`);
   }
   if (e.blutet) zeilen.push(`<div class="hr-schritt"><span class="hr-chip tot">🩸 Verblutet – Heilen hält es auf</span></div>`);
   // 2) Heilen in der Goldenen Stunde
@@ -129,6 +135,17 @@ function heilKlick(act, t) {
     case "heil-rast-wurf": gmAction({ type: "heil_rast_wurf", id, erg }); return true;
     case "heiler-wahl": App.heilerWahl[id] = t.getAttribute("data-heiler"); render(); return true;
     case "verletzung-weg": gmAction({ type: "verletzung_weg", id, vid: t.getAttribute("data-vid") }); return true;
+    case "heil-verletzung-selbst":
+      eingabe("Welche Verletzung?", "", "Eintragen").then((text) => { if (text) gmAction({ type: "heil_verletzung", id, text }); });
+      return true;
+    case "verletzung-text": {
+      const c = findCombatant(id);
+      const v = ((c && c.verletzungen) || []).find((x) => x.id === t.getAttribute("data-vid"));
+      eingabe("Verletzung ändern:", v ? verlText(v) : "", "Ändern").then((text) => {
+        if (text) gmAction({ type: "verletzung_text", id, vid: t.getAttribute("data-vid"), text });
+      });
+      return true;
+    }
     default: return false;
   }
 }
@@ -140,5 +157,5 @@ function verletzungenHandyHtml(c) {
 }
 function verletzungTags(c) {
   return ((c && c.verletzungen) || []).map((v) =>
-    `<span class="tag verl-tag" title="${esc(v.folge)} · ${esc(VERL_DAUER[v.dauer] || "")}">🦴 ${esc(v.ort)}</span>`).join("");
+    `<span class="tag verl-tag" title="${esc(verlText(v))} · ${esc(VERL_DAUER[v.dauer] || "")}">🦴 ${esc(v.ort)}</span>`).join("");
 }

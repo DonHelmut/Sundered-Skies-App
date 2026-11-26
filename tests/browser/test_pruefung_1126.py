@@ -37,3 +37,34 @@ def test_heilen_karte_zeigt_ko_probe_nach_aufwecken(tisch):
     sl.klick(f"[data-act=heil-wurf][data-id={ids['Korgo']}][data-erg='1']")
     sl.warte_bis("(id) => !App.state.combatants.find(c => c.id === id).status.out", ids["Korgo"])
     sl.warte_bis("(id) => !!document.querySelector(`[data-act=heil-ko][data-id='${id}']`)", ids["Korgo"])
+
+
+def test_verletzung_selbst_eintragen(tisch):
+    """Kalle 26.11.2026: „Verletzungen sind nur Vorschläge, was eigenes eintragen"."""
+    import os
+    sl = tisch.sl()
+    h = tisch.handy("Korgo")
+    kid = next(c["id"] for c in sl.state()["combatants"] if c["name"] == "Korgo")
+    tisch.gm({"type": "set_status", "id": kid, "wounds": 3, "out": True})
+    tisch.gm({"type": "heilrunde_start"})
+    sl.klick(f"[data-act=heil-ko][data-id={kid}][data-erg=nein]")
+    bild = os.environ.get("SWI_VERL_BILD")
+    sl.warte_bis("(id) => !!document.querySelector(`[data-act=heil-verletzung-selbst][data-id='${id}']`)", kid)
+    if bild:
+        sl.page.mouse.move(5, 5); sl.page.wait_for_timeout(400)
+        sl.locator(f"[data-hr='{kid}']").screenshot(path=bild + "_0.png")
+    sl.klick(f"[data-act=heil-verletzung-selbst][data-id={kid}]")
+    sl.page.locator(".app-dialog-eingabe").fill("Ohr ab")
+    sl.dialog_knopf("Eintragen")
+    sl.warte_bis("(id) => (App.state.combatants.find(c => c.id === id).verletzungen || []).length", kid)
+    if bild:
+        sl.page.mouse.move(5, 5); sl.page.wait_for_timeout(400)
+        sl.locator(f"[data-hr='{kid}']").screenshot(path=bild + "_1.png")
+    sl.klick(f"[data-act=verletzung-text][data-id={kid}]")
+    sl.page.locator(".app-dialog-eingabe").fill("Linkes Ohr ab")
+    sl.dialog_knopf("Ändern")
+    sl.warte_bis("(id) => App.state.combatants.find(c => c.id === id).verletzungen[0].ort === 'Linkes Ohr ab'", kid)
+    h.warte_bis("() => document.body.innerText.includes('Linkes Ohr ab')")
+    if bild:
+        sl.page.mouse.move(5, 5); sl.page.wait_for_timeout(400)
+        sl.locator(f"[data-hr='{kid}']").screenshot(path=bild + "_2.png")
