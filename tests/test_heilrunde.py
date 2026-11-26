@@ -116,3 +116,17 @@ def test_tabelle():
     assert verletzung_aus(7, 5) == ("Bauch", "Stärke −1 Würfel")
     assert verletzung_aus(10, 1)[0] == "Bein"
     assert verletzung_aus(12, 3) == ("Kopf", "Ein Auge blind")
+
+
+def test_ko_probe_bleibt_wenn_zuerst_geweckt(fresh_game):
+    """Heilen und K.O.-Probe stehen gleichzeitig auf der Karte. Weckte der
+    Heiler zuerst, war die Probe samt Verletzungswurf weg."""
+    g = fresh_game
+    _, _, tessa, korgo, mira = _runde(g)
+    assert g.heilrunde["e"][korgo["id"]]["warKo"] is True
+    assert g.heilrunde["e"][tessa["id"]]["warKo"] is False
+    g.apply({"type": "heil_wurf", "id": korgo["id"], "heiler": mira["id"], "erg": "1"})
+    assert not _c(g, korgo)["status"]["out"]
+    g.apply({"type": "heil_ko", "id": korgo["id"], "erg": "steig"})
+    g.apply({"type": "heil_verletzung", "id": korgo["id"]})
+    assert _c(g, korgo)["verletzungen"][0]["dauer"] == "24h"

@@ -1105,6 +1105,8 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
   box-shadow: 0 0 46px rgba(90, 230, 170, 0.95);
   animation: glowPop 1.35s ease-out;
 }
+/* Nebel über den Kartenrand hinaus macht die Seite nicht breiter (playReveal). */
+html.nebel-laeuft, html.nebel-laeuft body { overflow-x: clip; }
 /* Zwei Nebel-Lagen mit unterschiedlichem Tempo = wabernde Tiefe. */
 .mistfx {
   position: absolute; inset: -18%; pointer-events: none; z-index: 4;

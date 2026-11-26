@@ -77,6 +77,33 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## 2.0.27 (26.11.2026): Tiefenprüfung – ganzer Abend durchgespielt
+
+Kalle: „Komplett von A bis Z auf die Nieren prüfen … komplett durchspielen."
+Gemacht: Server-Zufallstest (~24.000 Aktionen mit Prüfung von Karten,
+Wunden, Bennies, Countdown nach jedem Schritt, auch über Speichern/Fortsetzen),
+ein ganzer Abend mit SL + 5 Handys (neu: `tests/browser/test_spielabend.py`),
+Chaos-Klicks auf SL + 5 Handys (5 × 400 zufällige Klicks), dazu die ganze
+Suite. Gefunden und behoben:
+
+- **Countdown/Effekte vor dem ersten Austeilen** zählten beim Austeilen
+  schon eins runter (`_deal`: erst ab Runde 2).
+- **Heilen-Runde:** Wurde ein K.O. zuerst geheilt, verschwand die
+  K.O.-Probe samt Verletzungswurf. Jetzt merkt sich der Eintrag `warKo`.
+- **Kampf-Reiter:** `kampfNr` fing nach „Neu" statt „Fortsetzen" wieder
+  bei 1 an – Handys mit gemerkter „1" sprangen nicht auf ⚔ Kampf. Jetzt
+  Sekunden-Zeitstempel (eindeutig über Abende).
+- **Aufdecken mit Nebel/Scherben** an der eigenen großen Karte machte die
+  Handy-Seite ~210 px breiter (seitwärts wischbar). `playReveal` setzt
+  solange `html.nebel-laeuft` (overflow-x: clip).
+- Test-Helfer `tisch.handy()` wartete nicht auf die echte Beitritts-Antwort
+  (myPlayerId null passte auf Gegner) – Tests, die gleich neu luden, waren
+  wackelig.
+
+Tests: `tests/browser/test_pruefung_1126.py`, `test_spielabend.py`, Ergänzungen
+in `test_countdown.py`, `test_heilrunde.py`, `test_kampf_nr.py`.
+Offen weiter: Verletzungstabelle mit dem Buch abgleichen (`verletzung_aus`).
+
 ## 2.0.26 (25.11.2026): 🩹 Heilen-Runde nach dem Kampf
 
 - Kalle: „Nach einem fertigen Kampf soll der SL die Heilen-Runde einleiten …

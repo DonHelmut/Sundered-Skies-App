@@ -32,7 +32,9 @@ function heilKarteHtml(c, e, hr) {
     `<button type="button" class="${kl}" data-act="${act}" data-id="${c.id}" data-erg="${erg}">${text}</button>`;
   const zeilen = [];
   // 1) K.O.-Probe + Verletzung (nur wer außer Gefecht war)
-  if (e.ko === null && ko) {
+  // Auch wer schon wieder wach ist, schuldet die Probe (e.warKo) - sonst fiel
+  // der Verletzungswurf weg, sobald zuerst geheilt wurde.
+  if (e.ko === null && (ko || e.warKo)) {
     zeilen.push(`<div class="hr-schritt"><span class="hr-was">Konstitution${abzug ? ` <small>−${abzug}</small>` : ""}</span>
       <span class="hr-erg">${knopf("heil-ko", "patzer", "☠ Patzer", "patzer")}${knopf("heil-ko", "nein", "Nicht geschafft")}${
         knopf("heil-ko", "ja", "Geschafft", "gut")}${knopf("heil-ko", "steig", "Steigerung", "top")}</span></div>`);

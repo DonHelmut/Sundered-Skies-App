@@ -96,7 +96,7 @@ function slAnsichtUebernehmen(server) {
   return geaendert;
 }
 
-const ASSET_VERSION = "2.0.26";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
+const ASSET_VERSION = "2.0.27";   // muss mit ?v= in index.html und APP_VERSION (Server) übereinstimmen
 
 const $ = (id) => document.getElementById(id);
 
@@ -268,10 +268,21 @@ function playReveal(node) {
       inner.appendChild(m); extras.push(m);
     });
   }
+  // Nebel und Scherben fliegen über die Karte hinaus - an einer Karte am
+  // rechten Rand (Reihenfolge am Handy) wurde die Seite dadurch kurz 200 px
+  // breiter und ließ sich seitwärts wischen (Tiefenprüfung 26.11.2026).
+  // Solange das läuft, schneidet die Seite waagerecht ab; mehrere Karten
+  // zählen mit.
+  App._nebel = (App._nebel || 0) + 1;
+  document.documentElement.classList.add("nebel-laeuft");
   const dur = revealDauer(style);
   setTimeout(() => {
     node.classList.remove("revealing");
     extras.forEach((el) => el.remove());
+    if (--App._nebel <= 0) {
+      App._nebel = 0;
+      document.documentElement.classList.remove("nebel-laeuft");
+    }
   }, dur);
 }
 

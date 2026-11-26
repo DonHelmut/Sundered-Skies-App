@@ -244,7 +244,10 @@ class Tisch:
         if spieler:
             s.fill("#joinname", spieler)
         s.klick("[data-act=join-neu]")
-        s.warte_bis("() => App.joined && App.state && App.state.combatants.some("
+        # myPlayerId zuerst: App.joined steht schon beim Tippen, und vor der
+        # Antwort ist myPlayerId null - passend zu jedem GEGNER (playerId null).
+        # Lud ein Test dann gleich neu, war der Beitritt nie gespeichert.
+        s.warte_bis("() => App.joined && App.myPlayerId && App.state && App.state.combatants.some("
                     "c => c.playerId === App.myPlayerId)")
         return s
 

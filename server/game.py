@@ -2315,8 +2315,13 @@ class Game:
                 c.setdefault("status", default_status())["shaken"] = False
         if not ids:
             return
+        # warKo: wer zu Beginn außer Gefecht war, schuldet die K.O.-Probe auch
+        # dann noch, wenn ihn vorher jemand aufweckt. Vorher verschwand die
+        # Probe samt Verletzungswurf, sobald zuerst geheilt wurde - beide
+        # Schritte stehen ja gleichzeitig auf der Karte (Tiefenprüfung 26.11.2026).
         self.heilrunde = {"goldene": True, "rast": 0, "ids": ids,
                           "e": {cid: {"heiler": [], "ko": None, "verl": False, "blutet": False,
+                                      "warKo": bool((self._combatant(cid) or {}).get("status", {}).get("out")),
                                       "rastErg": None, "log": []} for cid in ids}}
 
     def _do_heilrunde_ende(self, a: dict) -> None:
@@ -2594,12 +2599,23 @@ class Game:
             self.joker_flash += 1
             self.reshuffle_next = True
         if self.round == 0:
-            self.kampf_nr += 1
+            # Eindeutig über Abende hinweg (Sekunden-Zeitstempel statt 1, 2, 3):
+            # das Handy merkt sich die zuletzt gesehene Nummer. Nach „Neu"
+            # statt „Fortsetzen" fing der Zähler wieder bei 1 an - wer letztes
+            # Mal drei Kämpfe hatte, sprang beim dritten Kampf heute nicht mehr
+            # auf ⚔ Kampf (Tiefenprüfung 26.11.2026).
+            self.kampf_nr = max(self.kampf_nr + 1, now_ms() // 1000)
         if new_round:
+            # Erst ab der ZWEITEN Runde zählt runter: vor dem ersten Austeilen
+            # gesetzt („Schiff bricht · 3", der ⏳ steht schon da, sobald
+            # Gegner am Tisch sind), stand der Countdown in Runde 1 sonst
+            # schon auf 2 - eine Runde gestohlen. Effekte genauso
+            # (Tiefenprüfung 26.11.2026).
+            if self.round > 0:
+                self._effekte_runterzaehlen()
+                if self.countdown and self.countdown["runden"] > 0:
+                    self.countdown["runden"] -= 1
             self.round += 1
-            self._effekte_runterzaehlen()
-            if self.countdown and self.countdown["runden"] > 0:
-                self.countdown["runden"] -= 1
         elif self.round == 0:
             self.round = 1
         self._resort()
