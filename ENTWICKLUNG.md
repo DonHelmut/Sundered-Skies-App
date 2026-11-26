@@ -108,8 +108,12 @@ Nachträge von Kalle im selben PR:
   eigenes eintragen"): `heil_verletzung` mit `text` würfelt nicht;
   `verletzung_text` schreibt eine bestehende um (✎ in der Heilen-Karte).
   Bild: `screenshots/pruefung-2026-11-26/verletzung_selbst.png`.
-- Vorschläge V1 (Nachricht als Leiste im eigenen Zug) und V2 (Overlays
-  nacheinander) mit Bildern gezeigt, noch nicht entschieden.
+- **V1** SL-Nachricht im eigenen Zug (`binDran`) als Leiste oben
+  (`.msg-overlay.leiste`, schwebt, pointer-events nur auf der Karte).
+- **V2** Überblendungen nacheinander: `momentZeigen()` in app.js reiht
+  „Du bist dran" (1,5 s) und Treffer-Moment (2,6 s) auf; die SL-Nachricht
+  wartet, solange `momentLaeuft()`. Bilder: `screenshots/pruefung-2026-11-26/`
+  (V1_V2_gebaut.png, V2_vorschlag.png).
 
 Tests: `tests/browser/test_pruefung_1126.py`, `test_spielabend.py`, Ergänzungen
 in `test_countdown.py`, `test_heilrunde.py`, `test_kampf_nr.py`.

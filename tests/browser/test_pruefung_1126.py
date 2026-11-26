@@ -68,3 +68,36 @@ def test_verletzung_selbst_eintragen(tisch):
     if bild:
         sl.page.mouse.move(5, 5); sl.page.wait_for_timeout(400)
         sl.locator(f"[data-hr='{kid}']").screenshot(path=bild + "_2.png")
+
+
+def test_ueberblendungen_nacheinander_und_nachricht_als_leiste(tisch):
+    """Kalle 26.11.2026 (V1 + V2): Treffer, „Du bist dran" und SL-Nachricht
+    lagen gleichzeitig übereinander. Jetzt nacheinander; im eigenen Zug ist
+    die Nachricht eine Leiste oben und verdeckt die Zug-Knöpfe nicht."""
+    sl = tisch.sl()
+    h = tisch.handy("Korgo")
+    tisch.gm({"type": "add_npc", "name": "Pirat", "count": 2})
+    tisch.gm({"type": "new_round", "runde": 0})
+    kid = next(c["id"] for c in sl.state()["combatants"] if c["name"] == "Korgo")
+    h.page.wait_for_timeout(800)
+    h.js("() => document.querySelector('[data-act=daumen-aufdecken]').click()")
+    h.page.wait_for_timeout(3500)
+    h.js("""() => { window.__max = 0; const f = () => { window.__max = Math.max(window.__max,
+        document.querySelectorAll('.zug-moment, .treffer-moment, .msg-overlay').length); requestAnimationFrame(f); }; f(); }""")
+    tisch.gm({"type": "apply_hit", "id": kid})
+    tisch.gm({"type": "set_active", "id": kid})
+    tisch.gm({"type": "release"})
+    tisch.gm({"type": "message", "target": "all", "text": "Das Deck bebt."})
+    h.warte_bis("() => !!document.querySelector('.msg-overlay.leiste')", frist=8000)
+    assert h.js("() => window.__max") == 1
+    import os
+    if os.environ.get("SWI_V_BILD"):
+        h.page.wait_for_timeout(500)
+        h.screenshot(path=os.environ["SWI_V_BILD"])
+    # Die Probe-Knöpfe unten sind frei: der Tipp trifft wirklich den Knopf.
+    frei = h.js("""() => { const b = document.querySelector('[data-act=probe-verpatzt]').getBoundingClientRect();
+        const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+        return !!(e && e.closest('[data-act=probe-verpatzt]')); }""")
+    assert frei
+    h.js("() => document.querySelector('[data-act=dismiss-msg]').click()")
+    h.warte_bis("() => !document.querySelector('.msg-overlay')")

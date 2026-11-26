@@ -352,6 +352,31 @@ const kannVibrieren = typeof navigator !== "undefined" && typeof navigator.vibra
 // die eigene Karte groß mit „DU BIST DRAN", dann die normale „Mein Zug"-Ansicht.
 // Schwebt über allem, fängt keine Tipps ab (pointer-events aus) - wer schnell
 // ist, kann schon „Angreifen" drücken.
+// Überblendungen nacheinander statt übereinander (Kalle, 26.11.2026, V2 „Will
+// alles"): „Du bist dran", „Angeschlagen"/„−1 Wunde" und die SL-Nachricht
+// kamen oft im selben Augenblick und lagen dann alle gleichzeitig über dem
+// Handy - lesen konnte man keins. Jetzt eins nach dem anderen; die Nachricht
+// wartet, bis die Reihe leer ist (msgBanner in spieler.js).
+App._momente = [];
+function momentZeigen(zeigen, dauer) {
+  App._momente.push([zeigen, dauer]);
+  if (!App._momentLaeuft) naechsterMoment();
+}
+function naechsterMoment() {
+  const m = App._momente.shift();
+  if (!m) {
+    App._momentLaeuft = false;
+    // Wartende Nachricht jetzt zeigen - aber nicht mitten in eine Aufdeckung.
+    if (App.revealLockUntil && Date.now() < App.revealLockUntil) App.pendingRender = true;
+    else render();
+    return;
+  }
+  App._momentLaeuft = true;
+  m[0]();
+  setTimeout(naechsterMoment, m[1]);
+}
+const momentLaeuft = () => !!App._momentLaeuft;
+
 function zugMoment() {
   const s = App.state, mine = myCombatant();
   if (!s || !mine) return;
@@ -665,7 +690,7 @@ function checkTurnNotify() {
   // abschalten, verpassen darf man seinen Zug trotzdem nicht.
   if (myTurn && !App._prevMyTurn && App._turnInit) {   // (Spieler-Ansicht)
     dranBlitz();
-    zugMoment();
+    momentZeigen(zugMoment, 1500);
     // Erst nach dem Neuzeichnen springen, sonst zielt es auf die alte Seite.
     setTimeout(() => {
       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* s. u. */ }

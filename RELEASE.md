@@ -1,4 +1,4 @@
-# 2.0.27 – Abwarten bleibt, eigene Verletzungen & Fehler behoben
+# 2.0.27 – Ruhigere Handys, Abwarten bleibt, eigene Verletzungen
 <!--
   Steht hier eine NEUE Version (gleich APP_VERSION in server/paths.py), baut
   GitHub nach dem Merge auf main automatisch das Release
@@ -9,6 +9,9 @@
 **Neu**
 - ⏸ Wer abwartet und nicht eingreift, bleibt auch in der nächsten Runde im Abwarten und behält seine Karte (wie im Regelbuch).
 - 🩹 Heilen-Runde: Verletzung „✎ Selbst eintragen“ statt würfeln – und jede Verletzung lässt sich mit ✎ umschreiben. Die Tabelle ist nur ein Vorschlag.
+
+- 📱 Nachricht vom Spielleiter im eigenen Zug: schmale Leiste oben statt Vollbild – die Zug-Knöpfe bleiben frei.
+- 📱 „Du bist dran“, Treffer und Nachricht kommen nacheinander statt alle gleichzeitig übereinander.
 
 **Behoben**
 - ⏳ Countdown, der vor dem ersten Austeilen gesetzt wird, verliert keine Runde mehr (vorher stand „3" in Runde 1 schon auf 2). Dauer-Effekte genauso.
