@@ -122,8 +122,11 @@ function renderPlayer() {
 
   // Blockierendes Banner für jede neue SL-Nachricht.
   const newest = gmMsgs[gmMsgs.length - 1];
-  const msgBanner = newest && newest.ts > App.lastSeenMsgTs
-    ? `<div class="msg-overlay">
+  // Im eigenen Zug als Leiste oben (Kalle, 26.11.2026, V1): das Vollbild
+  // verdeckte die Probe-Knöpfe und die Uhr. Läuft gerade eine Überblendung
+  // („Du bist dran", Treffer), wartet die Nachricht, bis sie vorbei ist (V2).
+  const msgBanner = newest && newest.ts > App.lastSeenMsgTs && !momentLaeuft()
+    ? `<div class="msg-overlay${binDran ? " leiste" : ""}">
          <div class="msg-card${geflustert(newest) ? " gefluestert" : ""}">
            <div class="muted small">${!geflustert(newest) ? "✉ Nachricht vom Spielleiter an alle"
              : mitwisser(newest).length ? `🤫 Der Spielleiter flüstert dir und ${mitwisser(newest).join(", ")} zu`

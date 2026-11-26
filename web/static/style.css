@@ -761,6 +761,15 @@ code.url { background: rgba(0, 0, 0, 0.28); padding: 4px 8px; border-radius: 6px
   animation: fadeIn 0.2s ease;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+/* Im eigenen Zug: Leiste unter der Kopfzeile statt Vollbild - Zug-Knöpfe und
+   Uhr bleiben frei und bedienbar (V1, 26.11.2026). Schwebt, schiebt nichts. */
+.msg-overlay.leiste { inset: 52px 0 auto 0; background: none; padding: 8px 10px; align-items: flex-start; pointer-events: none; }
+.msg-overlay.leiste .msg-card { pointer-events: auto; padding: 10px 14px; display: grid; grid-template-columns: 1fr auto;
+  align-items: center; gap: 4px 10px; text-align: left; }
+.msg-overlay.leiste .msg-card .muted { grid-column: 1 / 3; }
+.msg-overlay.leiste .msg-card .msg-text { font-size: 1.05rem; margin: 0; }
+.msg-overlay.leiste .msg-card img { grid-column: 1 / 3; max-height: 30vh; }
+.msg-overlay.leiste .msg-card button[data-act=dismiss-msg] { margin-top: 0 !important; width: auto !important; padding: 8px 14px; font-size: 0.95rem; }
 .msg-card {
   background: linear-gradient(180deg, var(--panel), var(--bg2));
   border: 2px solid var(--gold); border-radius: 16px; padding: 20px;
@@ -1105,6 +1114,8 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.3
   box-shadow: 0 0 46px rgba(90, 230, 170, 0.95);
   animation: glowPop 1.35s ease-out;
 }
+/* Nebel über den Kartenrand hinaus macht die Seite nicht breiter (playReveal). */
+html.nebel-laeuft, html.nebel-laeuft body { overflow-x: clip; }
 /* Zwei Nebel-Lagen mit unterschiedlichem Tempo = wabernde Tiefe. */
 .mistfx {
   position: absolute; inset: -18%; pointer-events: none; z-index: 4;

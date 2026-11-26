@@ -130,6 +130,11 @@ def verletzung_aus(summe: int, w6: int, seite: str = "rechter") -> tuple[str, st
         return "Bein", "Humpelt: langsamer"
     return "Kopf", ("Hässliche Narbe" if w6 <= 2 else "Ein Auge blind" if w6 <= 4 else "Verstand −1 Würfel")
 
+def _verletzung_text(v) -> str:
+    """Selbst eingetragene Verletzung: ein Satz, ohne Zeilenumbrüche."""
+    return " ".join(str(v).split())[:60] if isinstance(v, str) else ""
+
+
 def default_status() -> dict:
     """Kampfzustand eines Teilnehmers: Angeschlagen / Wunden / Ausgeschaltet
     plus schnelle Zusatz-Zustände."""
@@ -1033,8 +1038,10 @@ class Game:
             self.discard.append(c["card"])
         c["karteGeteilt"] = False
 
-    def _collect_cards(self) -> None:
+    def _collect_cards(self, ausser: Optional[set] = None) -> None:
         for c in self.combatants:
+            if ausser and c["id"] in ausser:
+                continue        # wartet ab und behält die Karte (siehe _deal)
             # Mitglieder einer Gruppenkarte tragen nur eine KOPIE - die Karte
             # liegt einmal beim ersten der Gruppe und kommt nur einmal auf den Stapel.
             if c.get("card") and not c.get("karteGeteilt"):
@@ -2315,8 +2322,13 @@ class Game:
                 c.setdefault("status", default_status())["shaken"] = False
         if not ids:
             return
+        # warKo: wer zu Beginn außer Gefecht war, schuldet die K.O.-Probe auch
+        # dann noch, wenn ihn vorher jemand aufweckt. Vorher verschwand die
+        # Probe samt Verletzungswurf, sobald zuerst geheilt wurde - beide
+        # Schritte stehen ja gleichzeitig auf der Karte (Tiefenprüfung 26.11.2026).
         self.heilrunde = {"goldene": True, "rast": 0, "ids": ids,
                           "e": {cid: {"heiler": [], "ko": None, "verl": False, "blutet": False,
+                                      "warKo": bool((self._combatant(cid) or {}).get("status", {}).get("out")),
                                       "rastErg": None, "log": []} for cid in ids}}
 
     def _do_heilrunde_ende(self, a: dict) -> None:
@@ -2345,19 +2357,27 @@ class Game:
         e = self._heil_eintrag(a.get("id"))
         if not c or not e or e.get("verl") or e.get("ko") not in ("nein", "ja", "steig"):
             return
-        import random
-        w = [random.randint(1, 6), random.randint(1, 6)]
-        zusatz = random.randint(1, 6)
-        ort, folge = verletzung_aus(w[0] + w[1], zusatz, random.choice(("linker", "rechter")))
         dauer = {"nein": "immer", "ja": "wunden", "steig": "24h"}[e["ko"]]
-        v = {"id": _new_id("verl"), "ort": ort, "folge": folge, "dauer": dauer,
-             "wurf": w, "zusatz": zusatz if w[0] + w[1] in (5, 6, 7, 8, 9, 11, 12) else None,
-             "seit": now_ms()}
+        eigen = _verletzung_text(a.get("text"))
+        if eigen:
+            # Die Tabelle ist nur ein Vorschlag (Kalle, 26.11.2026): der SL
+            # trägt die Verletzung auch selbst ein, dann würfelt die App nicht.
+            v = {"id": _new_id("verl"), "ort": eigen, "folge": "", "dauer": dauer,
+                 "wurf": None, "zusatz": None, "seit": now_ms()}
+        else:
+            import random
+            w = [random.randint(1, 6), random.randint(1, 6)]
+            zusatz = random.randint(1, 6)
+            ort, folge = verletzung_aus(w[0] + w[1], zusatz, random.choice(("linker", "rechter")))
+            v = {"id": _new_id("verl"), "ort": ort, "folge": folge, "dauer": dauer,
+                 "wurf": w, "zusatz": zusatz if w[0] + w[1] in (5, 6, 7, 8, 9, 11, 12) else None,
+                 "seit": now_ms()}
+        ort, folge = v["ort"], v["folge"]
         e["verl"] = True
         e["verletzung"] = v
         self._verletzungen_setzen(c, list(c.get("verletzungen") or []) + [v])
         self._heil_log(e, f"🦴 {ort}")
-        self._verletzung_meldung(c, f"🦴 Verletzung: {ort}\n{folge} · {VERLETZUNG_DAUER[dauer]}")
+        self._verletzung_meldung(c, f"🦴 Verletzung: {ort}\n{folge + ' · ' if folge else ''}{VERLETZUNG_DAUER[dauer]}")
 
     def _do_heil_wurf(self, a: dict) -> None:
         """Heilen-Probe eines Heilers (Goldene Stunde, je Heiler einmal)."""
@@ -2427,6 +2447,25 @@ class Game:
                 st["wounds"] -= 1
         self._heil_log(e, "✓ Rast hat geholfen")
         self._verletzung_meldung(c, f"🌙 Die Rast tut gut\n{self._wunden_text(st)}")
+
+    def _do_verletzung_text(self, a: dict) -> None:
+        """SL schreibt eine Verletzung um (Tabelle = nur Vorschlag, Kalle
+        26.11.2026): eigener Text statt Ort + Folge aus der Tabelle."""
+        c = self._combatant(a.get("id"))
+        text = _verletzung_text(a.get("text"))
+        if not c or not text:
+            return
+        liste = copy.deepcopy(c.get("verletzungen") or [])
+        v = next((x for x in liste if x.get("id") == a.get("vid")), None)
+        if v is None:
+            return
+        v["ort"], v["folge"] = text, ""
+        self._verletzungen_setzen(c, liste)
+        e = self._heil_eintrag(c["id"])
+        if e and (e.get("verletzung") or {}).get("id") == v["id"]:
+            e["verletzung"] = copy.deepcopy(v)
+            self._heil_log(e, f"🦴 {text}")
+        self._verletzung_meldung(c, f"🦴 Verletzung: {text}\n{VERLETZUNG_DAUER.get(v.get('dauer'), '')}")
 
     def _do_verletzung_weg(self, a: dict) -> None:
         """SL nimmt eine Verletzung von Hand weg (z. B. Wunderheilung)."""
@@ -2545,14 +2584,24 @@ class Game:
         # sieht man sie fallen und kann einen Fehlklick noch heilen/rückgängig
         # machen. Verbündete und Spieler bleiben wie gehabt.
         self._do_clear_defeated({})
-        self._collect_cards()
+        # Wer bei einer NEUEN Runde noch abwartet, bleibt im Abwarten und
+        # bekommt keine neue Karte (SWADE; Kalle 26.11.2026: „V3 ist gut").
+        # Vorher war das Abwarten beim Austeilen still weg. Nicht bei einer
+        # Gruppenkarten-Kopie - die Karte liegt beim Ersten der Gruppe.
+        halten = {c["id"] for c in self.combatants
+                  if new_round and self.round > 0 and c.get("held") and c.get("card")
+                  and not c.get("karteGeteilt") and not c.get("benched")
+                  and not (c.get("status") or {}).get("out")}
+        self._collect_cards(halten)
         # Selbstheilung: Waren mehr Figuren im Kampf als Karten, hat der
         # DeckManager ein zweites Deck angebrochen - danach lag jede Karte doppelt
         # im Stapel, auch wenn die Horde längst weg war. Nach dem Einsammeln
-        # müssen es genau 54 verschiedene sein, sonst frisch mischen.
-        ids = [k.get("id") for k in self.deck + self.discard]
+        # müssen es genau 54 verschiedene sein (mit den gehaltenen), sonst frisch mischen.
+        gehalten = [c["card"] for c in self.combatants if c["id"] in halten]
+        ids = [k.get("id") for k in self.deck + self.discard + gehalten]
         if len(ids) != 54 or len(set(ids)) != 54:
-            self.deck = engine.shuffle(engine.full_deck())
+            frei = {k["id"] for k in gehalten}
+            self.deck = engine.shuffle([k for k in engine.full_deck() if k["id"] not in frei])
             self.discard = []
         # Regelkonform: wurde letzte Runde ein Joker gezogen, jetzt komplett mischen.
         if self.reshuffle_next:
@@ -2566,6 +2615,11 @@ class Game:
                 # Pausierte Figuren erhalten keine Karte (nehmen nicht am Kampf teil).
                 c["card"] = None
                 c["draw"] = None
+                continue
+            if c["id"] in halten:
+                c["draw"] = None
+                c["ran"] = False
+                c["moved"] = False
                 continue
             schluessel = self._gruppenschluessel(c)
             if schluessel and schluessel in gruppen:
@@ -2594,17 +2648,29 @@ class Game:
             self.joker_flash += 1
             self.reshuffle_next = True
         if self.round == 0:
-            self.kampf_nr += 1
+            # Eindeutig über Abende hinweg (Sekunden-Zeitstempel statt 1, 2, 3):
+            # das Handy merkt sich die zuletzt gesehene Nummer. Nach „Neu"
+            # statt „Fortsetzen" fing der Zähler wieder bei 1 an - wer letztes
+            # Mal drei Kämpfe hatte, sprang beim dritten Kampf heute nicht mehr
+            # auf ⚔ Kampf (Tiefenprüfung 26.11.2026).
+            self.kampf_nr = max(self.kampf_nr + 1, now_ms() // 1000)
         if new_round:
+            # Erst ab der ZWEITEN Runde zählt runter: vor dem ersten Austeilen
+            # gesetzt („Schiff bricht · 3", der ⏳ steht schon da, sobald
+            # Gegner am Tisch sind), stand der Countdown in Runde 1 sonst
+            # schon auf 2 - eine Runde gestohlen. Effekte genauso
+            # (Tiefenprüfung 26.11.2026).
+            if self.round > 0:
+                self._effekte_runterzaehlen()
+                if self.countdown and self.countdown["runden"] > 0:
+                    self.countdown["runden"] -= 1
             self.round += 1
-            self._effekte_runterzaehlen()
-            if self.countdown and self.countdown["runden"] > 0:
-                self.countdown["runden"] -= 1
         elif self.round == 0:
             self.round = 1
         self._resort()
         # Zug-Ablauf zurücksetzen: erster Akteur, aber im Freigabe-Gate.
-        self.active_id = self.combatants[0]["id"] if self.combatants else None
+        # Wer weiter abwartet, ist nicht von selbst dran (er greift ein).
+        self.active_id = self._naechster_ab(0) or (self.combatants[0]["id"] if self.combatants else None)
         self.phase = "gate"
         self.timer_ends_at = None
 

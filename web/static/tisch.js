@@ -803,8 +803,8 @@ function angriffMelden(id) {
 function showKampfToast(text, art) {
   const [kopf, ...rest] = String(text || "").split("\n");
   const eigen = art === "getroffen" || art === "geheilt";
-  document.querySelectorAll(".kampf-toast, .treffer-rand, .treffer-moment").forEach((n) => n.remove());
-  if (art === "getroffen") { trefferMoment(kopf, rest); return; }
+  document.querySelectorAll(".kampf-toast").forEach((n) => n.remove());
+  if (art === "getroffen") { momentZeigen(() => trefferMoment(kopf, rest), 2600); return; }
   const t = el(`<div class="kampf-toast${eigen ? ` eigen ${art}` : ""}">
     <div class="kt-kopf">${esc(kopf)}</div>${rest.length ? `<div class="kt-unter">${esc(rest.join(" · "))}</div>` : ""}</div>`);
   t.addEventListener("click", () => t.remove());
@@ -823,6 +823,7 @@ function showKampfToast(text, art) {
 // der Seite (nichts verschiebt sich), malt nur opacity/transform, tippt man
 // nicht weg - pointer-events aus, damit kein Knopf blockiert ist.
 function trefferMoment(kopf, rest) {
+  document.querySelectorAll(".treffer-rand, .treffer-moment").forEach((n) => n.remove());
   const reinText = String(kopf || "").replace(/^\S+\s/, "");     // Emoji vorn weg
   const m = reinText.match(/(\d+)\s*Wunde/);
   const gross = /außer Gefecht/.test(reinText) ? "AUSGESCHALTET"

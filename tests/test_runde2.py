@@ -264,3 +264,44 @@ def test_protokoll_titel_aus_dem_text(fresh_game):
     g.apply({"type": "protokoll_speichern", "name": "", "text": "Ohne Überschrift"})
     assert g.protokolle[0]["name"].startswith("Spielabend ")
     assert "# Titel" in A.baue_prompt({"personen": {}, "ereignisse": []}, "[00:00:01] S00: Hallo")
+
+
+def test_abwarten_bleibt_ueber_neue_runde(fresh_game):
+    """SWADE (Kalle 26.11.2026, V3): wer bei der neuen Runde noch abwartet,
+    bleibt im Abwarten und behält seine Karte - keine neue."""
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "count": 3})
+    g.apply({"type": "new_round"})
+    ork = g.combatants[0]
+    karte = ork["card"]
+    g.apply({"type": "hold", "id": ork["id"]})
+    g.apply({"type": "new_round"})
+    o = g._combatant(ork["id"])
+    assert o["held"] and o["card"] == karte
+    alle = [k["id"] for k in g.deck + g.discard] + [c["card"]["id"] for c in g.combatants]
+    assert len(alle) == 54 and len(set(alle)) == 54
+    # Eingreifen geht weiter, danach in der nächsten Runde wieder eine neue Karte.
+    g.apply({"type": "intervene", "id": ork["id"]})
+    assert g.active_id == ork["id"] and not g._combatant(ork["id"])["held"]
+    g.apply({"type": "new_round"})
+    assert not g._combatant(ork["id"])["held"]
+
+
+def test_abwarten_endet_beim_kampf_neu_austeilen(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "count": 2})
+    g.apply({"type": "new_round"})
+    g.apply({"type": "hold", "id": g.combatants[0]["id"]})
+    g.apply({"type": "end_combat"})
+    assert not any(c.get("held") for c in g.combatants)
+
+
+def test_abwartender_mit_hoher_karte_ist_nicht_von_selbst_dran(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Ork", "count": 3})
+    g.apply({"type": "new_round"})
+    erster = g.combatants[0]["id"]
+    g.apply({"type": "hold", "id": erster})
+    g.apply({"type": "new_round"})
+    if g.combatants[0]["id"] == erster:
+        assert g.active_id != erster

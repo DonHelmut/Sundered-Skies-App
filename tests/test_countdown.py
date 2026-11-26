@@ -67,3 +67,24 @@ def test_ueberlebt_neustart(fresh_game):
     neu = Game()
     assert neu.resume_session()
     assert neu.countdown == {"text": "Sturm", "runden": 4}
+
+
+def test_vor_dem_ersten_austeilen_gesetzt_zaehlt_ab_runde_zwei(fresh_game):
+    """Der ⏳ steht schon da, sobald Gegner am Tisch sind. Vor dem Austeilen
+    gesetzt („Schiff bricht · 3") stand er in Runde 1 schon auf 2."""
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Pirat", "count": 1})
+    g.apply({"type": "countdown_setzen", "text": "Schiff bricht", "runden": 3})
+    g.apply({"type": "new_round"})
+    assert g.round == 1 and g.countdown["runden"] == 3
+    g.apply({"type": "new_round"})
+    assert g.countdown["runden"] == 2
+
+
+def test_effekt_vor_dem_austeilen_verliert_keine_runde(fresh_game):
+    g = fresh_game
+    g.apply({"type": "add_npc", "name": "Pirat", "count": 1})
+    pid = g.combatants[0]["id"]
+    g.apply({"type": "effect_add", "id": pid, "name": "Gebannt", "runden": 2})
+    g.apply({"type": "new_round"})
+    assert g.combatants[0]["effekte"][0]["runden"] == 2
