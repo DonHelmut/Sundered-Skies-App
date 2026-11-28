@@ -132,6 +132,8 @@ def test_gruppen_notizen_fuer_alle_mit_schreiber(fresh_game):
     # Uhrzeit (ts) vom Anlegen bleibt beim Ändern stehen (Gruppen-Notiz zeigt „Mira · 20:31").
     ts = g.gruppen_notizen[1].pop("ts")
     assert isinstance(ts, int) and ts > 0
+    # „Zuletzt geändert" (28.11.2026) zählt beim Ändern hoch.
+    assert g.gruppen_notizen[1].pop("geaendert") >= ts
     assert g.gruppen_notizen[1] == {"id": "g1", "text": "Beute: 2 Heiltränke", "thema": "Beute", "erledigt": True,
                                     "von": "Mira", "vonId": "char_mira"}
     g.gruppen_notizen[1]["ts"] = ts
@@ -305,3 +307,20 @@ def test_abwartender_mit_hoher_karte_ist_nicht_von_selbst_dran(fresh_game):
     g.apply({"type": "new_round"})
     if g.combatants[0]["id"] == erster:
         assert g.active_id != erster
+
+
+def test_notiz_steckbrief_felder(tmp_path, monkeypatch):
+    """Orte/Leute als Steckbrief (Kalle 28.11.2026): Felder [[Name, Wert]]
+    werden bereinigt (leere/doppelte weg), zählen zum Platz und kommen beim
+    Ändern einer 👥 Notiz mit."""
+    from server import game as gm
+    e = gm._notiz_eintrag({"id": "o1", "text": "Hier", "thema": "Orte", "felder": [
+        ["Exportschlager", " Leute "], ["Leute", ""], ["exportschlager", "doppelt"], ["  ", "ohne Namen"],
+        "kaputt", ["Gefahren", "Zoll\r\nnachts"]]}, 0)
+    assert e["felder"] == [["Exportschlager", "Leute"], ["Gefahren", "Zoll\nnachts"]]
+    assert gm._notiz_groesse(e) == len("Hier") + len("ExportschlagerLeute") + len("GefahrenZoll\nnachts")
+    ohne = gm._notiz_eintrag({"id": "x", "text": "Nur Text", "felder": [["Leer", " "]]}, 0)
+    assert "felder" not in ohne
+    # Viele große Felder: die Liste nimmt nicht mehr als MAX_NOTIZEN auf.
+    gross = [{"id": f"n{i}", "text": "T", "felder": [[f"F{k}", "x" * 500] for k in range(12)]} for i in range(3)]
+    assert len(gm._notizen_liste(gross)) == 1

@@ -77,6 +77,36 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## Nächste Version (28.11.2026): Notizen als Einträge, Orte/Leute als Steckbrief
+
+Kalle: Notizen (v. a. „Alle") unübersichtlich – mehrere Zeilen schreiben,
+einen Eintrag bearbeiten, ein Eintrag je Sache statt vieler Einzelzeilen; Orte
+als feste Kategorie (Exportschlager, was wir dort tun können …). Vorschläge
+mit Bildern im Projektordner `screenshots/notizen-2026-11-28/` (A freie
+Einträge, B Steckbriefe, C Inhaltsverzeichnis). **Gewählt: B + C**, dazu
+eigene Felder („kann man da dynamisch Sachen hinzufügen?").
+
+- **Karten statt Zeilen** (`spieler.js` `notizZeileHtml`): erste Zeile =
+  Titel, zugeklappt Titel + eine Zeile, Tipp klappt auf, ✎ bearbeitet.
+  Nur Titel = Tipp bearbeitet gleich (wie bisher). Haken nur bei „Offen",
+  Sonstiges und schon Erledigten (einen Ort hakt niemand ab).
+- **Steckbriefe** (`NOTIZ_STECKBRIEF`): Orte = Exportschlager, Was wir dort
+  tun können, Leute, Infos (= Text); Leute = Wer ist das?, Wo, Haltung
+  (Freund/Neutral/Feind), Infos. **＋ Feld** für eigene, schon benutzte
+  Feldnamen des Themas kommen als „＋ Name"-Vorschlag. Leere Felder werden
+  nicht gespeichert, feste stehen beim Bearbeiten trotzdem da. Namen anderer
+  Einträge in Feldern („Leute: Vela") sind antippbar und springen hin.
+- Orte/Leute-Reiter: **＋ Ort / ＋ Person** statt Eingabefeld, „Für alle" vorgewählt.
+- **„Alle" = Inhaltsverzeichnis**: Kachel je Thema (feste immer) + 5 zuletzt
+  geänderte. „Gruppe" nach Thema unterteilt.
+- **Eingabefeld: Enter = neue Zeile** (vorher anlegen), angelegt wird mit ↑
+  oder Strg+Enter.
+- Server: Eintrag bekommt `felder` [[Name, Wert]] (max. 12, Name 30, Wert 500,
+  `_notiz_felder`) und `geaendert`; Platz zählt Felder mit (`_notiz_groesse`).
+  Handy schickt eigene Einträge in Server-Reihenfolge (`notizNormal`), sonst
+  hing die lokale Fassung im JSON-Vergleich fest.
+- Tests: `tests/browser/test_notizen_steckbrief.py`, `test_notiz_steckbrief_felder`.
+
 ## Zurück am Handy & Reiter 👥 Gruppe (28.11.2026, PR #82)
 
 Ein Kumpel fand am Handy aus geöffneten Fenstern nicht heraus (kleines
