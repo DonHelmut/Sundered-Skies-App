@@ -34,7 +34,14 @@ const Aufn = {
   liveNamen: {},    // „S01" -> „Korgo (Tim)", vom SL live zugeordnet
   pauseSeit: 0,     // ⏸: seit wann angehalten (0 = läuft)
   pauseGesamt: 0,   // ms aller bisherigen Pausen - fehlen im Ton und in der Zeit
+  typ: "",          // Ton-Format des Rekorders (jeder Teil gleich)
+  teil: 1,          // Nummer der Tondatei, in die gerade aufgenommen wird
+  teilBytes: 0,     // so viel hat der laufende Teil schon geliefert
 };
+// Ein Abend, mehrere Tondateien (Kalle 28.11.2026): eine Datei für den ganzen
+// Abend wurde zu groß zum Hochladen. Neuer Teil nach jeder Pause und ab
+// 24 MB (≈ 70 min bei 48 kbit/s). Mitschrift und Prompt bleiben eins.
+let AUFN_TEIL_MAX = 24 * 1024 * 1024;   // let: der Browser-Test setzt es klein
 // Pause länger als 15 min: oben leise erinnern, sonst spielt man nach der
 // Pizza weiter und merkt am Ende, dass nichts aufgenommen ist (Kalle 07.11.2026).
 const AUFN_PAUSE_ERINNERN_MS = 15 * 60000;
@@ -115,7 +122,7 @@ function renderAufnahmePanel() {
         <b class="aufn-zeit">${aufnZeit(aufnLaenge())}</b> aufgenommen
         <span class="muted small aufn-pause-seit">· angehalten seit ${aufnDauer(Date.now() - Aufn.pauseSeit)}</span></div>
       <div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap">
-        <button class="primary" data-act="aufn-weiter">▶ Weiter aufnehmen</button>
+        <button class="primary" data-act="aufn-weiter">▶ ${Aufn.teilBytes > 0 ? `Weiter mit Teil ${Aufn.teil + 1}` : "Weiter aufnehmen"}</button>
         <button class="ghost bad" data-act="aufn-stop">■ Aufnahme beenden</button>
         ${ABEND_ENDE_KNOPF}
       </div>`;
@@ -123,7 +130,7 @@ function renderAufnahmePanel() {
     oben = `<div class="aufn-laeuft"><span class="aufn-punkt"></span> Aufnahme läuft
         <b class="aufn-zeit">${aufnZeit(aufnLaenge())}</b>
         <span class="aufn-pegel" title="Pegel: zappelt der Balken beim Reden, kommt Ton an"><i></i></span>
-        <span class="muted small aufn-groesse">${aufnGroesse(Aufn.bytes)} gespeichert</span></div>
+        <span class="muted small aufn-groesse">${aufnGroesseText()}</span></div>
       <div class="aufn-live" title="Live-Mitschrift – grob, fürs Protokoll gibt es danach „Genau transkribieren“">${aufnLiveHtml()}</div>
       ${sp.live && sp.live.hinweis ? `<div class="muted small">${esc(sp.live.hinweis)}</div>` : ""}
       <div class="muted small aufn-stille" style="display:none; margin-top:4px">Seit über einer Minute kein Ton – falls das nicht stimmt: Mikro prüfen.</div>
@@ -189,13 +196,22 @@ function aufnPlatzHtml(st) {
     ? `<br>⚠ Die Platte ist fast voll – eine Aufnahme könnte mitten im Abend abbrechen. Vorher Platz schaffen.` : ""}</div>`;
 }
 
+// „Teil 2 · 4 MB" - ab dem zweiten Teil zählt die Größe des laufenden Teils
+// (die ist es, die nicht zu groß werden soll).
+function aufnGroesseText() {
+  return Aufn.teil > 1 ? `Teil ${Aufn.teil} · ${aufnGroesse(Aufn.teilBytes)}` : `${aufnGroesse(Aufn.bytes)} gespeichert`;
+}
+
 function aufnZeileHtml(x, sp) {
   const datum = x.start ? new Date(x.start).toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : x.name;
-  const infos = [aufnDauer(x.dauerMs), aufnGroesse(x.bytes),
+  const teile = x.teile || [];
+  const infos = [aufnDauer(x.dauerMs), teile.length ? `${teile.length} Teile` : "", aufnGroesse(x.bytes),
     x.kaempfe ? `${x.kaempfe} Kampf${x.kaempfe === 1 ? "" : "e"}` : "", x.marken ? `${x.marken} 📌` : ""].filter(Boolean);
   const job = sp.job && sp.job.name === x.name ? sp.job : null;
   const knoepfe = [];
-  if (x.datei) knoepfe.push(`<a href="/api/aufnahme/datei/${encodeURIComponent(x.name)}"><button class="ghost small" title="Tondatei herunterladen">⬇ Ton</button></a>`);
+  if (teile.length) {
+    teile.forEach((t) => knoepfe.push(`<a href="/api/aufnahme/datei/${encodeURIComponent(x.name)}?teil=${t.nr}"><button class="ghost small" title="${esc(aufnGroesse(t.bytes))}">⬇ Teil ${t.nr} <span class="muted">${esc(aufnDauer(t.dauerMs))}</span></button></a>`));
+  } else if (x.datei) knoepfe.push(`<a href="/api/aufnahme/datei/${encodeURIComponent(x.name)}"><button class="ghost small" title="Tondatei herunterladen">⬇ Ton</button></a>`);
   if (job && !job.fehler) {
     knoepfe.push(`<span class="aufn-job small"><span class="aufn-balken"><i style="transform:scaleX(${job.anteil})"></i></span>
       <span class="aufn-fortschritt muted">${esc(aufnJobText(job))}</span></span>
@@ -414,31 +430,36 @@ async function aufnahmeStarten() {
   }
   const typ = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm", "audio/mp4"]
     .find((m) => MediaRecorder.isTypeSupported(m)) || "";
-  let rec;
+  let probe;
   try {
-    // 48 kbit/s Opus: ein 4-h-Abend ≈ 90 MB, für Sprache mehr als genug.
-    rec = new MediaRecorder(stream, typ ? { mimeType: typ, audioBitsPerSecond: 48000 } : {});
+    probe = new MediaRecorder(stream, typ ? { mimeType: typ, audioBitsPerSecond: 48000 } : {});
   } catch {
     stream.getTracks().forEach((t) => t.stop());
     hinweis("Aufnahme ließ sich nicht starten.");
     return;
   }
-  let name;
+  // Unterbrochen (Seite neu geladen): derselbe Abend geht im nächsten Teil
+  // weiter - sonst wären es zwei Abende mit zwei Mitschriften.
+  const weiter = !!(Aufn.status && Aufn.status.aktiv);
+  let antwort;
   try {
     const r = await fetch("/api/aufnahme/start", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mime: rec.mimeType || typ }) });
-    name = (await r.json()).name;
+      body: JSON.stringify({ mime: probe.mimeType || typ, weiter }) });
+    antwort = await r.json();
   } catch { /* unten */ }
-  if (!name) {
+  if (!antwort || !antwort.name) {
     stream.getTracks().forEach((t) => t.stop());
     hinweis("Server antwortet nicht – Aufnahme nicht gestartet.");
     return;
   }
-  Object.assign(Aufn, { rec, stream, name, start: Date.now(), bytes: 0, kette: Promise.resolve(), pauseSeit: 0, pauseGesamt: 0 });
-  rec.ondataavailable = (e) => { if (e.data && e.data.size) aufnStueckSenden(name, e.data); };
+  const name = antwort.name;
+  Object.assign(Aufn, { stream, name, start: Date.now() - (antwort.tonMs || 0), bytes: 0, kette: Promise.resolve(),
+    pauseSeit: 0, pauseGesamt: 0, typ: probe.mimeType || typ, teil: antwort.teil || 1, teilBytes: 0 });
+  const rec = aufnRekorder(Aufn.teil);
+  Aufn.rec = rec;
   // Mikro abgezogen / Treiber weg: nicht still weiter „aufnehmen".
   stream.getAudioTracks().forEach((t) => { t.onended = () => {
-    if (Aufn.rec === rec) { aufnahmeBeenden(); hinweis("Das Mikro ist weg – Aufnahme beendet. Der Ton bis hierher ist gespeichert."); }
+    if (Aufn.stream === stream && Aufn.rec) { aufnahmeBeenden(); hinweis("Das Mikro ist weg – Aufnahme beendet. Der Ton bis hierher ist gespeichert."); }
   }; });
   rec.start(AUFN_STUECK_MS);
   aufnPegelStarten(stream);
@@ -448,14 +469,40 @@ async function aufnahmeStarten() {
   aufnStatusLaden();
   // Die Sitzplatz-Erkennung (server/richtung.py) öffnet das Mikro im
   // Hintergrund - ihr Stand steht erst kurz danach fest.
-  setTimeout(() => { if (Aufn.rec === rec) aufnStatusLaden(); }, 4000);
+  setTimeout(() => { if (Aufn.rec && Aufn.name === name) aufnStatusLaden(); }, 4000);
 }
 
-function aufnStueckSenden(name, blob) {
+// Ein Rekorder je Teil: jeder Teil ist eine eigene, für sich abspielbare
+// Datei (ein Rekorder schreibt den Datei-Kopf nur an den Anfang).
+function aufnRekorder(teil) {
+  // 48 kbit/s Opus: eine Stunde ≈ 21 MB, für Sprache mehr als genug.
+  const rec = new MediaRecorder(Aufn.stream, Aufn.typ ? { mimeType: Aufn.typ, audioBitsPerSecond: 48000 } : {});
+  const name = Aufn.name;
+  rec.ondataavailable = (e) => {
+    if (!e.data || !e.data.size) return;
+    if (Aufn.name === name && Aufn.teil === teil) Aufn.teilBytes += e.data.size;
+    aufnStueckSenden(name, e.data, teil);
+    if (Aufn.rec === rec && rec.state === "recording" && Aufn.teilBytes >= AUFN_TEIL_MAX) aufnNeuerTeil();
+  };
+  return rec;
+}
+// Datei voll: den nächsten Rekorder ZUERST starten, dann den alten stoppen -
+// so fehlt beim Wechsel kein Wort (doppelt sind höchstens Millisekunden).
+function aufnNeuerTeil() {
+  const alt = Aufn.rec;
+  Aufn.teil += 1;
+  Aufn.teilBytes = 0;
+  const neu = aufnRekorder(Aufn.teil);
+  Aufn.rec = neu;
+  neu.start(AUFN_STUECK_MS);
+  try { alt.stop(); } catch { /* egal */ }
+}
+
+function aufnStueckSenden(name, blob, teil = 1) {
   Aufn.kette = Aufn.kette.then(async () => {
     for (let versuch = 0; versuch < 3; versuch++) {
       try {
-        const r = await fetch(`/api/aufnahme/stueck?name=${encodeURIComponent(name)}`, { method: "POST", body: blob });
+        const r = await fetch(`/api/aufnahme/stueck?name=${encodeURIComponent(name)}&teil=${teil}`, { method: "POST", body: blob });
         if (r.status === 409) {
           // Server kennt die Aufnahme nicht mehr (neu gestartet): ohne Kopf-
           // Stück wäre der Rest unbrauchbar -> sauber neu anfangen. Erst NACH
@@ -479,6 +526,7 @@ async function aufnahmeBeenden(still = false) {
   Aufn.rec = null;
   Aufn.pauseSeit = 0;
   await new Promise((fertig) => {
+    if (rec.state === "inactive") return fertig();     // in der Pause schon gestoppt
     rec.onstop = fertig;
     try { rec.stop(); } catch { fertig(); }
   });
@@ -493,26 +541,31 @@ async function aufnahmeBeenden(still = false) {
   render();
 }
 
-// ⏸ Pause / ▶ Weiter: MediaRecorder nur anhalten, nicht beenden - so bleibt es
-// EINE Tondatei (ohne die Pause darin) und EINE Mitschrift, und „genau" läuft
-// erst nach ■ Beenden. Der Server merkt sich die Pausen, damit Marken und
-// Kampfzeiten danach zum Ton passen.
+// ⏸ Pause / ▶ Weiter: die Pause schließt den Teil ab (seit 2.0.28 eine Datei
+// je Teil, Kalle 28.11.2026), „▶ Weiter" beginnt den nächsten. Es bleibt EINE
+// Aufnahme mit EINER Mitschrift, „genau" läuft erst nach ■ Beenden. Der Server
+// merkt sich die Pausen, damit Marken und Kampfzeiten danach zum Ton passen.
 async function aufnPause() {
   const rec = Aufn.rec;
   if (!rec || Aufn.pauseSeit || rec.state !== "recording") return;
-  // Was bis jetzt aufgenommen ist, gleich abliefern (sonst hinge es bis zum
-  // Weiter im Recorder - und die Live-Mitschrift wartet darauf).
-  try { rec.requestData(); } catch { /* egal */ }
-  rec.pause();
   Aufn.pauseSeit = Date.now();
+  // Stoppen liefert den Rest des Teils gleich ab (die Live-Mitschrift wartet darauf).
+  await new Promise((fertig) => {
+    rec.onstop = fertig;
+    try { rec.stop(); } catch { fertig(); }
+  });
   try { await fetch("/api/aufnahme/pause", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ an: true }) }); } catch { /* egal */ }
   toast("⏸ Aufnahme angehalten");
   render();
 }
 async function aufnWeiter() {
-  const rec = Aufn.rec;
-  if (!rec || !Aufn.pauseSeit) return;
-  try { rec.resume(); } catch { /* unten */ }
+  if (!Aufn.rec || !Aufn.pauseSeit) return;
+  // Nächster Teil - außer der letzte bekam gar keinen Ton (sofort ⏸ gedrückt):
+  // dann bliebe dort eine Lücke in der Nummerierung.
+  if (Aufn.teilBytes > 0) { Aufn.teil += 1; Aufn.teilBytes = 0; }
+  const rec = aufnRekorder(Aufn.teil);
+  Aufn.rec = rec;
+  try { rec.start(AUFN_STUECK_MS); } catch { /* egal */ }
   Aufn.pauseGesamt += Date.now() - Aufn.pauseSeit;
   Aufn.pauseSeit = 0;
   Aufn.stilleSeit = Date.now();          // Pause ist keine Stille
@@ -587,7 +640,7 @@ setInterval(() => {
   }
   const t = aufnZeit(aufnLaenge());
   document.querySelectorAll(".aufn-zeit").forEach((x) => { x.textContent = t; });
-  document.querySelectorAll(".aufn-groesse").forEach((x) => { x.textContent = `${aufnGroesse(Aufn.bytes)} gespeichert`; });
+  document.querySelectorAll(".aufn-groesse").forEach((x) => { x.textContent = aufnGroesseText(); });
 }, 1000);
 
 // --- Stimm-Anmeldung ---------------------------------------------------------------

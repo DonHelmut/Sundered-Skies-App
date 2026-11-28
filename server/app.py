@@ -663,8 +663,18 @@ async def aufnahme_start(request: Request):
         body = await request.json()
     except ValueError:
         body = {}
-    alt = aufnahmen.aktiv["name"] if aufnahmen.aktiv else None
-    meta = aufnahmen.starten(str((body or {}).get("mime") or ""), game)
+    body = body if isinstance(body, dict) else {}
+    # „Weiter aufnehmen" nach Neuladen: derselbe Abend, nächster Teil.
+    weiter = bool(body.get("weiter")) and bool(aufnahmen.aktiv)
+    alt = aufnahmen.aktiv["name"] if aufnahmen.aktiv and not weiter else None
+    meta = aufnahmen.starten(str(body.get("mime") or ""), game, weiter=weiter)
+    if weiter:
+        diag.log(f"AUFNAHME fortgesetzt: {meta['name']} Teil {len(meta.get('teile') or []) + 1}")
+        if not sprache.mithoerer.laeuft:
+            sprache.richtung_starten()
+        sprache.aufnahme_laeuft()
+        return JSONResponse({"name": meta["name"], "teil": len(meta.get("teile") or []) + 1,
+                             "tonMs": meta.get("dauerMs", 0)})
     if alt:
         # Unterbrochene Aufnahme (Seite neu geladen): ihr Teil wird nach dem
         # Ende der neuen genau transkribiert.
@@ -672,15 +682,15 @@ async def aufnahme_start(request: Request):
     diag.log(f"AUFNAHME gestartet: {meta['name']}{meta['endung']}")
     sprache.richtung_starten()
     sprache.aufnahme_laeuft()
-    return JSONResponse({"name": meta["name"]})
+    return JSONResponse({"name": meta["name"], "teil": 1, "tonMs": 0})
 
 
 @app.post("/api/aufnahme/stueck")
-async def aufnahme_stueck(request: Request, name: str = ""):
+async def aufnahme_stueck(request: Request, name: str = "", teil: int = 1):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
     daten = await request.body()
-    if not aufnahmen.stueck(name, daten):
+    if not aufnahmen.stueck(name, daten, teil):
         # 409: Browser nimmt für eine Aufnahme auf, die der Server nicht (mehr)
         # führt (Server neu gestartet) -> er startet eine neue.
         return JSONResponse({"error": "nicht_aktiv"}, status_code=409)
@@ -855,13 +865,16 @@ async def sprache_abbrechen(request: Request):
 
 
 @app.get("/api/aufnahme/datei/{name}")
-async def aufnahme_datei(request: Request, name: str):
+async def aufnahme_datei(request: Request, name: str, teil: int = 1):
     if not _is_loopback(request):
         return JSONResponse({"error": "forbidden"}, status_code=403)
-    pfad = aufnahmen.audio_pfad(name)
-    if not pfad:
+    pfade = aufnahmen.audio_pfade(name)
+    if not 1 <= teil <= len(pfade):
         return Response(status_code=404)
-    return FileResponse(pfad, filename=f"spielabend-{pfad.name}")
+    pfad = pfade[teil - 1]
+    # „spielabend-2026-11-28_19-04-teil2.webm" - sortiert sich im Download-Ordner richtig.
+    datei = f"spielabend-{name}" + (f"-teil{teil}" if len(pfade) > 1 else "") + pfad.suffix
+    return FileResponse(pfad, filename=datei)
 
 
 @app.post("/api/aufnahme/prompt/{name}")

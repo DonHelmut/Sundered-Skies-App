@@ -289,7 +289,7 @@ def test_nach_der_aufnahme_kommt_das_transkript_von_selbst(tmp_path, monkeypatch
     gerechnet = []
 
     def falsch_transkribieren(pfad, modelle, personen, melden, stopp, namen=(), **_):
-        gerechnet.append(pfad.stem)
+        gerechnet.append(pfad[0].stem)
         weiter.wait(2)
         return "[00:00:01] S00: Ihr seht ein Schiff.\n"
     monkeypatch.setattr(SP, "transkribieren", falsch_transkribieren)
@@ -301,7 +301,7 @@ def test_nach_der_aufnahme_kommt_das_transkript_von_selbst(tmp_path, monkeypatch
     auf.aktiv = None
     b = dict(a, name=a["name"] + "-2")
     (auf.ordner / f"{b['name']}{a['endung']}").write_bytes(b"y")
-    monkeypatch.setattr(auf, "audio_pfad", lambda n: auf.ordner / f"{n}{a['endung']}")
+    monkeypatch.setattr(auf, "audio_pfade", lambda n: [auf.ordner / f"{n}{a['endung']}"])
     sp.nach_aufnahme(b["name"])
     assert sp.status()["warten"] == [b["name"]]      # erst die erste fertig
     weiter.set()
