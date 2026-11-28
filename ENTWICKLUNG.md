@@ -77,7 +77,7 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Sprecher am echten Abend: Sortier-Fix + neue Stimm-Modelle (28.11.2026)
+## 2.0.29 (28.11.2026, PR #85): Sprecher am echten Abend – Sortier-Fix + neue Stimm-Modelle
 
 Kalle wollte wissen, welches Modell die Stimmen am besten erkennt. Gemessen am
 echten Abend 27.11. (Teil 1 44 min mit Vorstellungsrunde, Teil 2 2 h 15, mono,
