@@ -77,7 +77,48 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## Nächste Version (28.11.2026): Notizen als Einträge, Orte/Leute als Steckbrief
+## 2.0.28 (28.11.2026): Aufnahme in Teilen, Geld in Stufen (PR #83)
+
+Im selben Release: Notiz-Steckbriefe (PR #84) und Zurück/👥 Gruppe (PR #82), Abschnitte darunter.
+
+**Aufnahme in Teilen.** Kalle: eine Tondatei je Abend wird zu groß (zum
+Hochladen), „unterbrechen und fortsetzen, zählt als ein Abend, aber mehrere
+Dateien". Varianten (`screenshots/aufnahme-teile/`): A Pause = neuer Teil,
+B zusätzlich automatisch – gewählt **B mit 24 MB**.
+- Browser (`aufnahme.js`): ein MediaRecorder je Teil (jeder Teil ist für sich
+  abspielbar, der Datei-Kopf steht nur am Anfang). ⏸ stoppt den Rekorder,
+  ▶ „Weiter mit Teil n" startet einen neuen. Ab `AUFN_TEIL_MAX` (24 MB) neuer
+  Rekorder ZUERST, dann alten stoppen – kein Wort fehlt. Stücke tragen `?teil=n`.
+- Server (`aufnahme.py`): `meta.teile` [{e, ab}] (Endung, Stelle im Ton),
+  Dateien `name.webm`, `name.t2.webm` … (Punkt, weil `…-2` schon die zweite
+  Aufnahme derselben Minute ist). Erstes Stück mit nächster Nummer legt den
+  Teil an. `audio_pfade()` für Genau (`ton_laden` legt Teile hintereinander –
+  das ist genau der Ton ohne Pausen, `ton_ms` passt also weiter), Live liest
+  Teil für Teil mit (`teile_lesen` in `sprache.py`). Liste: ⬇ Teil n mit Dauer,
+  Download `?teil=n`. Alte Aufnahmen ohne `teile` bleiben lesbar.
+- „Weiter aufnehmen" nach Neuladen: `start {weiter: true}` hängt einen Teil
+  an denselben Abend (Lücke = Pause) – vorher entstanden zwei Aufnahmen.
+- Prompt: nur das Logbuch ab Titelzeile, kein Vorspann („Die erste
+  Sprachdatei ist verarbeitet …" kam bei Kalle vor).
+- Tests: `tests/test_aufnahme.py` (Teile, Neuladen, ton_laden),
+  `tests/browser/test_aufnahme_pause.py` (Pause = 2 Teile, voller Teil, Neuladen).
+
+**Geld in Stufen.** Kalle: 100 Funken = 1 Splitter, 100 Splitter = 1 Dreher,
+100 Dreher = 1 Schicksal, 100 Schicksal = 1 Fater; Fater und Lose bleiben
+sammelbar; Lose „für alles mögliche, nur ein Teil-Chance eines Werts".
+Varianten (`screenshots/waehrung-stufen/`): A jede Stufe eine Zeile, B ein
+Betrag – gewählt **B**; alte Münzen = Funken, Lose auch auf Stufen.
+- Ein Betrag in Funken unter dem alten Schlüssel `muenzen` – kein Umbau der
+  Spielstände. Anzeige zerlegt (`geldZerlegen`), Bezahlen: Stufe wählen +
+  Zahl, Wechselgeld von selbst. `MAX_FUNKEN` 10^13 (1.000 Schicksal am Stück).
+- Lose: Schlüssel `"1000"` (Fater, wie bisher) oder `"10@dreher"`; Aktion
+  mit `stufe`. Schein zeigt die Münze der Stufe. Fater/Lose nie umgerechnet.
+- Je Stufe eigene Münze (`stufeSvg`): Funken glühend/Stern, Splitter
+  Kristall, Dreher Bronze/Raute, Schicksal Silber/Auge. „Münzen umbenennen"
+  ist weg (`muenzName` im Server noch, ungenutzt).
+- Tests: `tests/test_geld.py`, `tests/browser/test_geld_browser.py`.
+
+## 2.0.28 (28.11.2026, PR #84): Notizen als Einträge, Orte/Leute als Steckbrief
 
 Kalle: Notizen (v. a. „Alle") unübersichtlich – mehrere Zeilen schreiben,
 einen Eintrag bearbeiten, ein Eintrag je Sache statt vieler Einzelzeilen; Orte
@@ -107,7 +148,7 @@ eigene Felder („kann man da dynamisch Sachen hinzufügen?").
   hing die lokale Fassung im JSON-Vergleich fest.
 - Tests: `tests/browser/test_notizen_steckbrief.py`, `test_notiz_steckbrief_felder`.
 
-## Zurück am Handy & Reiter 👥 Gruppe (28.11.2026, PR #82)
+## 2.0.28 (28.11.2026, PR #82): Zurück am Handy & Reiter 👥 Gruppe
 
 Ein Kumpel fand am Handy aus geöffneten Fenstern nicht heraus (kleines
 „Schließen" zwischen A−/A+, Zurück-Geste verließ die App). Dazu wollte Kalle
@@ -137,7 +178,7 @@ der hochwertige Look aus Runde 2 (Runde 1 war ihm „zu billo").
 - **Bug:** „Regeln nachschlagen" im Einstellungen-Blatt öffnete die Regeln
   *hinter* dem Blatt. `regelnOeffnen()` klappt das Blatt zu.
 - Tests: `tests/browser/test_zurueck.py`, `test_komplett.py`
-  (Steckbrief nur eigener). Keine Versionserhöhung.
+  (Steckbrief nur eigener).
 
 ## 2.0.27 (26.11.2026): Tiefenprüfung – ganzer Abend durchgespielt
 

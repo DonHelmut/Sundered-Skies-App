@@ -431,3 +431,97 @@ def test_feste_namen_kommen_ohne_raten_in_den_prompt(tmp_path):
     assert d["fest"] and "nach der Stimme zugeordnet" in a.prompt_aus(meta["name"])
     assert "Mira (Jo)" in a.prompt_aus(meta["name"])
     assert not a.sprecher_automatisch(meta["name"])     # steht schon fest
+
+
+# --- Mehrere Tondateien je Abend (Kalle 28.11.2026: Datei sonst zu groß) ---------
+
+def test_teile_landen_in_eigenen_dateien(tmp_path, monkeypatch):
+    uhr = [1_000_000]
+    monkeypatch.setattr(A, "now_ms", lambda: uhr[0])
+    a = A.Aufnahmen(tmp_path / "aufnahmen")
+    meta = a.starten("audio/webm")
+    name = meta["name"]
+    assert a.stueck(name, b"aa", 1)
+    uhr[0] += 60_000
+    assert a.stueck(name, b"bb", 1)
+    assert not a.stueck(name, b"x", 3)                 # Lücke: Teil 2 fehlt noch
+    assert a.stueck(name, b"cc", 2)                    # neuer Teil ab 1 min Ton
+    assert a.stueck(name, b"b", 1)                     # spätes Stück des alten Teils
+    uhr[0] += 30_000
+    assert a.stueck(name, b"dd", 2)
+    pfade = a.audio_pfade(name)
+    assert [p.name for p in pfade] == [f"{name}.webm", f"{name}.t2.webm"]
+    assert [p.read_bytes() for p in pfade] == [b"aabbb", b"ccdd"]
+    a.stoppen()
+    z = a.liste()[0]
+    assert z["bytes"] == 9
+    assert [(t["nr"], t["dauerMs"]) for t in z["teile"]] == [(1, 60_000), (2, 30_000)]
+    assert a.loeschen(name)
+    assert not list((tmp_path / "aufnahmen").iterdir())
+
+
+def test_ein_teil_zeigt_keine_teile_liste(tmp_path):
+    a = A.Aufnahmen(tmp_path / "aufnahmen")
+    meta = a.starten("audio/webm")
+    a.stueck(meta["name"], b"abc")
+    a.stoppen()
+    assert a.liste()[0]["teile"] == []
+
+
+def test_alte_aufnahme_ohne_teile_bleibt_lesbar(tmp_path):
+    a = A.Aufnahmen(tmp_path / "aufnahmen")
+    meta = a.starten("audio/webm")
+    a.stueck(meta["name"], b"abc")
+    a.stoppen()
+    # So sah eine Aufnahme vor 2.0.28 aus: keine „teile" in der .json.
+    import json
+    p = tmp_path / "aufnahmen" / f"{meta['name']}.json"
+    m = json.loads(p.read_text(encoding="utf-8"))
+    m.pop("teile")
+    p.write_text(json.dumps(m), encoding="utf-8")
+    assert [x.name for x in a.audio_pfade(meta["name"])] == [f"{meta['name']}.webm"]
+    assert a.liste()[0]["bytes"] == 3
+
+
+def test_weiter_nach_neuladen_bleibt_derselbe_abend(tmp_path, monkeypatch):
+    uhr = [1_000_000]
+    monkeypatch.setattr(A, "now_ms", lambda: uhr[0])
+    a = A.Aufnahmen(tmp_path / "aufnahmen")
+    meta = a.starten("audio/webm")
+    name = meta["name"]
+    uhr[0] += 60_000
+    a.stueck(name, b"aa", 1)
+    uhr[0] += 120_000                                  # Seite neu geladen, 2 min nichts
+    weiter = a.starten("audio/webm", weiter=True)
+    assert weiter["name"] == name and a.aktiv["name"] == name
+    assert a.aktiv["pausen"] == [[1_060_000, 1_180_000]]
+    uhr[0] += 10_000
+    assert a.stueck(name, b"bb", 2)
+    assert a.aktiv["dauerMs"] == 70_000                # Lücke zählt nicht
+    a.stoppen()
+    assert len(a.liste()) == 1 and len(a.audio_pfade(name)) == 2
+
+
+def test_ton_laden_legt_teile_hintereinander(tmp_path):
+    import wave
+    import pytest
+    pytest.importorskip("av")
+    np = pytest.importorskip("numpy")
+    from server import sprache as SP
+    pfade = []
+    for i, sek in enumerate((1, 2)):
+        p = tmp_path / f"t{i}.wav"
+        with wave.open(str(p), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(16000)
+            w.writeframes((np.ones(16000 * sek) * 1000).astype("<i2").tobytes())
+        pfade.append(p)
+    ton = SP.ton_laden(pfade, aufbereiten=False)
+    assert abs(len(ton) - 48000) < 200
+
+
+def test_prompt_verbietet_vorspann():
+    # Kalle 28.11.2026: kein „Die erste Sprachdatei ist verarbeitet …" vor dem Logbuch.
+    p = A.baue_prompt({"start": 0}, "[00:00:01] S00: Hallo.")
+    assert "Kein Vorspann" in p and "beginnend mit der Titelzeile" in p

@@ -185,3 +185,37 @@ def test_stand_bereinigt_kaputte_daten():
     assert G.stand({"fater": -3, "lose": {"1": 4, "x": 2, "20": 0, "50": "3"}, "muenzen": "12"}) == \
         {"fater": 0, "lose": {"50": 3}, "muenzen": 12}
     assert G.stand("Unsinn") == G.leerer_stand()
+
+
+# --- Stufen je 100 (Kalle 28.11.2026) ---------------------------------------------
+
+def test_geld_ist_ein_betrag_in_funken_wechselgeld_von_selbst(fresh_game):
+    g = fresh_game
+    mira, korgo, m, k = _zwei(g)
+    _gib(g, "char_mira", "muenzen", 2 * 100 ** 3)                  # 2 Schicksal
+    # 5 Dreher bezahlen = 50.000 Funken; Rest 1 Schicksal 95 Dreher.
+    assert g.geld_spieler(m, {"was": "bezahlen", "art": "muenzen", "anzahl": 5 * 100 ** 2})
+    assert _stand(g, mira["id"])["muenzen"] == 1_950_000
+    # Mehr als 1.000 Schicksal am Stück: Tippfehler, abgelehnt.
+    assert not g.geld_spieler(m, {"was": "bezahlen", "art": "muenzen", "anzahl": G.MAX_FUNKEN + 1})
+
+
+def test_lose_auf_stufen(fresh_game):
+    g = fresh_game
+    mira, korgo, m, k = _zwei(g)
+    g.apply({"type": "geld", "was": "geben", "ziele": ["char_mira"], "art": "los", "nenner": 10,
+             "stufe": "dreher", "anzahl": 2})
+    _gib(g, "char_mira", "los", 1, nenner=10)                      # 1/10 Fater - ein anderer Schein
+    assert _stand(g, mira["id"])["lose"] == {"10@dreher": 2, "10": 1}
+    assert g.geld_spieler(m, {"was": "bezahlen", "art": "los", "nenner": 10, "stufe": "dreher", "anzahl": 2})
+    assert not g.geld_spieler(m, {"was": "bezahlen", "art": "los", "nenner": 10, "stufe": "dreher", "anzahl": 1})
+    assert _stand(g, mira["id"])["lose"] == {"10": 1}
+    vl = g.geld_fuer(mira["id"])["verlauf"]
+    assert vl[0]["stufe"] == "dreher" and vl[0]["nenner"] == 10 and "stufe" not in vl[1]
+    # Unbekannte Stufe: nichts.
+    assert not g.geld_spieler(m, {"was": "bezahlen", "art": "los", "nenner": 10, "stufe": "gold", "anzahl": 1})
+
+
+def test_stand_aus_datei_mit_stufen_losen():
+    s = G.stand({"fater": 1, "muenzen": 340, "lose": {"10@dreher": 2, "1000": 3, "5@gold": 1, "x": 2}})
+    assert s == {"fater": 1, "muenzen": 340, "lose": {"10@dreher": 2, "1000": 3}}

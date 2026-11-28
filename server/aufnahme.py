@@ -37,6 +37,7 @@ from typing import Optional
 _NAME_MUSTER = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}(-\d+)?$")
 _ENDUNGEN = (".webm", ".ogg", ".m4a")
 MAX_STUECK = 8 * 1024 * 1024        # ein Stück alle 10 s ist ein paar 100 KB
+MAX_TEILE = 200                     # Tondateien je Abend (24 MB je Teil ≈ 70 min)
 MAX_TRANSKRIPT = 20 * 1024 * 1024   # 4 h Transkript sind ca. 0,5 MB Text
 LIVE_MERKEN = 60                    # so viele Live-Zeilen hält der Server für die Anzeige
 _SPRECHER_MUSTER = re.compile(r"^S\d{2}$")
@@ -77,6 +78,16 @@ def _pausen_zeilen(meta: dict) -> list[str]:
         minuten = max(1, round((bis - von) / 60000))
         zeilen.append(f"- bei {uhrzeit(ton_ms(meta, von))} ({minuten} min)")
     return zeilen
+
+
+def _teile(meta: dict) -> list[dict]:
+    """Tondateien laut Meta; Aufnahmen vor 2.0.28 hatten eine."""
+    t = [x for x in meta.get("teile") or [] if isinstance(x, dict) and x.get("e") in _ENDUNGEN]
+    if not t and meta.get("endung") in _ENDUNGEN:
+        t = [{"e": meta["endung"], "ab": 0}]
+    for x in t:
+        x["ab"] = int(x.get("ab") or 0)
+    return t
 
 
 def name_gueltig(name) -> bool:
@@ -132,6 +143,7 @@ class Aufnahmen:
         return self.ordner / f"{name}.json"
 
     def audio_pfad(self, name: str) -> Optional[Path]:
+        """Tondatei von Teil 1 (Aufnahmen vor 2.0.28 haben nur die)."""
         if not name_gueltig(name):
             return None
         for e in _ENDUNGEN:
@@ -139,6 +151,29 @@ class Aufnahmen:
             if p.exists():
                 return p
         return None
+
+    def _teil_pfad(self, name: str, nr: int, endung: str) -> Path:
+        # Teil 1 heißt wie früher die ganze Aufnahme, weitere „….t2.webm" -
+        # mit Punkt, denn „…-2" ist schon die zweite Aufnahme derselben Minute.
+        return self.ordner / (f"{name}{endung}" if nr == 1 else f"{name}.t{nr}{endung}")
+
+    def audio_pfade(self, name: str) -> list[Path]:
+        """Alle Tondateien eines Abends, in Reihenfolge (Kalle 28.11.2026: ein
+        Abend, mehrere Dateien - eine einzige wurde zu groß zum Hochladen).
+        Hintereinander gelegt ergeben sie den Ton ohne Pausen, darum passen
+        Marken und Kampfzeiten (ton_ms) über alle Teile."""
+        if not name_gueltig(name):
+            return []
+        meta = self._meta(name) or {}
+        erg = []
+        for i, t in enumerate(_teile(meta), 1):
+            p = self._teil_pfad(name, i, t["e"])
+            if p.exists():
+                erg.append(p)
+        if not erg:
+            p = self.audio_pfad(name)
+            return [p] if p else []
+        return erg
 
     def _meta_lesen(self, name: str) -> Optional[dict]:
         try:
@@ -160,9 +195,23 @@ class Aufnahmen:
 
     # --- Aufnehmen -------------------------------------------------------------
 
-    def starten(self, mime: str, game=None) -> dict:
+    def starten(self, mime: str, game=None, weiter: bool = False) -> dict:
         """Neue Aufnahme. Läuft noch eine (Seite neu geladen, Browser
-        abgestürzt), wird die sauber beendet - ihr Ton bleibt erhalten."""
+        abgestürzt): mit ``weiter`` geht derselbe Abend im nächsten Teil
+        weiter (die Zeit dazwischen zählt als Pause), sonst wird sie sauber
+        beendet - ihr Ton bleibt erhalten."""
+        if self.aktiv and weiter:
+            a = self.aktiv
+            jetzt = now_ms()
+            pausen = a.setdefault("pausen", [])
+            if pausen and pausen[-1][1] is None:
+                pausen[-1][1] = jetzt
+            else:
+                pausen.append([max(a["start"], self._letztes_stueck), jetzt])
+            # Neue Teile in dem Format, das der Browser jetzt liefert.
+            a["endung"] = endung_fuer(mime)
+            self._meta_schreiben(a)
+            return a
         if self.aktiv:
             self.stoppen(game)
         self.ordner.mkdir(parents=True, exist_ok=True)
@@ -175,6 +224,8 @@ class Aufnahmen:
         meta = {
             "name": name, "start": jetzt, "ende": None, "dauerMs": 0,
             "endung": endung_fuer(mime), "mime": str(mime or "")[:80],
+            # Tondateien: e = Endung, ab = Stelle im Ton (ms), wo der Teil beginnt.
+            "teile": [],
             "personen": {}, "ereignisse": [],
             # [[von, bis], ...] Wanduhr-ms; bis = None, solange die Pause läuft.
             "pausen": [],
@@ -190,12 +241,26 @@ class Aufnahmen:
         self._meta_schreiben(meta)
         return meta
 
-    def stueck(self, name: str, daten: bytes) -> bool:
-        if not self.aktiv or self.aktiv["name"] != name or not daten:
+    def stueck(self, name: str, daten: bytes, teil: int = 1) -> bool:
+        """Ein Stück Ton für Teil ``teil``. Der Browser beginnt einen neuen
+        Teil nach jeder Pause und ab 24 MB; das erste Stück mit der nächsten
+        Nummer legt ihn an. Späte Stücke des alten Teils landen trotzdem
+        richtig (der Browser startet den neuen Rekorder vor dem Stopp des
+        alten, damit nichts fehlt)."""
+        a = self.aktiv
+        if not a or a["name"] != name or not daten:
             return False
         if len(daten) > MAX_STUECK:
             return False
-        pfad = self.ordner / f"{name}{self.aktiv['endung']}"
+        teile = a.setdefault("teile", [])
+        if not teile and self.audio_pfad(name):
+            teile.append({"e": a["endung"], "ab": 0})     # Aufnahme von vor 2.0.28
+        if teil == len(teile) + 1 and teil <= MAX_TEILE:
+            teile.append({"e": a["endung"], "ab": a.get("dauerMs", 0) if teile else 0})
+            self._meta_schreiben(a)
+        elif not 1 <= teil <= len(teile):
+            return False
+        pfad = self._teil_pfad(name, teil, teile[teil - 1]["e"])
         with open(pfad, "ab") as f:
             f.write(daten)
         self._letztes_stueck = now_ms()
@@ -382,6 +447,8 @@ class Aufnahmen:
                 "name": a["name"], "start": a["start"],
                 "letztesStueck": self._letztes_stueck,
                 "pausiert": self.pausiert,
+                "teile": len(a.get("teile") or []),
+                "tonMs": a.get("dauerMs", 0),
                 "marken": sum(1 for e in a["ereignisse"] if e.get("art") == "marke"),
                 # Die Liste fürs Panel („Gemerkte Momente", 16.11.2026): Stelle + Stichwort.
                 "momente": [{"t": e.get("t", 0), "text": e.get("text", "")}
@@ -401,20 +468,26 @@ class Aufnahmen:
             meta = self._meta_lesen(p.stem)
             if not meta or not name_gueltig(meta.get("name")):
                 continue
-            audio = self.audio_pfad(meta["name"])
+            pfade = self.audio_pfade(meta["name"])
+            audio = pfade[0] if pfade else None
             ev = meta.get("ereignisse", [])
             dauer = meta.get("dauerMs", 0)
-            if not meta.get("ende") and audio and not (self.aktiv and self.aktiv["name"] == meta["name"]):
+            if not meta.get("ende") and pfade and not (self.aktiv and self.aktiv["name"] == meta["name"]):
                 # Server mittendrin beendet (Absturz, Fenster zu): die Länge
                 # steht dann nur im Speicher. Letzte Änderung der Tondatei
                 # = letztes angekommenes Stück.
-                dauer = max(dauer, ton_ms(meta, int(audio.stat().st_mtime * 1000)))
+                dauer = max(dauer, ton_ms(meta, int(pfade[-1].stat().st_mtime * 1000)))
+            ab = [t["ab"] for t in _teile(meta)][:len(pfade)] or [0]
+            teile = [{"nr": i + 1, "bytes": p.stat().st_size,
+                      "dauerMs": max(0, (ab[i + 1] if i + 1 < len(ab) else dauer) - ab[i])}
+                     for i, p in enumerate(pfade)]
             erg.append({
                 "name": meta["name"], "start": meta.get("start"),
                 "dauerMs": dauer,
                 "laeuft": bool(self.aktiv and self.aktiv["name"] == meta["name"]),
-                "bytes": audio.stat().st_size if audio else 0,
+                "bytes": sum(t["bytes"] for t in teile),
                 "datei": audio.name if audio else None,
+                "teile": teile if len(teile) > 1 else [],
                 "kaempfe": sum(1 for e in ev if e.get("art") == "kampf_start"),
                 "marken": sum(1 for e in ev if e.get("art") == "marke"),
                 "personen": meta.get("personen", {}),
@@ -430,7 +503,7 @@ class Aufnahmen:
         if not name_gueltig(name) or (self.aktiv and self.aktiv["name"] == name):
             return False
         weg = False
-        for p in [self._meta_pfad(name), self.audio_pfad(name),
+        for p in [*self.audio_pfade(name), self._meta_pfad(name), self.audio_pfad(name),
                   self.ordner / f"{name}-transkript.txt", self.ordner / f"{name}-prompt.txt",
                   self.ordner / f"{name}-live.txt", self.ordner / f"{name}-stimmen.json",
                   self.ordner / f"{name}-richtung.bin"]:
@@ -985,6 +1058,11 @@ def baue_prompt(meta: dict, transkript: str, extra: str = "", begriffe: Optional
         "Volltreffer, jemand geht zu Boden, ein Joker im richtigen Moment). Keinen Rundenablauf.",
         "- Ganz am Ende, kurz: wichtige NSCs, Beute/Belohnungen, offene Fäden für nächstes Mal.",
         "- Ganz oben als erste Zeile ein kurzer, stimmungsvoller Titel für den Abend: „# Titel“.",
+        # Kalle 28.11.2026: das Logbuch begann mit „Die erste Sprachdatei ist
+        # verarbeitet …" - es soll klingen wie von jemandem, der dabei war.
+        "- Antworte NUR mit dem Logbuch, beginnend mit der Titelzeile. Kein Vorspann, keine Bemerkungen "
+        "über Transkript, Dateien, Teile oder Aufnahme, keine Rückfragen, kein Schlusswort.",
+        "- Erzählt wie von einem Chronisten, der selbst dabei war – nie „im Transkript“, „die Aufnahme zeigt“ o. ä.",
         "",
         "ZUM TRANSKRIPT:",
         "- Es ist automatisch erkannt und enthält Hörfehler. Namen und Begriffe sinnvoll korrigieren.",

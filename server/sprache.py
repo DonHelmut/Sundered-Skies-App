@@ -260,18 +260,20 @@ def hochpass(ton):
     return np.concatenate(teile).astype(np.float32) if teile else ton
 
 
-def ton_laden(pfad: Path, aufbereiten: bool = True):
-    """Tondatei -> 16 kHz mono float32 (PyAV bringt ffmpeg mit)."""
+def ton_laden(pfad, aufbereiten: bool = True):
+    """Tondatei -> 16 kHz mono float32 (PyAV bringt ffmpeg mit). Eine Liste
+    von Dateien (Teile eines Abends) wird hintereinander gelegt."""
     import av
     import numpy as np
     teile = []
-    with av.open(str(pfad)) as c:
-        res = av.AudioResampler(format="flt", layout="mono", rate=SR)
-        for frame in c.decode(audio=0):
-            for f in res.resample(frame):
+    for p in (pfad if isinstance(pfad, (list, tuple)) else [pfad]):
+        with av.open(str(p)) as c:
+            res = av.AudioResampler(format="flt", layout="mono", rate=SR)
+            for frame in c.decode(audio=0):
+                for f in res.resample(frame):
+                    teile.append(f.to_ndarray().reshape(-1))
+            for f in res.resample(None):
                 teile.append(f.to_ndarray().reshape(-1))
-        for f in res.resample(None):
-            teile.append(f.to_ndarray().reshape(-1))
     if not teile:
         return np.zeros(0, dtype=np.float32)
     ton = np.concatenate(teile).astype(np.float32)
@@ -1786,16 +1788,41 @@ class Sprache:
             return
         if self.live:
             self.live["stopp"].set()
-        name, start, endung = a["name"], a["start"], a["endung"]
+        name, start = a["name"], a["start"]
         stopp = threading.Event()
         zustand = {"name": name, "hinweis": None, "stopp": stopp}
         self.live = zustand
-        # Live mitten in der Aufnahme eingeschaltet -> erst ab jetzt.
-        ab_s = max(0.0, (time.time() * 1000 - start) / 1000 - 3)
-        pfad = self.aufnahmen.ordner / f"{name}{endung}"
+        # Live mitten in der Aufnahme eingeschaltet -> erst ab jetzt (in Ton-Zeit).
+        ab_s = max(0.0, a.get("dauerMs", 0) / 1000 - 3)
 
         def laeuft() -> bool:
             return bool(self.aufnahmen.aktiv and self.aufnahmen.aktiv["name"] == name)
+
+        def teile_lesen():
+            """Alle Teile nacheinander mitlesen: ein Teil ist zu Ende, sobald
+            der nächste angelegt ist - dann den Rest lesen und weiter."""
+            nr = 1
+            while True:
+                while True:
+                    akt = self.aufnahmen.aktiv
+                    teile = (akt or {}).get("teile") or []
+                    if stopp.is_set() or not laeuft():
+                        if len(teile) < nr:
+                            return
+                    if len(teile) >= nr:
+                        break
+                    time.sleep(0.5)
+                t = teile[nr - 1]
+                pfad = self.aufnahmen._teil_pfad(name, nr, t["e"])
+                fmt = {".ogg": "ogg", ".m4a": "mp4"}.get(t["e"], "webm")
+
+                def offen(n=nr) -> bool:
+                    akt = self.aufnahmen.aktiv
+                    return laeuft() and len((akt or {}).get("teile") or []) == n
+                yield from ton_mitlesen(pfad, offen, stopp, fmt)
+                if stopp.is_set() or not laeuft():
+                    return
+                nr += 1
 
         def ausgeben(s: float, sprecher: str, text: str) -> None:
             if laeuft():
@@ -1805,14 +1832,10 @@ class Sprache:
             zustand["hinweis"] = t
 
         def los() -> None:
-            # Erstes Stück abwarten: vorher gibt es die Datei (und ihren Kopf) nicht.
-            while not pfad.exists() or pfad.stat().st_size == 0:
-                if stopp.is_set() or not laeuft():
-                    return
-                time.sleep(0.5)
             try:
-                fmt = {".ogg": "ogg", ".m4a": "mp4"}.get(endung, "webm")
-                quelle = ton_mitlesen(pfad, laeuft, stopp, fmt)
+                # teile_lesen wartet aufs erste Stück: vorher gibt es die Datei
+                # (und ihren Kopf) nicht.
+                quelle = teile_lesen()
                 # Personenzahl live nur als Obergrenze (Stimmen): wer später
                 # dazukommt, landet sonst nie als eigener Sprecher.
                 live_laufen(quelle, self.modelle, ausgeben, stopp, ab_s=ab_s,
@@ -1849,7 +1872,7 @@ class Sprache:
                 self.warten.remove(name)
 
     def genau(self, name: str) -> bool:
-        pfad = self.aufnahmen.audio_pfad(name)
+        pfad = self.aufnahmen.audio_pfade(name)
         if not pfad or not self.bereit():
             return False
         if self.aufnahmen.aktiv and self.aufnahmen.aktiv["name"] == name:
