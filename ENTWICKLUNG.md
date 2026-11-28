@@ -77,6 +77,30 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## 2.0.29 (28.11.2026, PR #85): Sprecher am echten Abend – Sortier-Fix + neue Stimm-Modelle
+
+Kalle wollte wissen, welches Modell die Stimmen am besten erkennt. Gemessen am
+echten Abend 27.11. (Teil 1 44 min mit Vorstellungsrunde, Teil 2 2 h 15, mono,
+keine Connex-Richtung), 10 Stimm-Modelle von sherpa-onnx. Prüfstellen: die
+Vorstellungsrunde + ~30 Stellen, deren Sprecher aus dem Inhalt eindeutig ist.
+Ergebnis und Skripte: Projekt-Ordner `recherche/sprecher-2026-11-28/`.
+
+- **Bug:** `sortieren()` machte am echten Abend mit JEDEM Modell alles zu einer
+  Person (größte Eigenwert-Lücke immer vor der zweiten). Fix: normierte
+  Laplace-Matrix, und „eine Person" nur, wenn die Fenster sich im Mittel
+  ähneln (`SORT_EINER` 0,25; echt: eine Person 0,31–0,48, alle 0,11–0,18).
+- **Frei sortiert** (ohne Richtung): jetzt das Paar ERes2Net-VoxCeleb +
+  CAM++-VoxCeleb, Abdrücke aneinandergehängt (`paar_abdruecke`). Teil 1: 6
+  Sprecher, 96 % je Person; Teil 2: wieder 6. ERes2Net large (bisher), TitaNet
+  fanden 2–3. Die beiden sind zusammen 55 MB statt 111 MB und ~4x schneller.
+  ERes2Net large wird beim nächsten Laden gelöscht (`ALTE_MODELLE`).
+- **Feste Plätze:** haben sich heute alle vorgestellt, ERes2Net-VoxCeleb allein
+  mit abgezogenem Mittel (88 % gegen 67 % TitaNet). Sonst (gespeicherte
+  Stimmen, oder Sitzplatz-Erkennung) weiter TitaNet - gespeicherte Stimmen sind
+  TitaNet, gleich lang wie ERes2Net (192), dürfen nicht gemischt werden.
+- WeSpeaker (r34, r293, CAM++) unbrauchbar (<45 %).
+- Offen: Prüfstellen für Razgar/Flix/Korgo nur 2–6 s je Person → grob.
+
 ## 2.0.28 (28.11.2026): Aufnahme in Teilen, Geld in Stufen (PR #83)
 
 Im selben Release: Notiz-Steckbriefe (PR #84) und Zurück/👥 Gruppe (PR #82), Abschnitte darunter.

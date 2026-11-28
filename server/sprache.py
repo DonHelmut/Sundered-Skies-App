@@ -88,13 +88,19 @@ MODELLE = {
     # 3D-Speaker legten die beiden Männer zusammen.
     "stimme": (f"{_GH}/speaker-recongition-models/nemo_en_titanet_small.onnx",
                "nemo_en_titanet_small.onnx", 40),
-    # Für den Durchgang danach (seit 15.11.2026, siehe „Sprecher sortieren"):
-    # mit dem neuen Sortieren trennte ERes2Net in allen 7 nachgebauten Runden
-    # 84–93 % der Redezeit richtig, TitaNet (klein wie groß) schwankte
-    # 73–92 %. Kostet etwa 6x die Rechenzeit von TitaNet klein - darum nur
-    # danach, und nur wenn das Mikro keine Richtung liefert (server/richtung.py).
-    "stimme_genau": (f"{_GH}/speaker-recongition-models/3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx",
-                     "3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx", 111),
+    # Für den Durchgang danach. Erst (15.11.2026) ERes2Net large, gewählt an
+    # nachgebauten Runden. Am ersten echten Abend mit Vorstellungsrunde
+    # (27.11.2026, 3 h, SL + 5, viel Reinreden) wurden 10 Modelle verglichen:
+    # frei sortiert trennten nur ERes2Net- und CAM++-VoxCeleb alle sechs, als
+    # Paar (Abdrücke aneinandergehängt) am stabilsten - auch im zweiten Teil
+    # 6 von 6, ERes2Net large und TitaNet fanden dort 2–3. Für feste Plätze
+    # war ERes2Net-VoxCeleb allein am besten (88 % gegen 67 % mit TitaNet
+    # klein). Beide zusammen sind halb so groß wie ERes2Net large und rund
+    # 4x schneller. Nur danach, und nur wenn das Mikro keine Richtung liefert.
+    "stimme_genau": (f"{_GH}/speaker-recongition-models/3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx",
+                     "3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx", 26),
+    "stimme_genau2": (f"{_GH}/speaker-recongition-models/3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx",
+                      "3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx", 29),
     "text": (f"{_GH}/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
              "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8", 490),
     # Canary für den Durchgang danach: fest auf Deutsch eingestellt. Parakeet
@@ -108,6 +114,8 @@ MODELLE = {
 # Ohne diese läuft nichts. „genau" kam mit 1.5.28 dazu - wer schon
 # eingerichtet hat, soll live nicht verlieren, bis er nachlädt.
 PFLICHT = ("vad", "segmentierung", "stimme", "text")
+# Abgelöst, wird beim nächsten Laden weggeräumt (111 MB, seit 28.11.2026 unbenutzt).
+ALTE_MODELLE = ("3dspeaker_speech_eres2net_large_sv_zh-cn_3dspeaker_16k.onnx",)
 
 
 def uhrzeit(s: float) -> str:
@@ -150,7 +158,7 @@ def canary_da(ordner: Path) -> bool:
 
 def genau_komplett(ordner: Path) -> bool:
     """Alles da, was der Durchgang danach für das beste Ergebnis braucht?"""
-    return canary_da(ordner) and (ordner / MODELLE["stimme_genau"][1]).exists()
+    return canary_da(ordner) and all((ordner / MODELLE[n][1]).exists() for n in ("stimme_genau", "stimme_genau2"))
 
 
 def _laden(url: str, ziel: Path, fortschritt: Callable[[int], None], stopp: threading.Event) -> None:
@@ -196,6 +204,11 @@ def modelle_laden(ordner: Path, fortschritt: Callable[[int, int], None],
             archiv.unlink()
         else:
             _laden(url, ziel, weiter, stopp)
+    for alt in ALTE_MODELLE:
+        try:
+            (ordner / alt).unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 # --- Ton ----------------------------------------------------------------------------
@@ -665,6 +678,7 @@ def sprache_finden(ton, modelle: Path, max_s: float = 20.0,
 SORT_MAX_N = 800            # mehr Fenster -> Stichprobe (Eigenwerte kosten n³)
 SORT_NACHBARN = (0.02, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2)   # Anteil Nachbarn, bester gewinnt
 SORT_MAX_GRUPPEN = 10
+SORT_EINER = 0.25           # Fenster im Mittel so ähnlich -> darf eine Person sein
 RICHT_SIGMA = 0.5           # so nah (in Streuungen) gilt als „gleiche Ecke"
 RICHT_ANTEIL = 0.6          # Gewicht der Richtung beim Sortieren (Rest: Stimme)
 RICHT_NACH = 0.5            # … und beim Nachschärfen, auf die Stimm-Ähnlichkeit drauf
@@ -724,6 +738,7 @@ def sortieren(vektoren, richtung=None, max_gruppen: int = SORT_MAX_GRUPPEN):
     if f is not None:
         a = (1 - RICHT_ANTEIL) * a + RICHT_ANTEIL * _richt_naehe(f[idx], f[idx])
     np.fill_diagonal(a, 0)
+    einer = float(np.clip(vi @ vi.T, 0, None).mean()) >= SORT_EINER
     kmax = min(max_gruppen, len(idx) - 2)
     best = None
     for p in SORT_NACHBARN:
@@ -732,15 +747,28 @@ def sortieren(vektoren, richtung=None, max_gruppen: int = SORT_MAX_GRUPPEN):
         # zwischen ähnlichen Stimmen ab, die ein Schwellwert stehen ließe.
         b = np.where(a >= np.partition(a, -k, axis=1)[:, -k][:, None], a, 0.0)
         b = (b + b.T) / 2
-        w, u = np.linalg.eigh(np.diag(b.sum(1)) - b)
+        # Normierte Laplace-Matrix (Ng/Jordan/Weiss): mit der einfachen fand
+        # das Sortieren am echten Abend 27.11.2026 mit JEDEM Stimm-Modell nur
+        # einen Sprecher - am Tisch (Reinreden, Lachen, Musik) gibt es keine
+        # sauberen Gruppen, die größte Lücke lag immer zwischen der ersten und
+        # zweiten Eigenzahl. Normiert zählt jedes Fenster gleich, egal wie
+        # viele Nachbarn es hat.
+        d = 1 / np.sqrt(b.sum(1) + 1e-9)
+        w, u = np.linalg.eigh(np.eye(len(b)) - d[:, None] * b * d[None])
         luecken = np.diff(w[:kmax + 1])
         g = int(np.argmax(luecken)) + 1
+        # „Alle eine Person" nur, wenn die Fenster sich auch wirklich ähneln -
+        # sonst die nächstbeste Lücke. Am echten Abend: eine Person allein
+        # im Mittel 0,31–0,48, alle zusammen 0,11–0,18.
+        if g == 1 and not einer:
+            g = int(np.argmax(luecken[1:])) + 2
         # Auto-Abstimmung nach Park u. a. 2020: kleiner Nachbar-Anteil bei
         # großer Lücke gewinnt - ein fester Anteil kippte je nach Runde.
         guete = p / (luecken.max() / (w[kmax] + 1e-9) + 1e-9)
         if best is None or guete < best[0]:
             best = (guete, g, u[:, :g])
     _, g, u = best
+    u = u / (np.linalg.norm(u, axis=1, keepdims=True) + 1e-9)
     lab = np.zeros(len(idx), dtype=int) if g == 1 else _kmeans(u, g)
     if len(idx) == n and f is None:
         return [int(x) for x in lab]
@@ -894,6 +922,21 @@ def fenster_abdruecke(ton, fenster: list[tuple[float, float]], modell: Path, thr
     return vektoren
 
 
+def paar_abdruecke(ton, fenster: list[tuple[float, float]], modelle_paar: list[Path], threads: int = 1,
+                   stopp: Optional[threading.Event] = None,
+                   melden: Callable[[float], None] = lambda a: None) -> list:
+    """Zwei Stimm-Modelle je Fenster, Abdrücke aneinandergehängt (wieder Länge
+    1): jedes Modell hört andere Unterschiede, zusammen trennten sie am echten
+    Abend alle sechs - jedes allein nicht in beiden Teilen."""
+    import numpy as np
+    teile = []
+    for k, m in enumerate(modelle_paar):
+        teile.append(np.asarray(fenster_abdruecke(ton, fenster, m, threads, stopp,
+                                                  lambda a, k=k: melden((k + a) / len(modelle_paar)))))
+    v = np.concatenate(teile, axis=1) / np.sqrt(len(teile))
+    return list(v)
+
+
 def stimmen_nachhoeren(ton, stuecke: list[tuple[float, float]], teile: list[tuple[float, float, int]],
                        modelle: Path, threads: int = 1, stopp: Optional[threading.Event] = None,
                        melden: Callable[[float], None] = lambda a: None) -> list[tuple[float, float, int]]:
@@ -924,11 +967,17 @@ def sprecher_sortieren(ton, stuecke: list[tuple[float, float]], modelle: Path, t
         except Exception:   # noqa: BLE001 - dann eben nur nach Stimme
             r = None
     # Mit Richtung reicht das kleine TitaNet (und war im Test sogar stabiler);
-    # ohne sie braucht es ERes2Net.
-    modell = modelle / MODELLE["stimme" if r is not None else "stimme_genau"][1]
-    if not modell.exists():
-        return None
-    vektoren = fenster_abdruecke(ton, fenster, modell, threads, stopp, melden)
+    # ohne sie das Paar ERes2Net + CAM++ (siehe MODELLE).
+    if r is not None:
+        modell = modelle / MODELLE["stimme"][1]
+        if not modell.exists():
+            return None
+        vektoren = fenster_abdruecke(ton, fenster, modell, threads, stopp, melden)
+    else:
+        paar = [modelle / MODELLE[n][1] for n in ("stimme_genau", "stimme_genau2")]
+        if not all(m.exists() for m in paar):
+            return None
+        vektoren = paar_abdruecke(ton, fenster, paar, threads, stopp, melden)
     lab = sortieren(vektoren, r)
     return nachschaerfen(fenster, vektoren, _fenster_teile(fenster, lab), richtung=r)
 
@@ -1011,8 +1060,13 @@ def plaetze_sortieren(ton, stuecke: list[tuple[float, float]], modelle: Path, pl
     fenster = nach_fenster(stuecke)
     if len(fenster) < 8:
         return None
-    # Gleiches Modell wie die gespeicherten Stimmen (stimm_abdruecke).
-    modell = modelle / MODELLE["stimme"][1]
+    # Hat sich heute jeder vorgestellt, braucht es keine gespeicherte Stimme -
+    # dann ERes2Net (echter Abend 27.11.2026: 88 % gegen 67 % mit TitaNet).
+    # Sonst das Modell der gespeicherten Stimmen (stimm_abdruecke, TitaNet).
+    heute_alle = all(any(n == wer for _, _, n in anmeldungen) for wer in plaetze)
+    genau = modelle / MODELLE["stimme_genau"][1]
+    # Mit Sitzplatz-Erkennung bleibt es beim TitaNet (so in der Tisch-Simulation 98 %).
+    modell = genau if heute_alle and richtung is None and genau.exists() else modelle / MODELLE["stimme"][1]
     if not modell.exists():
         return None
     r = None
@@ -1022,12 +1076,21 @@ def plaetze_sortieren(ton, stuecke: list[tuple[float, float]], modelle: Path, pl
         except Exception:   # noqa: BLE001 - dann eben nur nach Stimme
             r = None
     vektoren = fenster_abdruecke(ton, fenster, modell, threads, stopp, melden)
+    if modell == genau:
+        # Was in allen Fenstern steckt (Raum, Mikro, Musik), abziehen: am
+        # echten Abend 27.11.2026 hob das Flix von 41 auf 74 % (gesamt 81 ->
+        # 88 %). Nur hier - gespeicherte Stimmen kennen das heutige Mittel nicht.
+        import numpy as np
+        v = np.asarray(vektoren, dtype=np.float64)
+        v = v - v.mean(0)
+        vektoren = list(v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-9))
     dim = len(vektoren[0])
     namen, profile = [], []
     for wer, alt in plaetze.items():
         heute = [anmeldung_abdruck(fenster, vektoren, ab, bis) for ab, bis, n in anmeldungen if n == wer]
         heute = [h for h in heute if h is not None]
-        alt = alt if alt is not None and len(alt) == dim else None
+        # Gleich lang heißt nicht gleiches Modell (ERes2Net und TitaNet: 192).
+        alt = alt if alt is not None and len(alt) == dim and modell != genau else None
         if heute:
             import numpy as np
             h = np.mean(heute, axis=0)

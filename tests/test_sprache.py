@@ -2,6 +2,7 @@
 Wörter verteilen, Rückstau) und die Verwaltung im Server. Die Modelle selbst
 (~540 MB) laufen hier nicht."""
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -217,7 +218,7 @@ def test_ohne_canary_bleibt_alles_bereit(tmp_path):
     if not SP.pakete_da():
         pytest.skip("ohne sherpa-onnx")
     st = sp.status()
-    assert st["bereit"] and st["genauerFehlt"] and st["groesseMb"] == SP.MODELLE["genau"][2] + SP.MODELLE["stimme_genau"][2]
+    assert st["bereit"] and st["genauerFehlt"] and st["groesseMb"] == SP.MODELLE["genau"][2] + SP.MODELLE["stimme_genau"][2] + SP.MODELLE["stimme_genau2"][2]
 
 
 def test_muell_aus_dem_ersten_echten_test_fliegt_raus():
@@ -355,7 +356,10 @@ def test_genauer_wird_beim_start_nachgeholt(tmp_path, monkeypatch):
     (tmp_path / "modelle").mkdir(exist_ok=True)
     (tmp_path / "modelle" / SP.MODELLE["stimme_genau"][1]).write_bytes(b"x")
     sp.genauer_nachholen()
-    assert geholt == [1, 1]
+    assert geholt == [1, 1, 1]          # das zweite Stimm-Modell (seit 28.11.2026) fehlt noch
+    (tmp_path / "modelle" / SP.MODELLE["stimme_genau2"][1]).write_bytes(b"x")
+    sp.genauer_nachholen()
+    assert geholt == [1, 1, 1]
 
 
 def test_hoechstens_so_viele_sprecher_wie_leute():
@@ -463,6 +467,17 @@ def test_sortieren_einer_allein_bleibt_einer_und_grosse_aufnahme_per_stichprobe(
     assert len(lab) == len(v) and len(set(lab)) == 4 and _richtig(np, lab, wer) > 0.97
 
 
+def test_sortieren_macht_aus_einem_lauten_tisch_nicht_eine_person():
+    # Echter Abend 27.11.2026: am Tisch (Reinreden, Lachen, Musik) ähneln sich
+    # die Fenster kaum (im Mittel 0,11–0,18), die größte Eigenwert-Lücke lag
+    # trotzdem vor der zweiten - das alte Sortieren machte mit jedem
+    # Stimm-Modell alles zu EINER Person. Ohne echte Ähnlichkeit nie eine Gruppe.
+    np = pytest.importorskip("numpy")
+    v = np.random.default_rng(0).normal(size=(400, 32))
+    v /= np.linalg.norm(v, axis=1, keepdims=True)
+    assert len(set(SP.sortieren(v))) >= 2
+
+
 def test_richtung_trennt_was_gleich_klingt_und_haelt_die_nsc_stimme_beim_sl():
     # Zwei Spieler mit (fast) gleicher Stimme an verschiedenen Plätzen, und der
     # SL einmal normal, einmal mit verstellter NSC-Stimme vom selben Platz.
@@ -518,3 +533,30 @@ def test_vorstellung_von_heute_reicht_ohne_gespeicherte_stimme():
     heute = SP.anmeldung_abdruck(fenster, v, 30.0, 45.0)   # Fenster 60-89: Person 1
     assert heute is not None and float(heute @ v[wer == 1].mean(0)) > float(heute @ v[wer == 0].mean(0))
     assert SP.anmeldung_abdruck(fenster, v, 500.0, 520.0) is None
+
+
+def test_feste_plaetze_nehmen_eres2net_wenn_sich_heute_alle_vorgestellt_haben(tmp_path, monkeypatch):
+    # Echter Abend 27.11.2026: ERes2Net-VoxCeleb ordnete 88 % richtig zu,
+    # TitaNet klein 67 %. Gespeicherte Stimmen sind TitaNet (gleich lang wie
+    # ERes2Net, 192 Zahlen - darf trotzdem nie gemischt werden).
+    np = pytest.importorskip("numpy")
+    v, wer = _stimmen(np, 2, [60, 60], 0.3, seed=7)
+    reihe = np.argsort(wer, kind="stable")
+    v = v[reihe]
+    for n in ("stimme", "stimme_genau"):
+        (tmp_path / SP.MODELLE[n][1]).write_bytes(b"x")
+    benutzt = []
+
+    def abdruecke(ton, fenster, modell, *a, **k):
+        benutzt.append(Path(modell).name)
+        return list(v[:len(fenster)])
+    monkeypatch.setattr(SP, "fenster_abdruecke", abdruecke)
+    stuecke = [(0.0, 31.0), (31.0, 61.5)]
+    heute = [(0.0, 15.0, "SL"), (31.0, 46.0, "Korgo")]
+    erg = SP.plaetze_sortieren(None, stuecke, tmp_path, {"SL": None, "Korgo": None}, heute)
+    assert erg is not None and erg[1] == ["SL", "Korgo"]
+    assert benutzt[-1] == SP.MODELLE["stimme_genau"][1]
+    # Korgo nur gespeichert (TitaNet), nicht heute vorgestellt -> TitaNet.
+    alt = list(v[100])
+    SP.plaetze_sortieren(None, stuecke, tmp_path, {"SL": None, "Korgo": alt}, heute[:1])
+    assert benutzt[-1] == SP.MODELLE["stimme"][1]
