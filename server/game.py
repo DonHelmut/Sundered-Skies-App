@@ -2889,32 +2889,32 @@ class Game:
         p = geld.posten(a) if isinstance(a, dict) else None
         if char is None or p is None:
             return False
-        art, nenner, n = p
+        art, los, n = p
         was, text = a.get("was"), geld.wofuer(a)
         name, cid_char = char.get("name", ""), char.get("id", "")
         kasse_s, kasse_v = self.gruppenkasse["stand"], self.gruppenkasse["verlauf"]
         eigen_s, eigen_v = self._boerse(char)
         if was == "bezahlen":
-            if not geld.geht(eigen_s, art, nenner, -n):
+            if not geld.geht(eigen_s, art, los, -n):
                 return False
-            geld.buchen(eigen_s, eigen_v, art, nenner, -n, name, text, cid_char)
+            geld.buchen(eigen_s, eigen_v, art, los, -n, name, text, cid_char)
             self.save_roster()
             return True
         if was in ("einlegen", "herausnehmen"):
             d = n if was == "herausnehmen" else -n
-            if not (geld.geht(eigen_s, art, nenner, d) and geld.geht(kasse_s, art, nenner, -d)):
+            if not (geld.geht(eigen_s, art, los, d) and geld.geht(kasse_s, art, los, -d)):
                 return False
-            geld.buchen(eigen_s, eigen_v, art, nenner, d, name,
+            geld.buchen(eigen_s, eigen_v, art, los, d, name,
                         text or ("Aus der Gruppenkasse" if d > 0 else "In die Gruppenkasse"), cid_char)
-            geld.buchen(kasse_s, kasse_v, art, nenner, -d, name,
+            geld.buchen(kasse_s, kasse_v, art, los, -d, name,
                         text or ("Herausgenommen" if d > 0 else "Eingelegt"), cid_char)
             self.save_roster()
             self.save_gruppenkasse()
             return True
         if was == "kasse_bezahlen":
-            if not geld.geht(kasse_s, art, nenner, -n):
+            if not geld.geht(kasse_s, art, los, -n):
                 return False
-            geld.buchen(kasse_s, kasse_v, art, nenner, -n, name, text, cid_char)
+            geld.buchen(kasse_s, kasse_v, art, los, -n, name, text, cid_char)
             self.save_gruppenkasse()
             return True
         return False
@@ -2927,7 +2927,7 @@ class Game:
         ziele = a.get("ziele") if isinstance(a, dict) else None
         if p is None or not isinstance(ziele, list) or not ziele or a.get("was") not in ("geben", "nehmen"):
             return False
-        art, nenner, n = p
+        art, los, n = p
         d = n if a["was"] == "geben" else -n
         konten = []
         for z in dict.fromkeys(ziele):
@@ -2938,11 +2938,11 @@ class Game:
             if char is None:
                 return False
             konten.append(self._boerse(char))
-        if not all(geld.geht(st, art, nenner, d) for st, _ in konten):
+        if not all(geld.geht(st, art, los, d) for st, _ in konten):
             return False
         text = geld.wofuer(a) or ("Vom Spielleiter" if d > 0 else "Vom Spielleiter abgezogen")
         for st, vl in konten:
-            geld.buchen(st, vl, art, nenner, d, "Spielleiter", text, "sl")
+            geld.buchen(st, vl, art, los, d, "Spielleiter", text, "sl")
         self.save_roster()
         if "gruppe" in ziele:
             self.save_gruppenkasse()

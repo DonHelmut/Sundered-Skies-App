@@ -3812,6 +3812,16 @@ body.sl-ansicht .grid2 details[data-sec="protokolle"]:not([open]) > .sec-head { 
 .g-bild.null { opacity: .4; }
 .g-stapel { position: relative; width: 60px; height: 56px; display: inline-block; }
 .g-stapel svg { position: absolute; }
+/* Geld in Stufen (28.11.2026): eine Zeile mit allen Stufen, die man hat. */
+.g-geld-chips { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.g-geld-chips > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: .95rem; color: #e9d3a6; }
+.g-geld-chips b { font-size: 1.35rem; color: #f6e6c2; }
+.g-st { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.g-st + .g-st { margin-left: 6px; }
+.g-sl-geld { display: inline-flex; align-items: center; }
+.g-seg.g-stufen { margin: 2px 0 8px; }
+.g-seg.g-stufen button { font-size: .82rem; gap: 4px; padding: 0 2px; min-height: 40px; }
+.g-los .g-muenze { vertical-align: middle; }
 
 .g-seite { padding: 0 2px 8px; }
 .g-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; border-radius: 14px; margin: 8px 0 10px;

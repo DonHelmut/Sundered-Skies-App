@@ -123,3 +123,54 @@ def test_verlauf_eingeklappt(tisch):
     sl.klick("[data-act=geld-vl]")
     assert sl.page.locator(".g-verlauf li").count() == 6
     assert not tisch.alle_fehler()
+
+
+def test_stufen_und_wechselgeld(tisch):
+    """Kalle 28.11.2026: Funken → Splitter → Dreher → Schicksal, je 100. Ein
+    Betrag, Stufe wählen, Wechselgeld von selbst; Lose auch auf Stufen."""
+    sl = tisch.sl()
+    h = tisch.handy("Tessa")
+    h.reiter("geld")
+    # SL gibt 2 Schicksal.
+    sl.klick("[data-act=geld-sl-beute]")
+    sl.klick("[data-act=geld-sl-art][data-art=muenzen]")
+    sl.klick("[data-act=geld-stufe][data-st=schicksal]")
+    sl.klick("[data-act=geld-taste][data-t='2']")
+    sl.klick("[data-act=geld-buchen][data-was=geben]")
+    h.warte_bis("() => App.state.meinGeld.stand.muenzen === 2000000")
+    assert "2 Schicksal" in " ".join(h.page.locator(".g-geld-chips").inner_text().split())
+    # Handy bezahlt 5 Dreher - aus einem Schicksal wird Wechselgeld.
+    h.klick("[data-act=geld-auf][data-art=muenzen]")
+    h.klick("[data-act=geld-stufe][data-st=dreher]")
+    h.klick("[data-act=geld-taste][data-t='5']")
+    assert h.page.locator("[data-act=geld-buchen][data-was=bezahlen]").inner_text().strip() == "− 5 Dreher bezahlen"
+    h.klick("[data-act=geld-buchen][data-was=bezahlen]")
+    h.warte_bis("() => App.state.meinGeld.stand.muenzen === 1950000")
+    h.page.wait_for_timeout(1500)     # Zahlen rollen
+    chips = " ".join(h.page.locator(".g-geld-chips").inner_text().split())
+    assert "1 Schicksal" in chips and "95 Dreher" in chips and "Funken" not in chips
+    # SL gibt ein Los auf 1/10 Dreher.
+    sl.klick("[data-act=geld-sl-beute]")
+    sl.klick("[data-act=geld-los-stufe][data-st=dreher]")
+    sl.klick("[data-act=geld-los][data-quelle=neu][data-n='10@dreher']")
+    sl.klick("[data-act=geld-buchen][data-was=geben]")
+    h.warte_bis("() => App.state.meinGeld.stand.lose['10@dreher'] === 1")
+    assert "1/10 Dreher" in " ".join(h.text().split())
+    # Handy bezahlt mit dem Los.
+    h.klick("[data-act=geld-auf][data-art=los]")
+    h.klick("[data-act=geld-los][data-quelle=eigen][data-n='10@dreher']")
+    h.klick("[data-act=geld-buchen][data-was=bezahlen]")
+    h.warte_bis("() => !App.state.meinGeld.stand.lose['10@dreher']")
+    assert not tisch.alle_fehler()
+
+
+def test_stufen_passen_aufs_kleine_handy(tisch):
+    tisch.sl()
+    tisch.gm({"type": "geld", "was": "geben", "ziele": ["gruppe"], "art": "muenzen", "anzahl": 123456789})
+    h = tisch.handy("Korgo", "klein")
+    h.reiter("geld")
+    h.klick("[data-act=geld-konto][data-k=gruppe]")
+    h.kein_waagrechtes_scrollen("Kasse mit allen Stufen")
+    h.klick("[data-act=geld-auf][data-art=muenzen]")
+    h.kein_waagrechtes_scrollen("Geld-Blatt mit Stufen")
+    assert not tisch.alle_fehler()
