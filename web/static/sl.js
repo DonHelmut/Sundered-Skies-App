@@ -554,7 +554,7 @@ function zeigeOverlayOhneStand() {
   document.querySelectorAll(".overlay-img").forEach((n) => n.remove());
   document.body.appendChild(el(`<div class="overlay-img" data-act="close-overlay">
       <img src="${esc(App.overlayImage)}"><div class="overlay-name">${esc(App.overlayName)}</div>
-      <div class="overlay-hint">Tippen zum Schließen</div></div>`));
+      ${zurueckKnopf("close-overlay")}</div>`));
 }
 
 async function einladungTeilen() {

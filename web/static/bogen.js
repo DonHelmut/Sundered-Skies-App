@@ -47,7 +47,7 @@ function renderBogen(mine) {
     // Bearbeiten kein „Speichern", nur zurück zu den anderen Reitern.
     return section("bogen", "📜 Mein Charakter", `<div class="bogen">${leiste}${bogenFotoEigenHtml(b)}${edit
       ? `<div class="row" style="margin-top:10px; gap:8px"><button class="primary" data-act="bogen-speichern">✓ Speichern</button>
-         <button class="ghost" data-act="bogen-abbrechen">Abbrechen</button></div>` : mitspielerBoegen(mine)}</div>`);
+         <button class="ghost" data-act="bogen-abbrechen">Abbrechen</button></div>` : ""}</div>`);
   }
   // Ganz leerer Bogen: EIN Knopf statt Reiter + Erklärtext + Regeltipp (Kalle,
   // 25.10.2026) - das nahm am Handy einen halben Bildschirm für „nichts da".
@@ -65,12 +65,12 @@ function renderBogen(mine) {
         <button class="primary" data-act="bogen-bearbeiten">✏ Werte eintragen</button>
         <button class="ghost" data-act="bogen-bearbeiten" data-reiter="foto">📷 Foto vom Papierbogen</button>
       </div>
-      ${mitspielerBoegen(mine)}</div>`;
+      </div>`;
   }
   if (!edit && bogenIstLeer(b) && reiter !== "talente" && reiter !== "foto") {
     inhalt = `<div class="muted small" style="padding:6px 0">Noch leer. Tippe auf <b>✎ Bearbeiten</b> und trag deine Werte ein – dann hast du sie im Kampf immer griffbereit.</div>`;
     if (reiter === "kampf") inhalt += regelTipp(b);
-    return section("bogen", "📜 Mein Charakter", `<div class="bogen">${leiste}${inhalt}<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div>${mitspielerBoegen(mine)}</div>`);
+    return section("bogen", "📜 Mein Charakter", `<div class="bogen">${leiste}${inhalt}<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div></div>`);
   } else if (!edit) {
     inhalt = bogenLesenHtml(b, mine, reiter);
   } else if (reiter === "kampf") {
@@ -131,17 +131,10 @@ function renderBogen(mine) {
     ? `<div class="row" style="margin-top:10px; gap:8px"><button class="primary" data-act="bogen-speichern">✓ Speichern</button>
          <button class="ghost" data-act="bogen-abbrechen">Abbrechen</button></div>`
     : `<div class="row" style="margin-top:8px"><button class="ghost small" data-act="bogen-bearbeiten">✎ Bearbeiten</button></div>`;
-  return section("bogen", "📜 Mein Charakter", `<div class="bogen${edit ? " bogen-form" : ""}">${leiste}${inhalt}${knoepfe}${edit ? "" : mitspielerBoegen(mine)}</div>`);
+  return section("bogen", "📜 Mein Charakter", `<div class="bogen${edit ? " bogen-form" : ""}">${leiste}${inhalt}${knoepfe}${edit ? "" : ""}</div>`);
 }
 
 // Die Bögen der anderen am Tisch - sonst nur über das Token in den Zonen.
-function mitspielerBoegen(mine) {
-  const andere = ((App.state && App.state.combatants) || []).filter((c) => c.id !== mine.id && hatBogen(c));
-  if (!andere.length) return "";
-  return `<div class="bogen-titel">Mitspieler</div><div class="row" style="gap:6px; flex-wrap:wrap">${andere.map((c) =>
-    `<button class="ghost small" data-act="bogen-ansicht" data-id="${c.id}">📜 ${esc(c.name)}</button>`).join("")}</div>`;
-}
-
 // Der Reiter „📷 Foto" kommt beim eigenen Bogen immer dazu (dort lädt man es
 // hoch), bei fremden nur, wenn es ein Foto gibt.
 function bogenReiterLeiste(reiter, act, mitFoto = true) {
@@ -247,7 +240,7 @@ async function bogenFotoHochladen(file) {
 // zwischen „ganze Seite" und „hineingezoomt, verschiebbar".
 function bogenFotoGross(url) {
   const box = el(`<div class="foto-gross-hg" role="dialog" aria-modal="true">
-    <button type="button" class="ghost foto-gross-zu">Schließen</button>
+    <button type="button" class="zurueck-knopf foto-gross-zu" data-zurueck><span aria-hidden="true">‹</span> Zurück</button>
     <div class="foto-gross-rahmen"><img src="${esc(url)}" alt="Foto vom Charakterbogen"></div></div>`);
   const zu = () => { box.remove(); document.removeEventListener("keydown", taste, true); };
   function taste(e) { if (e.key === "Escape") { e.stopImmediatePropagation(); zu(); } }

@@ -88,8 +88,7 @@ function regelnFensterHtml() {
   }).join("");
   return `<div class="protokoll-hg" data-act="regeln-zu">
     <div class="protokoll-fenster panel" data-act="" data-scroll-merk="regeln">
-      <div class="pt-titelzeile"><strong>📖 Regeln kurz</strong>
-        <button class="ghost small" data-act="regeln-zu">Schließen</button></div>
+      <div class="pt-titelzeile">${zurueckKnopf("regeln-zu")}<strong>📖 Regeln kurz</strong></div>
       ${teile}
       <div class="muted small" style="margin-top:8px">Im Zweifel entscheidet der Spielleiter.</div>
     </div></div>`;

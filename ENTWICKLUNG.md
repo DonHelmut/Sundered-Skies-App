@@ -77,15 +77,37 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## In Arbeit (28.11.2026): Zurück am Handy & Mitspieler-Reiter
+## Zurück am Handy & Reiter 👥 Gruppe (28.11.2026, PR #82)
 
-Ein Kumpel fand am Handy den Weg zurück nicht (kleine Schließen-Knöpfe).
-Vorschläge mit Bildern liegen bei Kalle (Z-A/Z-B fürs Zurück, 1A/1B/2 für
-den Mitspieler-Reiter); gebaut wird nach seiner Wahl.
+Ein Kumpel fand am Handy aus geöffneten Fenstern nicht heraus (kleines
+„Schließen" zwischen A−/A+, Zurück-Geste verließ die App). Dazu wollte Kalle
+einen Reiter, in dem man die Mitspieler mit Bild und Infos sieht – aber ohne
+Werte und Geld („sonst zu transparent"). Kalle wählte nach Bildern (Ordner
+`screenshots/mitspieler-2026-11-28/` im Projekt): Z-A, Reiter ganz rechts,
+der hochwertige Look aus Runde 2 (Runde 1 war ihm „zu billo").
 
-- **Bug behoben:** „Regeln nachschlagen" im Einstellungen-Blatt öffnete die
-  Regeln *hinter* dem Blatt. `regelnOeffnen()` klappt das Blatt jetzt zu.
-  Test: `tests/browser/test_zurueck.py`.
+- **Zurück links oben (Z-A):** Chronik, „Was bisher geschah" und Regeln sind
+  am Handy ganze Seiten mit großem „‹ Zurück" (`zurueckKnopf()` in
+  `zurueck.js`), Kopfzeile bleibt beim Lesen oben. Bild groß/QR-Code und
+  Foto vom Papierbogen ebenso. ✕ der Blätter (Einstellungen, Geld) 44 px.
+  ⚙/📜 oben rechts verschwinden, solange so eine Seite offen ist.
+- **Zurück-Geste:** Jeder Schließen-Knopf trägt `data-zurueck`. Ist einer
+  sichtbar, legt `zurueck.js` einen Verlaufseintrag an; die Geste nimmt ihn
+  und drückt den obersten Knopf. Selbst geschlossen → Eintrag wird wieder
+  entfernt. Prüfung als Microtask, nicht per requestAnimationFrame (ruht in
+  verdeckten Fenstern – eine schnelle Geste verließ sonst die App).
+- **👥 Gruppe** (`gruppe.js`): Karten mit Goldrahmen, ohne Bild ein Wappen
+  mit Anfangsbuchstaben, eigener Charakter mit Siegel „Ich" zuletzt.
+  Antippen = ganze Seite mit großem Bild, Volk, „In einem Satz", Aussehen,
+  Geschichte. Den eigenen Steckbrief füllt jeder dort selbst aus (Server:
+  `steckbrief_setzen`, nur eigener, Längen gedeckelt, kein Undo-Ziel; hängt
+  am Roster-Charakter).
+- **Weg:** Mitspieler-Bögen mit Werten unten im 📜 Bogen und der
+  „Charakterbogen"-Knopf im Figuren-Fenster am Handy (SL sieht weiter alles).
+- **Bug:** „Regeln nachschlagen" im Einstellungen-Blatt öffnete die Regeln
+  *hinter* dem Blatt. `regelnOeffnen()` klappt das Blatt zu.
+- Tests: `tests/browser/test_zurueck.py`, `test_komplett.py`
+  (Steckbrief nur eigener). Keine Versionserhöhung.
 
 ## 2.0.27 (26.11.2026): Tiefenprüfung – ganzer Abend durchgespielt
 
