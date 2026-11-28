@@ -50,8 +50,9 @@ def voller_tisch(tisch, handys=(("Tessa", "iphone"), ("Korgo", "klein"))):
 # Knöpfe, die den Abend beenden oder die Seite verlassen. Sie kommen beim
 # Kriechen ganz zum Schluss dran, damit sie den Rest nicht wegräumen.
 # „einst-zu" schließt das Einstellungen-Blatt (Handy) - danach wären alle
-# Knöpfe darin unsichtbar, und der ⚙ ist schon gedrückt.
-ZUM_SCHLUSS = re.compile(r"leave|reset|discard|clear-all|kampf-beenden|remove-combatant|roster-delete|einst-zu|"
+# Knöpfe darin unsichtbar, und der ⚙ ist schon gedrückt. „Regeln nachschlagen"
+# klappt das Blatt seit 28.11.2026 ebenso zu (sonst lagen die Regeln dahinter).
+ZUM_SCHLUSS = re.compile(r"leave|reset|discard|clear-all|kampf-beenden|remove-combatant|roster-delete|einst-zu|Regeln nachschlagen|"
                          r"Verlassen|Abmelden|Alles löschen|Neuer Abend", re.I)
 # Nie drücken: lädt die Seite neu / öffnet Fremdes / schaltet Netzwerk.
 NIE = re.compile(r"firewall|netz-skript|neu-laden|neuladen|aktualisieren|updater|"
