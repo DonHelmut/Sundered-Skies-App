@@ -192,11 +192,11 @@ function protokollChronikHtml() {
     `<button type="button" class="ghost small" data-act="prot-sprung" data-id="${esc(p.id)}">${n - i} ${esc(p.name)}</button>`).join("")}</div>` : "";
   return `<div class="protokoll-hg" data-act="prot-zu">
     <div class="protokoll-fenster breit panel chronik" data-act="" data-scroll-merk="chronik" style="--pt-gr:${PROT_SCHRIFT[protSchrift()]}rem">
-      <div class="pt-titelzeile"><strong>📖 Chronik</strong>
+      <div class="pt-titelzeile">${App.role === "player" ? zurueckKnopf("prot-zu") : ""}<strong>📖 Chronik</strong>
         <span class="row tight nicht-drucken chr-knoepfe">${protSchriftKnoepfe()}
           ${App.role === "gm" ? `<button class="ghost small" data-act="prot-drucken"${fehlt ? " disabled" : ""} title="Drucken oder als PDF sichern (im Druckfenster „Als PDF speichern“ wählen)">🖨 Drucken / PDF</button>` : ""}
           <button class="ghost small" data-act="prot-einzeln" title="Zurück zur Liste der Abende">☰ Einzeln</button>
-          <button class="ghost small" data-act="prot-zu">Schließen</button></span></div>
+          ${App.role === "player" ? "" : `<button class="ghost small" data-act="prot-zu">Schließen</button>`}</span></div>
       <div class="muted small chr-zahl">${n} ${n === 1 ? "Abend" : "Abende"} · der neueste zuerst</div>
       ${marken}
       ${kapitel}
@@ -218,8 +218,8 @@ function protokollLeseHtml() {
   }).join("");
   return `<div class="protokoll-hg" data-act="prot-zu">
     <div class="protokoll-fenster panel" data-act="" data-scroll-merk="protokoll" style="--pt-gr:${PROT_SCHRIFT[protSchrift()]}rem">
-      <div class="pt-titelzeile"><strong>📜 ${Prot.wasBisher ? "Was bisher geschah" : "Chronik der Abende"}</strong>
-        <span class="row tight chr-knoepfe">${protSchriftKnoepfe()}<button class="ghost small" data-act="prot-zu">Schließen</button></span></div>
+      <div class="pt-titelzeile">${App.role === "player" ? zurueckKnopf("prot-zu") : ""}<strong>📜 ${Prot.wasBisher ? "Was bisher geschah" : "Chronik der Abende"}</strong>
+        <span class="row tight chr-knoepfe">${protSchriftKnoepfe()}${App.role === "player" ? "" : `<button class="ghost small" data-act="prot-zu">Schließen</button>`}</span></div>
       ${protokollListe().length > 1 ? `<div class="row tight chr-einstieg"><button class="primary small" data-act="prot-chronik">📖 Alles am Stück lesen</button>
         <span class="muted small">${protokollListe().length} Abende</span></div>` : ""}
       ${abende || `<div class="muted small">Noch nichts freigegeben.</div>`}

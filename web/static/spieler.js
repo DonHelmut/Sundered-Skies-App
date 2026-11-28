@@ -214,6 +214,7 @@ function renderPlayer() {
     msgs: `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs || `<div class="muted small">Noch keine Nachrichten.</div>`}</div>`,
     notizen: notizenPanelHtml(),
     geld: geldSeiteHtml(),
+    gruppe: gruppeSeiteHtml(mine),
   };
   const reiterDa = kurz ? [] : handyReiterListe();
   const reiter = reiterDa.includes(App.handyReiter) ? App.handyReiter : "kampf";
@@ -1292,7 +1293,8 @@ function handyBereiche() {
 }
 // Die Reiter in fester Reihenfolge; was der SL im 🎛 ausgeschaltet hat, fehlt.
 // 💰 Geld seit 18.11.2026 (Kalle wählte den eigenen Reiter statt „unter Notizen").
-const HANDY_REITER = { kampf: "⚔ Kampf", bogen: "📜 Bogen", geld: "Geld", notizen: "📝 Notizen", msgs: "✉ Post" };
+// 👥 Gruppe seit 28.11.2026 ganz rechts (Kalle): Mitspieler mit Bild + Steckbrief.
+const HANDY_REITER = { kampf: "⚔ Kampf", bogen: "📜 Bogen", geld: "Geld", notizen: "📝 Notizen", msgs: "✉ Post", gruppe: "👥 Gruppe" };
 function handyReiterListe() {
   return Object.keys(HANDY_REITER).filter((k) => k === "kampf" || bereichAn(k));
 }
@@ -1351,7 +1353,7 @@ function spielerMenueHtml(mine) {
   const farben = SKINS.map((k) => `<button type="button" class="es-farbe${App.skin === k ? " an" : ""}" data-skin="${k}" title="${SKIN_NAMES[k]}">
       <i class="skin-${k}"></i><span>${SKIN_KURZ[k]}</span></button>`).join("");
   return `<div class="es-griff" aria-hidden="true"></div>
-    <div class="es-kopf"><h3>Einstellungen</h3><button type="button" class="es-zu" data-act="einst-zu" aria-label="Schließen">✕</button></div>
+    <div class="es-kopf"><h3>Einstellungen</h3><button type="button" class="es-zu" data-act="einst-zu" data-zurueck aria-label="Schließen">✕</button></div>
     ${funktionAn("regeln") ? `<div class="es-karte"><button type="button" class="es-zeile es-link" data-act="regeln-oeffnen">${symbolSvg("book-open")}<span class="es-t">Regeln nachschlagen</span>${pfeil}</button></div>` : ""}
     <div class="es-gruppe">Wenn ich dran bin</div>
     <div class="es-karte">
@@ -1413,7 +1415,7 @@ function daumenKnopf(o) {
     haupt = `<div class="angriff-wartet">⚔ Angriff auf <b>${esc(angriffZiel ? angriffZiel.name : "?")}</b> – der Spielleiter entscheidet ⏳</div>`;
   } else if (isMyTurn && angriffMoeglich) {
     haupt = App.angriffWahl
-      ? `<button class="ghost big" data-act="angriff-waehlen">✕ Angriff abbrechen</button>`
+      ? `<button class="ghost big" data-act="angriff-waehlen" data-zurueck>✕ Angriff abbrechen</button>`
       : o.angriffBtn;
     neben = App.angriffWahl ? "" : o.confirmBtn + o.holdBtn;
     // Die Ziele direkt über dem Daumen - vorher standen sie oben in der Karte,

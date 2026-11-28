@@ -4349,3 +4349,116 @@ button.notiz-kachel { min-width: 0; display: flex; flex-direction: column; align
 .notiz-ab-kopf .nk-ic { width: 20px; height: 20px; border-radius: 6px; font-size: 0.7rem; }
 .notiz-ab-kopf .nk-ic .ic { width: 12px; height: 12px; }
 .notiz-ab-kopf + .zeilen { margin-top: 0; }
+
+/* ==========================================================================
+   Wege zurück am Handy + Reiter 👥 Gruppe (Kalle 28.11.2026, zurueck.js /
+   gruppe.js). Fenster sind am Handy ganze Seiten mit großem „‹ Zurück" links
+   oben (Variante Z-A) – vorher schwebten sie mittig mit einem kleinen
+   „Schließen" zwischen A−/A+, und ein Kumpel fand nicht heraus.
+   ========================================================================== */
+.zurueck-knopf { display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 46px; padding: 0 18px 0 12px;
+  border-radius: 23px; border: 1px solid color-mix(in srgb, var(--accent2) 70%, transparent);
+  background: var(--accent2); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 700; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25); }
+/* Hover (Pergament hellt Knöpfe auf) ließ ihn sonst fast weiß werden. */
+.zurueck-knopf:hover { background: var(--accent2); color: #fff; border-color: color-mix(in srgb, var(--accent2) 70%, transparent); }
+.st-seite > .zurueck-knopf:hover { background: rgba(30, 12, 4, 0.75); color: #f3e2b8; }
+/* Ganze Seiten: ⚙ und 📜 oben rechts lagen sonst über der Kopfzeile (A−/A+). */
+body.player:has(.st-seite, .protokoll-hg, .overlay-img) #skinbar { display: none; }
+.zurueck-knopf > span { font-size: 1.6rem; line-height: 1; margin-top: -3px; font-weight: 400; }
+
+/* Chronik, „Was bisher geschah", Regeln: am Handy ganze Seite, Kopfzeile
+   bleibt beim Lesen oben stehen. */
+body.player .protokoll-hg { padding: 0; align-items: stretch; background: var(--bg); }
+body.player .protokoll-fenster { max-width: none; width: 100%; height: 100vh; height: 100dvh; max-height: none;
+  border-radius: 0; border-left: 0; border-right: 0; padding: 0 16px 24px; box-shadow: none; }
+body.player .pt-titelzeile { position: sticky; top: 0; z-index: 3; justify-content: flex-start; flex-wrap: wrap; row-gap: 6px;
+  margin: 0 -16px 12px; padding: 8px 12px; background: var(--flaeche, var(--panel)); border-bottom: 1px solid var(--line); }
+body.player .pt-titelzeile strong { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.player .pt-titelzeile .chr-knoepfe { margin-left: 0; }
+
+/* Bild groß / QR-Code: Zurück links oben statt „Tippen zum Schließen". */
+.overlay-img .zurueck-knopf { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 12px; }
+.foto-gross-zu.zurueck-knopf { align-self: flex-start; }
+
+/* Blätter von unten (Einstellungen, Geld) und Notiz-Suche: ✕ groß genug
+   für den Daumen (vorher 34–40 px). */
+body.player .es-zu, body.player .g-x { width: 44px; height: 44px; font-size: 1.1rem; }
+body.player .notiz-suche [data-act=notiz-suche-zu] { min-width: 44px; min-height: 40px; }
+
+/* --- 👥 Gruppe: Karten ---------------------------------------------------- */
+.gruppe { padding: 2px 2px 16px; }
+.gr-titel { text-align: center; font-family: var(--schrift-titel, Georgia, serif); font-weight: 400; font-variant: small-caps;
+  letter-spacing: 0.08em; font-size: 1.35rem; color: var(--accent); margin: 6px 0 2px; }
+.gr-zier { height: 9px; margin: 0 auto 14px; width: 60%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='9'%3E%3Cpath d='M0 4.5 H52 M68 4.5 H120' stroke='%23b8893c' stroke-width='.8'/%3E%3Cpath d='M60 0.5 L64 4.5 L60 8.5 L56 4.5Z' fill='%23b8893c'/%3E%3C/svg%3E") center / 120px 9px no-repeat; }
+body.theme-pergament .gr-titel { color: #5a1c0a; }
+body.theme-pergament .gr-zier { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='9'%3E%3Cpath d='M0 4.5 H52 M68 4.5 H120' stroke='%237a2a14' stroke-width='.8'/%3E%3Cpath d='M60 0.5 L64 4.5 L60 8.5 L56 4.5Z' fill='%237a2a14'/%3E%3C/svg%3E"); }
+.gr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 4px; }
+.gr-karte { position: relative; display: block; width: 100%; aspect-ratio: 3 / 4; padding: 0; border: 0; border-radius: 6px;
+  overflow: hidden; background: #3a1a0c; cursor: pointer; text-align: center;
+  box-shadow: 0 0 0 1px #4f2411, 0 0 0 3px #b8893c, 0 0 0 4px #4f2411, 0 14px 24px -10px rgba(40, 15, 0, 0.75); }
+.gr-karte img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; }
+.gr-karte::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 6px;
+  background: linear-gradient(180deg, rgba(20, 8, 2, 0) 45%, rgba(20, 8, 2, 0.55) 70%, rgba(20, 8, 2, 0.92) 100%);
+  box-shadow: inset 0 0 0 6px rgba(232, 198, 116, 0.55); }
+.gr-karte:active { transform: scale(0.98); }
+.gr-schild { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 0 10px 11px; }
+.gr-schild b { display: block; font-family: var(--schrift-titel, Georgia, serif); font-weight: 400; font-size: 1.32rem;
+  letter-spacing: 0.06em; line-height: 1.1; color: #f0d48a; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gr-schild span { display: block; margin-top: 3px; font-variant: small-caps; letter-spacing: 0.08em; font-size: 0.82rem; color: #e2cfa4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gr-wappen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding-bottom: 38px;
+  background: radial-gradient(circle at 50% 40%, rgba(232, 198, 116, 0.18), transparent 55%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 6px),
+    linear-gradient(180deg, #5a2a14, #2e1408); }
+.gr-wappen i { width: 92px; height: 92px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: normal;
+  font-family: var(--schrift-titel, Georgia, serif); font-size: 3.2rem; color: #e8c674; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 0 2px #b8893c, 0 0 0 6px rgba(184, 137, 60, 0.25), 0 0 0 7px #b8893c, inset 0 2px 10px rgba(0, 0, 0, 0.6);
+  background: radial-gradient(circle at 50% 35%, #6a3218, #3a1a0c); }
+.gr-siegel { position: absolute; top: 8px; right: 8px; z-index: 3; width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-family: var(--schrift-titel, Georgia, serif); font-size: 0.8rem; color: #f3dca0;
+  background: radial-gradient(circle at 38% 32%, #b23a22, #7a1a0c 60%, #5a1006); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 0 0 3px rgba(0, 0, 0, 0.18); }
+
+/* --- 👥 Gruppe: Steckbrief als ganze Seite ------------------------------- */
+/* z 105: über Kopf, Daumenleiste (90) und Goldrand (96), unter Nachrichten
+   (110) und Rückfragen - die sollen auch hier ankommen. */
+.st-seite { position: fixed; inset: 0; z-index: 105; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); }
+body.theme-pergament .st-seite { background: #efe2c0; }
+.st-held { position: relative; height: 62vh; min-height: 340px; overflow: hidden; background: #2e1408; }
+.st-held img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; display: block; }
+.st-held::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 46%; pointer-events: none;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 75%, transparent) 60%, var(--bg)); }
+body.theme-pergament .st-held::after { background: linear-gradient(180deg, rgba(239, 226, 192, 0), rgba(239, 226, 192, 0.75) 60%, #efe2c0); }
+.st-held.ohne-bild { height: 46vh; min-height: 280px; }
+.st-held.ohne-bild .gr-wappen { padding-bottom: 60px; }
+.st-held.ohne-bild .gr-wappen i { width: 130px; height: 130px; font-size: 4.6rem; }
+/* Schwebt über dem Bild und bleibt beim Scrollen stehen. */
+.st-seite > .zurueck-knopf { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 12px; z-index: 3;
+  background: rgba(30, 12, 4, 0.62); border-color: rgba(232, 198, 116, 0.55); color: #f3e2b8;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+.st-text { position: relative; z-index: 2; margin-top: -78px; padding: 0 22px 36px; text-align: center; }
+.st-name { font-family: var(--schrift-titel, Georgia, serif); font-size: 2.5rem; letter-spacing: 0.05em; line-height: 1.05; color: var(--accent); }
+body.theme-pergament .st-name { color: #5a1c0a; }
+.st-unter { margin-top: 6px; font-variant: small-caps; letter-spacing: 0.1em; color: var(--muted); font-size: 1rem; }
+.st-text > .gr-zier { margin: 14px auto 0; }
+.st-satz { margin: 16px 6px 4px; font-family: var(--schrift-titel, Georgia, serif); font-style: italic; font-size: 1.22rem; line-height: 1.35; color: var(--text); }
+.st-satz::before { content: "„"; }
+.st-satz::after { content: "“"; }
+.st-abschnitt { text-align: left; margin-top: 18px; }
+.st-abschnitt h4 { margin: 0 0 6px; text-align: center; font-family: var(--schrift-titel, Georgia, serif); font-weight: 400;
+  font-variant: small-caps; letter-spacing: 0.1em; font-size: 1.05rem; color: var(--accent); }
+.st-abschnitt p { margin: 0; font-size: 1.08rem; line-height: 1.55; color: var(--text); overflow-wrap: anywhere; }
+.st-abschnitt.initial p::first-letter { font-family: var(--schrift-titel, Georgia, serif); float: left; font-size: 3.2em; line-height: 0.82;
+  margin: 4px 8px 0 0; color: var(--accent); }
+.st-knoepfe { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.st-form { text-align: left; margin-top: 14px; }
+.st-bildwahl { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--line); cursor: pointer; }
+.st-bildwahl .ic { width: 18px; height: 18px; }
+.st-feld { display: block; margin-top: 12px; }
+.st-feld > span { display: block; margin-bottom: 4px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); font-weight: 700; }
+.st-feld input, .st-feld textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 1rem; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--input-bg); color: var(--text); }
+.st-feld textarea { resize: vertical; line-height: 1.45; }

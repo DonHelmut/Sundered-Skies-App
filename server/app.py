@@ -1192,6 +1192,10 @@ async def handle_message(ws: WebSocket, meta: dict, msg: dict) -> None:
             # Charakterbogen: NUR der eigene (die ID kommt vom Server, nicht vom Handy).
             game.apply({"type": "sheet_update", "id": own["id"], "bogen": action.get("bogen")})
             await hub.broadcast_state()
+        elif atype == "steckbrief_setzen":
+            # Steckbrief (Reiter „Gruppe"): NUR der eigene, wie der Bogen.
+            game.apply({"type": "steckbrief_setzen", "id": own["id"], "steckbrief": action.get("steckbrief")})
+            await hub.broadcast_state()
         elif atype == "talents_update":
             # Eigene Initiative-Talente - wieder NUR die eigene Figur.
             game.apply({"type": "talents_update", "id": own["id"], "talents": action.get("talents"),

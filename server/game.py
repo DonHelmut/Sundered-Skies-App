@@ -379,6 +379,17 @@ def _bogen_sauber(roh: dict) -> dict:
     return bogen
 
 
+# Steckbrief für den Reiter „Gruppe" (Kalle 28.11.2026): was die Mitspieler über
+# einen Charakter wissen dürfen - bewusst ohne Werte und Geld („sonst zu
+# transparent"). Der Spieler füllt ihn selbst aus; Längen gedeckelt.
+STECKBRIEF_FELDER = {"volk": 40, "satz": 140, "aussehen": 600, "geschichte": 2000}
+
+
+def _steckbrief_sauber(roh) -> dict:
+    roh = roh if isinstance(roh, dict) else {}
+    return {k: str(roh.get(k) or "").strip()[:n] for k, n in STECKBRIEF_FELDER.items()}
+
+
 
 def _schluessel_uebernehmen(p: dict, jetzt: Optional[dict]) -> None:
     """Der Geräte-Schlüssel eines JETZT verbundenen Handys gilt weiter, auch
@@ -659,7 +670,7 @@ class Game:
         # seitdem gespeichert hatte, war still weg (Stresstest 04.11.2026).
         # Geld genauso: jede Buchung steht im Verlauf, ein ↶ des SL soll sie
         # nicht still wegnehmen (Fehlbuchung = Gegenbuchung).
-        spieler_felder = ("notizen", "bogen", "rueckseite", "geld", "geldVerlauf")
+        spieler_felder = ("notizen", "bogen", "rueckseite", "geld", "geldVerlauf", "steckbrief")
         eigen_roster = {r.get("id"): {f: r[f] for f in spieler_felder if f in r}
                         for r in self.roster if isinstance(r, dict)}
         eigen_figur = {c.get("id"): {f: c[f] for f in ("bogen", "rueckseite") if f in c}
@@ -1317,6 +1328,10 @@ class Game:
         if t == "sheet_update":
             self.bogen_setzen(action.get("id"), action.get("bogen"))
             return
+        # Steckbrief (Reiter „Gruppe"): ebenso Sache des Spielers, kein Undo-Ziel.
+        if t == "steckbrief_setzen":
+            self.steckbrief_setzen(action.get("id"), action.get("steckbrief"))
+            return
         # Kartenrückseite der eigenen Figur: reine Optik, die sich der Spieler
         # selbst aussucht - ebenfalls kein Undo-Ziel.
         if t == "set_figur_rueckseite":
@@ -1424,7 +1439,7 @@ class Game:
             "image": a.get("image", (prev or {}).get("image")),
         }
         # Gemerkte Bennies und den Charakterbogen der Spieler ebenso.
-        for feld in ("bennies", "bogen", "rueckseite", "notizen", "geld", "geldVerlauf"):
+        for feld in ("bennies", "bogen", "rueckseite", "notizen", "geld", "geldVerlauf", "steckbrief"):
             if prev and feld in prev:
                 entry[feld] = prev[feld]
         for i, r in enumerate(self.roster):
@@ -2726,6 +2741,16 @@ class Game:
             char["bogen"] = bogen
             self.save_roster()
         self.save_session()
+
+    def steckbrief_setzen(self, cid: Optional[str], roh) -> None:
+        """Steckbrief hängt nur am Roster-Charakter (übersteht Neustart und
+        Neu-Beitritt); die Handys finden ihn über ``characterId`` der Figur."""
+        c = self._combatant(cid)
+        char = next((r for r in self.roster if c and r.get("id") == c.get("characterId")), None)
+        if char is None:
+            return
+        char["steckbrief"] = _steckbrief_sauber(roh)
+        self.save_roster()
 
     # Eigene Notizen (Spieler, am Handy) ---------------------------------------
     # NSC-Namen, Hinweise, Beute: hängen am Charakter (bleiben bis zum nächsten

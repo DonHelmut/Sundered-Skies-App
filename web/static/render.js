@@ -146,7 +146,7 @@ function render() {
   }
   Cards.renderStart();
   let html;
-  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay() + bogenAnsichtHtml() + protokollFensterHtml() + regelnFensterHtml() + (funktionAn("geld") ? geldBlattHtml() : ""); }
+  try { html = (App.role === "gm" ? renderGM() + kontextMenueHtml() : renderPlayer()) + renderTokenPopupOverlay() + bogenAnsichtHtml() + protokollFensterHtml() + regelnFensterHtml() + gruppeSteckbriefHtml() + (funktionAn("geld") ? geldBlattHtml() : ""); }
   finally { Cards.renderEnde(); }
   // Unveraendert? Dann den Bildschirm NICHT neu aufbauen. Jeder Neuaufbau ersetzt
   // alle Karten: laufende Animationen (Joker, Glanz, Glimmen) starten von vorn,
@@ -206,7 +206,7 @@ function render() {
       `<div class="overlay-img" data-act="close-overlay">
          <img src="${esc(App.overlayImage)}">
          ${App.overlayName ? `<div class="overlay-name">${esc(App.overlayName)}</div>` : ""}
-         <div class="overlay-hint">Tippen zum Schließen</div>
+         ${zurueckKnopf("close-overlay")}
        </div>`
     ));
   }
