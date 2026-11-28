@@ -77,6 +77,16 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
+## In Arbeit (28.11.2026): Zurück am Handy & Mitspieler-Reiter
+
+Ein Kumpel fand am Handy den Weg zurück nicht (kleine Schließen-Knöpfe).
+Vorschläge mit Bildern liegen bei Kalle (Z-A/Z-B fürs Zurück, 1A/1B/2 für
+den Mitspieler-Reiter); gebaut wird nach seiner Wahl.
+
+- **Bug behoben:** „Regeln nachschlagen" im Einstellungen-Blatt öffnete die
+  Regeln *hinter* dem Blatt. `regelnOeffnen()` klappt das Blatt jetzt zu.
+  Test: `tests/browser/test_zurueck.py`.
+
 ## 2.0.27 (26.11.2026): Tiefenprüfung – ganzer Abend durchgespielt
 
 Kalle: „Komplett von A bis Z auf die Nieren prüfen … komplett durchspielen."

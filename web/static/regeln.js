@@ -70,6 +70,10 @@ const REGEL_ABSCHNITTE = [
 function regelnOeffnen(abschnitt) {
   Regeln.offen = true;
   if (abschnitt) Regeln.auf.add(abschnitt);
+  // Das Einstellungen-Blatt (dort steht „Regeln nachschlagen") zuklappen -
+  // sonst ging das Regel-Fenster dahinter auf und man sah nur das Blatt.
+  const bar = document.getElementById("skinbar");
+  if (bar) bar.classList.remove("open");
   render();
 }
 
