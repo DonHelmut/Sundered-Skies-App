@@ -6,8 +6,12 @@
 //   Lose   – Scheine mit festem Wert (1/2 … 1/100.000 Fater). Man BEZAHLT
 //            damit. Kein Glücksspiel (der erste Entwurf hatte „Einlösen –
 //            Gewinn/Niete", Kalle: „das ist kein Gamble").
-//   Münzen – Kleingeld; Name stellt der SL ein (App.state.muenzName).
-// Die App rechnet nicht um – Kalle kennt den Kurs selbst nicht. Sie zählt nur.
+//   Geld   – Stufen je 100 (Kalle 28.11.2026): Funken, Splitter, Dreher,
+//            Schicksal. Ein Betrag in Funken (Schlüssel „muenzen", die alten
+//            Münzen sind Funken); die App zerlegt ihn zur Anzeige und gibt so
+//            Wechselgeld von selbst (Variante B, screenshots/waehrung-stufen/).
+//   Lose können auch auf eine Stufe lauten („1/10 Dreher"), Schlüssel
+//   „10@dreher". Fater und Lose werden nie umgerechnet - Sammelstücke.
 //
 // Eingabe ohne Tastatur, wo es geht (Bedienbarkeit zuerst): Münzen über einen
 // eigenen Zahlenblock (die Handy-Tastatur schob sonst das Blatt hoch), Lose
@@ -21,11 +25,41 @@
 
 const LOS_WERTE = [2, 5, 10, 100, 1000, 10000, 100000];
 const GELD_STEINTEXT = "Seelenstein – ändert ein Schicksal";
+// [Schlüssel, Name, Wert in Funken] - klein nach groß.
+const GELD_STUFEN = [["funken", "Funken", 1], ["splitter", "Splitter", 100], ["dreher", "Dreher", 1e4], ["schicksal", "Schicksal", 1e6]];
+const LOS_STUFEN = [["fater", "Fater"], ["schicksal", "Schicksal"], ["dreher", "Dreher"], ["splitter", "Splitter"]];
+const LOS_WERT = { fater: 1e8, schicksal: 1e6, dreher: 1e4, splitter: 100 };
 
-App.geld = { konto: "ich", blatt: null, vlOffen: new Set() };
+App.geld = { konto: "ich", blatt: null, vlOffen: new Set(), stufe: "funken", losStufe: "fater" };
 
-function muenzName() { return (App.state && App.state.muenzName) || "Münzen"; }
 function nennerText(n) { return n >= 1000 ? Number(n).toLocaleString("de-DE") : String(n); }
+function stufeFaktor(st) { return (GELD_STUFEN.find((x) => x[0] === st) || GELD_STUFEN[0])[2]; }
+function stufeName(st) { return (GELD_STUFEN.find((x) => x[0] === st) || LOS_STUFEN.find((x) => x[0] === st) || ["", ""])[1]; }
+// Betrag in Funken -> [[stufe, anzahl]], große Stufe zuerst, nur was da ist.
+function geldZerlegen(f) {
+  let rest = Math.max(0, Math.floor(f || 0));
+  const aus = [];
+  for (const [st, , w] of [...GELD_STUFEN].reverse()) {
+    const n = Math.floor(rest / w);
+    rest -= n * w;
+    if (n) aus.push([st, n]);
+  }
+  return aus;
+}
+function geldText(f) {
+  const z = geldZerlegen(f);
+  return z.length ? z.map(([st, n]) => `${n.toLocaleString("de-DE")} ${stufeName(st)}`).join(" ") : "0 Funken";
+}
+// Mit Symbolen: „2 ◎ 14 ◆" (Verlauf, SL-Liste).
+function geldSymbole(f, px = 16) {
+  const z = geldZerlegen(f);
+  return (z.length ? z : [["funken", 0]]).map(([st, n]) => `<span class="g-st">${n.toLocaleString("de-DE")}${stufeSvg(st, px)}</span>`).join("");
+}
+// Los-Schlüssel: „1000" = 1/1.000 Fater, „10@dreher" = 1/10 Dreher.
+function losTeile(k) { const [n, st] = String(k).split("@"); return { nenner: Number(n), stufe: st || "fater" }; }
+function losKey(nenner, stufe) { return stufe && stufe !== "fater" ? `${nenner}@${stufe}` : String(nenner); }
+function losWert(k) { const { nenner, stufe } = losTeile(k); return (LOS_WERT[stufe] || 1e8) / (nenner || 1); }
+function losName(k) { const { nenner, stufe } = losTeile(k); return `${nenner === 2 ? "½" : `1/${nennerText(nenner)}`} ${stufeName(stufe)}`; }
 
 // --- Symbole (SVG) -------------------------------------------------------------
 // Die Verläufe liegen EINMAL im Dokument (geldDefs) statt in jedem Symbol:
@@ -40,6 +74,9 @@ function nennerText(n) { return n >= 1000 ? Number(n).toLocaleString("de-DE") : 
     <filter id="gf-glut" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.1"/></filter>
     <clipPath id="gf-form"><path d="M31 18c11-1 19 8 19 20 0 11-8 19-18 19-11 0-19-7-18-19 1-11 7-19 17-20z"/></clipPath>
     <radialGradient id="gm-bronze" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#f6dcb6"/><stop offset=".35" stop-color="#c88c55"/><stop offset=".8" stop-color="#7d4d24"/><stop offset="1" stop-color="#5b3616"/></radialGradient>
+    <radialGradient id="gm-funken" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffd27a"/><stop offset=".45" stop-color="#e0781c"/><stop offset="1" stop-color="#8a3a06"/></radialGradient>
+    <radialGradient id="gm-splitter" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#d8f0ff"/><stop offset=".45" stop-color="#6fa8d6"/><stop offset="1" stop-color="#2b5a86"/></radialGradient>
+    <radialGradient id="gm-schicksal" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#c9ccd6"/><stop offset="1" stop-color="#6c7080"/></radialGradient>
   </defs></svg>`;
   const setzen = () => document.body.insertAdjacentHTML("afterbegin", svg);
   if (document.body) setzen(); else document.addEventListener("DOMContentLoaded", setzen);
@@ -62,20 +99,32 @@ ${klein ? "" : `<circle cx="32" cy="40" r="27" fill="url(#gf-schein)"/>
 <g transform="translate(25.5 26.5)"><circle r="${klein ? 4 : 6}" fill="#eef0ff" opacity=".5" filter="url(#gf-glut)"/>
 <path d="M0-9 1-1 9 0 1 1 0 9-1 1-9 0-1-1z" fill="#fff" transform="scale(${klein ? 0.75 : 1})"/></g></svg>`;
 }
-function muenzeSvg(px, stil = "") {
-  return `<svg class="g-muenze" width="${px}" height="${px}" viewBox="0 0 32 32" aria-hidden="true"${stil ? ` style="${stil}"` : ""}>
-<circle cx="16" cy="17" r="13.5" fill="#3a220c" opacity=".35"/><circle cx="16" cy="16" r="13.5" fill="url(#gm-bronze)"/>
-<circle cx="16" cy="16" r="10.3" fill="none" stroke="#5e3a18" stroke-opacity=".55"/>
-<circle cx="16" cy="16" r="12.6" fill="none" stroke="#ffe7c2" stroke-opacity=".35" stroke-width=".7" stroke-dasharray="1 1.4"/>
-<path d="M16 9.5c3 0 5 2.8 5 6.6 0 3.4-2.3 6-5 6s-5-2.6-5-6c0-3.8 2-6.6 5-6.6z" fill="#6a4320" opacity=".55"/>
-<path d="M14 12.5c.8-.9 1.8-1.2 2.6-1.1" stroke="#ffe9c9" stroke-opacity=".7" stroke-width=".9" fill="none" stroke-linecap="round"/></svg>`;
+// Je Stufe eine eigene Münze (Farbe + Zeichen), damit man sie ohne Lesen
+// auseinanderhält: Funken glühend mit Stern, Splitter bläulicher Kristall,
+// Dreher Bronze mit Raute, Schicksal Silber mit Auge.
+function stufeSvg(st, px, stil = "") {
+  const innen = st === "funken" ? `<path d="M16 6l2.4 7.6L26 16l-7.6 2.4L16 26l-2.4-7.6L6 16l7.6-2.4z" fill="#fff6d8" opacity=".9"/>`
+    : st === "splitter" ? `<path d="M16 6l6 8-6 12-6-12z" fill="#eaf7ff" opacity=".75"/><path d="M16 6l6 8h-12z" fill="#fff" opacity=".5"/>`
+    : st === "dreher" ? `<rect x="12.5" y="12.5" width="7" height="7" fill="#3a220c" opacity=".7" transform="rotate(45 16 16)"/>`
+    : `<circle cx="16" cy="16" r="5" fill="none" stroke="#555a68" stroke-width="1.4"/><circle cx="16" cy="16" r="1.8" fill="#555a68"/>`;
+  const rand = { funken: "#8a3a06", splitter: "#2b5a86", schicksal: "#6c7080" }[st] || "#5e3a18";
+  const farbe = st === "dreher" ? "gm-bronze" : `gm-${st}`;
+  return `<svg class="g-muenze g-${st}" width="${px}" height="${px}" viewBox="0 0 32 32" aria-hidden="true"${stil ? ` style="${stil}"` : ""}>
+<circle cx="16" cy="17" r="13.5" fill="#000" opacity=".25"/><circle cx="16" cy="16" r="13.5" fill="url(#${farbe})"/>
+<circle cx="16" cy="16" r="10.5" fill="none" stroke="${rand}" stroke-opacity=".5"/>${innen}</svg>`;
 }
-function muenzStapel(px = 34) {
-  return `<span class="g-stapel">${[0, 1, 2].map((i) => muenzeSvg(px, `left:${4 + i * 7}px;top:${18 - i * 8}px`)).join("")}</span>`;
+// Stapel fürs Geld: die Stufen, die man hat (höchstens drei, große vorn).
+function muenzStapel(px = 34, f = 0) {
+  const da = geldZerlegen(f).map(([st]) => st).slice(0, 3).reverse();
+  const st = da.length ? da : ["splitter", "dreher", "schicksal"];
+  return `<span class="g-stapel">${st.map((x, i) => stufeSvg(x, px, `left:${4 + i * 7}px;top:${18 - i * 8}px`)).join("")}</span>`;
 }
-// Los = Schein auf Pergament mit Goldrand, Wert als Bruch.
-function losHtml(nenner, klasse = "", extra = "") {
-  return `<span class="g-los${klasse ? " " + klasse : ""}"${extra}><sup>1</sup><i>⁄</i><sub>${nennerText(nenner)}</sub></span>`;
+// Los = Schein auf Pergament mit Goldrand, Wert als Bruch. Lautet er auf eine
+// Stufe statt auf einen Fater, steht deren Münze klein im Schein.
+function losHtml(k, klasse = "", extra = "") {
+  const { nenner, stufe } = losTeile(k);
+  const px = /klein/.test(klasse) ? 10 : /gross/.test(klasse) ? 16 : 12;
+  return `<span class="g-los${klasse ? " " + klasse : ""}${stufe !== "fater" ? ` st-${stufe}` : ""}"${extra}><sup>1</sup><i>⁄</i><sub>${nennerText(nenner)}</sub>${stufe !== "fater" ? stufeSvg(stufe, px, "margin-left:3px") : ""}</span>`;
 }
 function losFacher(werte) {
   // Keine Lose: ein leerer Schein (ohne Wert - ein „1/1.000" sah aus, als läge eins da).
@@ -94,22 +143,23 @@ function geldKonto(konto) {
   if (konto === "ich") return s.meinGeld || geldLeer();
   return (s.geldAlle && s.geldAlle[konto]) || geldLeer();   // SL: Charakter-ID
 }
-function loseListe(stand) {   // [[nenner, anzahl]] - wertvollste zuerst
-  return Object.entries(stand.lose || {}).map(([k, v]) => [Number(k), v]).filter(([k, v]) => k && v).sort((a, b) => a[0] - b[0]);
+function loseListe(stand) {   // [[schlüssel, anzahl]] - wertvollste zuerst
+  return Object.entries(stand.lose || {}).filter(([k, v]) => losTeile(k).nenner && v).sort((a, b) => losWert(b[0]) - losWert(a[0]));
 }
-function geldBestand(stand, art, nenner) {
-  return art === "los" ? (stand.lose || {})[String(nenner)] || 0 : stand[art] || 0;
+function geldBestand(stand, art, los) {
+  return art === "los" ? (stand.lose || {})[String(los)] || 0 : stand[art] || 0;
 }
 function loseZusammen(stand) { return loseListe(stand).reduce((s, [, n]) => s + n, 0); }
 function loseKurz(stand) {
   const l = loseListe(stand);
   if (!l.length) return "Noch keine Lose";
-  return l.map(([k, n]) => `${n > 1 ? `${n}× ` : ""}${k === 2 ? "½" : `1/${nennerText(k)}`}`).join(" · ");
+  return l.map(([k, n]) => `${n > 1 ? `${n}× ` : ""}${losName(k)}`).join(" · ");
 }
-function geldMenge(e) {   // „+2 [Los]", „−12 [Münze]"
+function geldMenge(e) {   // „+2 [Los]", „−5 [Dreher]"
   const z = e.n > 0 ? "+" : "−";
   const n = Math.abs(e.n);
-  const sym = e.art === "fater" ? faterSvg(18) : e.art === "los" ? losHtml(e.nenner, "klein") : muenzeSvg(16);
+  if (e.art === "muenzen") return `<span class="g-menge ${e.n > 0 ? "plus" : "minus"}">${z}${geldSymbole(n)}</span>`;
+  const sym = e.art === "fater" ? faterSvg(18) : losHtml(losKey(e.nenner, e.stufe), "klein");
   return `<span class="g-menge ${e.n > 0 ? "plus" : "minus"}">${z}${e.art === "los" && n === 1 ? "" : n}${e.art === "los" && n > 1 ? "×" : ""} ${sym}</span>`;
 }
 function geldZeit(ts) {
@@ -155,8 +205,16 @@ function geldTruheHtml(stand, act, ziel, kasse = false) {
     ${kasse ? `<div class="g-kasse-kopf">👥 Gruppenkasse · gehört allen</div>` : ""}
     ${zeile("fater", faterSvg(62), stand.fater || 0, "Fater", GELD_STEINTEXT)}
     ${zeile("los", losFacher(lose.map(([k]) => k)), zahl, zahl === 1 ? "Los" : "Lose", loseKurz(stand))}
-    ${zeile("muenzen", muenzStapel(), (stand.muenzen || 0).toLocaleString("de-DE"), muenzName(), "Kleingeld")}
+    <button type="button" class="g-zeile g-geld" data-act="${act}" data-art="muenzen"${ziel ? ` data-ziel="${esc(ziel)}"` : ""}>
+      <span class="g-bild${stand.muenzen ? "" : " null"}">${muenzStapel(34, stand.muenzen)}</span><span class="g-txt"><span class="g-geld-chips">${geldChips(stand.muenzen)}</span></span><span class="g-pf" aria-hidden="true">›</span></button>
   </div>`;
+}
+
+// „2 ◎ Schicksal  14 ◆ Dreher …" - nur die Stufen, die man hat.
+function geldChips(f) {
+  const z = geldZerlegen(f);
+  return (z.length ? z : [["funken", 0]]).map(([st, n]) =>
+    `<span>${stufeSvg(st, 22)}<b>${rollZahl(`gc-${App.geld.konto}-${st}`, n.toLocaleString("de-DE"))}</b> ${stufeName(st)}</span>`).join("");
 }
 
 function geldSeiteHtml() {
@@ -188,8 +246,8 @@ function geldBlattAuf(art, ziel) {
 }
 function geldBlattZu() { App.geld.blatt = null; render(); }
 
-function geldMenge2(b) {   // ausgewählte Menge
-  if (b.art === "muenzen") return parseInt(b.betrag, 10) || 0;
+function geldMenge2(b) {   // ausgewählte Menge (Geld: in Funken)
+  if (b.art === "muenzen") return (parseInt(b.betrag, 10) || 0) * stufeFaktor(App.geld.stufe);
   return b.anzahl || 0;
 }
 function slZiele() {   // Wer steht in der SL-Liste? (Charaktere am Tisch, sonst alle)
@@ -210,9 +268,10 @@ function geldBlattHtml() {
   const eigen = sl ? null : geldKonto("ich").stand;
   const kasse = geldKonto("gruppe").stand;
   const hier = sl ? (b.ziele.size === 1 ? geldKonto([...b.ziele][0]).stand : null) : geldKonto(konto).stand;
-  const name = b.art === "fater" ? "Fater" : b.art === "los" ? "Lose" : muenzName();
-  const bild = b.art === "fater" ? faterSvg(40) : b.art === "los" ? losFacher(loseListe(hier || eigen || kasse).map(([k]) => k)) : muenzStapel(30);
-  const habe = (st) => b.art === "los" ? `${loseZusammen(st)} ${loseZusammen(st) === 1 ? "Los" : "Lose"}` : `${geldBestand(st, b.art).toLocaleString("de-DE")} ${name}`;
+  const name = b.art === "fater" ? "Fater" : b.art === "los" ? "Lose" : "Geld";
+  const bild = b.art === "fater" ? faterSvg(40) : b.art === "los" ? losFacher(loseListe(hier || eigen || kasse).map(([k]) => k)) : muenzStapel(30, (hier || eigen || kasse).muenzen);
+  const habe = (st) => b.art === "los" ? `${loseZusammen(st)} ${loseZusammen(st) === 1 ? "Los" : "Lose"}`
+    : b.art === "muenzen" ? geldText(st.muenzen) : `${geldBestand(st, b.art).toLocaleString("de-DE")} ${name}`;
   const unter = sl ? (hier ? `Hat ${habe(hier)}` : `${b.ziele.size || "Kein"} Ziel${b.ziele.size === 1 ? "" : "e"} gewählt`)
     : konto === "ich" ? `Du hast ${habe(eigen)}` : `In der Kasse: ${habe(kasse)}`;
   const n = geldMenge2(b);
@@ -228,7 +287,11 @@ function geldBlattHtml() {
 
   let mitte = "";
   if (b.art === "muenzen") {
-    mitte = `<div class="g-anzeige">${n ? n.toLocaleString("de-DE") : "0"}<small>${esc(muenzName())}</small></div>
+    // Erst die Stufe, dann die Zahl: „5 Dreher" statt 50.000 Funken tippen.
+    const stufe = App.geld.stufe;
+    mitte = `<div class="g-seg g-stufen">${GELD_STUFEN.map(([st, nm]) =>
+        `<button type="button" class="${st === stufe ? "on" : ""}" data-act="geld-stufe" data-st="${st}">${stufeSvg(st, 18)} ${nm}</button>`).join("")}</div>
+      <div class="g-anzeige">${(parseInt(b.betrag, 10) || 0).toLocaleString("de-DE")}<small>${esc(stufeName(stufe))}</small></div>
       <div class="g-tasten">${["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((t) => `<button type="button" data-act="geld-taste" data-t="${t}">${t}</button>`).join("")}
         <button type="button" class="leise" data-act="geld-taste" data-t="C" aria-label="Löschen">C</button>
         <button type="button" data-act="geld-taste" data-t="0">0</button>
@@ -243,15 +306,19 @@ function geldBlattHtml() {
       return `<div class="g-ueber">${titel}<i>${l.length ? hinweis : ""}</i></div>
         <div class="g-ablage">${l.length ? l.map(([k, anz]) => {
           const an = b.quelle === quelle && b.nenner === k;
-          return `<button type="button" class="g-los-platz" data-act="geld-los" data-quelle="${quelle}" data-n="${k}" aria-label="Los 1/${k}, ${anz} Stück">
+          return `<button type="button" class="g-los-platz" data-act="geld-los" data-quelle="${quelle}" data-n="${k}" aria-label="Los ${esc(losName(k))}, ${anz} Stück">
             ${losHtml(k, "gross" + (an ? (quelle === "eigen" && konto === "gruppe" ? " wahl" : " weg") : ""))}
             ${an && anz > 1 ? `<span class="g-anz sel">${b.anzahl} von ${anz}</span>` : anz > 1 ? `<span class="g-anz">×${anz}</span>` : ""}</button>`;
         }).join("") : `<span class="g-ablage-leer">Keine Lose</span>`}</div>`;
     };
+    // Worauf das neue Los lautet: Fater oder eine Stufe (Kalle 28.11.2026).
+    const ls = App.geld.losStufe;
     const raster = (titel) => `<div class="g-ueber">${titel}<i>Wert antippen</i></div>
-      <div class="g-losraster">${LOS_WERTE.map((k) => `<button type="button" data-act="geld-los" data-quelle="neu" data-n="${k}" aria-label="Los 1/${k}">${losHtml(k, "gross" + (b.quelle === "neu" && b.nenner === k ? " wahl" : ""))}</button>`).join("")}
+      <div class="g-seg g-stufen">${LOS_STUFEN.map(([st, nm]) =>
+        `<button type="button" class="${st === ls ? "on" : ""}" data-act="geld-los-stufe" data-st="${st}">${st === "fater" ? faterSvg(18) : stufeSvg(st, 18)} ${nm}</button>`).join("")}</div>
+      <div class="g-losraster">${LOS_WERTE.map((n) => { const k = losKey(n, ls); return `<button type="button" data-act="geld-los" data-quelle="neu" data-n="${k}" aria-label="Los ${esc(losName(k))}">${losHtml(k, "gross" + (b.quelle === "neu" && b.nenner === k ? " wahl" : ""))}</button>`; }).join("")}
         ${(() => {
-          const eigenerWert = b.quelle === "neu" && b.nenner && !LOS_WERTE.includes(b.nenner);
+          const eigenerWert = b.quelle === "neu" && b.nenner && !LOS_WERTE.some((n) => losKey(n, ls) === b.nenner);
           return `<button type="button" data-act="geld-los-anderer" aria-label="Anderer Wert">${eigenerWert ? losHtml(b.nenner, "gross wahl") : `<span class="g-los gross anderer">1⁄…</span>`}</button>`;
         })()}</div>`;
     if (sl) mitte = (hier ? ablage("Hat", "antippen zum Abziehen", hier, "eigen") : "") + raster(hier ? "Oder Wert wählen" : "Welches Los?");
@@ -261,10 +328,10 @@ function geldBlattHtml() {
   }
 
   // Knöpfe: was geht, steht da; was nicht reicht, ist ausgegraut (mit Grund).
-  const los = b.art === "los" ? losHtml(b.nenner || 2, "klein") : "";
+  const los = b.art === "los" ? losHtml(b.nenner || "2", "klein") : "";
   const reicht = (st) => !!st && n > 0 && geldBestand(st, b.art, b.nenner) >= n;
   const knopf = (was, text, klasse, ok, grund) => `<button type="button" class="g-k ${klasse}" data-act="geld-buchen" data-was="${was}"${ok ? "" : ` disabled title="${esc(grund || "")}"`}>${text}</button>`;
-  const mengeText = b.art === "los" ? `${n > 1 ? `${n} × ` : ""}${los}` : "";
+  const mengeText = b.art === "los" ? `${n > 1 ? `${n} × ` : ""}${los}` : b.art === "muenzen" && n ? esc(geldText(n)) : "";
   const leer = !n || (b.art === "los" && !b.nenner);
   const zuwenig = (st) => leer ? "Erst Menge wählen" : "Nicht genug da";
   // Spieler ohne Bestand: sagen, woher Geld kommt, statt nur grauer Knöpfe.
@@ -281,7 +348,7 @@ function geldBlattHtml() {
            <button type="button" class="g-leicht" data-act="geld-buchen" data-was="einlegen"${reicht(eigen) ? "" : " disabled"}>↗ Stattdessen in die Gruppenkasse legen</button>`
         : loseZusammen(eigen) ? `<div class="g-tipp">Los antippen zum Bezahlen.</div>` : vomSl;
     } else {
-      knoepfe = `${geldBestand(eigen, b.art) ? "" : vomSl.replace("g-tipp", "g-tipp klein")}${knopf("bezahlen", "− Bezahlen", "ab voll", reicht(eigen), zuwenig())}
+      knoepfe = `${geldBestand(eigen, b.art) ? "" : vomSl.replace("g-tipp", "g-tipp klein")}${knopf("bezahlen", `− ${mengeText ? `${mengeText} bezahlen` : "Bezahlen"}`, "ab voll", reicht(eigen), zuwenig())}
         <button type="button" class="g-leicht" data-act="geld-buchen" data-was="einlegen"${reicht(eigen) ? "" : " disabled"}>↗ In die Gruppenkasse legen</button>`;
     }
   } else if (b.art === "los") {
@@ -302,7 +369,7 @@ function geldBlattHtml() {
       <div class="g-kopf"><span class="g-kbild">${bild}</span><span class="g-kt"><b>${titel}</b><small>${unter}</small></span>
         <button type="button" class="g-x" data-act="geld-zu" aria-label="Schließen">✕</button></div>
       ${ziele}
-      ${sl ? `<div class="g-seg g-art">${[["fater", `${faterSvg(22)} Fater`], ["los", `${losHtml(2, "klein")} Los`], ["muenzen", `${muenzeSvg(18)} ${esc(muenzName())}`]].map(([a, t]) =>
+      ${sl ? `<div class="g-seg g-art">${[["fater", `${faterSvg(22)} Fater`], ["los", `${losHtml("2", "klein")} Los`], ["muenzen", `${stufeSvg("dreher", 18)} Geld`]].map(([a, t]) =>
         `<button type="button" class="${b.art === a ? "on" : ""}" data-act="geld-sl-art" data-art="${a}">${t}</button>`).join("")}</div>` : ""}
       <div class="g-blatt-inhalt">${mitte}</div>
       <input id="geld-wofuer" class="g-wofuer" maxlength="80" placeholder="Wofür? (optional)" autocomplete="off" enterkeyhint="done" value="${esc(b.wofuer || "")}" aria-label="Wofür">
@@ -327,14 +394,13 @@ function renderGeldPanel() {
       <span class="g-ini">${gr ? "👥" : esc(zoneInitials(name))}</span><span class="g-sl-name">${esc(name)}</span>
       <span class="g-sl-werte"><span>${faterSvg(gr ? 24 : 20)} ${rollZahl(`gsl-${id}-f`, st.fater || 0)}</span>
       ${lose.slice(0, 3).map(([k, a]) => `<span>${a > 1 ? `${a}×` : ""}${losHtml(k, "klein")}</span>`).join("")}${lose.length > 3 ? `<span class="muted">+${lose.length - 3}</span>` : ""}
-      <span>${muenzeSvg(gr ? 20 : 16)} ${rollZahl(`gsl-${id}-m`, (st.muenzen || 0).toLocaleString("de-DE"))}</span></span></button>`;
+      <span class="g-sl-geld">${geldSymbole(st.muenzen, gr ? 20 : 16)}</span></span></button>`;
   };
   const offen = App.geld.slVerlauf;
   const vl = offen ? geldKonto(offen) : null;
   return section("geld", `${faterSvg(20)} Geld`, `
     <div class="g-sl-kopf">
       <button type="button" class="primary small" data-act="geld-sl-beute">＋ Beute verteilen</button>
-      <button type="button" class="ghost small" data-act="geld-muenzname" title="Name des Kleingelds ändern">✎ ${esc(muenzName())} umbenennen</button>
     </div>
     <div class="g-sl-liste">${zeile("gruppe", "Gruppenkasse", geldKonto("gruppe").stand, true)}
       ${leute.map((r) => zeile(r.id, r.name, geldKonto(r.id).stand)).join("")}</div>
@@ -351,17 +417,17 @@ function geldBuchen(was) {
   if (!n || (b.art === "los" && !b.nenner)) return;
   const wofuer = (($("geld-wofuer") || {}).value || b.wofuer || "").trim();
   const posten = { art: b.art, anzahl: n, wofuer };
-  if (b.art === "los") posten.nenner = b.nenner;
+  if (b.art === "los") Object.assign(posten, losTeile(b.nenner));
   if (App.role === "gm") {
     if (!b.ziele.size) return;
     gmAction({ type: "geld", was, ziele: [...b.ziele], ...posten });
   } else {
     gmAction({ type: "geld", was, ...posten });
   }
-  const name = b.art === "fater" ? (n === 1 ? "Fater" : "Fater") : b.art === "los" ? (n === 1 ? `Los 1/${nennerText(b.nenner)}` : `Lose 1/${nennerText(b.nenner)}`) : muenzName();
   const verb = { bezahlen: "bezahlt", einlegen: "in die Kasse gelegt", herausnehmen: "herausgenommen",
     kasse_bezahlen: "aus der Kasse bezahlt", geben: "gegeben", nehmen: "abgezogen" }[was] || "gebucht";
-  toast(`✓ ${n.toLocaleString("de-DE")} ${name} ${verb}`);
+  const was2 = b.art === "fater" ? `${n} Fater` : b.art === "los" ? `${n} × ${n === 1 ? "Los" : "Lose"} ${losName(b.nenner)}` : geldText(n);
+  toast(`✓ ${was2} ${verb}`);
   App.geld.blatt = null;
   render();
 }
@@ -386,7 +452,7 @@ function geldTaste(t) {
   const b = App.geld.blatt;
   if (t === "C") b.betrag = "";
   else if (t === "⌫") b.betrag = b.betrag.slice(0, -1);
-  else if (b.betrag.length < 9) b.betrag = (b.betrag + t).replace(/^0+/, "");
+  else if (b.betrag.length < 7) b.betrag = (b.betrag + t).replace(/^0+/, "");   // 9.999.999 Schicksal passt noch
   render();
 }
 
@@ -414,7 +480,7 @@ document.addEventListener("click", async (e) => {
     }
     case "geld-los": {
       if (!b) break;
-      const nenner = Number(t.dataset.n), quelle = t.dataset.quelle;
+      const nenner = t.dataset.n, quelle = t.dataset.quelle;
       if (b.quelle === quelle && b.nenner === nenner) { b.quelle = null; b.nenner = null; }
       else { b.quelle = quelle; b.nenner = nenner; b.anzahl = 1; }
       render();
@@ -424,7 +490,7 @@ document.addEventListener("click", async (e) => {
       if (!b) break;
       const w = await eingabe("Los mit welchem Wert? Nur die Zahl unter dem Strich, z. B. 50 000 für 1/50.000.", "", "Übernehmen");
       const n = parseInt(String(w || "").replace(/[^0-9]/g, ""), 10);
-      if (n >= 2 && n <= 10000000) { b.quelle = "neu"; b.nenner = n; b.anzahl = 1; }
+      if (n >= 2 && n <= 10000000) { b.quelle = "neu"; b.nenner = losKey(n, App.geld.losStufe); b.anzahl = 1; }
       render();
       break;
     }
@@ -461,9 +527,11 @@ document.addEventListener("click", async (e) => {
       render();
       break;
     }
-    case "geld-muenzname": {
-      const neu = await eingabe("Wie heißt das Kleingeld?", muenzName(), "Übernehmen");
-      if (neu != null) gmAction({ type: "set_muenz_name", name: neu });
+    case "geld-stufe": App.geld.stufe = t.dataset.st; render(); break;
+    case "geld-los-stufe": {
+      App.geld.losStufe = t.dataset.st;
+      if (b && b.quelle === "neu") { b.quelle = null; b.nenner = null; }
+      render();
       break;
     }
   }
