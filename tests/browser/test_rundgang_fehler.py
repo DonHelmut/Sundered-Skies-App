@@ -31,6 +31,10 @@ def test_handy_kleine_knoepfe_haben_grosse_tippflaeche(tisch):
                      [box["x"] + box["width"] / 2, box["y"] + box["height"] + 5])
     assert getroffen
     h.reiter("notizen")
+    # Seit „Alle" Kacheln zeigt (28.11.2026), steht der erste Haken tiefer -
+    # erst hinscrollen, elementFromPoint sieht nur den sichtbaren Teil.
+    h.locator("button.haken").first.scroll_into_view_if_needed()
+    h.page.evaluate("window.scrollBy(0, 60)")
     haken = h.locator("button.haken").first.bounding_box()
     getroffen = h.js("([x, y]) => !!document.elementFromPoint(x, y).closest('button.haken')",
                      [haken["x"] + haken["width"] / 2, haken["y"] + haken["height"] + 7])
