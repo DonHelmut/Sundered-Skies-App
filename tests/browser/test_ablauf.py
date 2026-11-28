@@ -270,10 +270,14 @@ def test_notiz_bearbeiten_suchen_loeschen(tisch):
     sichtbar = h.page.locator("li.zeile:visible").all_inner_texts()
     assert any("Varn" in t for t in sichtbar) and not any("Seil" in t for t in sichtbar)
     h.locator("[data-act=notiz-suche-zu]").first.click()
+    # „Alle" zeigt nur die zuletzt geänderten (28.11.2026) - die Kachel
+    # „Sonstiges" führt zu allen ohne Thema.
+    assert not h.page.locator("li.zeile", has_text="Seil kaufen").count()
+    h.locator(".notiz-kachel[data-thema='']").first.click()
     # Bearbeiten
     # Tipp auf den Text bearbeitet (kein ✎ je Zeile mehr, 16.11.2026).
     h.locator("li.zeile", has_text="Seil kaufen").locator("[data-act=notiz-bearbeiten]").first.click()
-    h.page.locator("#notiz-edit").fill("Seil UND Haken kaufen")
+    h.page.locator("#notiz-edit-titel").fill("Seil UND Haken kaufen")
     h.locator("[data-act=notiz-fertig]").first.click()
     h.warte_bis("() => App.state.meineNotizen.some(n => n.text === 'Seil UND Haken kaufen')")
     # Löschen steht im Bearbeiten-Modus und fragt erst nach: Abbrechen lässt

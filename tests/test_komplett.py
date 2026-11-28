@@ -212,6 +212,26 @@ def test_handy_bogen_und_talente_gehen_immer_an_die_eigene_figur(zwei_handys):
     assert g._combatant(tessa["id"])["bogen"]["parade"] == "9"
 
 
+def test_steckbrief_geht_nur_an_den_eigenen_charakter(zwei_handys):
+    """Reiter „Gruppe" (28.11.2026): jeder füllt nur SEINEN Steckbrief aus, die
+    Felder sind gedeckelt, und alle Handys sehen ihn über die Charakterliste."""
+    g, tessa, korgo = zwei_handys
+    _als_handy("p1", {"type": "steckbrief_setzen", "id": korgo["id"],
+                      "steckbrief": {"volk": "Elfe", "satz": "x" * 999, "geld": "100 Fater"}})
+    tessa_char = next(r for r in g.roster if r["id"] == tessa["characterId"])
+    korgo_char = next(r for r in g.roster if r["id"] == korgo["characterId"])
+    assert "steckbrief" not in korgo_char
+    assert tessa_char["steckbrief"]["volk"] == "Elfe"
+    assert len(tessa_char["steckbrief"]["satz"]) == 140
+    assert "geld" not in tessa_char["steckbrief"]
+    sicht = g.snapshot(fuer_spieler=True, player_id="p2")
+    assert next(r for r in sicht["roster"] if r["id"] == tessa["characterId"])["steckbrief"]["volk"] == "Elfe"
+    # Das ↶ des SL nimmt ihn nicht mit (Sache des Spielers, wie der Bogen).
+    g.apply({"type": "add_npc", "name": "Möwe"})
+    g.apply({"type": "undo"})
+    assert next(r for r in g.roster if r["id"] == tessa["characterId"])["steckbrief"]["volk"] == "Elfe"
+
+
 @pytest.mark.parametrize("aktion", [
     {"type": "add_npc", "name": "Eingeschleust"},
     {"type": "apply_hit"},

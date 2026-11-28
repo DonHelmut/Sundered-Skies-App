@@ -214,6 +214,7 @@ function renderPlayer() {
     msgs: `<div class="panel"><h2>Nachrichten vom Spielleiter</h2>${msgs || `<div class="muted small">Noch keine Nachrichten.</div>`}</div>`,
     notizen: notizenPanelHtml(),
     geld: geldSeiteHtml(),
+    gruppe: gruppeSeiteHtml(mine),
   };
   const reiterDa = kurz ? [] : handyReiterListe();
   const reiter = reiterDa.includes(App.handyReiter) ? App.handyReiter : "kampf";
@@ -426,13 +427,31 @@ function notizFinden(id, gruppe) {
 // (Rechte-Prüfung 20.11.2026).
 const NOTIZ_PLATZ = 8000, NOTIZ_MAX = 200;
 function notizenZuViel(liste) {
-  return liste.length > NOTIZ_MAX || liste.reduce((n, e) => n + String((e && e.text) || "").trim().length, 0) > NOTIZ_PLATZ;
+  return liste.length > NOTIZ_MAX || liste.reduce((n, e) => n + notizGroesse(e || {}), 0) > NOTIZ_PLATZ;
+}
+// Wie _notiz_groesse am Server: Text plus Steckbrief-Felder.
+function notizGroesse(e) {
+  return String(e.text || "").trim().length + notizFelder(e).reduce((n, [k, v]) => n + k.length + v.length, 0);
+}
+// Felder in der Reihenfolge, die der Server zurückschickt. notizenListe()
+// vergleicht die eigene Fassung als JSON mit der vom Server - stand ein
+// Schlüssel woanders, galt die eigene Fassung für immer.
+const NOTIZ_SCHLUESSEL = ["id", "text", "thema", "erledigt", "quelle", "von", "vonId", "ts", "geaendert", "felder"];
+function notizNormal(e) {
+  const aus = {};
+  NOTIZ_SCHLUESSEL.forEach((k) => {
+    if (k === "felder" ? notizFelder(e).length : (e[k] !== undefined && e[k] !== null && e[k] !== "")) aus[k] = e[k];
+  });
+  aus.thema = e.thema || "";
+  aus.erledigt = !!e.erledigt;
+  return Object.fromEntries(NOTIZ_SCHLUESSEL.filter((k) => k in aus).map((k) => [k, aus[k]]));
 }
 function notizVollMelden(gruppe) {
   hinweis(`${gruppe ? "Die Gruppen-Notizen sind" : "Deine Notizen sind"} voll. Erst alte oder erledigte Notizen löschen – dann passt die neue rein.`);
 }
 function notizenSpeichern(liste) {
   if (notizenZuViel(liste)) { notizVollMelden(false); render(); return false; }
+  liste = liste.map(notizNormal);
   App.notizenLokal = liste;
   gmAction({ type: "notizen_setzen", eintraege: liste });
   render();
@@ -498,47 +517,181 @@ function notizVorschlagZeigen(feld, text) {
   const box = $(`notiz-vorschlag-${feld}`);
   if (box) box.innerHTML = notizVorschlagHtml(feld, text);
 }
-// --- Ansicht ---------------------------------------------------------------------
-function notizZeileHtml(e, mitThema, q) {
+// --- Ansicht: Einträge als Karten, Orte/Leute als Steckbrief ----------------------
+// Kalle 28.11.2026 (Variante B + C): Jede Notiz war eine Zeile; wer über
+// einen Ort mehr wusste, schrieb eine zweite und dritte, und „Alle" wurde eine
+// endlose Liste („100 Funken -> 1 Splitter" als vier Einzelzeilen). Jetzt ein
+// Eintrag je Sache: erste Zeile = Titel, darunter Text und Felder, zugeklappt
+// nur Titel + eine Zeile. Orte und Leute haben feste Felder, eigene kommen mit
+// „＋ Feld" dazu (Kalle: „kann man da dynamisch Sachen hinzufügen?").
+// Gespeichert bleibt {text, …} wie bisher, die Felder kommen als felder
+// [[Name, Wert], …] dazu - alte Notizen und „🔖 Merken" laufen unverändert.
+const NOTIZ_STECKBRIEF = {
+  Orte: { felder: ["Exportschlager", "Was wir dort tun können", "Leute"], text: "Infos", neu: "Ort" },
+  Leute: { felder: ["Wer ist das?", "Wo", "Haltung"], text: "Infos", neu: "Person" },
+};
+const NOTIZ_HALTUNG = [["Freund", "gut"], ["Neutral", "neutral"], ["Feind", "boese"]];
+const NOTIZ_ZULETZT = 5;   // „Alle": so viele frisch geänderte Einträge unter den Kacheln
+function notizKey(e) { return `${e.gruppe ? "g" : "e"}:${e.id}`; }
+function notizTitel(e) { return String(e.text || "").split("\n")[0]; }
+function notizKoerper(e) { return String(e.text || "").split("\n").slice(1).join("\n").trim(); }
+function notizFelder(e) { return Array.isArray(e.felder) ? e.felder.filter((f) => Array.isArray(f) && f.length === 2) : []; }
+function notizFeld(e, name) { const f = notizFelder(e).find(([k]) => k === name); return f ? f[1] : ""; }
+function notizHatDetails(e) { return !!notizKoerper(e) || notizFelder(e).some(([k]) => k !== "Haltung"); }
+// Abhaken nur, wo es etwas zu erledigen gibt: einen Ort hakt niemand ab.
+// Schon Erledigte behalten den Haken, sonst kämen sie nie zurück.
+function notizMitHaken(e) { return !!e.erledigt || !e.thema || e.thema === "Offen"; }
+function notizZeit(e) { return e.geaendert || e.ts || 0; }
+function notizAuf() { return App.notizAuf || (App.notizAuf = new Set()); }
+function notizHaltungKlasse(w) { const h = NOTIZ_HALTUNG.find(([n]) => n === w); return h ? h[1] : "neutral"; }
+// Symbol im Kästchen vor dem Titel: feste Themen als Linie mit Farbton, eigene
+// mit ihrem Emoji (th-roh, damit symboleEinsetzen es nicht anfasst).
+function notizSymbolHtml(thema) {
+  const fest = NOTIZ_THEMA_SYMBOL[thema];
+  return fest ? `<span class="nk-ic" style="--tc:${fest[1]}">${symbolSvg(fest[0])}</span>`
+    : `<span class="nk-ic th-roh">${notizIcon(thema)}</span>`;
+}
+// Zugeklappt eine Zeile darunter: die ersten Feld-Werte, sonst der Text.
+function notizUnter(e) {
+  const teile = notizFelder(e).filter(([k]) => k !== "Haltung").map(([, v]) => v.split("\n")[0]);
+  const k = notizKoerper(e);
+  if (k) teile.push(k.split("\n")[0]);
+  return teile.slice(0, 2).join(" · ");
+}
+// Namen anderer Einträge in einem Feld („Leute: Vela, Der Graue", „Wo: Hier")
+// werden antippbar und springen dorthin. Nur ganze Teile zwischen Kommas/
+// Zeilen - „Hier" mitten in einem Satz bleibt Text.
+function notizZiele() {
+  const m = new Map();
+  notizenAlle().forEach((x) => { const t = notizTitel(x).trim().toLowerCase(); if (t && !m.has(t)) m.set(t, x); });
+  return m;
+}
+function notizWertHtml(wert, q, ziele, selbst) {
+  return wert.split(/(\n|,\s*)/).map((teil) => {
+    if (teil === "\n") return "<br>";
+    if (/^,\s*$/.test(teil)) return esc(teil);
+    const z = ziele.get(teil.trim().toLowerCase());
+    if (!z || notizKey(z) === selbst) return notizMarkiert(teil, q);
+    const fest = NOTIZ_THEMA_SYMBOL[z.thema];
+    return `<button type="button" class="notiz-verweis th ttag${fest ? "" : " th-roh"}"${fest ? ` style="--tc:${fest[1]}"` : ""} data-act="notiz-springen" data-id="${esc(z.id)}" data-gruppe="${z.gruppe ? "1" : ""}">${fest ? symbolSvg(fest[0]) : notizIcon(z.thema) + " "}${esc(teil.trim())}</button>`;
+  }).join("").replace(/(<\/button>),\s*(?=<button)/g, "$1 ");   // Komma zwischen zwei Namen-Chips weg
+}
+function notizWerHtml(e) {
+  return e.gruppe && e.von
+    ? `<span class="wer"><span class="wer-av">${esc(zoneInitials(e.von))}</span>${esc(e.von)}${notizZeit(e) ? ` · ${zeitKurz(notizZeit(e))}` : ""}</span>` : "";
+}
+function notizZeileHtml(e, mitThema, q, ziele) {
   const ed = App.notizEdit;
-  const g = e.gruppe ? "1" : "";
-  if (ed && ed.id === e.id && ed.gruppe === e.gruppe) {
-    const chips = notizThemenAlle(notizenAlle()).concat([""]).map((t) =>
-      `<button type="button" class="notiz-chip${ed.thema === t ? " on" : ""}" data-act="notiz-edit-thema" data-thema="${esc(t)}">${notizThemaLabel(t)}</button>`).join("");
-    const h = App.notizHoehe && App.notizHoehe["notiz-edit"];
-    return `<li class="zeile bearbeiten" data-id="${esc(e.id)}">
-      <textarea id="notiz-edit" rows="2" maxlength="1000" aria-label="Notiz bearbeiten"${h ? ` style="height:${h}px"` : ""}>${esc(ed.text)}</textarea>
-      <div class="notiz-vorschlag" id="notiz-vorschlag-edit">${notizVorschlagHtml("edit", ed.text)}</div>
-      <div class="notiz-chips klein">${chips}</div>
-      <div class="notiz-edit-knoepfe">
-        <button type="button" class="ghost small notiz-del" data-act="notiz-loeschen" data-id="${esc(e.id)}" data-gruppe="${g}">🗑 Löschen</button>
-        <button type="button" class="ghost small" data-act="notiz-abbrechen">Abbrechen</button>
-        <button type="button" class="primary small" data-act="notiz-fertig">✓ Fertig</button>
-      </div>
-    </li>`;
-  }
+  if (ed && !ed.neu && ed.id === e.id && ed.gruppe === e.gruppe) return notizEditHtml(ed);
   const id = esc(e.id);
+  const g = e.gruppe ? "1" : "";
   const daten = `data-id="${id}" data-gruppe="${g}"`;
-  // Keine ✎/🗑 je Zeile mehr (Studio-Runde Notizen, 16.11.2026): Tipp auf den
-  // Text bearbeitet, Löschen steht im Bearbeiten-Modus. Die Zeile gehört dem Text.
-  const tags = [mitThema && e.thema ? notizThemaHtml(e.thema, "ttag") : "",
-    mitThema && e.gruppe ? notizThemaHtml(NOTIZ_GRUPPE, "ttag nur-symbol") : ""].filter(Boolean);
-  const wer = e.gruppe && e.von
-    ? `<span class="wer"><span class="wer-av">${esc(zoneInitials(e.von))}</span>${esc(e.von)}${e.ts ? ` · ${zeitKurz(e.ts)}` : ""}</span>` : "";
+  const key = notizKey(e);
   // Auswahl zum Löschen (Variante D, Kalle 20.11.2026): Kreis statt Haken,
   // und auch ein Tipp auf den Text wählt aus statt zu bearbeiten.
-  const wahl = App.notizWahl && e.erledigt;
-  const an = wahl && App.notizWahl.has(notizWahlKey(e));
-  if (wahl) {
+  if (App.notizWahl && e.erledigt) {
+    const an = App.notizWahl.has(key);
     return `<li class="zeile erl wahl${an ? " an" : ""}${e.gruppe ? " gruppe" : ""}" data-id="${id}">
     <button type="button" class="haken wahl" data-act="notiz-wahl" ${daten} role="checkbox" aria-checked="${!!an}" aria-label="Zum Löschen auswählen">${an ? symbolSvg("check") : ""}</button>
-    <div class="zt" data-act="notiz-wahl" ${daten} role="button">${notizTextHtml(e.text, q)}${tags.length ? ` ${tags.join(" ")}` : ""}${wer}</div>
+    <div class="zt" data-act="notiz-wahl" ${daten} role="button">${notizMarkiert(notizTitel(e), q)}</div>
   </li>`;
   }
-  return `<li class="zeile${e.erledigt ? " erl" : ""}${e.gruppe ? " gruppe" : ""}" data-id="${id}">
-    <button type="button" class="haken" data-act="notiz-haken" ${daten} role="checkbox" aria-checked="${!!e.erledigt}" aria-label="Erledigt">${e.erledigt ? "✓" : ""}</button>
-    <div class="zt" data-act="notiz-bearbeiten" ${daten} role="button" aria-label="Bearbeiten">${notizTextHtml(e.text, q)}${tags.length ? ` ${tags.join(" ")}` : ""}${wer}</div>
+  const details = notizHatDetails(e);
+  // Suche klappt auf, wenn der Treffer nicht schon im Titel steht.
+  const auf = details && (notizAuf().has(key) || (!!q && !notizTitel(e).toLowerCase().includes(q.toLowerCase())));
+  const haken = notizMitHaken(e)
+    ? `<button type="button" class="haken" data-act="notiz-haken" ${daten} role="checkbox" aria-checked="${!!e.erledigt}" aria-label="Erledigt">${e.erledigt ? "✓" : ""}</button>` : "";
+  const vorne = haken || (e.thema ? notizSymbolHtml(e.thema) : "");
+  const haltung = notizFeld(e, "Haltung");
+  const unter = auf ? "" : notizUnter(e);
+  const rechts = [
+    mitThema && haken && e.thema ? notizThemaHtml(e.thema, "ttag") : "",
+    haltung ? `<span class="nk-haltung ${notizHaltungKlasse(haltung)}">${esc(haltung)}</span>` : "",
+    e.gruppe ? notizThemaHtml(NOTIZ_GRUPPE, "ttag nur-symbol") : "",
+    auf ? `<button type="button" class="nk-stift" data-act="notiz-stift" ${daten} aria-label="Bearbeiten" title="Bearbeiten">${symbolSvg("pencil")}</button>`
+      : details ? `<span class="nk-chev">${symbolSvg("chevron-right")}</span>` : "",
+  ].join("");
+  const sb = NOTIZ_STECKBRIEF[e.thema];
+  const felder = auf ? notizFelder(e).filter(([k]) => k !== "Haltung").map(([k, v]) =>
+    `<div class="nk-feld"><div class="nk-label">${esc(k)}</div><div class="nk-wert">${notizWertHtml(v, q, ziele, key)}</div></div>`).join("") : "";
+  const koerper = auf && notizKoerper(e)
+    ? `<div class="nk-feld${sb ? "" : " ohne-label"}">${sb ? `<div class="nk-label">${esc(sb.text)}</div>` : ""}<div class="nk-wert">${notizWertHtml(notizKoerper(e), q, ziele, key)}</div></div>` : "";
+  const wer = auf || !details ? notizWerHtml(e) : "";
+  return `<li class="zeile karte${auf ? " auf" : ""}${e.erledigt ? " erl" : ""}${e.gruppe ? " gruppe" : ""}" data-id="${id}">
+    <div class="nk-kopf">${vorne}<div class="zt" data-act="notiz-bearbeiten" ${daten} role="button"${details ? ` aria-expanded="${auf}"` : ` aria-label="Bearbeiten"`}>
+      <span class="nk-titel">${notizMarkiert(notizTitel(e), q)}</span>${unter ? `<span class="nk-unter">${notizMarkiert(unter, q)}</span>` : ""}</div>${rechts}</div>
+    ${felder || koerper ? `<div class="nk-inhalt">${felder}${koerper}</div>` : ""}${wer}
   </li>`;
+}
+// Feste Felder eines Steckbriefs ergänzen (leer). Gespeichert werden nur
+// ausgefüllte - darum stehen die festen beim Bearbeiten immer wieder da.
+function notizFelderMitStandard(thema, felder) {
+  const aus = felder.map(([k, v]) => [k, v]);
+  ((NOTIZ_STECKBRIEF[thema] || {}).felder || []).forEach((k) => { if (!aus.some(([n]) => n === k)) aus.push([k, ""]); });
+  return aus;
+}
+function notizEditOeffnen(e) {
+  App.notizEdit = { id: e.id, gruppe: !!e.gruppe, thema: e.thema || "", titel: notizTitel(e), koerper: notizKoerper(e),
+    felder: notizFelderMitStandard(e.thema, notizFelder(e)) };
+  if (App.notizHoehe) Object.keys(App.notizHoehe).filter((k) => k !== "notiz-neu").forEach((k) => delete App.notizHoehe[k]);
+  render();
+  const feld = $(notizKoerper(e) || !Object.keys(NOTIZ_STECKBRIEF).includes(e.thema) && !notizFelder(e).length ? "notiz-edit" : "notiz-edit-titel");
+  document.querySelectorAll(".zeile.bearbeiten textarea").forEach(notizFeldHoehe);
+  if (feld) { feld.focus(); feld.setSelectionRange(feld.value.length, feld.value.length); }
+}
+// Feldnamen, die es bei anderen Einträgen dieses Themas schon gibt
+// („Gefahren" bei einem Ort -> bei den anderen Orten als „＋ Gefahren").
+function notizFeldVorschlaege(ed) {
+  const da = new Set(ed.felder.map(([k]) => k.toLowerCase()));
+  const aus = [];
+  notizenAlle().filter((e) => e.thema === ed.thema).forEach((e) => notizFelder(e).forEach(([k]) => {
+    if (!da.has(k.toLowerCase())) { da.add(k.toLowerCase()); aus.push(k); }
+  }));
+  return aus.slice(0, 4);
+}
+function notizEditHtml(ed) {
+  const sb = NOTIZ_STECKBRIEF[ed.thema];
+  const hoehe = (id) => { const h = App.notizHoehe && App.notizHoehe[id]; return h ? ` style="height:${h}px"` : ""; };
+  const felder = ed.felder.map(([k, v], i) => `<div class="nk-feld-edit">
+      <div class="nk-label-z"><label class="nk-label" for="notiz-feld-${i}">${esc(k)}</label><button type="button" class="nk-x" data-act="notiz-feld-weg" data-i="${i}" aria-label="Feld ${esc(k)} entfernen" title="Feld entfernen">✕</button></div>
+      ${k === "Haltung"
+        ? `<div class="notiz-chips">${NOTIZ_HALTUNG.map(([n, kl]) => `<button type="button" class="notiz-chip nk-haltung-wahl ${kl}${v === n ? " on" : ""}" data-act="notiz-haltung" data-wert="${n}">${n}</button>`).join("")}</div>`
+        : `<textarea id="notiz-feld-${i}" class="notiz-feld-in" data-i="${i}" rows="1" maxlength="500"${hoehe(`notiz-feld-${i}`)}>${esc(v)}</textarea>`}
+    </div>`).join("");
+  const themen = notizThemenAlle(notizenAlle()).concat([""]).map((t) =>
+    `<button type="button" class="notiz-chip${ed.thema === t ? " on" : ""}" data-act="notiz-edit-thema" data-thema="${esc(t)}">${notizThemaLabel(t)}</button>`).join("");
+  const ziel = ed.neu ? `<span class="notiz-seg" role="group" aria-label="Für wen">
+      <button type="button" class="${ed.gruppe ? "" : "on"}" data-act="notiz-edit-ziel" data-ziel="ich">🔒 Nur ich</button>
+      <button type="button" class="${ed.gruppe ? "on" : ""}" data-act="notiz-edit-ziel" data-ziel="gruppe">👥 Für alle</button></span>` : "";
+  return `<li class="zeile karte bearbeiten" data-id="${esc(ed.id)}">
+    <input id="notiz-edit-titel" class="notiz-edit-titel" maxlength="120" value="${esc(ed.titel)}" placeholder="${sb ? sb.neu : "Titel"}" aria-label="Titel" autocomplete="off">
+    ${felder}
+    <div class="nk-feld-edit">${sb ? `<div class="nk-label-z"><label class="nk-label" for="notiz-edit">${esc(sb.text)}</label></div>` : ""}
+      <textarea id="notiz-edit" rows="2" maxlength="1000" aria-label="${sb ? esc(sb.text) : "Text"}"${sb ? "" : ` placeholder="Text …"`}${hoehe("notiz-edit")}>${esc(ed.koerper)}</textarea></div>
+    <div class="notiz-vorschlag" id="notiz-vorschlag-edit">${notizVorschlagHtml("edit", ed.koerper)}</div>
+    <div class="notiz-chips"><button type="button" class="notiz-chip nk-feld-neu" data-act="notiz-feld-neu">${symbolSvg("plus")} Feld</button>${notizFeldVorschlaege(ed).map((k) =>
+      `<button type="button" class="notiz-chip" data-act="notiz-feld-neu" data-name="${esc(k)}">＋ ${esc(k)}</button>`).join("")}</div>
+    <div class="notiz-chips klein">${themen}</div>
+    ${ziel}
+    <div class="notiz-edit-knoepfe">
+      ${ed.neu ? "" : `<button type="button" class="ghost small notiz-del" data-act="notiz-loeschen" data-id="${esc(ed.id)}" data-gruppe="${ed.gruppe ? "1" : ""}">🗑 Löschen</button>`}
+      <button type="button" class="ghost small" data-act="notiz-abbrechen">Abbrechen</button>
+      <button type="button" class="primary small" data-act="notiz-fertig">✓ Fertig</button>
+    </div>
+  </li>`;
+}
+// „Alle" als Inhaltsverzeichnis (Variante C): eine Kachel je Thema mit den
+// ersten Namen, darunter die zuletzt geänderten Einträge. Die festen Themen
+// stehen immer da - sie sind der Weg zu „＋ Ort"/„＋ Person".
+function notizKachelnHtml(alle) {
+  const themen = notizThemenAlle(alle).filter((t) => NOTIZ_THEMEN.some(([n]) => n === t) || alle.some((e) => e.thema === t));
+  if (alle.some((e) => !e.thema)) themen.push("");
+  return `<div class="notiz-kacheln">${themen.map((t) => {
+    const l = alle.filter((e) => e.thema === t && !e.erledigt);
+    return `<button type="button" class="notiz-kachel" data-act="notiz-filter" data-thema="${esc(t)}">${notizSymbolHtml(t)}
+      <span class="nk-k-name">${esc(notizThemaName(t))}${l.length ? ` <b>${l.length}</b>` : ""}</span>
+      <span class="nk-k-namen">${esc(l.slice(0, 4).map((e) => notizTitel(e).slice(0, 40)).join(" · "))}</span></button>`;
+  }).join("")}</div>`;
 }
 // Leiste über der aufgeklappten Erledigt-Liste: immer gleich hoch (Auswählen
 // ↔ „N ausgewählt · Fertig"), damit beim Umschalten nichts springt.
@@ -594,7 +747,7 @@ function notizenPanelHtml() {
   const suchKnopf = alle.length >= NOTIZ_SUCHE_AB
     ? `<button type="button" class="notiz-such${App.notizSuche != null ? " on" : ""}" data-act="${App.notizSuche != null ? "notiz-suche-zu" : "notiz-suche-auf"}" aria-label="Suchen" title="Suchen">🔍</button>` : "";
   // Suche: über alle Themen und die Gruppe, Abgehakte gleich mit aufgeklappt.
-  const sicht = q ? alle.filter((e) => `${e.text}\n${e.thema}\n${e.von || ""}`.toLowerCase().includes(q.toLowerCase()))
+  const sicht = q ? alle.filter((e) => `${e.text}\n${e.thema}\n${e.von || ""}\n${notizFelder(e).flat().join("\n")}`.toLowerCase().includes(q.toLowerCase()))
     : filter === null ? alle
     : filter === NOTIZ_GRUPPE ? alle.filter((e) => e.gruppe)
     : alle.filter((e) => e.thema === filter);
@@ -603,18 +756,39 @@ function notizenPanelHtml() {
   // wenn angetippt, gesucht oder gerade einer davon bearbeitet wird.
   const erlAuf = q || App.notizErlAuf || (App.notizEdit && erl.some((e) => e.id === App.notizEdit.id));
   const mitThema = !!q || filter === null || filter === NOTIZ_GRUPPE;
-  const zeile = (e) => notizZeileHtml(e, mitThema, q);
+  const ziele = notizZiele();
+  const zeile = (e) => notizZeileHtml(e, mitThema, q, ziele);
+  const ed = App.notizEdit;
+  const neuKarte = ed && ed.neu ? notizEditHtml(ed) : "";
+  // Liste der Offenen je nach Ansicht: „Alle" = Kacheln + zuletzt geändert,
+  // „Gruppe" = nach Thema unterteilt, ein Thema = nur seine Einträge.
+  const karten = (l) => `<ul class="zeilen karten">${l.map(zeile).join("")}</ul>`;
+  let offenHtml;
+  if (q || (filter !== null && filter !== NOTIZ_GRUPPE)) {
+    offenHtml = offen.length || neuKarte ? `<ul class="zeilen karten">${neuKarte}${offen.map(zeile).join("")}</ul>`
+      : `<div class="notizen-leer klein">Alles abgehakt ✓</div>`;
+  } else if (filter === null) {
+    const zuletzt = offen.map((e, i) => [e, i]).sort((a, b) => notizZeit(b[0]) - notizZeit(a[0]) || a[1] - b[1])
+      .slice(0, NOTIZ_ZULETZT).map(([e]) => e);
+    offenHtml = `${notizKachelnHtml(alle)}${neuKarte ? `<ul class="zeilen karten">${neuKarte}</ul>` : ""}
+      ${zuletzt.length ? `<div class="notiz-ab-kopf">Zuletzt geändert</div>${karten(zuletzt)}` : ""}`;
+  } else {
+    const themen = [...notizThemenAlle(offen), ""];
+    offenHtml = (neuKarte ? `<ul class="zeilen karten">${neuKarte}</ul>` : "") + themen.map((t) => {
+      const l = offen.filter((e) => (e.thema || "") === t);
+      return l.length ? `<div class="notiz-ab-kopf">${notizSymbolHtml(t)}${esc(notizThemaName(t))} <b>${l.length}</b></div>${karten(l)}` : "";
+    }).join("") || `<div class="notizen-leer klein">Alles abgehakt ✓</div>`;
+  }
   const leerText = q ? `Nichts gefunden für „${esc(q)}“.`
     : filter === null ? ""
     : filter === NOTIZ_GRUPPE ? "Noch keine Gruppen-Notiz. Alles hier sehen alle Spieler."
     : `Noch nichts unter ${notizThemaHtml(filter)}.`;
-  const inhalt = !sicht.length
-    ? `<div class="notizen-leer klein">${leerText}</div>`
-    : `${offen.length ? `<ul class="zeilen">${offen.map(zeile).join("")}</ul>`
-        : `<div class="notizen-leer klein">Alles abgehakt ✓</div>`}
+  const inhalt = !sicht.length && !neuKarte
+    ? `${filter === null && !q ? notizKachelnHtml(alle) : ""}<div class="notizen-leer klein">${leerText}</div>`
+    : `${offenHtml}
       ${erl.length ? `<button type="button" class="notiz-erl-kopf" data-act="notiz-erl" aria-expanded="${!!erlAuf}">
           <span>✓ ${erl.length} erledigt</span><span class="pfeil">${erlAuf ? "▾" : "▸"}</span></button>
-        ${erlAuf ? `${notizWahlLeiste(erl, q)}<ul class="zeilen erledigt">${erl.map(zeile).join("")}</ul>${notizWahlLoeschen()}` : ""}` : ""}`;
+        ${erlAuf ? `${notizWahlLeiste(erl, q)}<ul class="zeilen karten erledigt">${erl.map(zeile).join("")}</ul>${notizWahlLoeschen()}` : ""}` : ""}`;
   const weg = App.notizWeg;
   const zielGruppe = notizZielGruppe();
   const thema = filter === null || filter === NOTIZ_GRUPPE ? "" : filter;
@@ -625,10 +799,11 @@ function notizenPanelHtml() {
   // in Worten (das 🔒 allein verstand ohne Erklärung keiner) und ein runder
   // ↑-Knopf. Im Gruppe-Reiter ist „Für alle" fest.
   const imGruppenReiter = filter === NOTIZ_GRUPPE;
+  const sb = !q && filter !== null && NOTIZ_STECKBRIEF[filter];
   return `<div class="panel notizen">
     <div class="notizen-kopf"><h2>📝 Notizen</h2>${alle.length ? `<span class="notizen-zahl">${offenZahl(() => true)}</span>` : ""}${suchKnopf}</div>
-    <div class="notiz-neu${zielGruppe ? " gruppe" : ""}">
-      <textarea id="notiz-neu" rows="1" maxlength="1000" enterkeyhint="done" aria-label="Neue Notiz"${h ? ` style="height:${h}px"` : ""}
+    ${sb ? `<button type="button" class="notiz-neu-sb" data-act="notiz-neu-steckbrief" data-thema="${esc(filter)}">${symbolSvg("plus")} ${sb.neu}</button>` : `<div class="notiz-neu${zielGruppe ? " gruppe" : ""}">
+      <textarea id="notiz-neu" rows="1" maxlength="1000" enterkeyhint="enter" aria-label="Neue Notiz"${h ? ` style="height:${h}px"` : ""}
         placeholder="${platzhalter}">${esc(App.notizNeu || "")}</textarea>
       <div class="notiz-neu-fuss">
         <span class="notiz-seg" role="group" aria-label="Für wen">
@@ -638,14 +813,13 @@ function notizenPanelHtml() {
         <button type="button" class="primary notiz-plus" data-act="notiz-hinzu" aria-label="Notiz hinzufügen" title="Hinzufügen"${(App.notizNeu || "").trim() ? "" : " disabled"}>${symbolSvg("arrow-up")}</button>
       </div>
     </div>
-    <div class="notiz-vorschlag" id="notiz-vorschlag-neu">${notizVorschlagHtml("neu", App.notizNeu)}</div>
+    <div class="notiz-vorschlag" id="notiz-vorschlag-neu">${notizVorschlagHtml("neu", App.notizNeu)}</div>`}
     ${App.notizSuche != null
       ? `<div class="notiz-suche">🔍<input id="notiz-suche" type="text" enterkeyhint="search" value="${esc(App.notizSuche)}" placeholder="In allen Notizen suchen …" aria-label="Suchen" autocomplete="off">
           <button type="button" class="notiz-knopf" data-act="notiz-suche-zu" aria-label="Suche schließen">✕</button></div>`
       : `<div class="notiz-reiter-leiste">${reiterHtml}</div>`}
     ${weg ? `<div class="notiz-undo"><span>${weg.teile.length > 1 ? `${weg.teile.length} Notizen gelöscht` : "Notiz gelöscht"}</span><button type="button" class="ghost small" data-act="notiz-zurueck">↶ Rückgängig</button></div>` : ""}
-    ${alle.length ? inhalt
-      : `<div class="notizen-leer">Noch nichts notiert.<br><span>Leute, Orte, Beute, offene Fragen. 🔒 nur du, 👥 alle Spieler.</span></div>`}
+    ${alle.length || neuKarte || filter !== null ? inhalt : `${notizKachelnHtml(alle)}<div class="notizen-leer klein">Noch nichts notiert.</div>`}
   </div>`;
 }
 // Feld wächst mit dem Text (rows="1" sah sonst nach einer Zeile aus, auch wenn
@@ -674,7 +848,7 @@ function notizHinzu() {
   notizVorschlagZeigen("neu", "");
   const f = notizFilterJetzt();
   const thema = f === null || f === NOTIZ_GRUPPE ? "" : f;
-  const eintrag = { id: notizNeueId(), text, thema, erledigt: false };
+  const eintrag = { id: notizNeueId(), text, thema, erledigt: false, geaendert: Date.now() };
   // Neueste oben: das Eingabefeld steht oben, der Eintrag erscheint gleich darunter.
   if (notizZielGruppe()) {
     // 👥 gilt nur für diese eine Notiz - sonst landete die nächste private
@@ -689,17 +863,31 @@ function notizHinzu() {
 function notizFertig() {
   const ed = App.notizEdit;
   if (!ed) return;
-  const text = ed.text.trim();
+  const titel = ed.titel.replace(/\s+/g, " ").trim(), koerper = ed.koerper.trim();
+  const felder = ed.felder.map(([k, v]) => [k, v.trim()]).filter(([k, v]) => k && v);
+  // Ohne Titel: erste Textzeile bzw. erster Feld-Wert wird der Titel.
+  let text = titel ? (koerper ? `${titel}\n${koerper}` : titel) : koerper;
+  if (!text && felder.length) text = felder[0][1].split("\n")[0];
+  if (ed.neu) {
+    if (!text) { App.notizEdit = null; render(); return; }
+    const eintrag = notizNormal({ id: ed.id, text, thema: ed.thema, erledigt: false, felder, geaendert: Date.now() });
+    if (notizenZuViel(ed.gruppe ? [...gruppenNotizen(), eintrag] : [eintrag, ...notizenListe()])) { notizVollMelden(ed.gruppe); return; }
+    App.notizEdit = null;
+    notizAuf().add(notizKey({ id: ed.id, gruppe: ed.gruppe }));
+    if (ed.gruppe) { gruppenNotizSchicken({ op: "neu", eintrag }); render(); return; }
+    notizenSpeichern([eintrag, ...notizenListe()]);
+    return;
+  }
   // Länger geschrieben, und es passt nicht mehr: Bearbeiten bleibt offen.
-  const probe = (ed.gruppe ? gruppenNotizen() : notizenListe()).map((e) => e.id === ed.id ? { ...e, text } : e);
+  const probe = (ed.gruppe ? gruppenNotizen() : notizenListe()).map((e) => e.id === ed.id ? { ...e, text, felder } : e);
   if (text && notizenZuViel(probe)) { notizVollMelden(ed.gruppe); return; }
   App.notizEdit = null;
   const alt = notizFinden(ed.id, ed.gruppe);
   if (!alt) { render(); return; }
   if (!text) { notizLoeschen(ed.id, ed.gruppe); return; }      // leer gespeichert = löschen (mit Rückfrage)
-  if (alt.text === text && alt.thema === ed.thema) { render(); return; }
-  if (ed.gruppe) { gruppenNotizSchicken({ op: "aendern", id: ed.id, text, thema: ed.thema }); render(); return; }
-  notizenSpeichern(notizenListe().map((e) => e.id === ed.id ? { ...e, text, thema: ed.thema } : e));
+  if (alt.text === text && alt.thema === ed.thema && JSON.stringify(notizFelder(alt)) === JSON.stringify(felder)) { render(); return; }
+  if (ed.gruppe) { gruppenNotizSchicken({ op: "aendern", id: ed.id, text, thema: ed.thema, felder }); render(); return; }
+  notizenSpeichern(notizenListe().map((e) => e.id === ed.id ? { ...e, text, thema: ed.thema, felder, geaendert: Date.now() } : e));
 }
 // Löschen mit Rückfrage (Kalle, 09.11.2026 - erst ging es ohne, nur mit
 // „↶ Rückgängig"; das übersieht man am Handy aber leicht, und eine
@@ -760,9 +948,15 @@ document.addEventListener("input", (e) => {
     const plus = document.querySelector('[data-act="notiz-hinzu"]');
     if (plus) plus.disabled = !t.value.trim();
   } else if (t.id === "notiz-edit" && App.notizEdit) {
-    App.notizEdit.text = t.value;
+    App.notizEdit.koerper = t.value;
     notizFeldHoehe(t);
     notizVorschlagZeigen("edit", t.value);
+  } else if (t.id === "notiz-edit-titel" && App.notizEdit) {
+    App.notizEdit.titel = t.value;
+  } else if (t.classList && t.classList.contains("notiz-feld-in") && App.notizEdit) {
+    const f = App.notizEdit.felder[Number(t.dataset.i)];
+    if (f) f[1] = t.value;
+    notizFeldHoehe(t);
   } else if (t.id === "notiz-suche") {
     App.notizSuche = t.value;
     render();
@@ -778,11 +972,17 @@ document.addEventListener("pointerdown", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (!e.target || e.isComposing) return;
-  // Neue Notiz: Enter = hinzufügen (Handy-Tastatur „Fertig"), Umschalt+Enter = neue Zeile.
-  if (e.target.id === "notiz-neu" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); notizHinzu(); }
-  // Beim Bearbeiten ist Enter eine neue Zeile (Überschrift + Details);
-  // Strg/⌘+Enter speichert, Esc bricht ab.
-  if (e.target.id === "notiz-edit") {
+  // Neue Notiz: Enter = neue Zeile (Kalle 28.11.2026: „mehrere Zeilen
+  // reinschreiben"), angelegt wird mit ↑ oder Strg/⌘+Enter.
+  if (e.target.id === "notiz-neu" && e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); notizHinzu(); }
+  // Titel: Enter springt ins nächste Feld statt eine Zeile anzufangen.
+  if (e.target.id === "notiz-edit-titel" && e.key === "Enter") {
+    e.preventDefault();
+    const naechstes = document.querySelector(".zeile.bearbeiten textarea");
+    if (naechstes) naechstes.focus();
+  }
+  // Beim Bearbeiten ist Enter eine neue Zeile; Strg/⌘+Enter speichert, Esc bricht ab.
+  if (e.target.closest && e.target.closest(".zeile.bearbeiten") && e.target.matches("input, textarea")) {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); notizFertig(); }
     else if (e.key === "Escape") { e.preventDefault(); App.notizEdit = null; render(); }
   }
@@ -843,24 +1043,75 @@ document.addEventListener("click", async (e) => {
       notizenSpeichern(notizenListe().map((x) => x.id === id ? { ...x, erledigt: !x.erledigt } : x));
       break;
     }
-    case "notiz-bearbeiten": {
-      if (App.notizEdit && (App.notizEdit.id !== id || App.notizEdit.gruppe !== gruppe)) notizFertig();   // anderes offen -> erst speichern
+    case "notiz-bearbeiten":
+    case "notiz-stift": {
       const n = notizFinden(id, gruppe);
       if (!n) break;
-      App.notizEdit = { id, gruppe, text: n.text, thema: n.thema };
-      if (App.notizHoehe) delete App.notizHoehe["notiz-edit"];
-      render();
-      const feld = $("notiz-edit");
-      if (feld) {
-        notizFeldHoehe(feld);
-        feld.focus();
-        feld.setSelectionRange(feld.value.length, feld.value.length);
+      // Mit Inhalt: Tipp klappt auf/zu, ✎ bearbeitet. Nur ein Titel: gleich bearbeiten.
+      const key = notizKey({ id, gruppe });
+      if (t.dataset.act === "notiz-bearbeiten" && notizHatDetails(n)) {
+        if (notizAuf().has(key)) notizAuf().delete(key); else notizAuf().add(key);
+        render();
+        break;
       }
+      if (App.notizEdit && (App.notizEdit.id !== id || App.notizEdit.gruppe !== gruppe)) notizFertig();   // anderes offen -> erst speichern
+      notizEditOeffnen({ ...n, gruppe });
       break;
     }
-    case "notiz-edit-thema":
-      if (App.notizEdit) { App.notizEdit.thema = thema; render(); }
+    case "notiz-edit-thema": {
+      const ed = App.notizEdit;
+      if (!ed) break;
+      // Leere feste Felder des alten Themas weg, die des neuen dazu.
+      ed.felder = notizFelderMitStandard(thema, ed.felder.filter(([, v]) => v.trim()));
+      ed.thema = thema;
+      render();
       break;
+    }
+    case "notiz-edit-ziel":
+      if (App.notizEdit && App.notizEdit.neu) { App.notizEdit.gruppe = t.dataset.ziel === "gruppe"; render(); }
+      break;
+    case "notiz-neu-steckbrief": {
+      if (App.notizEdit && !App.notizEdit.neu) notizFertig();
+      // Orte und Leute kennt meist die ganze Gruppe: „Für alle" vorgewählt.
+      if (!App.notizEdit) App.notizEdit = { id: notizNeueId(), neu: true, gruppe: true, thema, titel: "", koerper: "", felder: notizFelderMitStandard(thema, []) };
+      render();
+      const f = $("notiz-edit-titel");
+      if (f) f.focus();
+      break;
+    }
+    case "notiz-feld-neu": {
+      const ed = App.notizEdit;
+      if (!ed) break;
+      let name = t.dataset.name || await eingabe("Neues Feld", "", "Hinzufügen");
+      name = (name || "").replace(/\s+/g, " ").trim().slice(0, 30);
+      if (!name || App.notizEdit !== ed) break;
+      let i = ed.felder.findIndex(([k]) => k.toLowerCase() === name.toLowerCase());
+      if (i < 0) { ed.felder.push([name, ""]); i = ed.felder.length - 1; }
+      render();
+      const f = $(`notiz-feld-${i}`);
+      if (f) f.focus();
+      break;
+    }
+    case "notiz-feld-weg":
+      if (App.notizEdit) { App.notizEdit.felder.splice(Number(t.dataset.i), 1); render(); }
+      break;
+    case "notiz-haltung": {
+      const f = App.notizEdit && App.notizEdit.felder.find(([k]) => k === "Haltung");
+      if (f) { f[1] = f[1] === t.dataset.wert ? "" : t.dataset.wert; render(); }
+      break;
+    }
+    case "notiz-springen": {
+      const z = notizFinden(id, gruppe);
+      if (!z) break;
+      App.notizSuche = null;
+      App.notizFilter = z.thema || "";
+      notizSpeicherSchreiben("notizFilter", App.notizFilter);
+      notizAuf().add(notizKey({ id, gruppe }));
+      render();
+      const li = document.querySelector(`.panel.notizen li.karte[data-id="${CSS.escape(id)}"]`);
+      if (li) li.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      break;
+    }
     case "notiz-name": {
       // Letztes (angefangenes) Wort durch den Namen ersetzen.
       const feld = $(`notiz-${t.dataset.feld}`);
@@ -1042,7 +1293,8 @@ function handyBereiche() {
 }
 // Die Reiter in fester Reihenfolge; was der SL im 🎛 ausgeschaltet hat, fehlt.
 // 💰 Geld seit 18.11.2026 (Kalle wählte den eigenen Reiter statt „unter Notizen").
-const HANDY_REITER = { kampf: "⚔ Kampf", bogen: "📜 Bogen", geld: "Geld", notizen: "📝 Notizen", msgs: "✉ Post" };
+// 👥 Gruppe seit 28.11.2026 ganz rechts (Kalle): Mitspieler mit Bild + Steckbrief.
+const HANDY_REITER = { kampf: "⚔ Kampf", bogen: "📜 Bogen", geld: "Geld", notizen: "📝 Notizen", msgs: "✉ Post", gruppe: "👥 Gruppe" };
 function handyReiterListe() {
   return Object.keys(HANDY_REITER).filter((k) => k === "kampf" || bereichAn(k));
 }
@@ -1101,7 +1353,7 @@ function spielerMenueHtml(mine) {
   const farben = SKINS.map((k) => `<button type="button" class="es-farbe${App.skin === k ? " an" : ""}" data-skin="${k}" title="${SKIN_NAMES[k]}">
       <i class="skin-${k}"></i><span>${SKIN_KURZ[k]}</span></button>`).join("");
   return `<div class="es-griff" aria-hidden="true"></div>
-    <div class="es-kopf"><h3>Einstellungen</h3><button type="button" class="es-zu" data-act="einst-zu" aria-label="Schließen">✕</button></div>
+    <div class="es-kopf"><h3>Einstellungen</h3><button type="button" class="es-zu" data-act="einst-zu" data-zurueck aria-label="Schließen">✕</button></div>
     ${funktionAn("regeln") ? `<div class="es-karte"><button type="button" class="es-zeile es-link" data-act="regeln-oeffnen">${symbolSvg("book-open")}<span class="es-t">Regeln nachschlagen</span>${pfeil}</button></div>` : ""}
     <div class="es-gruppe">Wenn ich dran bin</div>
     <div class="es-karte">
@@ -1163,7 +1415,7 @@ function daumenKnopf(o) {
     haupt = `<div class="angriff-wartet">⚔ Angriff auf <b>${esc(angriffZiel ? angriffZiel.name : "?")}</b> – der Spielleiter entscheidet ⏳</div>`;
   } else if (isMyTurn && angriffMoeglich) {
     haupt = App.angriffWahl
-      ? `<button class="ghost big" data-act="angriff-waehlen">✕ Angriff abbrechen</button>`
+      ? `<button class="ghost big" data-act="angriff-waehlen" data-zurueck>✕ Angriff abbrechen</button>`
       : o.angriffBtn;
     neben = App.angriffWahl ? "" : o.confirmBtn + o.holdBtn;
     // Die Ziele direkt über dem Daumen - vorher standen sie oben in der Karte,

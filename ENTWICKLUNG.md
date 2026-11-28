@@ -77,7 +77,9 @@ Details stehen in den einzelnen Abschnitten darunter.
   Schabernack dosiert und nur optisch – sie löst nie etwas aus (1.5.2, 1.5.3).
 - **Handy-Adresse** kürzer: `http://pnp.local:8000` (1.5.4).
 
-## 2.0.28 (28.11.2026): Aufnahme in Teilen, Geld in Stufen
+## 2.0.28 (28.11.2026): Aufnahme in Teilen, Geld in Stufen (PR #83)
+
+Im selben Release: Notiz-Steckbriefe (PR #84) und Zurück/👥 Gruppe (PR #82), Abschnitte darunter.
 
 **Aufnahme in Teilen.** Kalle: eine Tondatei je Abend wird zu groß (zum
 Hochladen), „unterbrechen und fortsetzen, zählt als ein Abend, aber mehrere
@@ -115,6 +117,68 @@ Betrag – gewählt **B**; alte Münzen = Funken, Lose auch auf Stufen.
   Kristall, Dreher Bronze/Raute, Schicksal Silber/Auge. „Münzen umbenennen"
   ist weg (`muenzName` im Server noch, ungenutzt).
 - Tests: `tests/test_geld.py`, `tests/browser/test_geld_browser.py`.
+
+## 2.0.28 (28.11.2026, PR #84): Notizen als Einträge, Orte/Leute als Steckbrief
+
+Kalle: Notizen (v. a. „Alle") unübersichtlich – mehrere Zeilen schreiben,
+einen Eintrag bearbeiten, ein Eintrag je Sache statt vieler Einzelzeilen; Orte
+als feste Kategorie (Exportschlager, was wir dort tun können …). Vorschläge
+mit Bildern im Projektordner `screenshots/notizen-2026-11-28/` (A freie
+Einträge, B Steckbriefe, C Inhaltsverzeichnis). **Gewählt: B + C**, dazu
+eigene Felder („kann man da dynamisch Sachen hinzufügen?").
+
+- **Karten statt Zeilen** (`spieler.js` `notizZeileHtml`): erste Zeile =
+  Titel, zugeklappt Titel + eine Zeile, Tipp klappt auf, ✎ bearbeitet.
+  Nur Titel = Tipp bearbeitet gleich (wie bisher). Haken nur bei „Offen",
+  Sonstiges und schon Erledigten (einen Ort hakt niemand ab).
+- **Steckbriefe** (`NOTIZ_STECKBRIEF`): Orte = Exportschlager, Was wir dort
+  tun können, Leute, Infos (= Text); Leute = Wer ist das?, Wo, Haltung
+  (Freund/Neutral/Feind), Infos. **＋ Feld** für eigene, schon benutzte
+  Feldnamen des Themas kommen als „＋ Name"-Vorschlag. Leere Felder werden
+  nicht gespeichert, feste stehen beim Bearbeiten trotzdem da. Namen anderer
+  Einträge in Feldern („Leute: Vela") sind antippbar und springen hin.
+- Orte/Leute-Reiter: **＋ Ort / ＋ Person** statt Eingabefeld, „Für alle" vorgewählt.
+- **„Alle" = Inhaltsverzeichnis**: Kachel je Thema (feste immer) + 5 zuletzt
+  geänderte. „Gruppe" nach Thema unterteilt.
+- **Eingabefeld: Enter = neue Zeile** (vorher anlegen), angelegt wird mit ↑
+  oder Strg+Enter.
+- Server: Eintrag bekommt `felder` [[Name, Wert]] (max. 12, Name 30, Wert 500,
+  `_notiz_felder`) und `geaendert`; Platz zählt Felder mit (`_notiz_groesse`).
+  Handy schickt eigene Einträge in Server-Reihenfolge (`notizNormal`), sonst
+  hing die lokale Fassung im JSON-Vergleich fest.
+- Tests: `tests/browser/test_notizen_steckbrief.py`, `test_notiz_steckbrief_felder`.
+
+## 2.0.28 (28.11.2026, PR #82): Zurück am Handy & Reiter 👥 Gruppe
+
+Ein Kumpel fand am Handy aus geöffneten Fenstern nicht heraus (kleines
+„Schließen" zwischen A−/A+, Zurück-Geste verließ die App). Dazu wollte Kalle
+einen Reiter, in dem man die Mitspieler mit Bild und Infos sieht – aber ohne
+Werte und Geld („sonst zu transparent"). Kalle wählte nach Bildern (Ordner
+`screenshots/mitspieler-2026-11-28/` im Projekt): Z-A, Reiter ganz rechts,
+der hochwertige Look aus Runde 2 (Runde 1 war ihm „zu billo").
+
+- **Zurück links oben (Z-A):** Chronik, „Was bisher geschah" und Regeln sind
+  am Handy ganze Seiten mit großem „‹ Zurück" (`zurueckKnopf()` in
+  `zurueck.js`), Kopfzeile bleibt beim Lesen oben. Bild groß/QR-Code und
+  Foto vom Papierbogen ebenso. ✕ der Blätter (Einstellungen, Geld) 44 px.
+  ⚙/📜 oben rechts verschwinden, solange so eine Seite offen ist.
+- **Zurück-Geste:** Jeder Schließen-Knopf trägt `data-zurueck`. Ist einer
+  sichtbar, legt `zurueck.js` einen Verlaufseintrag an; die Geste nimmt ihn
+  und drückt den obersten Knopf. Selbst geschlossen → Eintrag wird wieder
+  entfernt. Prüfung als Microtask, nicht per requestAnimationFrame (ruht in
+  verdeckten Fenstern – eine schnelle Geste verließ sonst die App).
+- **👥 Gruppe** (`gruppe.js`): Karten mit Goldrahmen, ohne Bild ein Wappen
+  mit Anfangsbuchstaben, eigener Charakter mit Siegel „Ich" zuletzt.
+  Antippen = ganze Seite mit großem Bild, Volk, „In einem Satz", Aussehen,
+  Geschichte. Den eigenen Steckbrief füllt jeder dort selbst aus (Server:
+  `steckbrief_setzen`, nur eigener, Längen gedeckelt, kein Undo-Ziel; hängt
+  am Roster-Charakter).
+- **Weg:** Mitspieler-Bögen mit Werten unten im 📜 Bogen und der
+  „Charakterbogen"-Knopf im Figuren-Fenster am Handy (SL sieht weiter alles).
+- **Bug:** „Regeln nachschlagen" im Einstellungen-Blatt öffnete die Regeln
+  *hinter* dem Blatt. `regelnOeffnen()` klappt das Blatt zu.
+- Tests: `tests/browser/test_zurueck.py`, `test_komplett.py`
+  (Steckbrief nur eigener).
 
 ## 2.0.27 (26.11.2026): Tiefenprüfung – ganzer Abend durchgespielt
 

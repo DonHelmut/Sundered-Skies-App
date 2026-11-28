@@ -367,7 +367,7 @@ function geldBlattHtml() {
     <div class="g-blatt${sl ? " sl" : ""}" role="dialog" aria-label="${esc(name)}">
       <div class="g-griff"></div>
       <div class="g-kopf"><span class="g-kbild">${bild}</span><span class="g-kt"><b>${titel}</b><small>${unter}</small></span>
-        <button type="button" class="g-x" data-act="geld-zu" aria-label="Schließen">✕</button></div>
+        <button type="button" class="g-x" data-act="geld-zu" data-zurueck aria-label="Schließen">✕</button></div>
       ${ziele}
       ${sl ? `<div class="g-seg g-art">${[["fater", `${faterSvg(22)} Fater`], ["los", `${losHtml("2", "klein")} Los`], ["muenzen", `${stufeSvg("dreher", 18)} Geld`]].map(([a, t]) =>
         `<button type="button" class="${b.art === a ? "on" : ""}" data-act="geld-sl-art" data-art="${a}">${t}</button>`).join("")}</div>` : ""}

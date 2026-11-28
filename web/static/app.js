@@ -3,8 +3,8 @@
 //
 // Bis 1.5.6 war alles in dieser einen Datei (5 300 Zeilen). Jetzt aufgeteilt,
 // damit man schneller findet und zwei PCs seltener in derselben Datei kollidieren:
-//   app.js → verbindung.js → dialoge.js → tisch.js → render.js → sl.js → heilen.js →
-//   bogen.js → spieler.js → ereignisse.js → aktionen.js → protokoll.js → regeln.js → start.js
+//   app.js → verbindung.js → dialoge.js → zurueck.js → tisch.js → render.js → sl.js → heilen.js →
+//   bogen.js → spieler.js → gruppe.js → ereignisse.js → aktionen.js → protokoll.js → regeln.js → start.js
 //   (dazu modi.js, als-app.js, update.js = Update-Hinweis, wach.js = Handy bleibt wach,
 //   symbole.js = Linien-Symbole statt Emoji, steht VOR app.js)
 // Klassische <script>-Dateien mit gemeinsamem globalem Bereich (kein Build).

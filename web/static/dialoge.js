@@ -50,7 +50,7 @@ function dialog({ text, knoepfe, eingabe = null, inhalt = "", lesen = null, art 
         ${eingabe ? `<input class="app-dialog-eingabe" maxlength="60" value="${esc(eingabe.vorgabe || "")}">` : ""}
         ${inhalt ? `<div class="app-dialog-inhalt">${inhalt}</div>` : ""}
         <div class="app-dialog-knoepfe">${knoepfe.map((k, i) =>
-          `<button type="button" class="${k.art || "ghost"}" data-i="${i}">${esc(k.text)}</button>`).join("")}</div>
+          `<button type="button" class="${k.art || "ghost"}" data-i="${i}"${k.abbruch || knoepfe.length === 1 ? " data-zurueck" : ""}>${esc(k.text)}</button>`).join("")}</div>
       </div></div>`);
     const feld = eingabe ? box.querySelector("input") : null;
     const standard = knoepfe.findIndex((k) => k.standard);

@@ -73,6 +73,9 @@ ANFRAGE_ARTEN = ("benny", "status", "recover", "attack")
 MAX_NOTIZEN = 8000      # Zeichen eigene Notizen je Charakter (alle Einträge zusammen)
 MAX_NOTIZ_EINTRAEGE = 200
 MAX_NOTIZ_LAENGE = 1000  # Zeichen je Eintrag
+MAX_NOTIZ_FELDER = 12    # Steckbrief-Felder je Eintrag („Exportschlager", eigene …)
+MAX_NOTIZ_FELD_NAME = 30
+MAX_NOTIZ_FELD_WERT = 500
 MAX_PROTOKOLL = 60000   # Zeichen je Protokoll (1–2 Seiten sind ~6000; Schutz vor Versehen)
 
 
@@ -376,6 +379,17 @@ def _bogen_sauber(roh: dict) -> dict:
     return bogen
 
 
+# Steckbrief für den Reiter „Gruppe" (Kalle 28.11.2026): was die Mitspieler über
+# einen Charakter wissen dürfen - bewusst ohne Werte und Geld („sonst zu
+# transparent"). Der Spieler füllt ihn selbst aus; Längen gedeckelt.
+STECKBRIEF_FELDER = {"volk": 40, "satz": 140, "aussehen": 600, "geschichte": 2000}
+
+
+def _steckbrief_sauber(roh) -> dict:
+    roh = roh if isinstance(roh, dict) else {}
+    return {k: str(roh.get(k) or "").strip()[:n] for k, n in STECKBRIEF_FELDER.items()}
+
+
 
 def _schluessel_uebernehmen(p: dict, jetzt: Optional[dict]) -> None:
     """Der Geräte-Schlüssel eines JETZT verbundenen Handys gilt weiter, auch
@@ -426,7 +440,40 @@ def _notiz_eintrag(e, i: int) -> Optional[dict]:
     # Wann (Gruppen-Notizen zeigen Schreiber + Uhrzeit, 16.11.2026).
     if isinstance(e.get("ts"), (int, float)) and e["ts"] > 0:
         eintrag["ts"] = int(e["ts"])
+    # Zuletzt geändert („Alle" zeigt die frischesten Einträge, 28.11.2026).
+    if isinstance(e.get("geaendert"), (int, float)) and e["geaendert"] > 0:
+        eintrag["geaendert"] = int(e["geaendert"])
+    felder = _notiz_felder(e.get("felder"))
+    if felder:
+        eintrag["felder"] = felder
     return eintrag
+
+
+def _notiz_felder(wert) -> list:
+    """Steckbrief-Felder [[Name, Wert], …] (Kalle 28.11.2026: Orte mit
+    Exportschlager, „Was wir dort tun können" usw., dazu eigene Felder).
+    Leere fallen weg - am Handy stehen die festen beim Bearbeiten trotzdem da."""
+    if not isinstance(wert, list):
+        return []
+    aus, namen = [], set()
+    for f in wert:
+        if not (isinstance(f, (list, tuple)) and len(f) == 2 and all(isinstance(x, str) for x in f)):
+            continue
+        name = " ".join(f[0].split())[:MAX_NOTIZ_FELD_NAME]
+        inhalt = f[1].replace("\r\n", "\n").strip()[:MAX_NOTIZ_FELD_WERT]
+        if not name or not inhalt or name.lower() in namen:
+            continue
+        namen.add(name.lower())
+        aus.append([name, inhalt])
+        if len(aus) >= MAX_NOTIZ_FELDER:
+            break
+    return aus
+
+
+def _notiz_groesse(e: dict) -> int:
+    """Platz, den ein Eintrag braucht: Text plus Steckbrief-Felder - sonst
+    passten über die Felder beliebig viele Zeichen an der Grenze vorbei."""
+    return len(e["text"]) + sum(len(k) + len(v) for k, v in e.get("felder", []))
 
 
 def _notizen_liste(wert) -> list:
@@ -441,12 +488,12 @@ def _notizen_liste(wert) -> list:
     liste, ids, summe = [], set(), 0
     for i, e in enumerate(wert[:MAX_NOTIZ_EINTRAEGE * 2]):
         e = _notiz_eintrag(e, i)
-        if not e or summe + len(e["text"]) > MAX_NOTIZEN:
+        if not e or summe + _notiz_groesse(e) > MAX_NOTIZEN:
             continue
         if e["id"] in ids:
             e["id"] = f"{e['id']}-{i}"
         ids.add(e["id"])
-        summe += len(e["text"])
+        summe += _notiz_groesse(e)
         liste.append(e)
         if len(liste) >= MAX_NOTIZ_EINTRAEGE:
             break
@@ -623,7 +670,7 @@ class Game:
         # seitdem gespeichert hatte, war still weg (Stresstest 04.11.2026).
         # Geld genauso: jede Buchung steht im Verlauf, ein ↶ des SL soll sie
         # nicht still wegnehmen (Fehlbuchung = Gegenbuchung).
-        spieler_felder = ("notizen", "bogen", "rueckseite", "geld", "geldVerlauf")
+        spieler_felder = ("notizen", "bogen", "rueckseite", "geld", "geldVerlauf", "steckbrief")
         eigen_roster = {r.get("id"): {f: r[f] for f in spieler_felder if f in r}
                         for r in self.roster if isinstance(r, dict)}
         eigen_figur = {c.get("id"): {f: c[f] for f in ("bogen", "rueckseite") if f in c}
@@ -1281,6 +1328,10 @@ class Game:
         if t == "sheet_update":
             self.bogen_setzen(action.get("id"), action.get("bogen"))
             return
+        # Steckbrief (Reiter „Gruppe"): ebenso Sache des Spielers, kein Undo-Ziel.
+        if t == "steckbrief_setzen":
+            self.steckbrief_setzen(action.get("id"), action.get("steckbrief"))
+            return
         # Kartenrückseite der eigenen Figur: reine Optik, die sich der Spieler
         # selbst aussucht - ebenfalls kein Undo-Ziel.
         if t == "set_figur_rueckseite":
@@ -1388,7 +1439,7 @@ class Game:
             "image": a.get("image", (prev or {}).get("image")),
         }
         # Gemerkte Bennies und den Charakterbogen der Spieler ebenso.
-        for feld in ("bennies", "bogen", "rueckseite", "notizen", "geld", "geldVerlauf"):
+        for feld in ("bennies", "bogen", "rueckseite", "notizen", "geld", "geldVerlauf", "steckbrief"):
             if prev and feld in prev:
                 entry[feld] = prev[feld]
         for i, r in enumerate(self.roster):
@@ -2691,6 +2742,16 @@ class Game:
             self.save_roster()
         self.save_session()
 
+    def steckbrief_setzen(self, cid: Optional[str], roh) -> None:
+        """Steckbrief hängt nur am Roster-Charakter (übersteht Neustart und
+        Neu-Beitritt); die Handys finden ihn über ``characterId`` der Figur."""
+        c = self._combatant(cid)
+        char = next((r for r in self.roster if c and r.get("id") == c.get("characterId")), None)
+        if char is None:
+            return
+        char["steckbrief"] = _steckbrief_sauber(roh)
+        self.save_roster()
+
     # Eigene Notizen (Spieler, am Handy) ---------------------------------------
     # NSC-Namen, Hinweise, Beute: hängen am Charakter (bleiben bis zum nächsten
     # Abend, reisen in der Sicherung mit) und gehen nur an das eigene Handy.
@@ -2739,7 +2800,7 @@ class Game:
             e = _notiz_eintrag(a.get("eintrag"), len(liste))
             if not e or len(liste) >= MAX_NOTIZ_EINTRAEGE or any(x["id"] == e["id"] for x in liste):
                 return False
-            if sum(len(x["text"]) for x in liste) + len(e["text"]) > MAX_NOTIZEN:
+            if sum(_notiz_groesse(x) for x in liste) + _notiz_groesse(e) > MAX_NOTIZEN:
                 return False
             # Schreiber setzt der SERVER: vorher galt, was das Handy schickte,
             # und jeder konnte eine Notiz als „Korgo" anlegen (Rechte-Prüfung
@@ -2753,6 +2814,7 @@ class Game:
             else:
                 e["von"], e["vonId"] = c.get("name", "")[:60], c.get("characterId") or c["id"]
             e.setdefault("ts", now_ms())
+            e.setdefault("geaendert", e["ts"])
             pos = a.get("index")
             pos = pos if isinstance(pos, int) and 0 <= pos <= len(liste) else 0
             liste.insert(pos, e)
@@ -2768,12 +2830,19 @@ class Game:
                     merk.pop(next(iter(merk)))
             elif op == "aendern":
                 neu = dict(liste[i])
-                for feld in ("text", "thema", "erledigt"):
+                for feld in ("text", "thema", "erledigt", "felder"):
                     if feld in a:
                         neu[feld] = a[feld]
                 neu = _notiz_eintrag(neu, i)
                 if not neu or neu == liste[i]:
                     return False
+                # Länger geworden und passt nicht mehr: ablehnen wie bei „neu".
+                if sum(_notiz_groesse(x) for x in liste) - _notiz_groesse(liste[i]) + _notiz_groesse(neu) > MAX_NOTIZEN:
+                    return False
+                # Abhaken ist keine Änderung am Inhalt (sonst rutschte ein
+                # erledigter Eintrag in „Zuletzt geändert" nach oben).
+                if any(neu.get(k) != liste[i].get(k) for k in ("text", "thema", "felder")):
+                    neu["geaendert"] = now_ms()
                 liste[i] = neu
             else:
                 return False

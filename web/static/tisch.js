@@ -673,9 +673,10 @@ function renderTokenPopupOverlay() {
       <button class="primary big" data-act="attack-request" data-id="${c.id}" style="width:100%">⚔ Angreifen (Meldung an SL)</button>
       ${attacked ? `<div class="zone-hint">Angriff gemeldet ⏳</div>` : ""}` : "";
 
-  // Bogen der Mitspieler sieht jeder, Gegner-Spielwerte nur der SL (die
-  // Handys bekommen sie gar nicht erst).
-  const bogenKnopf = hatBogen(c) || hatSpielwerte(c)
+  // Bögen und Spielwerte nur beim SL. Die Handys sahen bis 28.11.2026 auch
+  // die Bögen der Mitspieler samt Werten – Kalle: „zu transparent"; dafür
+  // gibt es jetzt den Reiter 👥 Gruppe mit Steckbriefen ohne Werte.
+  const bogenKnopf = App.role === "gm" && (hatBogen(c) || hatSpielwerte(c))
     ? `<button class="ghost" data-act="bogen-ansicht" data-id="${c.id}" style="width:100%;margin-bottom:8px">📜 ${c.kind === "npc" ? "Spielwerte" : "Charakterbogen"}</button>`
     : "";
   return `<div class="token-popup">
@@ -693,7 +694,7 @@ function renderTokenPopupOverlay() {
       </div>
       ${badges ? `<div class="badges" style="margin-bottom:8px">${badges}</div>` : ""}
       ${bogenKnopf}${moveHtml}${zoneSetHtml}${slHtml}${attackHtml}
-      <button class="ghost" data-act="close-token-popup" style="width:100%;margin-top:10px">Schließen</button>
+      <button class="ghost" data-act="close-token-popup" data-zurueck style="width:100%;margin-top:10px">Schließen</button>
     </div>
   </div>`;
 }
